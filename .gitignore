@@ -1,0 +1,23 @@
+# Maven and Java build output
+target/
+*.class
+*.jar
+
+# IDE metadata
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local server/runtime data
+logs/
+plugins/EZvac/hvac.yml
+plugins/EZvac/hvac.yml.bak
+plugins/EZvac/hvac.yml.tmp
