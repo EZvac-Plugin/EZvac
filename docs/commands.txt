@@ -1,0 +1,135 @@
+EZVAC ALPHA 1.0 - COMMAND REFERENCE
+===================================
+
+All commands use /hvac. /climate is an alias.
+
+
+BASIC COMMANDS (ezvac.use)
+------------------------------
+
+/hvac help
+  Shows the commands available to the sender.
+
+/hvac temperature
+/hvac temp
+  Reports local temperature, outdoor temperature, the influencing vent group,
+  airflow-path distance, and core/leakage status.
+
+/hvac list
+  Lists HVAC systems in the player's current world with mode, room/target
+  temperature, and running/registered equipment counts.
+
+/hvac info
+  Looks up the targeted thermostat, equipment unit, vent, thermometer, RPM
+  monitor, or settings panel within six blocks.
+
+
+CREATE DEVICES (ezvac.admin)
+--------------------------------
+
+/hvac create thermostat <id> <group> [targetF]
+  Look at a sign. Creates the only thermostat/controller for that group in the
+  sign's world. IDs and group labels are 1-32 letters, numbers, '_' or '-'.
+
+/hvac create heatpump <group>
+/hvac create ac <group>
+/hvac create furnace <group>
+  Look at a dispenser. Registers typed equipment in the specified group.
+
+/hvac create thermometer [label]
+  Look at a sign. Creates an independent point sensor at that block. It needs no
+  group and may be placed outdoors; its reading matches /hvac temperature there.
+
+/hvac create rpmmonitor <group> <heatpump|ac|furnace> [label]
+  Look at a sign. Matching typed equipment must already exist in the group.
+
+/hvac create settingspanel <group> [label]
+  Look at a sign. Creates the group's single operating-profile panel in NORMAL.
+  The group must already contain a thermostat or equipment.
+
+SETTINGS PANEL USE (ezvac.use)
+--------------------------------
+
+- Right-click advances NORMAL -> TURBO -> ECO -> NORMAL.
+- Sneak-right-click moves in the opposite direction.
+- ECO defaults to a 2,400 RPM cap, NORMAL to 3,600, and TURBO to 4,200.
+- Profiles affect every heat pump and AC in the group in sync.
+- Furnaces remain fixed at full heating capacity in every profile.
+- Removing or losing the panel returns the group to NORMAL automatically.
+
+
+THERMOSTATS (ezvac.admin)
+-----------------------------
+
+/hvac thermostat <id> set <temperatureF>
+  Sets and safely clamps the target to the configured target range.
+
+/hvac thermostat <id> enable
+/hvac thermostat <id> disable
+  Enables or fails the thermostat safe to idle.
+
+/hvac thermostat <id> group <group>
+  Moves the thermostat to another group in the same world. The destination may
+  not already have a thermostat.
+
+/hvac thermostat <id> info
+  Shows room/target, mode, group, and enable state.
+
+Thermostat signs may also be edited. Put a finite number on line 3. Non-admin
+players cannot modify registered thermostat signs; thermometer, RPM, and
+settings-panel signs are always read-only through the sign editor.
+
+
+EQUIPMENT AND GROUPS (ezvac.admin)
+--------------------------------------
+
+/hvac equipment enable
+/hvac equipment disable
+/hvac equipment group <group>
+/hvac equipment info
+  Look at registered equipment. Group changes first stop and clean the old
+  output; the change is refused while cleanup is waiting on an unloaded chunk.
+
+/hvac group <group> enable
+/hvac group <group> disable
+/hvac group <group> info
+  Controls or inspects the named group in the player's current world.
+
+
+VENT LINKING (ezvac.admin)
+------------------------------
+
+/hvac tool
+  Gives the persistent HVAC Duct Link Tool.
+
+1. Right-click a registered dispenser to select its group.
+2. Right-click iron trapdoors in the same world to link them as vents.
+3. Sneak-right-click a registered vent to unlink it.
+
+The selected group must still contain equipment when a vent is linked.
+
+
+REMOVAL AND DIAGNOSTICS (ezvac.admin)
+-----------------------------------------
+
+/hvac remove
+  Removes the targeted registered device. Equipment retracts its owned output,
+  or persists cleanup until the output chunk loads. Removing a settings panel
+  returns its HVAC group to NORMAL.
+
+/hvac stats
+  Reports device totals and airflow cache/rebuild/cap statistics.
+
+/hvac sync
+  Queues one coalesced zero-time authoritative reconciliation. This changes no
+  simulation time; it immediately applies command/block/world state changes.
+
+
+INSTALL / UPGRADE
+-----------------
+
+1. Stop the server and back up the existing plugins/EZvac directory, if present.
+2. Put EZvac-ALPHA-1.0.jar in the server plugins directory.
+3. Start Paper 1.21.1 on Java 21.
+4. Confirm that EZvac enables without errors.
+5. Use /hvac stats and /hvac list, then test one full heating and cooling cycle.

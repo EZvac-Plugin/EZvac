@@ -1,0 +1,179 @@
+EZVAC ALPHA 1.0 FEATURES
+========================
+
+EZvac is a standalone Paper 1.21.1 HVAC and indoor-climate plugin. Climate
+systems are identified only by world and group label.
+
+
+SYSTEM MODEL
+------------
+
+- One sign thermostat is the controller for one world-scoped HVAC group.
+- A group may have one optional settings-panel sign. Without one, its operating
+  profile is always NORMAL and matches the stock variable-speed behavior.
+- A group may contain any number of heat pumps, air conditioners, or furnaces.
+- Heat pumps cool and heat; air conditioners cool only; furnaces heat only.
+- Dispensers are authoritative actuators. Registered equipment cancels vanilla
+  dispense behavior so inventory contents and redstone cannot fight the plugin.
+- Equipment does not consume buckets, fuel, water, power, or other resources.
+- Heat pumps and ACs use water as their visible output. Furnaces use lava.
+- Only the exact output source created and recorded by EZvac is retracted.
+  Player fluid is never adopted merely because it is in front of a dispenser.
+- Shared output blocks have one deterministic winner. Losing units stop and
+  release their output before the winner starts.
+- Rotated dispensers clean their previous owned output before claiming the new
+  facing block. Unloaded cleanup is persisted and retried later.
+
+
+CONTROLLER ORDER AND SAFETY
+---------------------------
+
+Every controller pass has explicit phases:
+
+1. Validate equipment that physically delivered during the elapsed interval.
+2. Advance compressor/blower RPM and calculate real delivered capacity.
+3. Integrate each thermostat's room temperature.
+4. Apply hysteresis, minimum-run, and minimum-off decisions.
+5. Stop invalid, incompatible, disabled, blocked, or losing actuators.
+6. Clean rotated/shared outputs.
+7. Start the deterministic actuator winners for the new demand.
+
+A failure in one thermostat or equipment unit is logged and isolated. It does
+not abort every HVAC system for that controller pass.
+
+Default thermostat behavior:
+
+- Cooling starts above target + 1.0 F.
+- Heating starts below target - 1.0 F.
+- Cooling stops at target - 0.3 F.
+- Heating stops at target + 0.3 F.
+- Minimum run time is 300 ticks (normally 15 seconds).
+- Minimum off time is 200 ticks (normally 10 seconds).
+- Player targets are clamped to 60-85 F.
+- Control stop boundaries are not clamped to the player target range. A 60 F
+  cooling setpoint can correctly stop at 59.7 F, and 85 F heating at 85.3 F.
+
+If a thermostat sign is unloaded, removed, disabled, or has no compatible
+loaded equipment, demand fails safe to idle. The cached biome profile and world
+clock still allow its simulated room to drift without force-loading chunks.
+
+
+THERMAL AND MOTOR PERFORMANCE
+-----------------------------
+
+- One full-capacity unit cools 3.75 F per Minecraft hour.
+- One full-capacity unit heats 5.0 F per Minecraft hour.
+- Idle rooms drift 1.25 F per Minecraft hour toward outdoor temperature.
+- Active outdoor load is 0.50 F per Minecraft hour.
+- One Minecraft climate hour is 1,000 server ticks.
+- Multiple units use square-root diminishing returns, capped at 2x capacity.
+- Thermal integration is partition-independent across outdoor and control
+  boundaries. Splitting the same ticks into multiple calls gives the same result.
+- Heat-pump and AC capacity varies from 40% to 100%. Outside the default 3 F
+  approach band they request full output; inside it they progressively slow.
+- Every running heat pump and AC in a group receives the same variable-speed
+  command. Their RPM-derived capacities are summed, so combined cooling slows
+  in sync as the group approaches its target.
+- ECO caps variable compressors at 2,400 RPM, NORMAL at 3,600 RPM, and TURBO at
+  4,200 RPM by default. All caps are configurable. NORMAL is byte-for-byte the
+  same RPM curve used before operating profiles were introduced.
+- Variable compressors ramp from a 1,200 RPM minimum. The thermal simulator
+  uses the capacity derived from actual ramped RPM, not merely the requested
+  capacity or a cosmetic RPM display value.
+- Furnace blowers ramp to 1,100 RPM; furnace heat stays at full capacity.
+- Fixed furnace capacity and variable heat-pump capacity are accounted for
+  independently. A slowed heat pump never averages a furnace below 100%; both
+  contributions are added before the overall multi-unit diminishing-return cap.
+- Profiles never affect furnaces. Heat pumps and ACs share one group-level
+  profile command, including mixed AC/heat-pump cooling systems.
+- Very low startup RPM cannot create phantom heating/cooling or oscillate at an
+  exact outdoor-temperature equilibrium.
+
+Controller, thermal, variable-speed, airflow, and audio tuning values are
+validated settings in config.yml. Invalid settings stop the plugin safely
+instead of starting with an internally inconsistent controller.
+
+
+OUTDOOR CLIMATE
+---------------
+
+Outdoor temperature follows Minecraft time and broad biome profiles:
+
+- Snowy: 25 F noon / 5 F midnight
+- Cold: 45 F noon / 28 F midnight
+- Temperate: 72 F noon / 52 F midnight
+- Warm: 85 F noon / 68 F midnight
+- Hot: 100 F noon / 78 F midnight
+- Nether: 112 F constant
+- End: 30 F constant
+
+Profiles are cached per thermostat, so an unloaded thermostat never causes a
+chunk load merely to sample its biome.
+
+
+VENTS AND AIRFLOW
+-----------------
+
+The persistent duct-link stick selects registered equipment and links ordinary
+iron trapdoors to its group. Only explicitly linked trapdoors become vents.
+
+- Each vent seeds six-directional airflow.
+- Passable blocks carry air.
+- Liquids and solid blocks stop air.
+- Open doors/trapdoors pass air; closed ones stop it.
+- Core distance 0-15 receives full thermostat temperature.
+- Distance 16-30 blends progressively back to outdoor temperature.
+- Beyond distance 30 there is no influence.
+
+Airflow is event-invalidated and rebuilt incrementally. It never force-loads a
+chunk, inspects at most 4,000 nodes per server tick by default, and caps a group
+at 200,000 cells. Chunk events invalidate only vent systems whose possible
+airflow radius intersects that chunk, instead of every system in the world.
+
+
+DISPLAYS AND AUDIO
+------------------
+
+- Thermostat signs use a compact real-thermostat layout showing EZvac/ID,
+  current room temperature, COOL/HEAT/IDLE/OFF, setpoint, live capacity, group,
+  and an approximate ETA while actively heating or cooling.
+- ETA is forward-simulated from the current equipment mix, actual RPM, future
+  compressor modulation, outdoor load, and the same thermal rules as control.
+- The target can be changed by command or by editing line 3 of the sign.
+- Thermometers are independent point sensors with no stored group. Each reads
+  its own sign block exactly like /hvac temperature: influenced vent temperature
+  where airflow reaches it, blended edge temperature, or outdoor temperature.
+  They may be placed outdoors or where no HVAC group exists.
+- Typed RPM signs show active-unit average RPM, capacity, and running counts.
+- Settings-panel signs show their system and ECO/NORMAL/TURBO profile. A normal
+  right-click advances the profile; sneak-right-click moves backward. Removing
+  the panel immediately restores the group to NORMAL.
+- Display writes are fingerprinted so unchanged signs are not rewritten.
+
+Startup and shutdown sounds remain equipment-specific. Running equipment emits
+finite, spatial beacon ambience from each dispenser on a configurable cadence.
+EZvac never performs broad sound/category stops, so it cannot silence an
+unrelated beacon, furnace, or another plugin's audio.
+
+
+PERSISTENCE
+-----------
+
+All thermostats, equipment, pending cleanup, vents, thermometers, RPM monitors,
+and settings panels live in one versioned plugins/EZvac/hvac.yml file.
+
+- Records use immutable world UUID + integer block coordinates.
+- World unloads require no detach/rebind rewrite.
+- Saves use a temporary file, backup, and atomic replacement when supported.
+- If the main file is unreadable, the backup is restored.
+- Invalid records are logged and preserved instead of overwritten.
+- Loaded missing blocks are pruned; unloaded blocks are retained.
+
+
+PERMISSIONS
+-----------
+
+- ezvac.use (default true): help, temperature, list, info, and settings-panel use.
+- ezvac.admin (default op): create, change, link, remove, sync, and stats.
+
+See commands.txt for the full command reference.

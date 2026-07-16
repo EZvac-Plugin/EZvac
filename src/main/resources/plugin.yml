@@ -1,0 +1,19 @@
+name: EZvac
+version: '${project.version}'
+main: com.github.blade.hvac.HvacPlugin
+api-version: '1.21'
+author: blade
+description: Standalone thermostat, HVAC equipment, airflow, and room-climate simulation.
+commands:
+  hvac:
+    description: Manage EZvac systems.
+    usage: /hvac help
+    permission: ezvac.use
+    aliases: [climate]
+permissions:
+  ezvac.use:
+    description: Allows basic EZvac commands and temperature readings.
+    default: true
+  ezvac.admin:
+    description: Allows creating, changing, removing, and diagnosing HVAC systems.
+    default: op
