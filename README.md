@@ -1,5 +1,9 @@
 # EZvac
 
+
+<img width="1080" height="1080" alt="ezvac" src="https://github.com/user-attachments/assets/833ee011-10f5-4a2c-8a26-4ebac1387a31" />
+
+
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
 1.21.1. It provides sign thermostats, variable-speed heat pumps and air
 conditioners, furnaces, ducted airflow, point thermometers, RPM monitors,
