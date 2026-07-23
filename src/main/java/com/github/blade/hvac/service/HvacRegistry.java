@@ -242,13 +242,13 @@ public final class HvacRegistry {
         plugin.getLogger().warning("Preserving " + section + " record: " + reason);
     }
 
-    public Collection<Thermostat> thermostats() { return List.copyOf(thermostats.values()); }
-    public Collection<EquipmentUnit> equipment() { return List.copyOf(equipment.values()); }
-    public Collection<ClimateVent> vents() { return List.copyOf(vents.values()); }
-    public Collection<Thermometer> thermometers() { return List.copyOf(thermometers.values()); }
-    public Collection<RpmMonitor> rpmMonitors() { return List.copyOf(rpmMonitors.values()); }
-    public Collection<SettingsPanel> settingsPanels() { return List.copyOf(settingsPanels.values()); }
-    public Collection<EquipmentUnit> pendingCleanup() { return List.copyOf(pendingCleanup); }
+    public Collection<Thermostat> thermostats() { return Collections.unmodifiableCollection(thermostats.values()); }
+    public Collection<EquipmentUnit> equipment() { return Collections.unmodifiableCollection(equipment.values()); }
+    public Collection<ClimateVent> vents() { return Collections.unmodifiableCollection(vents.values()); }
+    public Collection<Thermometer> thermometers() { return Collections.unmodifiableCollection(thermometers.values()); }
+    public Collection<RpmMonitor> rpmMonitors() { return Collections.unmodifiableCollection(rpmMonitors.values()); }
+    public Collection<SettingsPanel> settingsPanels() { return Collections.unmodifiableCollection(settingsPanels.values()); }
+    public Collection<EquipmentUnit> pendingCleanup() { return Collections.unmodifiableList(pendingCleanup); }
     public Thermostat thermostatAt(BlockKey key) { return thermostats.get(key); }
     public EquipmentUnit equipmentAt(BlockKey key) { return equipment.get(key); }
     public ClimateVent ventAt(BlockKey key) { return vents.get(key); }
