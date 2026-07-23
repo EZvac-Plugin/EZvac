@@ -12,7 +12,7 @@ temperatures.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.0 is an early testing release. Back up your
+> **Release status:** EZvac ALPHA 1.1 HOTFIX includes critical performance fixes for server watchdog stability. Back up your
 > server and EZvac data before upgrading or testing it on a production world.
 
 ## Requirements
@@ -30,7 +30,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EZvac-ALPHA-1.0.jar
+target/EzVac-ALPHA-1.1-HOTFIX.jar
 ```
 
 Automated tests are included under `src/test/java`. GitHub Actions runs
@@ -39,7 +39,7 @@ Automated tests are included under `src/test/java`. GitHub Actions runs
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EZvac-ALPHA-1.0.jar` in the Paper server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.1-HOTFIX.jar` in the Paper server's `plugins` directory.
 3. Start Paper with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
