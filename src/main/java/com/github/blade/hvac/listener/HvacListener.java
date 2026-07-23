@@ -257,9 +257,13 @@ public final class HvacListener implements Listener {
     }
 
     private void changed(Block block) {
-        airflow.invalidateNear(block.getLocation());
-        BlockKey key = BlockKey.of(block.getLocation());
-        if (registry.releaseOutputOwnership(key)) plugin.requestImmediateSync();
+        if (block == null) return;
+        var location = block.getLocation();
+        airflow.invalidateNear(location);
+        if (!registry.equipment().isEmpty() || !registry.pendingCleanup().isEmpty()) {
+            BlockKey key = BlockKey.of(location);
+            if (registry.releaseOutputOwnership(key)) plugin.requestImmediateSync();
+        }
     }
 
     private void removeDeviceAt(Block block, String playerName) {
