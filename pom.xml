@@ -5,7 +5,7 @@
 
     <groupId>com.github.blade</groupId>
     <artifactId>ezvac</artifactId>
-    <version>ALPHA-1.0</version>
+    <version>ALPHA-1.1-HOTFIX</version>
     <packaging>jar</packaging>
 
     <name>EZvac</name>
@@ -56,7 +56,7 @@
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <finalName>EZvac-${project.version}</finalName>
+        <finalName>EzVac-ALPHA-1.1-HOTFIX</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
