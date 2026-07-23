@@ -56,50 +56,72 @@ public final class AirflowService {
 
     public void invalidateNear(Location location) {
         if (location == null || location.getWorld() == null) return;
+        Collection<ClimateVent> vents = registry.vents();
+        if (vents.isEmpty()) return;
+
         UUID worldId = location.getWorld().getUID();
-        long packed = pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
-        double radiusSquared = Math.pow(settings.airflowMaximumRange() + 2.0, 2.0);
-        Set<GroupId> groups = new HashSet<>();
-        for (ClimateVent vent : registry.vents()) groups.add(vent.group());
-        for (GroupId group : groups) {
-            if (!group.worldId().equals(worldId)) continue;
+        int blockX = location.getBlockX();
+        int blockY = location.getBlockY();
+        int blockZ = location.getBlockZ();
+        long packed = pack(blockX, blockY, blockZ);
+
+        int maxRange = settings.airflowMaximumRange() + 2;
+        int maxRangeSq = maxRange * maxRange;
+
+        Set<GroupId> affected = null;
+        for (ClimateVent vent : vents) {
+            BlockKey pos = vent.position();
+            if (!pos.worldId().equals(worldId)) continue;
+
+            GroupId group = vent.group();
+            if (affected != null && affected.contains(group)) continue;
+
             Map<Long, Byte> cache = completed.get(group);
-            boolean affected = cache != null && cache.containsKey(packed);
-            if (!affected) {
-                for (ClimateVent vent : registry.vents()) {
-                    if (!vent.group().equals(group)) continue;
-                    Location ventLocation = vent.position().location();
-                    if (ventLocation != null && ventLocation.getWorld().equals(location.getWorld())
-                            && ventLocation.distanceSquared(location) <= radiusSquared) {
-                        affected = true;
-                        break;
-                    }
-                }
+            if (cache != null && cache.containsKey(packed)) {
+                if (affected == null) affected = new HashSet<>();
+                affected.add(group);
+                continue;
             }
-            if (affected) invalidate(group);
+
+            int dx = pos.x() - blockX;
+            int dy = pos.y() - blockY;
+            int dz = pos.z() - blockZ;
+            int distSq = dx * dx + dy * dy + dz * dz;
+
+            if (distSq <= maxRangeSq) {
+                if (affected == null) affected = new HashSet<>();
+                affected.add(group);
+            }
+        }
+
+        if (affected != null) {
+            for (GroupId group : affected) invalidate(group);
         }
     }
 
     public void invalidateWorld(World world) {
         if (world == null) return;
+        UUID worldId = world.getUID();
         for (ClimateVent vent : registry.vents())
-            if (vent.group().worldId().equals(world.getUID())) invalidate(vent.group());
+            if (vent.group().worldId().equals(worldId)) invalidate(vent.group());
     }
 
     /** Invalidates only systems whose maximum possible path can intersect this chunk. */
     public void invalidateChunk(Chunk chunk) {
         if (chunk == null) return;
+        UUID worldId = chunk.getWorld().getUID();
         int minimumX = chunk.getX() << 4;
         int minimumZ = chunk.getZ() << 4;
         int maximumX = minimumX + 15;
         int maximumZ = minimumZ + 15;
+        int maxRange = settings.airflowMaximumRange();
         for (ClimateVent vent : registry.vents()) {
-            if (!vent.group().worldId().equals(chunk.getWorld().getUID())) continue;
+            if (!vent.group().worldId().equals(worldId)) continue;
             int dx = vent.position().x() < minimumX ? minimumX - vent.position().x()
                     : Math.max(0, vent.position().x() - maximumX);
             int dz = vent.position().z() < minimumZ ? minimumZ - vent.position().z()
                     : Math.max(0, vent.position().z() - maximumZ);
-            if (dx + dz <= settings.airflowMaximumRange()) invalidate(vent.group());
+            if (dx + dz <= maxRange) invalidate(vent.group());
         }
     }
 
@@ -138,8 +160,9 @@ public final class AirflowService {
         for (ClimateVent vent : registry.vents()) {
             if (!vent.group().equals(group)) continue;
             hasVent = true;
-            if (!vent.position().isChunkLoaded()) continue;
-            int x = vent.position().x(), y = vent.position().y(), z = vent.position().z();
+            BlockKey pos = vent.position();
+            if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) continue;
+            int x = pos.x(), y = pos.y(), z = pos.z();
             for (int[] direction : DIRECTIONS)
                 enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0);
         }
