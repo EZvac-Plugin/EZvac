@@ -5,7 +5,6 @@ import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.OperatingProfile;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
@@ -46,13 +45,17 @@ public final class EtaEstimator {
         if (reached(roomF, targetF, mode)) return OptionalLong.of(0L);
 
         int fixedUnits = 0;
-        List<Double> variableRpms = new ArrayList<>();
+        int variableCount = 0;
+        // Sized for the worst case and filled by index: the previous
+        // List<Double> boxed on every get and set, once per unit per step,
+        // for up to 1800 steps.
+        double[] variableRpms = new double[units.size()];
         for (UnitSnapshot unit : units) {
             if (!unit.type().supports(mode)) continue;
             if (unit.type() == EquipmentType.FURNACE) fixedUnits++;
-            else variableRpms.add(unit.rpm());
+            else variableRpms[variableCount++] = unit.rpm();
         }
-        if (fixedUnits == 0 && variableRpms.isEmpty()) return OptionalLong.empty();
+        if (fixedUnits == 0 && variableCount == 0) return OptionalLong.empty();
 
         double room = roomF;
         for (long elapsed = STEP_TICKS; elapsed <= MAXIMUM_ETA_TICKS; elapsed += STEP_TICKS) {
@@ -60,11 +63,11 @@ public final class EtaEstimator {
                     Math.abs(room - targetF), settings);
             double targetRpm = PerformanceModel.variableTargetRpm(requested, profile, settings);
             double variableEquivalent = 0.0;
-            for (int index = 0; index < variableRpms.size(); index++) {
-                double rpm = PerformanceModel.approach(variableRpms.get(index), targetRpm,
+            for (int index = 0; index < variableCount; index++) {
+                double rpm = PerformanceModel.approach(variableRpms[index], targetRpm,
                         STEP_TICKS / 20.0, settings.variableRampUpRpmPerSecond(),
                         settings.variableRampDownRpmPerSecond());
-                variableRpms.set(index, rpm);
+                variableRpms[index] = rpm;
                 variableEquivalent += PerformanceModel.variableCapacityFromRpm(rpm, settings);
             }
             double capacity = ThermalModel.aggregateIndependentCapacity(

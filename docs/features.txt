@@ -1,8 +1,9 @@
-EZVAC ALPHA 1.0 FEATURES
+EZVAC ALPHA 1.5 FEATURES
 ========================
 
-EZvac is a standalone Paper 1.21.1 HVAC and indoor-climate plugin. Climate
-systems are identified only by world and group label.
+EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
+forks, including Purpur. Climate systems are identified only by world and group
+label.
 
 
 SYSTEM MODEL
@@ -130,6 +131,14 @@ chunk, inspects at most 4,000 nodes per server tick by default, and caps a group
 at 200,000 cells. Chunk events invalidate only vent systems whose possible
 airflow radius intersects that chunk, instead of every system in the world.
 
+Rebuilds are debounced. A system waits 20 ticks after its last invalidation
+before rebuilding, so a door being toggled repeatedly does not restart the walk
+on every change. A 200-tick ceiling guarantees that a constantly changing system
+still refreshes. A rebuild already in progress is allowed to finish rather than
+being discarded, so a repeatedly invalidated system always has a usable map
+instead of never completing one. The practical effect is that airflow reacts
+about a second after a door moves rather than instantly.
+
 
 DISPLAYS AND AUDIO
 ------------------
@@ -165,6 +174,9 @@ and settings panels live in one versioned plugins/EZvac/hvac.yml file.
 - Records use immutable world UUID + integer block coordinates.
 - World unloads require no detach/rebind rewrite.
 - Saves use a temporary file, backup, and atomic replacement when supported.
+- The save snapshot is built on the main thread; the YAML dump and file
+  replacement run off it, so a large registry does not stall the server tick.
+  Shutdown saves are synchronous, and concurrent writers are serialised.
 - If the main file is unreadable, the backup is restored.
 - Invalid records are logged and preserved instead of overwritten.
 - Loaded missing blocks are pruned; unloaded blocks are retained.

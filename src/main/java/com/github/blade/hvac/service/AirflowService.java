@@ -2,9 +2,13 @@ package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.*;
+import it.unimi.dsi.fastutil.longs.Long2ByteMap;
+import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Openable;
@@ -23,10 +27,53 @@ public final class AirflowService {
     private static final class Rebuild {
         final GroupId group;
         final ArrayDeque<Node> queue = new ArrayDeque<>();
-        final Map<Long, Byte> distances = new HashMap<>();
+        final Long2ByteOpenHashMap distances = new Long2ByteOpenHashMap();
         boolean capped;
-        Rebuild(GroupId group) { this.group = group; }
+        // Chunk lookups dominate the walk, and a breadth-first frontier stays
+        // within a chunk for long runs. The cache is cleared every tick so a
+        // reference can never outlive the chunk's residency.
+        private int cachedChunkX;
+        private int cachedChunkZ;
+        private Chunk cachedChunk;
+        private boolean chunkCached;
+
+        Rebuild(GroupId group) {
+            this.group = group;
+            distances.defaultReturnValue(ABSENT);
+        }
+
+        void clearChunkCache() {
+            chunkCached = false;
+            cachedChunk = null;
+        }
+
+        Chunk chunkAt(World world, int chunkX, int chunkZ) {
+            if (chunkCached && cachedChunkX == chunkX && cachedChunkZ == chunkZ) return cachedChunk;
+            // Never getChunkAt an unloaded chunk; that would force-load it.
+            Chunk chunk = world.isChunkLoaded(chunkX, chunkZ) ? world.getChunkAt(chunkX, chunkZ) : null;
+            cachedChunkX = chunkX;
+            cachedChunkZ = chunkZ;
+            cachedChunk = chunk;
+            chunkCached = true;
+            return chunk;
+        }
     }
+
+    /** Distance sentinel for "not reached"; real distances are 0..127. */
+    private static final byte ABSENT = -1;
+
+    /** A rebuild waits this long after its last invalidation before starting. */
+    private static final long REBUILD_DEBOUNCE_TICKS = 20L;
+
+    /**
+     * Ceiling on debounced deferral. Without it a system invalidated faster
+     * than the debounce window - a door on a redstone clock - would keep
+     * pushing its own rebuild back and never refresh at all.
+     */
+    private static final long MAXIMUM_REBUILD_DEFERRAL_TICKS = 200L;
+
+    /** Bounds begin() work after a mass invalidation such as a world load. */
+    private static final int MAXIMUM_REBUILD_STARTS_PER_TICK = 8;
 
     private static final int[][] DIRECTIONS = {
             {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}
@@ -35,8 +82,11 @@ public final class AirflowService {
     private final HvacRegistry registry;
     private final OutdoorTemperatureService outdoor;
     private final HvacSettings settings;
-    private final Map<GroupId, Map<Long, Byte>> completed = new HashMap<>();
+    private final Map<GroupId, Long2ByteMap> completed = new HashMap<>();
     private final LinkedHashSet<GroupId> dirty = new LinkedHashSet<>();
+    private final Map<GroupId, Long> dirtySince = new HashMap<>();
+    private final Map<GroupId, Long> dirtyFirst = new HashMap<>();
+    private long ticks;
     private Rebuild active;
     private long completedRebuilds;
     private long visitedCells;
@@ -51,7 +101,12 @@ public final class AirflowService {
 
     public void invalidate(GroupId group) {
         dirty.add(group);
-        if (active != null && active.group.equals(group)) active = null;
+        dirtySince.put(group, ticks);
+        dirtyFirst.putIfAbsent(group, ticks);
+        // An in-flight rebuild is deliberately allowed to finish. Discarding it
+        // meant a repeatedly invalidated system - a door on a redstone clock -
+        // burned the whole node budget every tick and never produced a map at
+        // all. A slightly stale map now stands until the debounced redo lands.
     }
 
     public void invalidateNear(Location location) {
@@ -76,7 +131,7 @@ public final class AirflowService {
             GroupId group = vent.group();
             if (affected != null && affected.contains(group)) continue;
 
-            Map<Long, Byte> cache = completed.get(group);
+            Long2ByteMap cache = completed.get(group);
             if (cache != null && cache.containsKey(packed)) {
                 if (affected == null) affected = new HashSet<>();
                 affected.add(group);
@@ -127,23 +182,29 @@ public final class AirflowService {
 
     /** Called each server tick; no invocation can inspect more than the configured node budget. */
     public void tick() {
+        ticks++;
         int budget = settings.airflowNodesPerTick();
+        int started = 0;
         while (budget > 0) {
             if (active == null) {
-                Iterator<GroupId> iterator = dirty.iterator();
-                if (!iterator.hasNext()) return;
-                GroupId group = iterator.next();
-                iterator.remove();
+                if (started >= MAXIMUM_REBUILD_STARTS_PER_TICK) return;
+                GroupId group = nextSettledGroup();
+                if (group == null) return;
+                started++;
                 active = begin(group);
                 if (active == null) {
                     completed.remove(group);
                     continue;
                 }
             }
+            active.clearChunkCache();
             int processed = advance(active, budget);
             budget -= Math.max(1, processed);
             if (active.queue.isEmpty() || active.capped) {
-                completed.put(active.group, Map.copyOf(active.distances));
+                // The finished Rebuild is discarded below, so its map can be
+                // handed over directly. Copying it cost ~42 ms in a single
+                // tick at the configured cell cap.
+                completed.put(active.group, active.distances);
                 visitedCells += active.distances.size();
                 completedRebuilds++;
                 if (active.capped) cappedRebuilds++;
@@ -152,10 +213,28 @@ public final class AirflowService {
         }
     }
 
+    /** Returns the oldest dirty system that has stopped changing, or null. */
+    private GroupId nextSettledGroup() {
+        for (Iterator<GroupId> iterator = dirty.iterator(); iterator.hasNext(); ) {
+            GroupId group = iterator.next();
+            Long since = dirtySince.get(group);
+            Long first = dirtyFirst.get(group);
+            boolean settled = since == null || ticks - since >= REBUILD_DEBOUNCE_TICKS;
+            boolean overdue = first != null && ticks - first >= MAXIMUM_REBUILD_DEFERRAL_TICKS;
+            if (!settled && !overdue) continue;
+            iterator.remove();
+            dirtySince.remove(group);
+            dirtyFirst.remove(group);
+            return group;
+        }
+        return null;
+    }
+
     private Rebuild begin(GroupId group) {
         World world = Bukkit.getWorld(group.worldId());
         if (world == null) return null;
         Rebuild rebuild = new Rebuild(group);
+        rebuild.clearChunkCache();
         boolean hasVent = false;
         for (ClimateVent vent : registry.vents()) {
             if (!vent.group().equals(group)) continue;
@@ -190,21 +269,36 @@ public final class AirflowService {
             rebuild.capped = true;
             return;
         }
-        if (y < world.getMinHeight() || y >= world.getMaxHeight()
-                || !world.isChunkLoaded(x >> 4, z >> 4)) return;
+        if (y < world.getMinHeight() || y >= world.getMaxHeight()) return;
         long key = pack(x, y, z);
-        Byte previous = rebuild.distances.get(key);
-        if (previous != null && Byte.toUnsignedInt(previous) <= distance) return;
-        Block block = world.getBlockAt(x, y, z);
-        if (!isAirPath(block)) return;
+        byte previous = rebuild.distances.get(key);
+        if (previous != ABSENT && previous <= distance) return;
+        Chunk chunk = rebuild.chunkAt(world, x >> 4, z >> 4);
+        if (chunk == null) return;
+        if (!isAirPath(chunk.getBlock(x & 15, y, z & 15))) return;
         rebuild.distances.put(key, (byte) distance);
         rebuild.queue.addLast(new Node(x, y, z, distance));
     }
 
     static boolean isAirPath(Block block) {
+        Material type = block.getType();
+        // Most cells in a ducted volume are plain air, and getBlockData()
+        // allocates a fresh copy on every call. Answer air without it.
+        if (type == Material.AIR || type == Material.CAVE_AIR || type == Material.VOID_AIR) return true;
         if (block.isLiquid()) return false;
-        if (block.getBlockData() instanceof Openable openable) return openable.isOpen();
+        if (isOpenable(type) && block.getBlockData() instanceof Openable openable)
+            return openable.isOpen();
         return block.isPassable();
+    }
+
+    /**
+     * Materials whose block data can be Openable. Barrels are included because
+     * Bukkit models their lid as Openable, and the original walk treated an
+     * open barrel as a path; keeping it preserves that behaviour exactly.
+     */
+    private static boolean isOpenable(Material type) {
+        return Tag.TRAPDOORS.isTagged(type) || Tag.DOORS.isTagged(type)
+                || Tag.FENCE_GATES.isTagged(type) || type == Material.BARREL;
     }
 
     public TemperatureReading temperatureAt(Location location) {
@@ -220,13 +314,13 @@ public final class AirflowService {
         long key = pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         GroupId best = null;
         int bestDistance = Integer.MAX_VALUE;
-        for (Map.Entry<GroupId, Map<Long, Byte>> entry : completed.entrySet()) {
+        for (Map.Entry<GroupId, Long2ByteMap> entry : completed.entrySet()) {
             GroupId group = entry.getKey();
             if (!group.worldId().equals(location.getWorld().getUID())) continue;
             if (requiredGroup != null && !requiredGroup.equals(group)) continue;
-            Byte rawDistance = entry.getValue().get(key);
-            if (rawDistance == null) continue;
-            int distance = Byte.toUnsignedInt(rawDistance);
+            byte rawDistance = entry.getValue().get(key);
+            if (rawDistance == ABSENT) continue;
+            int distance = rawDistance;
             if (distance < bestDistance || (distance == bestDistance && (best == null || group.compareTo(best) < 0))) {
                 best = group;
                 bestDistance = distance;
@@ -262,7 +356,7 @@ public final class AirflowService {
     }
 
     public String stats() {
-        int cells = completed.values().stream().mapToInt(Map::size).sum();
+        int cells = completed.values().stream().mapToInt(Long2ByteMap::size).sum();
         return "vents=" + registry.vents().size() + ", cachedCells=" + cells
                 + ", dirty=" + dirty.size() + ", rebuilding=" + (active != null)
                 + ", completed=" + completedRebuilds + ", visited=" + visitedCells

@@ -22,6 +22,14 @@ public final class DisplayService {
     private final OutdoorTemperatureService outdoor;
     private final HvacSettings settings;
     private final Map<BlockKey, String> fingerprints = new HashMap<>();
+    /**
+     * The ETA forecast simulates up to 1800 thermal steps and is rendered only
+     * as a m:ss string, so it is refreshed on the display cadence rather than
+     * every controller cycle. Mode changes recompute immediately.
+     */
+    private final Map<BlockKey, CachedEta> etaCache = new HashMap<>();
+
+    private record CachedEta(OperatingMode mode, boolean enabled, OptionalLong eta) {}
 
     public DisplayService(HvacPlugin plugin, HvacRegistry registry, AirflowService airflow,
                           OutdoorTemperatureService outdoor, HvacSettings settings) {
@@ -39,7 +47,10 @@ public final class DisplayService {
         for (SettingsPanel panel : registry.settingsPanels()) refreshSettingsPanel(panel, force);
     }
 
-    public void invalidate(BlockKey position) { fingerprints.remove(position); }
+    public void invalidate(BlockKey position) {
+        fingerprints.remove(position);
+        etaCache.remove(position);
+    }
 
     public void refreshThermostat(Thermostat thermostat, boolean force) {
         String mode = switch (thermostat.mode()) {
@@ -58,9 +69,7 @@ public final class DisplayService {
         int percent = (int) Math.round(capacity * 100.0);
         List<EtaEstimator.UnitSnapshot> snapshots = running.stream()
                 .map(unit -> new EtaEstimator.UnitSnapshot(unit.type(), unit.motorRpm())).toList();
-        OperatingProfile profile = registry.profileFor(thermostat.group());
-        OptionalLong eta = EtaEstimator.estimateTicks(thermostat.roomF(), thermostat.targetF(),
-                outdoor.temperatureFor(thermostat), thermostat.mode(), snapshots, profile, settings);
+        OptionalLong eta = estimateEta(thermostat, snapshots, force);
         String footer = !thermostat.enabled() ? "System off"
                 : thermostat.mode() == OperatingMode.IDLE ? "Ready"
                 : eta.isPresent() ? "ETA " + formatEta(eta) : "ETA --";
@@ -80,6 +89,21 @@ public final class DisplayService {
                     eta.isPresent() && thermostat.mode() != OperatingMode.IDLE
                             ? NamedTextColor.GREEN : NamedTextColor.GRAY));
         });
+    }
+
+    /** Reuses the last forecast unless forced or the operating state changed. */
+    private OptionalLong estimateEta(Thermostat thermostat,
+                                     List<EtaEstimator.UnitSnapshot> snapshots, boolean force) {
+        CachedEta cached = etaCache.get(thermostat.position());
+        if (!force && cached != null && cached.mode() == thermostat.mode()
+                && cached.enabled() == thermostat.enabled()) {
+            return cached.eta();
+        }
+        OperatingProfile profile = registry.profileFor(thermostat.group());
+        OptionalLong eta = EtaEstimator.estimateTicks(thermostat.roomF(), thermostat.targetF(),
+                outdoor.temperatureFor(thermostat), thermostat.mode(), snapshots, profile, settings);
+        etaCache.put(thermostat.position(), new CachedEta(thermostat.mode(), thermostat.enabled(), eta));
+        return eta;
     }
 
     private void refreshThermometer(Thermometer thermometer, boolean force) {
