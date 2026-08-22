@@ -232,16 +232,18 @@ public final class HvacListener implements Listener {
         airflow.invalidateNear(target.getLocation());
     }
 
+    // Chunk streaming fires continuously while players explore. Requesting a
+    // sync here drove the whole controller pipeline at 20 Hz instead of its
+    // configured period; the periodic cycle reconciles newly loaded devices
+    // from world state anyway, so only the airflow cache is invalidated here.
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkLoad(ChunkLoadEvent event) {
         airflow.invalidateChunk(event.getChunk());
-        plugin.requestImmediateSync();
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkUnload(ChunkUnloadEvent event) {
         airflow.invalidateChunk(event.getChunk());
-        plugin.requestImmediateSync();
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

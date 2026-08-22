@@ -5,16 +5,16 @@
 
     <groupId>com.github.blade</groupId>
     <artifactId>ezvac</artifactId>
-    <version>ALPHA-1.1-HOTFIX</version>
+    <version>ALPHA-1.5</version>
     <packaging>jar</packaging>
 
     <name>EZvac</name>
-    <description>Standalone thermostat, equipment, and room-climate simulation for Paper.</description>
+    <description>Standalone thermostat, equipment, and room-climate simulation for Paper and its forks.</description>
 
     <licenses>
         <license>
-            <name>The Unlicense</name>
-            <url>https://unlicense.org/</url>
+            <name>MIT License</name>
+            <url>https://opensource.org/licenses/MIT</url>
             <distribution>repo</distribution>
         </license>
     </licenses>
@@ -40,6 +40,17 @@
             <version>1.21.1-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
+        <!--
+            Supplied by the Paper server at runtime (and transitively by
+            paper-api at compile time); declared explicitly so the build does
+            not depend on transitive resolution. Never bundled into the jar.
+        -->
+        <dependency>
+            <groupId>it.unimi.dsi</groupId>
+            <artifactId>fastutil</artifactId>
+            <version>8.5.6</version>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -56,7 +67,7 @@
 
     <build>
         <defaultGoal>clean package</defaultGoal>
-        <finalName>EzVac-ALPHA-1.1-HOTFIX</finalName>
+        <finalName>EzVac-${project.version}</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>

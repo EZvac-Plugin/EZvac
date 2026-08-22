@@ -7,7 +7,9 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 
 /** Biome profile sampling that never force-loads thermostat chunks. */
 public final class OutdoorTemperatureService {
@@ -19,6 +21,21 @@ public final class OutdoorTemperatureService {
         Profile(double noon, double midnight) { this.noon = noon; this.midnight = midnight; }
     }
 
+    /**
+     * Classification is pure string matching over a biome's name, and it ran
+     * per thermostat per cycle and per thermometer per refresh. Biome is an
+     * enum, so each one only ever needs classifying once.
+     */
+    private final Map<Biome, Profile> profileCache = new EnumMap<>(Biome.class);
+
+    private Profile cachedProfile(Biome biome) {
+        Profile cached = profileCache.get(biome);
+        if (cached != null) return cached;
+        Profile computed = profile(biome);
+        profileCache.put(biome, computed);
+        return computed;
+    }
+
     public double temperatureFor(Thermostat thermostat) {
         BlockKey position = thermostat.position();
         World world = position.world();
@@ -26,7 +43,7 @@ public final class OutdoorTemperatureService {
         if (position.isChunkLoaded()) {
             Location location = position.location();
             if (location != null) {
-                Profile profile = profile(location.getBlock().getBiome());
+                Profile profile = cachedProfile(location.getBlock().getBiome());
                 thermostat.setOutdoorProfile(profile.noon, profile.midnight);
             }
         }
@@ -38,7 +55,7 @@ public final class OutdoorTemperatureService {
 
     public double temperatureAt(Location location) {
         if (location == null || location.getWorld() == null) return 70.0;
-        Profile profile = profile(location.getBlock().getBiome());
+        Profile profile = cachedProfile(location.getBlock().getBiome());
         return ThermalModel.outdoorTemperature(location.getWorld().getTime(), profile.noon, profile.midnight);
     }
 

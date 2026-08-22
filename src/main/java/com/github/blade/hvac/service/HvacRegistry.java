@@ -4,13 +4,14 @@ import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.*;
 import org.bukkit.Material;
-import org.bukkit.block.Sign;
+import org.bukkit.Tag;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -41,6 +42,9 @@ public final class HvacRegistry {
     private final File dataFile;
     private final File backupFile;
     private boolean dirty;
+    private volatile boolean writeInProgress;
+    /** Serializes writers so a shutdown save can never race an in-flight async one. */
+    private final Object writeLock = new Object();
 
     public HvacRegistry(HvacPlugin plugin, HvacSettings settings) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
@@ -113,8 +117,18 @@ public final class HvacRegistry {
         }
     }
 
-    public void save() {
+    public void save() { save(false); }
+
+    /**
+     * Builds the persistence snapshot on the calling thread, which must be the
+     * main thread. Only the YAML dump and file replacement may move off it:
+     * the dump is roughly 90% of the cost and touches nothing but the snapshot.
+     */
+    public void save(boolean synchronous) {
         if (!dirty && dataFile.isFile()) return;
+        // A slow disk must never queue a second write against the same files.
+        // Leaving the registry dirty lets the next periodic save retry.
+        if (!synchronous && writeInProgress) return;
         YamlConfiguration configuration = new YamlConfiguration();
         configuration.set("meta.format", FORMAT_VERSION);
         write(configuration, "thermostats", thermostats.values(), Thermostat::position, Thermostat::toMap);
@@ -131,9 +145,44 @@ public final class HvacRegistry {
                 configuration.set(entry.getKey() + ".preserved" + index++, record);
         }
 
+        dirty = false;
+        if (synchronous || !plugin.isEnabled()) {
+            if (!writeSnapshot(configuration)) dirty = true;
+            return;
+        }
+        writeInProgress = true;
+        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+            boolean written;
+            try {
+                written = writeSnapshot(configuration);
+            } finally {
+                writeInProgress = false;
+            }
+            if (!written && plugin.isEnabled()) {
+                try {
+                    plugin.getServer().getScheduler().runTask(plugin, () -> dirty = true);
+                } catch (IllegalStateException disabling) {
+                    // The plugin shut down mid-write; onDisable already saved.
+                }
+            }
+        });
+    }
+
+    /**
+     * Dumps and atomically replaces hvac.yml. Safe off the main thread: the
+     * snapshot is built from freshly allocated maps that nothing else mutates.
+     */
+    private boolean writeSnapshot(YamlConfiguration configuration) {
+        synchronized (writeLock) {
+            return replaceDataFile(configuration);
+        }
+    }
+
+    private boolean replaceDataFile(YamlConfiguration configuration) {
         File temporary = new File(plugin.getDataFolder(), "hvac.yml.tmp");
         try {
-            configuration.save(temporary);
+            Files.writeString(temporary.toPath(), configuration.saveToString(),
+                    StandardCharsets.UTF_8);
             if (dataFile.isFile())
                 Files.copy(dataFile.toPath(), backupFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             try {
@@ -142,9 +191,10 @@ public final class HvacRegistry {
             } catch (AtomicMoveNotSupportedException ignored) {
                 Files.move(temporary.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
-            dirty = false;
+            return true;
         } catch (IOException exception) {
             plugin.getLogger().log(Level.SEVERE, "Could not save hvac.yml", exception);
+            return false;
         }
     }
 
@@ -388,7 +438,7 @@ public final class HvacRegistry {
             Thermostat value = thermostatIterator.next();
             if (!value.position().isChunkLoaded()) continue;
             var location = value.position().location();
-            if (location != null && location.getBlock().getState() instanceof Sign) continue;
+            if (location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType())) continue;
             thermostatIterator.remove(); removed++;
         }
         Iterator<EquipmentUnit> equipmentIterator = equipment.values().iterator();
@@ -420,7 +470,7 @@ public final class HvacRegistry {
             BlockKey position = positionOf.apply(iterator.next());
             if (!position.isChunkLoaded()) continue;
             var location = position.location();
-            if (location != null && location.getBlock().getState() instanceof Sign) continue;
+            if (location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType())) continue;
             iterator.remove(); removed++;
         }
         return removed;

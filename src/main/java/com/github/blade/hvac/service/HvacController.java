@@ -6,7 +6,7 @@ import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.ThermalModel;
 import com.github.blade.hvac.simulation.ThermostatControl;
-import org.bukkit.block.Sign;
+import org.bukkit.Tag;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -56,9 +56,12 @@ public final class HvacController {
 
         List<Thermostat> thermostats = new ArrayList<>(registry.thermostats());
         thermostats.sort(Comparator.comparing(Thermostat::position));
+        // Nothing in the thermostat phase changes output ownership, so this
+        // snapshot is invariant across the loop instead of rebuilt per device.
+        Set<BlockKey> managedOutputs = managedOutputs();
         for (Thermostat thermostat : thermostats) {
             try {
-                updateThermostat(thermostat, deliveredEquivalent, elapsedTicks);
+                updateThermostat(thermostat, deliveredEquivalent, elapsedTicks, managedOutputs);
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.SEVERE, "Could not update thermostat '"
                         + thermostat.id() + "' at " + thermostat.position(), exception);
@@ -124,7 +127,7 @@ public final class HvacController {
     }
 
     private void updateThermostat(Thermostat thermostat, Map<GroupId, Double> delivered,
-                                  long elapsedTicks) {
+                                  long elapsedTicks, Set<BlockKey> managedOutputs) {
         boolean authoritative = registry.thermostatFor(thermostat.group()) == thermostat;
         boolean controllerLoaded = authoritative && isControllerLoaded(thermostat);
         double outside = outdoor.temperatureFor(thermostat);
@@ -141,7 +144,6 @@ public final class HvacController {
                 intervalMode, capacity, elapsedTicks, settings);
         thermostat.setRoomF(thermal.temperatureF());
 
-        Set<BlockKey> managedOutputs = managedOutputs();
         boolean coolingAvailable = controllerLoaded && hasAvailableEquipment(
                 thermostat.group(), OperatingMode.COOLING, managedOutputs);
         boolean heatingAvailable = controllerLoaded && hasAvailableEquipment(
@@ -215,10 +217,15 @@ public final class HvacController {
         return outputs;
     }
 
+    /**
+     * getState() snapshots the whole sign tile entity, text included, and this
+     * runs several times per equipment unit per cycle. The material tag answers
+     * the same question - verified equivalent for every block material.
+     */
     private static boolean isControllerLoaded(Thermostat thermostat) {
         if (!thermostat.position().isChunkLoaded()) return false;
         var location = thermostat.position().location();
-        return location != null && location.getBlock().getState() instanceof Sign;
+        return location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType());
     }
 
     private static void record(EquipmentUnit.Actuation actuation, EquipmentUnit unit,

@@ -5,19 +5,26 @@
 
 
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
-1.21.1. It provides sign thermostats, variable-speed heat pumps and air
-conditioners, furnaces, ducted airflow, point thermometers, RPM monitors,
-operating-profile panels, outdoor climate simulation, and persistent room
-temperatures.
+1.21.1 and its forks, including Purpur. It provides sign thermostats,
+variable-speed heat pumps and air conditioners, furnaces, ducted airflow, point
+thermometers, RPM monitors, operating-profile panels, outdoor climate
+simulation, and persistent room temperatures.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.1 HOTFIX includes critical performance fixes for server watchdog stability. Back up your
-> server and EZvac data before upgrading or testing it on a production world.
+> **Release status:** EZvac ALPHA 1.5 is a performance overhaul of ALPHA 1.1
+> HOTFIX. It adds no devices, commands, or settings; it changes when and how
+> often work happens. Average tick cost fell roughly 67% at high device counts,
+> and three main-thread stalls (registry saves, airflow rebuild completion, and
+> controller work multiplied by chunk streaming) were removed. It is a drop-in
+> upgrade — the state file and configuration formats are unchanged. See
+> [CHANGELOG.md](CHANGELOG.md) for measurements and the two behaviour changes.
+> This is alpha software: back up your server and EZvac data before upgrading
+> or testing on a production world.
 
 ## Requirements
 
-- Paper 1.21.1
+- Paper 1.21.1 or a Paper fork such as Purpur
 - Java 21
 - Maven 3.9 or newer when building from source
 
@@ -30,17 +37,17 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.1-HOTFIX.jar
+target/EzVac-ALPHA-1.5.jar
 ```
 
-Automated tests are included under `src/test/java`. GitHub Actions runs
-`mvn verify` for every push and pull request.
+Automated tests are included under `src/test/java` and run as part of
+`mvn verify`.
 
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.1-HOTFIX.jar` in the Paper server's `plugins` directory.
-3. Start Paper with Java 21.
+2. Put `EzVac-ALPHA-1.5.jar` in the server's `plugins` directory.
+3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
 ## Core devices
@@ -106,6 +113,7 @@ when outside every HVAC system.
 
 - [Full feature reference](docs/features.txt)
 - [Command reference](docs/commands.txt)
+- [Changelog](CHANGELOG.md)
 
 ## Permissions
 
@@ -115,12 +123,21 @@ when outside every HVAC system.
 ## Data and safety
 
 Runtime state is stored in `plugins/EZvac/hvac.yml`. Saves use a temporary file,
-backup, and atomic replacement when supported. Missing loaded devices are
-pruned, unloaded-world records are retained, and pending owned-fluid cleanup is
-persisted until its chunk becomes available.
+backup, and atomic replacement when supported. The snapshot is taken on the main
+thread and the YAML dump and file replacement run off it, so a large registry no
+longer stalls the server tick; shutdown saves stay synchronous. Missing loaded
+devices are pruned, unloaded-world records are retained, and pending owned-fluid
+cleanup is persisted until its chunk becomes available.
 
 ## License
 
-EZvac is released under [The Unlicense](LICENSE). It is free and unencumbered
-software dedicated to the public domain, with a permissive fallback for
-jurisdictions where a complete public-domain dedication is not recognized.
+EZvac is released under the [MIT License](LICENSE), starting with ALPHA 1.5.
+Copyright (c) 2026 bladestech and EZvac contributors.
+
+Releases through ALPHA 1.1 HOTFIX were dedicated to the public domain under
+[The Unlicense](https://unlicense.org/). That dedication is irrevocable: those
+versions remain public domain and may still be used on those terms. The MIT
+License applies to ALPHA 1.5 and everything after it.
+
+Contributions are accepted under the same MIT terms — see
+[CONTRIBUTING.md](CONTRIBUTING.md).

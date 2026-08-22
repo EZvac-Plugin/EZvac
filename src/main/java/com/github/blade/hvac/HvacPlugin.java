@@ -70,7 +70,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (airflowTask != null) airflowTask.cancel();
         if (registry != null) {
             registry.shutdownEquipment();
-            registry.save();
+            registry.save(true); // shutdown must not hand work to the scheduler
         }
         getLogger().info("EZvac disabled; owned loaded outputs were retracted and state was saved.");
     }
