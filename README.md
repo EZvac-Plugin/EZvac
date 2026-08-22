@@ -4,6 +4,8 @@
 <img width="1080" height="1080" alt="ezvac" src="https://github.com/user-attachments/assets/833ee011-10f5-4a2c-8a26-4ebac1387a31" />
 
 
+[![Build](https://github.com/EZvac-Plugin/EZvac/actions/workflows/build.yml/badge.svg)](https://github.com/EZvac-Plugin/EZvac/actions/workflows/build.yml)
+
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
 1.21.1 and its forks, including Purpur. It provides sign thermostats,
 variable-speed heat pumps and air conditioners, furnaces, ducted airflow, point
@@ -41,7 +43,8 @@ target/EzVac-ALPHA-1.5.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
-`mvn verify`.
+`mvn verify`. GitHub Actions runs the same build and test suite on every push
+and pull request.
 
 ## Installation
 

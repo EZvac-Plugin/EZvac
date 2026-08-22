@@ -37,6 +37,10 @@ To run only the tests:
 mvn verify
 ```
 
+Every push and pull request is built and tested automatically by GitHub
+Actions, and the resulting jar is attached to the run so you can download and
+try a change without building it yourself.
+
 Tests live under `src/test/java`. The simulation classes (`simulation/`,
 `config/`, and the `model/` records) have no Bukkit dependencies and are
 directly unit-testable — please add coverage there when you change them.
