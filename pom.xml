@@ -5,7 +5,7 @@
 
     <groupId>com.github.blade</groupId>
     <artifactId>ezvac</artifactId>
-    <version>ALPHA-1.5</version>
+    <version>ALPHA-1.6-P1</version>
     <packaging>jar</packaging>
 
     <name>EZvac</name>

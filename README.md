@@ -14,15 +14,20 @@ simulation, and persistent room temperatures.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.5 is a performance overhaul of ALPHA 1.1
-> HOTFIX. It adds no devices, commands, or settings; it changes when and how
-> often work happens. Average tick cost fell roughly 67% at high device counts,
-> and three main-thread stalls (registry saves, airflow rebuild completion, and
-> controller work multiplied by chunk streaming) were removed. It is a drop-in
-> upgrade — the state file and configuration formats are unchanged. See
-> [CHANGELOG.md](CHANGELOG.md) for measurements and the two behaviour changes.
-> This is alpha software: back up your server and EZvac data before upgrading
-> or testing on a production world.
+> **Release status:** EZvac ALPHA 1.6 Pilot 1 adds **water systems** — boilers
+> and waxed copper grate vents that condition a body of water exactly the way
+> vents condition a room. It is a *pilot*: published to be tried and reported
+> on, with a design that may still change before ALPHA 1.6 proper. Do not run
+> it on a world you care about.
+>
+> **You cannot roll back to ALPHA 1.5 once you build a water system** — 1.5
+> predates the forward-compatibility work and would reinterpret boilers as heat
+> pumps and delete grate vents. See [CHANGELOG.md](CHANGELOG.md).
+>
+> The stable release remains
+> [ALPHA 1.5](https://github.com/EZvac-Plugin/EZvac/releases/tag/ALPHA-1.5), a
+> performance overhaul that cut average tick cost by roughly 67% at high device
+> counts.
 
 ## Requirements
 
@@ -39,7 +44,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.5.jar
+target/EzVac-ALPHA-1.6-P1.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -49,7 +54,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.5.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.6-P1.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
