@@ -37,7 +37,7 @@ CREATE DEVICES (ezvac.admin)
 
 /hvac create boiler <group>
   Registers the targeted dispenser as a boiler: a heating-only water-loop
-  source for a system whose vents are copper grates placed in water.
+  source for a system whose vents are waxed copper grates placed in water.
   Look at a dispenser. Registers typed equipment in the specified group.
 
 /hvac create thermometer [label]

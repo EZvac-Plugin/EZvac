@@ -9,11 +9,17 @@ import java.util.Objects;
 public record ClimateVent(BlockKey position, GroupId group) {
     /** Distributes conditioned air into a room. */
     public static final Material AIR_VENT = Material.IRON_TRAPDOOR;
-    /** Distributes conditioned water into a body of water. */
-    public static final Material WATER_VENT = Material.COPPER_GRATE;
+
+    /**
+     * Distributes conditioned water into a body of water. Only the unweathered
+     * waxed grate qualifies: waxed copper never oxidises, so a registered vent
+     * cannot change material on its own and quietly unregister itself, and
+     * every vent in a build keeps the same appearance.
+     */
+    public static final Material WATER_VENT = Material.WAXED_COPPER_GRATE;
 
     public static boolean isVentBlock(Material type) {
-        return type == AIR_VENT || type == WATER_VENT;
+        return type == AIR_VENT || isWaterVent(type);
     }
 
     /** A system's medium follows its vent blocks, not the equipment feeding it. */

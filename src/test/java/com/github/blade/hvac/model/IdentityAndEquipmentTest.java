@@ -53,6 +53,10 @@ class IdentityAndEquipmentTest {
         assertTrue(EquipmentType.BOILER.supports(OperatingMode.HEATING));
         assertFalse(EquipmentType.BOILER.supports(OperatingMode.COOLING));
         assertEquals(Material.WATER, EquipmentType.BOILER.outputMaterial());
+        assertTrue(EquipmentType.BOILER.waterLoop());
+        assertFalse(EquipmentType.HEAT_PUMP.waterLoop());
+        assertFalse(EquipmentType.AIR_CONDITIONER.waterLoop());
+        assertFalse(EquipmentType.FURNACE.waterLoop());
         assertEquals(EquipmentType.BOILER, EquipmentType.parse("boiler"));
         assertEquals(EquipmentType.BOILER, EquipmentType.parse("BOILER"));
     }
@@ -60,10 +64,15 @@ class IdentityAndEquipmentTest {
     @Test
     void ventBlocksDeclareTheirMedium() {
         assertTrue(ClimateVent.isVentBlock(Material.IRON_TRAPDOOR));
-        assertTrue(ClimateVent.isVentBlock(Material.COPPER_GRATE));
+        assertTrue(ClimateVent.isVentBlock(Material.WAXED_COPPER_GRATE));
+        assertTrue(ClimateVent.isWaterVent(Material.WAXED_COPPER_GRATE));
         assertFalse(ClimateVent.isVentBlock(Material.STONE));
-        assertTrue(ClimateVent.isWaterVent(Material.COPPER_GRATE));
         assertFalse(ClimateVent.isWaterVent(Material.IRON_TRAPDOOR));
+        // Unwaxed and weathered grates are deliberately not vents: waxed copper
+        // never oxidises, so a vent cannot change material on its own.
+        assertFalse(ClimateVent.isVentBlock(Material.COPPER_GRATE));
+        assertFalse(ClimateVent.isVentBlock(Material.WAXED_WEATHERED_COPPER_GRATE));
+        assertFalse(ClimateVent.isVentBlock(Material.WAXED_OXIDIZED_COPPER_GRATE));
     }
 
     @Test

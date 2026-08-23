@@ -124,10 +124,20 @@ A system conditions either air or water, decided by the vent blocks it uses:
 
 - Iron trapdoors are air vents. They condition the room around them, and the
   system is fed by heat pumps, air conditioners, or furnaces.
-- Copper grates are water vents. Placed in a body of water they condition that
-  water, and the system is fed by a boiler.
-- A system must be all air or all water. Linking a copper grate to a system
-  that already uses iron trapdoors is refused, and the reverse likewise.
+- Waxed copper grates are water vents. Placed in a body of water they condition
+  that water, and the system is fed by a boiler. Only the unweathered waxed
+  grate counts: waxed copper never oxidises, so a registered vent cannot change
+  material on its own, and every vent in a build keeps one appearance.
+  Scraping the wax off with an axe changes the block and unregisters the vent,
+  the same as breaking it.
+- A system must be all air or all water. Linking a waxed copper grate to a
+  system that already uses iron trapdoors is refused, and the reverse likewise.
+- Sources belong to a loop as well, and the two must agree. Boilers are the
+  water loop; heat pumps, air conditioners, and furnaces are the air loop.
+  Registering a boiler for a system that distributes through iron trapdoors is
+  refused, as is linking an iron trapdoor to a system powered by a boiler. A
+  boiler therefore never affects room climate, and a heat pump never
+  conditions a body of water.
 - Everything else is identical between the two. Water bodies behave exactly
   like rooms: the same thermostat, the same hysteresis and minimum run and off
   timers, the same capacity from multiple units, the same distance falloff from

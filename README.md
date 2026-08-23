@@ -61,8 +61,8 @@ and pull request.
 - **Furnace:** Dispenser-backed fixed-capacity heating.
 - **Boiler:** Dispenser-backed fixed-capacity heating for water systems.
 - **Vent:** Explicitly linked iron trapdoor that seeds duct airflow.
-- **Water vent:** Explicitly linked copper grate that conditions a body of
-  water. A system is all air or all water; water bodies behave exactly like
+- **Water vent:** Explicitly linked waxed copper grate that conditions a body
+  of water. A system is all air or all water; water bodies behave exactly like
   rooms.
 - **Thermometer:** Independent sign sensor that measures its own block.
 - **RPM monitor:** Type-specific sign showing RPM, capacity, and unit counts.
