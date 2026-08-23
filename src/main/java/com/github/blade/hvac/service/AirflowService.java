@@ -26,6 +26,8 @@ public final class AirflowService {
 
     private static final class Rebuild {
         final GroupId group;
+        /** Water systems traverse water; air systems traverse open air. */
+        final boolean water;
         final ArrayDeque<Node> queue = new ArrayDeque<>();
         final Long2ByteOpenHashMap distances = new Long2ByteOpenHashMap();
         boolean capped;
@@ -37,8 +39,9 @@ public final class AirflowService {
         private Chunk cachedChunk;
         private boolean chunkCached;
 
-        Rebuild(GroupId group) {
+        Rebuild(GroupId group, boolean water) {
             this.group = group;
+            this.water = water;
             distances.defaultReturnValue(ABSENT);
         }
 
@@ -230,22 +233,34 @@ public final class AirflowService {
         return null;
     }
 
+    /**
+     * Collects the group's loaded vents first, because the medium they imply
+     * decides which blocks the walk may traverse. A single water vent makes the
+     * whole system a water system, so a stray trapdoor cannot strand a pool.
+     */
     private Rebuild begin(GroupId group) {
         World world = Bukkit.getWorld(group.worldId());
         if (world == null) return null;
-        Rebuild rebuild = new Rebuild(group);
-        rebuild.clearChunkCache();
+        List<BlockKey> seeds = new ArrayList<>();
         boolean hasVent = false;
+        boolean water = false;
         for (ClimateVent vent : registry.vents()) {
             if (!vent.group().equals(group)) continue;
             hasVent = true;
             BlockKey pos = vent.position();
             if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) continue;
+            water |= ClimateVent.isWaterVent(world.getBlockAt(pos.x(), pos.y(), pos.z()).getType());
+            seeds.add(pos);
+        }
+        if (!hasVent) return null;
+        Rebuild rebuild = new Rebuild(group, water);
+        rebuild.clearChunkCache();
+        for (BlockKey pos : seeds) {
             int x = pos.x(), y = pos.y(), z = pos.z();
             for (int[] direction : DIRECTIONS)
                 enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0);
         }
-        return hasVent ? rebuild : null;
+        return rebuild;
     }
 
     private int advance(Rebuild rebuild, int budget) {
@@ -275,7 +290,10 @@ public final class AirflowService {
         if (previous != ABSENT && previous <= distance) return;
         Chunk chunk = rebuild.chunkAt(world, x >> 4, z >> 4);
         if (chunk == null) return;
-        if (!isAirPath(chunk.getBlock(x & 15, y, z & 15))) return;
+        Block block = chunk.getBlock(x & 15, y, z & 15);
+        // A branch rather than a predicate field: this runs thousands of times
+        // per tick and stays monomorphic this way.
+        if (!(rebuild.water ? isWaterPath(block) : isAirPath(block))) return;
         rebuild.distances.put(key, (byte) distance);
         rebuild.queue.addLast(new Node(x, y, z, distance));
     }
@@ -296,6 +314,15 @@ public final class AirflowService {
      * Bukkit models their lid as Openable, and the original walk treated an
      * open barrel as a path; keeping it preserves that behaviour exactly.
      */
+    /**
+     * Water systems traverse water and nothing else. Checking the material
+     * alone keeps this cheaper than the air walk: no block data is allocated,
+     * so source and flowing water both conduct without a Levelled lookup.
+     */
+    static boolean isWaterPath(Block block) {
+        return block.getType() == Material.WATER;
+    }
+
     private static boolean isOpenable(Material type) {
         return Tag.TRAPDOORS.isTagged(type) || Tag.DOORS.isTagged(type)
                 || Tag.FENCE_GATES.isTagged(type) || type == Material.BARREL;

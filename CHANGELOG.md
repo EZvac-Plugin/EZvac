@@ -2,6 +2,35 @@
 
 All notable changes to EZvac are recorded here.
 
+## Unreleased
+
+### Added
+
+- **Boilers and water systems.** A system now conditions either air or water,
+  decided by the vent blocks it uses. Iron trapdoors remain air vents; copper
+  grates placed in a body of water are water vents. `BOILER` is the water-loop
+  heat source — heating only, water output, the counterpart of the furnace.
+
+  A water body behaves exactly like a room: same thermostat, same hysteresis
+  and timers, same capacity from multiple units, same distance falloff, same
+  ETA. More equipment heats faster; more vents cover more of the body. The only
+  difference is what the airflow walk may travel through.
+
+  A system must be all air or all water; mixing is refused when linking.
+
+### Changed
+
+- Records written by a newer EZvac are preserved rather than dropped or
+  reinterpreted. `save()` rebuilds `hvac.yml` from scratch, so a section this
+  build did not read was previously deleted the first time it saved — meaning
+  anyone who tried a newer build and rolled back lost those devices silently.
+  Unrecognised sections are now kept verbatim, an unrecognised equipment type
+  is preserved instead of defaulting to a heat pump (which changed what the
+  device did), and `meta.format` is read and warned about instead of ignored.
+
+- Continuous integration builds and tests every push and pull request, and
+  attaches the built jar to each run.
+
 ## ALPHA 1.5
 
 A performance overhaul. No new devices, commands, or configuration options —

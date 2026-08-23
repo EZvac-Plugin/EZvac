@@ -49,6 +49,24 @@ class IdentityAndEquipmentTest {
     }
 
     @Test
+    void boilerIsAWaterLoopHeatSource() {
+        assertTrue(EquipmentType.BOILER.supports(OperatingMode.HEATING));
+        assertFalse(EquipmentType.BOILER.supports(OperatingMode.COOLING));
+        assertEquals(Material.WATER, EquipmentType.BOILER.outputMaterial());
+        assertEquals(EquipmentType.BOILER, EquipmentType.parse("boiler"));
+        assertEquals(EquipmentType.BOILER, EquipmentType.parse("BOILER"));
+    }
+
+    @Test
+    void ventBlocksDeclareTheirMedium() {
+        assertTrue(ClimateVent.isVentBlock(Material.IRON_TRAPDOOR));
+        assertTrue(ClimateVent.isVentBlock(Material.COPPER_GRATE));
+        assertFalse(ClimateVent.isVentBlock(Material.STONE));
+        assertTrue(ClimateVent.isWaterVent(Material.COPPER_GRATE));
+        assertFalse(ClimateVent.isWaterVent(Material.IRON_TRAPDOOR));
+    }
+
+    @Test
     void unknownEquipmentTypesAreRejectedRatherThanReinterpreted() {
         // A type written by a newer build must not come back as a different
         // device. Rejecting it lets the registry preserve the record verbatim

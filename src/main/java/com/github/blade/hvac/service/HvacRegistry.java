@@ -371,6 +371,20 @@ public final class HvacRegistry {
                 .min(Comparator.comparing(SettingsPanel::position)).orElse(null);
     }
 
+    /**
+     * True when this group already has a loaded vent of the given medium. A
+     * group is all air or all water; this is what enforces that at link time.
+     */
+    public boolean hasVentOfMedium(GroupId group, boolean water) {
+        for (ClimateVent vent : vents.values()) {
+            if (!vent.group().equals(group) || !vent.position().isChunkLoaded()) continue;
+            var location = vent.position().location();
+            if (location == null) continue;
+            if (ClimateVent.isWaterVent(location.getBlock().getType()) == water) return true;
+        }
+        return false;
+    }
+
     public OperatingProfile profileFor(GroupId group) {
         SettingsPanel panel = settingsPanelFor(group);
         return panel == null ? OperatingProfile.NORMAL : panel.profile();
@@ -498,7 +512,7 @@ public final class HvacRegistry {
             ClimateVent value = ventIterator.next();
             if (!value.position().isChunkLoaded()) continue;
             var location = value.position().location();
-            if (location != null && location.getBlock().getType() == Material.IRON_TRAPDOOR) continue;
+            if (location != null && ClimateVent.isVentBlock(location.getBlock().getType())) continue;
             invalidated.add(value.group()); ventIterator.remove(); removed++;
         }
         removed += pruneSigns(thermometers.values().iterator(), Thermometer::position);

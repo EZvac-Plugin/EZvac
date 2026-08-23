@@ -13,11 +13,13 @@ SYSTEM MODEL
 - A group may have one optional settings-panel sign. Without one, its operating
   profile is always NORMAL and matches the stock variable-speed behavior.
 - A group may contain any number of heat pumps, air conditioners, or furnaces.
-- Heat pumps cool and heat; air conditioners cool only; furnaces heat only.
+- Heat pumps cool and heat; air conditioners cool only; furnaces and boilers
+  heat only.
 - Dispensers are authoritative actuators. Registered equipment cancels vanilla
   dispense behavior so inventory contents and redstone cannot fight the plugin.
 - Equipment does not consume buckets, fuel, water, power, or other resources.
-- Heat pumps and ACs use water as their visible output. Furnaces use lava.
+- Heat pumps, ACs, and boilers use water as their visible output. Furnaces
+  use lava.
 - Only the exact output source created and recorded by EZvac is retracted.
   Player fluid is never adopted merely because it is in front of a dispenser.
 - Shared output blocks have one deterministic winner. Losing units stop and
@@ -115,8 +117,25 @@ chunk load merely to sample its biome.
 VENTS AND AIRFLOW
 -----------------
 
-The persistent duct-link stick selects registered equipment and links ordinary
-iron trapdoors to its group. Only explicitly linked trapdoors become vents.
+The persistent duct-link stick selects registered equipment and links vent
+blocks to its group. Only explicitly linked blocks become vents.
+
+A system conditions either air or water, decided by the vent blocks it uses:
+
+- Iron trapdoors are air vents. They condition the room around them, and the
+  system is fed by heat pumps, air conditioners, or furnaces.
+- Copper grates are water vents. Placed in a body of water they condition that
+  water, and the system is fed by a boiler.
+- A system must be all air or all water. Linking a copper grate to a system
+  that already uses iron trapdoors is refused, and the reverse likewise.
+- Everything else is identical between the two. Water bodies behave exactly
+  like rooms: the same thermostat, the same hysteresis and minimum run and off
+  timers, the same capacity from multiple units, the same distance falloff from
+  each vent, and the same ETA. More equipment heats faster; more vents cover
+  more of the body.
+- The walk itself follows the medium: air systems travel through passable
+  blocks and stop at liquids and solids, while water systems travel through
+  water and stop at everything else.
 
 - Each vent seeds six-directional airflow.
 - Passable blocks carry air.
