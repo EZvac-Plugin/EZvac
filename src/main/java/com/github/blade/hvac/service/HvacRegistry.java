@@ -29,6 +29,11 @@ public final class HvacRegistry {
 
     public record PruneResult(Set<GroupId> invalidatedGroups, int removedDevices) {}
 
+    /** Sections this build understands; anything else is preserved verbatim. */
+    private static final Set<String> KNOWN_SECTIONS = Set.of(
+            "thermostats", "equipment", "cleanup", "vents",
+            "thermometers", "rpmMonitors", "settingsPanels");
+
     private final HvacPlugin plugin;
     private final HvacSettings settings;
     private final Map<BlockKey, Thermostat> thermostats = new HashMap<>();
@@ -60,6 +65,8 @@ public final class HvacRegistry {
         if (!dataFile.isFile()) return;
 
         YamlConfiguration configuration = loadWithRecovery();
+        warnOnNewerFormat(configuration);
+        preserveUnknownSections(configuration);
         readSection(configuration, "thermostats", map -> Thermostat.fromMap(map, settings),
                 this::loadThermostat);
         readSection(configuration, "equipment", EquipmentUnit::fromMap,
@@ -75,6 +82,43 @@ public final class HvacRegistry {
                 this::loadSettingsPanel);
         resolveLoadedConflicts();
         dirty = false;
+    }
+
+    /**
+     * A newer file is loaded rather than refused: known records still work, and
+     * anything this build does not understand is preserved by the reader below.
+     */
+    private void warnOnNewerFormat(YamlConfiguration configuration) {
+        int format = configuration.getInt("meta.format", FORMAT_VERSION);
+        if (format <= FORMAT_VERSION) return;
+        plugin.getLogger().warning("hvac.yml is format " + format + " but this build of EZvac"
+                + " understands format " + FORMAT_VERSION + ". It will still load. Records this"
+                + " build does not recognise are kept untouched and written back unchanged, but"
+                + " the devices they describe will not run until EZvac is updated.");
+    }
+
+    /**
+     * Captures sections written by a newer build so a downgrade cannot delete
+     * them. save() rebuilds the file from scratch, so anything not read here
+     * would be lost the first time this build saved.
+     */
+    private void preserveUnknownSections(YamlConfiguration configuration) {
+        for (String section : configuration.getKeys(false)) {
+            if (section.equals("meta") || KNOWN_SECTIONS.contains(section)) continue;
+            ConfigurationSection root = configuration.getConfigurationSection(section);
+            if (root == null) continue;
+            int preserved = 0;
+            for (String key : root.getKeys(false)) {
+                ConfigurationSection child = root.getConfigurationSection(key);
+                if (child == null) continue;
+                preservedRecords.computeIfAbsent(section, ignored -> new ArrayList<>())
+                        .add(new LinkedHashMap<>(child.getValues(false)));
+                preserved++;
+            }
+            if (preserved > 0)
+                plugin.getLogger().warning("Preserving " + preserved + " unrecognised '" + section
+                        + "' record(s) from a newer EZvac; they are kept but not active.");
+        }
     }
 
     private YamlConfiguration loadWithRecovery() {

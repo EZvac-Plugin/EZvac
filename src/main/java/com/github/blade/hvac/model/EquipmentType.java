@@ -28,11 +28,20 @@ public enum EquipmentType {
     public Material outputMaterial() { return outputMaterial; }
     public String displayName() { return displayName; }
 
+    /**
+     * A missing type still defaults to a heat pump, but an unrecognised one is
+     * rejected rather than reinterpreted. Defaulting an unknown type would
+     * silently change what a device does - a heating-only unit written by a
+     * newer build would come back as a heat pump and start cooling - whereas
+     * throwing lets the registry preserve the record untouched instead.
+     */
     public static EquipmentType parse(Object value) {
         if (!(value instanceof String text) || text.isBlank()) return HEAT_PUMP;
         String normalized = text.trim().toUpperCase(Locale.ROOT).replace('-', '_');
         if (normalized.equals("AC")) normalized = "AIR_CONDITIONER";
         try { return valueOf(normalized); }
-        catch (IllegalArgumentException ignored) { return HEAT_PUMP; }
+        catch (IllegalArgumentException unknown) {
+            throw new IllegalArgumentException("unknown equipment type '" + text + "'", unknown);
+        }
     }
 }
