@@ -17,6 +17,13 @@ All notable changes to EZvac are recorded here.
   ETA. More equipment heats faster; more vents cover more of the body. The only
   difference is what the airflow walk may travel through.
 
+- **Breaking a registered device now says so.** The removal names the device
+  and the system it left, and removing a system's last equipment warns that its
+  thermostat will stay idle until equipment returns. Nothing is deleted — the
+  thermostat and every linked vent survive, so replacing the equipment restores
+  the system. Thermometers are silent, having no system to lose, as are
+  removals with no player behind them.
+
   A system must be all air or all water, and sources belong to a loop too:
   boilers are the water loop, while heat pumps, air conditioners, and furnaces
   are the air loop. Mixing either is refused when registering equipment or

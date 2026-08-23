@@ -12,6 +12,7 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Openable;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -138,7 +139,7 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         airflow.invalidateNear(event.getBlock().getLocation());
-        removeDeviceAt(event.getBlock(), event.getPlayer().getName());
+        removeDeviceAt(event.getBlock(), event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -268,22 +269,67 @@ public final class HvacListener implements Listener {
         }
     }
 
-    private void removeDeviceAt(Block block, String playerName) {
+    /**
+     * Breaking a registered device used to be entirely silent, so a stray pickaxe
+     * could unregister a thermostat with nothing to show for it. Anything that
+     * belongs to a system now says what it was and which system it left.
+     * Thermometers stay quiet: they have no group, so there is nothing to warn
+     * about losing.
+     */
+    private void removeDeviceAt(Block block, Player breaker) {
         BlockKey key = BlockKey.of(block.getLocation());
         boolean removed = false;
+        String notice = null;
+        String warning = null;
+
         Thermostat thermostat = registry.thermostatAt(key);
-        if (thermostat != null) removed = registry.removeThermostat(key);
-        else if (registry.equipmentAt(key) != null) removed = registry.removeEquipment(key) != null;
-        else {
+        if (thermostat != null) {
+            removed = registry.removeThermostat(key);
+            if (removed) notice = "thermostat '" + thermostat.id() + "' from system '"
+                    + thermostat.group().label() + "'";
+        } else if (registry.equipmentAt(key) != null) {
+            EquipmentUnit unit = registry.removeEquipment(key);
+            removed = unit != null;
+            if (removed) {
+                notice = unit.type().displayName() + " from system '"
+                        + unit.group().label() + "'";
+                // Losing the last source leaves a system that still reads its
+                // temperature but can never act on it, which is otherwise
+                // invisible until someone notices the thermostat stuck on IDLE.
+                if (registry.equipmentFor(unit.group()).isEmpty())
+                    warning = "System '" + unit.group().label() + "' has no equipment left."
+                            + " Its thermostat will stay idle until you add some.";
+            }
+        } else {
             ClimateVent vent = registry.removeVent(key);
-            if (vent != null) { airflow.invalidate(vent.group()); removed = true; }
-            else removed = registry.removeThermometer(key) || registry.removeRpmMonitor(key)
-                    || registry.removeSettingsPanel(key);
+            if (vent != null) {
+                airflow.invalidate(vent.group());
+                removed = true;
+                notice = (ClimateVent.isWaterVent(block.getType()) ? "water vent" : "vent")
+                        + " from system '" + vent.group().label() + "'";
+            } else {
+                RpmMonitor monitor = registry.rpmMonitorAt(key);
+                SettingsPanel panel = registry.settingsPanelAt(key);
+                if (monitor != null && registry.removeRpmMonitor(key)) {
+                    removed = true;
+                    notice = "RPM monitor from system '" + monitor.group().label() + "'";
+                } else if (panel != null && registry.removeSettingsPanel(key)) {
+                    removed = true;
+                    notice = "settings panel from system '" + panel.group().label() + "'";
+                } else {
+                    removed = registry.removeThermometer(key); // deliberately silent
+                }
+            }
         }
         if (!removed) return;
         displays.invalidate(key);
         plugin.requestImmediateSync();
-        if (playerName != null) plugin.getLogger().fine(playerName + " removed HVAC device at " + key);
+        if (breaker == null) return;
+        if (notice != null)
+            breaker.sendMessage(Component.text("Removed " + notice + ".", NamedTextColor.YELLOW));
+        if (warning != null)
+            breaker.sendMessage(Component.text(warning, NamedTextColor.RED));
+        plugin.getLogger().fine(breaker.getName() + " removed HVAC device at " + key);
     }
 
     private void refreshLater(BlockKey key) {

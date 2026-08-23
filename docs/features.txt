@@ -187,6 +187,15 @@ DISPLAYS AND AUDIO
   right-click advances the profile; sneak-right-click moves backward. Removing
   the panel immediately restores the group to NORMAL.
 - Display writes are fingerprinted so unchanged signs are not rewritten.
+- Breaking a registered device tells the player what was removed and which
+  system it left, so a stray pickaxe cannot quietly unregister a thermostat.
+  Thermometers are silent: they belong to no system, so there is nothing to
+  warn about losing. Removals with no player behind them - explosions, pistons,
+  fire - stay silent for the same reason.
+- Removing the last equipment from a system also warns that its thermostat will
+  stay idle until equipment is added again. Nothing is deleted: the thermostat,
+  its target, and every linked vent survive, so replacing the equipment
+  restores the system exactly.
 
 Startup and shutdown sounds remain equipment-specific. Running equipment emits
 finite, spatial beacon ambience from each dispenser on a configurable cadence.
