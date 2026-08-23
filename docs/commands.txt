@@ -107,10 +107,18 @@ VENT LINKING (ezvac.admin)
   Gives the persistent HVAC Duct Link Tool.
 
 1. Right-click a registered dispenser to select its group.
-2. Right-click iron trapdoors in the same world to link them as vents.
+2. Right-click vent blocks in the same world to link them as vents:
+     - iron trapdoor      -> air vent, conditions the room around it
+     - waxed copper grate -> water vent, conditions the water around it
 3. Sneak-right-click a registered vent to unlink it.
 
 The selected group must still contain equipment when a vent is linked.
+
+A system is all air or all water, and its equipment must match. Linking a
+waxed copper grate to a system that uses iron trapdoors is refused, as is
+linking either kind to a system whose equipment belongs to the other loop:
+boilers are the water loop, and heat pumps, air conditioners, and furnaces
+are the air loop.
 
 
 REMOVAL AND DIAGNOSTICS (ezvac.admin)
