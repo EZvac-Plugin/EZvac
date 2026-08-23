@@ -1,10 +1,26 @@
 package com.github.blade.hvac.model;
 
+import org.bukkit.Material;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
 public record ClimateVent(BlockKey position, GroupId group) {
+    /** Distributes conditioned air into a room. */
+    public static final Material AIR_VENT = Material.IRON_TRAPDOOR;
+    /** Distributes conditioned water into a body of water. */
+    public static final Material WATER_VENT = Material.COPPER_GRATE;
+
+    public static boolean isVentBlock(Material type) {
+        return type == AIR_VENT || type == WATER_VENT;
+    }
+
+    /** A system's medium follows its vent blocks, not the equipment feeding it. */
+    public static boolean isWaterVent(Material type) {
+        return type == WATER_VENT;
+    }
+
     public ClimateVent {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(group, "group");

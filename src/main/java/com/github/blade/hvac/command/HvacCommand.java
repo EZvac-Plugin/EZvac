@@ -94,7 +94,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     private void create(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(red("Usage: /hvac create <thermostat|heatpump|ac|furnace|thermometer|rpmmonitor|settingspanel> ..."));
+            player.sendMessage(red("Usage: /hvac create <thermostat|heatpump|ac|furnace|boiler"
+                    + "|thermometer|rpmmonitor|settingspanel> ..."));
             return;
         }
         Block block = target(player);
@@ -117,6 +118,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "ac", "airconditioner", "air_conditioner" ->
                     createEquipment(player, block, args, EquipmentType.AIR_CONDITIONER);
             case "furnace" -> createEquipment(player, block, args, EquipmentType.FURNACE);
+            case "boiler" -> createEquipment(player, block, args, EquipmentType.BOILER);
             case "thermometer" -> {
                 requireSign(block);
                 String displayLabel = args.length >= 3 ? args[2] : "Thermometer";
@@ -126,7 +128,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
             case "rpmmonitor", "rpm" -> {
                 if (args.length < 4) throw new IllegalArgumentException(
-                        "Usage: /hvac create rpmmonitor <group> <heatpump|ac|furnace> [label]");
+                        "Usage: /hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler> [label]");
                 requireSign(block);
                 GroupId group = new GroupId(block.getWorld().getUID(), args[2]);
                 EquipmentType type = parseEquipmentType(args[3]);
@@ -370,13 +372,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(green("Selected group '" + unit.group().label() + "'."));
             return;
         }
-        if (block.getType() != Material.IRON_TRAPDOOR) {
-            player.sendMessage(yellow("Select registered equipment or an iron trapdoor."));
+        if (!ClimateVent.isVentBlock(block.getType())) {
+            player.sendMessage(yellow("Select registered equipment, an iron trapdoor (air),"
+                    + " or a copper grate (water)."));
             return;
         }
         if (unlink) {
             ClimateVent removed = registry.removeVent(position);
-            if (removed == null) player.sendMessage(yellow("That trapdoor is not a registered vent."));
+            if (removed == null) player.sendMessage(yellow("That block is not a registered vent."));
             else { airflow.invalidate(removed.group()); player.sendMessage(green("Vent unlinked.")); }
             return;
         }
@@ -399,11 +402,21 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(red("The selected HVAC group no longer has equipment."));
             return;
         }
+        // A system is all air or all water: water cannot come out of a ceiling
+        // vent, and conditioned air cannot be piped into a pool.
+        boolean water = ClimateVent.isWaterVent(block.getType());
+        if (registry.hasVentOfMedium(group, !water)) {
+            player.sendMessage(red("System '" + group.label() + "' already uses "
+                    + (water ? "iron trapdoors (air)" : "copper grates (water)")
+                    + ". A system must be all air or all water; unlink its existing vents first."));
+            return;
+        }
         ClimateVent previous = registry.ventAt(position);
         registry.addVent(new ClimateVent(position, group));
         if (previous != null) airflow.invalidate(previous.group());
         airflow.invalidate(group);
-        player.sendMessage(green("Vent linked to group '" + group.label() + "'."));
+        player.sendMessage(green((water ? "Water vent" : "Vent") + " linked to group '"
+                + group.label() + "'."));
     }
 
     private void showThermostat(Player player, Thermostat thermostat) {
@@ -459,7 +472,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "heatpump", "heat_pump" -> EquipmentType.HEAT_PUMP;
             case "ac", "airconditioner", "air_conditioner" -> EquipmentType.AIR_CONDITIONER;
             case "furnace" -> EquipmentType.FURNACE;
-            default -> throw new IllegalArgumentException("equipment type must be heatpump, ac, or furnace");
+            case "boiler" -> EquipmentType.BOILER;
+            default -> throw new IllegalArgumentException(
+                    "equipment type must be heatpump, ac, furnace, or boiler");
         };
     }
 
@@ -492,7 +507,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "heatpump", "ac", "furnace",
-                        "thermometer", "rpmmonitor", "settingspanel");
+                        "boiler", "thermometer", "rpmmonitor", "settingspanel");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
                 case "group" -> filter(args[1], registry.thermostats().stream().map(value -> value.group().label()).distinct().toArray(String[]::new));
@@ -504,7 +519,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length == 3 && args[0].equalsIgnoreCase("group"))
             return filter(args[2], "enable", "disable", "info");
         if (args.length == 4 && args[0].equalsIgnoreCase("create") && args[1].equalsIgnoreCase("rpmmonitor"))
-            return filter(args[3], "heatpump", "ac", "furnace");
+            return filter(args[3], "heatpump", "ac", "furnace", "boiler");
         return List.of();
     }
 

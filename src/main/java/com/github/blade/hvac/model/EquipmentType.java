@@ -7,7 +7,13 @@ import java.util.Locale;
 public enum EquipmentType {
     HEAT_PUMP(true, true, Material.WATER, "Heat pump"),
     AIR_CONDITIONER(true, false, Material.WATER, "Air conditioner"),
-    FURNACE(false, true, Material.LAVA, "Furnace");
+    FURNACE(false, true, Material.LAVA, "Furnace"),
+    /**
+     * Water-loop heat source: the counterpart of the furnace, feeding vents
+     * that sit in water rather than in air. Like every source it is unaware of
+     * what it is heating; the vents decide that.
+     */
+    BOILER(false, true, Material.WATER, "Boiler");
 
     private final boolean cooling;
     private final boolean heating;
