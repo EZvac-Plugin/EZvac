@@ -2,7 +2,18 @@
 
 All notable changes to EZvac are recorded here.
 
-## Unreleased
+## ALPHA 1.6 Pilot 1
+
+A pilot release. Water systems are new and their design is still settling, so
+this is published to be tried and reported on rather than relied upon. Details
+may change before ALPHA 1.6 proper, and data created by a pilot may not carry
+forward unchanged. Do not run it on a world you care about.
+
+**You cannot roll back to ALPHA 1.5 once you build a water system.** 1.5 shipped
+before the forward-compatibility work below, so it reinterprets a boiler as a
+heat pump - which also cools - and deletes every waxed copper grate vent. From
+1.6 onward a downgrade degrades gracefully instead. If you need to fall back,
+fall back to this pilot, not to 1.5.
 
 ### Added
 

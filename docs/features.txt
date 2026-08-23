@@ -1,5 +1,5 @@
-EZVAC ALPHA 1.5 FEATURES
-========================
+EZVAC ALPHA 1.6 PILOT 1 FEATURES
+================================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
 forks, including Purpur. Climate systems are identified only by world and group
