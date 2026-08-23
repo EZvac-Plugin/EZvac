@@ -43,7 +43,18 @@ class IdentityAndEquipmentTest {
     @Test
     void legacyEquipmentTypeValuesMigrateSafely() {
         assertEquals(EquipmentType.HEAT_PUMP, EquipmentType.parse(null));
-        assertEquals(EquipmentType.HEAT_PUMP, EquipmentType.parse("unknown"));
+        assertEquals(EquipmentType.HEAT_PUMP, EquipmentType.parse(""));
         assertEquals(EquipmentType.AIR_CONDITIONER, EquipmentType.parse("AC"));
+        assertEquals(EquipmentType.AIR_CONDITIONER, EquipmentType.parse("air-conditioner"));
+    }
+
+    @Test
+    void unknownEquipmentTypesAreRejectedRatherThanReinterpreted() {
+        // A type written by a newer build must not come back as a different
+        // device. Rejecting it lets the registry preserve the record verbatim
+        // instead of turning, say, a heating-only unit into a heat pump that
+        // also cools.
+        assertThrows(IllegalArgumentException.class, () -> EquipmentType.parse("no_such_type"));
+        assertThrows(IllegalArgumentException.class, () -> EquipmentType.parse("HEATPUMP2000"));
     }
 }
