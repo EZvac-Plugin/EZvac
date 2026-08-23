@@ -7,16 +7,21 @@ All notable changes to EZvac are recorded here.
 ### Added
 
 - **Boilers and water systems.** A system now conditions either air or water,
-  decided by the vent blocks it uses. Iron trapdoors remain air vents; copper
-  grates placed in a body of water are water vents. `BOILER` is the water-loop
-  heat source — heating only, water output, the counterpart of the furnace.
+  decided by the vent blocks it uses. Iron trapdoors remain air vents; waxed
+  copper grates placed in a body of water are water vents. `BOILER` is the
+  water-loop heat source — heating only, water output, the counterpart of the
+  furnace.
 
   A water body behaves exactly like a room: same thermostat, same hysteresis
   and timers, same capacity from multiple units, same distance falloff, same
   ETA. More equipment heats faster; more vents cover more of the body. The only
   difference is what the airflow walk may travel through.
 
-  A system must be all air or all water; mixing is refused when linking.
+  A system must be all air or all water, and sources belong to a loop too:
+  boilers are the water loop, while heat pumps, air conditioners, and furnaces
+  are the air loop. Mixing either is refused when registering equipment or
+  linking a vent, so a boiler never affects room climate and a heat pump never
+  conditions water.
 
 ### Changed
 

@@ -164,7 +164,17 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 "Usage: /hvac create " + args[1] + " <group>");
         if (block.getType() != Material.DISPENSER)
             throw new IllegalArgumentException("Look directly at a dispenser.");
-        EquipmentUnit unit = new EquipmentUnit(BlockKey.of(block.getLocation()), args[2], type);
+        BlockKey position = BlockKey.of(block.getLocation());
+        // Water-loop sources serve vents in water; air-loop sources serve vents
+        // in a room. A system draws on one loop only.
+        GroupId target = GroupId.of(position, args[2]);
+        if (registry.hasVentOfMedium(target, !type.waterLoop()))
+            throw new IllegalArgumentException(type.displayName() + " is a "
+                    + (type.waterLoop() ? "water" : "air") + " source, but system '"
+                    + target.label() + "' distributes through "
+                    + (type.waterLoop() ? "iron trapdoors (air)" : "waxed copper grates (water)")
+                    + ".");
+        EquipmentUnit unit = new EquipmentUnit(position, args[2], type);
         registry.addEquipment(unit);
         player.sendMessage(green("Registered " + type.displayName() + " in group '"
                 + unit.group().label() + "'."));
@@ -345,7 +355,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         ItemStack tool = new ItemStack(Material.STICK);
         ItemMeta meta = tool.getItemMeta();
         meta.displayName(Component.text("HVAC Duct Link Tool", NamedTextColor.AQUA));
-        meta.lore(List.of(Component.text("Select equipment, then iron trapdoors.", NamedTextColor.GRAY),
+        meta.lore(List.of(
+                Component.text("Select equipment, then vents.", NamedTextColor.GRAY),
+                Component.text("Iron trapdoor = air, waxed copper grate = water.", NamedTextColor.GRAY),
                 Component.text("Sneak-click a vent to unlink it.", NamedTextColor.GRAY)));
         meta.getPersistentDataContainer().set(toolKey, PersistentDataType.BYTE, (byte) 1);
         tool.setItemMeta(meta);
@@ -367,14 +379,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             meta.getPersistentDataContainer().set(toolGroupKey, PersistentDataType.STRING, unit.group().label());
             meta.getPersistentDataContainer().set(toolWorldKey, PersistentDataType.STRING, unit.group().worldId().toString());
             meta.lore(List.of(Component.text("Selected: " + unit.group().label(), NamedTextColor.GRAY),
-                    Component.text("Click iron trapdoors to link.", NamedTextColor.GRAY)));
+                    Component.text("Click vents to link them.", NamedTextColor.GRAY)));
             item.setItemMeta(meta);
             player.sendMessage(green("Selected group '" + unit.group().label() + "'."));
             return;
         }
         if (!ClimateVent.isVentBlock(block.getType())) {
             player.sendMessage(yellow("Select registered equipment, an iron trapdoor (air),"
-                    + " or a copper grate (water)."));
+                    + " or a waxed copper grate (water)."));
             return;
         }
         if (unlink) {
@@ -405,9 +417,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         // A system is all air or all water: water cannot come out of a ceiling
         // vent, and conditioned air cannot be piped into a pool.
         boolean water = ClimateVent.isWaterVent(block.getType());
+        if (registry.hasEquipmentOfLoop(group, !water)) {
+            player.sendMessage(red("System '" + group.label() + "' is powered by "
+                    + (water ? "air-loop equipment, which cannot condition water"
+                             : "a boiler, which cannot condition air") + "."));
+            return;
+        }
         if (registry.hasVentOfMedium(group, !water)) {
             player.sendMessage(red("System '" + group.label() + "' already uses "
-                    + (water ? "iron trapdoors (air)" : "copper grates (water)")
+                    + (water ? "iron trapdoors (air)" : "waxed copper grates (water)")
                     + ". A system must be all air or all water; unlink its existing vents first."));
             return;
         }

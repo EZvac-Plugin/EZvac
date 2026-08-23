@@ -385,6 +385,13 @@ public final class HvacRegistry {
         return false;
     }
 
+    /** True when this group already has equipment belonging to the given loop. */
+    public boolean hasEquipmentOfLoop(GroupId group, boolean waterLoop) {
+        for (EquipmentUnit unit : equipment.values())
+            if (unit.group().equals(group) && unit.type().waterLoop() == waterLoop) return true;
+        return false;
+    }
+
     public OperatingProfile profileFor(GroupId group) {
         SettingsPanel panel = settingsPanelFor(group);
         return panel == null ? OperatingProfile.NORMAL : panel.profile();
