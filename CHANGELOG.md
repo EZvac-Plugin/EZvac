@@ -29,9 +29,10 @@ is the change that came out of it.
   Existing pilot pools keep their room thermostat and its 60-85 F range; break
   and recreate the sign as a pool thermostat to widen it.
 
-  Thanks to [Cole](https://github.com/colebolebole), who ran the pilot on his
-  server "Soms" and worked out that pools need their own range - the air range
-  had been assumed to fit both, and it does not.
+  Thanks to [Cole](https://github.com/colebolebole), whose extensive testing of
+  the pilot on his server "Soms" is what surfaced the problem. The air range had
+  simply been assumed to fit water; running the pilot in earnest showed it does
+  not.
 
 ## ALPHA 1.6 Pilot 1
 
