@@ -25,6 +25,10 @@ All notable changes to EZvac are recorded here.
   Existing pilot pools keep their room thermostat and its 60-85 F range; break
   and recreate the sign as a pool thermostat to widen it.
 
+  Thanks to [Cole](https://github.com/colebolebole), who ran the pilot on his
+  server "Soms" and worked out that pools need their own range - the air range
+  had been assumed to fit both, and it does not.
+
 ## ALPHA 1.6 Pilot 1
 
 A pilot release. Water systems are new and their design is still settling, so
