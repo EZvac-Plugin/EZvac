@@ -10,24 +10,22 @@ EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
 1.21.1 and its forks, including Purpur. It provides sign thermostats,
 variable-speed heat pumps and air conditioners, furnaces, ducted airflow, point
 thermometers, RPM monitors, operating-profile panels, outdoor climate
-simulation, and persistent room temperatures.
+simulation, and persistent room temperatures. Systems condition either **air**
+or **water**, so the same simulation heats a room or a swimming pool.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.6 Pilot 1 adds **water systems** — boilers
-> and waxed copper grate vents that condition a body of water exactly the way
-> vents condition a room. It is a *pilot*: published to be tried and reported
-> on, with a design that may still change before ALPHA 1.6 proper. Do not run
-> it on a world you care about.
+> **Release status:** EZvac ALPHA 1.6 adds **water systems** — boilers, waxed
+> copper grate vents, and pool thermostats that condition a body of water
+> exactly the way vents condition a room. It supersedes ALPHA 1.6 Pilot 1 and
+> includes everything that was in it.
 >
 > **You cannot roll back to ALPHA 1.5 once you build a water system** — 1.5
 > predates the forward-compatibility work and would reinterpret boilers as heat
-> pumps and delete grate vents. See [CHANGELOG.md](CHANGELOG.md).
+> pumps and delete grate vents. From 1.6 onward a downgrade degrades gracefully.
+> See [CHANGELOG.md](CHANGELOG.md).
 >
-> The stable release remains
-> [ALPHA 1.5](https://github.com/EZvac-Plugin/EZvac/releases/tag/ALPHA-1.5), a
-> performance overhaul that cut average tick cost by roughly 67% at high device
-> counts.
+> This is alpha software: back up your server and EZvac data before upgrading.
 
 ## Requirements
 
@@ -44,7 +42,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.6-P1.jar
+target/EzVac-ALPHA-1.6.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -54,13 +52,15 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.6-P1.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.6.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
 ## Core devices
 
-- **Thermostat:** One sign controller per world-scoped HVAC group.
+- **Thermostat:** One sign controller per world-scoped HVAC group, 60-85 F.
+- **Pool thermostat:** The same sign for water systems, 75-104 F. Only controls
+  boiler systems, so it cannot be used to overheat a room.
 - **Heat pump:** Dispenser-backed variable-speed cooling and heating.
 - **Air conditioner:** Dispenser-backed variable-speed cooling.
 - **Furnace:** Dispenser-backed fixed-capacity heating.

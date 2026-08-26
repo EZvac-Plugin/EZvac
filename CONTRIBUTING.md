@@ -30,7 +30,7 @@ ALPHA 1.5 and everything after it is MIT.
 mvn clean package
 ```
 
-This compiles, runs the test suite, and writes `target/EzVac-ALPHA-1.6-P1.jar`.
+This compiles, runs the test suite, and writes `target/EzVac-ALPHA-1.6.jar`.
 To run only the tests:
 
 ```shell

@@ -1,5 +1,5 @@
-EZVAC ALPHA 1.6 PILOT 1 - COMMAND REFERENCE
-==========================================
+EZVAC ALPHA 1.6 - COMMAND REFERENCE
+===================================
 
 All commands use /hvac. /climate is an alias.
 
@@ -147,7 +147,7 @@ INSTALL / UPGRADE
 -----------------
 
 1. Stop the server and back up the existing plugins/EZvac directory, if present.
-2. Put EzVac-ALPHA-1.6-P1.jar in the server plugins directory.
+2. Put EzVac-ALPHA-1.6.jar in the server plugins directory.
 3. Start Paper 1.21.1 (or Purpur) on Java 21.
 4. Confirm that EZvac enables without errors.
 5. Use /hvac stats and /hvac list, then test one full heating and cooling cycle.
