@@ -35,6 +35,12 @@ CREATE DEVICES (ezvac.admin)
 /hvac create ac <group>
 /hvac create furnace <group>
 
+/hvac create poolthermostat <id> <group> [targetF]
+  Registers the targeted sign as a pool thermostat: identical to a thermostat
+  except that it clamps to the water target range (75-104 F by default) and may
+  only control a system powered by boilers. Defaults to 82 F.
+  "pool" works as a shorthand for "poolthermostat".
+
 /hvac create boiler <group>
   Registers the targeted dispenser as a boiler: a heating-only water-loop
   source for a system whose vents are waxed copper grates placed in water.

@@ -2,6 +2,29 @@
 
 All notable changes to EZvac are recorded here.
 
+## Unreleased
+
+### Added
+
+- **Pool thermostats.** `/hvac create poolthermostat <id> <group>` registers a
+  sign that behaves exactly like a thermostat but clamps to the water target
+  range — 75-104 F by default, against 60-85 F for rooms. Water that would make
+  a pleasant room is cold to swim in, and a hot tub would be unliveable as a
+  room, so neither range contains the other.
+
+  The range is a property of the thermostat rather than something inferred from
+  whatever the system is wired to, which means it is known the moment the sign
+  is placed, before any equipment or vent exists.
+
+  A pool thermostat may only control a boiler system, and a room thermostat may
+  only control air-loop equipment. Without that restriction a pool thermostat
+  pointed at heat pumps would be a way to heat a room to 104 F. The rule is
+  enforced when registering either the thermostat or the equipment, matching how
+  sources and vents already validate against each other.
+
+  Existing pilot pools keep their room thermostat and its 60-85 F range; break
+  and recreate the sign as a pool thermostat to widen it.
+
 ## ALPHA 1.6 Pilot 1
 
 A pilot release. Water systems are new and their design is still settling, so

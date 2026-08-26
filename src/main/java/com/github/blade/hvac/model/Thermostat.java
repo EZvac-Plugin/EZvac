@@ -20,17 +20,26 @@ public final class Thermostat {
     private double outdoorNoonF;
     private double outdoorMidnightF;
     private double lastOutdoorF;
+    /** Pool thermostats clamp to the water range and pair only with boilers. */
+    private final boolean pool;
 
     public Thermostat(BlockKey position, String id, String groupLabel,
                       double targetF, double roomF, HvacSettings settings) {
-        this(position, id, GroupId.of(position, groupLabel), settings.clampTarget(targetF),
+        this(position, id, groupLabel, targetF, roomF, settings, false);
+    }
+
+    public Thermostat(BlockKey position, String id, String groupLabel,
+                      double targetF, double roomF, HvacSettings settings, boolean pool) {
+        this(position, id, GroupId.of(position, groupLabel), settings.clampTarget(targetF, pool),
                 ThermalModel.clampTemperature(roomF), true, OperatingMode.IDLE,
-                settings.minimumOffTicks(), 72.0, 52.0, 62.0);
+                settings.minimumOffTicks(), 72.0, 52.0, 62.0, pool);
     }
 
     private Thermostat(BlockKey position, String id, GroupId group, double targetF,
                        double roomF, boolean enabled, OperatingMode mode, long ticksInMode,
-                       double outdoorNoonF, double outdoorMidnightF, double lastOutdoorF) {
+                       double outdoorNoonF, double outdoorMidnightF, double lastOutdoorF,
+                       boolean pool) {
+        this.pool = pool;
         this.position = Objects.requireNonNull(position, "position");
         this.id = validateId(id);
         this.group = Objects.requireNonNull(group, "group");
@@ -57,10 +66,13 @@ public final class Thermostat {
     public double outdoorNoonF() { return outdoorNoonF; }
     public double outdoorMidnightF() { return outdoorMidnightF; }
     public double lastOutdoorF() { return lastOutdoorF; }
+    public boolean pool() { return pool; }
 
     public void setId(String id) { this.id = validateId(id); }
     public void setGroup(String label) { this.group = GroupId.of(position, label); }
-    public void setTargetF(double targetF, HvacSettings settings) { this.targetF = settings.clampTarget(targetF); }
+    public void setTargetF(double targetF, HvacSettings settings) {
+        this.targetF = settings.clampTarget(targetF, pool);
+    }
     public void setRoomF(double roomF) { this.roomF = ThermalModel.clampTemperature(roomF); }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public void setControlState(OperatingMode mode, long ticksInMode) {
@@ -86,6 +98,7 @@ public final class Thermostat {
         map.put("outdoorNoonF", outdoorNoonF);
         map.put("outdoorMidnightF", outdoorMidnightF);
         map.put("lastOutdoorF", lastOutdoorF);
+        map.put("pool", pool);
         return map;
     }
 
@@ -98,11 +111,12 @@ public final class Thermostat {
         long ticks = whole(map, "ticksInMode", -1L);
         if (ticks < 0L) ticks = Math.max(0L, Math.round(number(map,
                 "modeElapsedMinecraftHours", settings.minimumOffTicks() / 1_000.0) * 1_000.0));
+        boolean pool = bool(map, "pool", false);
         return new Thermostat(position, id, GroupId.of(position, groupLabel),
-                settings.clampTarget(target), ThermalModel.clampTemperature(room),
+                settings.clampTarget(target, pool), ThermalModel.clampTemperature(room),
                 bool(map, "enabled", true), OperatingMode.parse(map.get("mode")), ticks,
                 number(map, "outdoorNoonF", 72.0), number(map, "outdoorMidnightF", 52.0),
-                number(map, "lastOutdoorF", number(map, "lastOutdoorTempF", 62.0)));
+                number(map, "lastOutdoorF", number(map, "lastOutdoorTempF", 62.0)), pool);
     }
 
     public static String validateId(String value) {

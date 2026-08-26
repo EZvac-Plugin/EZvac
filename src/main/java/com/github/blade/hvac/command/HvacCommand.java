@@ -94,25 +94,38 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     private void create(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(red("Usage: /hvac create <thermostat|heatpump|ac|furnace|boiler"
-                    + "|thermometer|rpmmonitor|settingspanel> ..."));
+            player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
+                    + "|furnace|boiler|thermometer|rpmmonitor|settingspanel> ..."));
             return;
         }
         Block block = target(player);
         if (block == null) return;
         BlockKey position = BlockKey.of(block.getLocation());
         switch (args[1].toLowerCase(Locale.ROOT)) {
-            case "thermostat" -> {
+            case "thermostat", "poolthermostat", "pool" -> {
+                boolean pool = !args[1].equalsIgnoreCase("thermostat");
                 if (args.length < 4) throw new IllegalArgumentException(
-                        "Usage: /hvac create thermostat <id> <group> [targetF]");
+                        "Usage: /hvac create " + args[1] + " <id> <group> [targetF]");
                 requireSign(block);
-                double target = args.length >= 5 ? finiteDouble(args[4], "target temperature") : 72.0;
+                GroupId target0 = GroupId.of(position, args[3]);
+                // A pool thermostat exists to unlock the water target range, so it
+                // may only control a water-loop system. Without this a player could
+                // heat a room to 104 F by pointing one at heat pumps.
+                if (registry.hasEquipmentOfLoop(target0, !pool))
+                    throw new IllegalArgumentException("System '" + target0.label() + "' is powered by "
+                            + (pool ? "air-loop equipment; a pool thermostat needs boilers"
+                                    : "boilers; use /hvac create poolthermostat") + ".");
+                double target = args.length >= 5 ? finiteDouble(args[4], "target temperature")
+                        : (pool ? 82.0 : 72.0);
                 Thermostat thermostat = new Thermostat(position, args[2], args[3], target,
-                        outdoor.temperatureAt(block.getLocation()), settings);
+                        outdoor.temperatureAt(block.getLocation()), settings, pool);
                 registry.addThermostat(thermostat);
                 displays.refreshThermostat(thermostat, true);
-                player.sendMessage(green("Created thermostat '" + thermostat.id()
-                        + "' for group '" + thermostat.group().label() + "'."));
+                player.sendMessage(green("Created " + (pool ? "pool thermostat" : "thermostat")
+                        + " '" + thermostat.id() + "' for group '" + thermostat.group().label()
+                        + "'. Target range " + String.format(Locale.US, "%.0f-%.0f F",
+                        pool ? settings.poolMinimumTargetF() : settings.minimumTargetF(),
+                        pool ? settings.poolMaximumTargetF() : settings.maximumTargetF()) + "."));
             }
             case "heatpump", "heat_pump" -> createEquipment(player, block, args, EquipmentType.HEAT_PUMP);
             case "ac", "airconditioner", "air_conditioner" ->
@@ -168,6 +181,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         // Water-loop sources serve vents in water; air-loop sources serve vents
         // in a room. A system draws on one loop only.
         GroupId target = GroupId.of(position, args[2]);
+        Thermostat controller = registry.thermostatFor(target);
+        if (controller != null && controller.pool() != type.waterLoop())
+            throw new IllegalArgumentException("System '" + target.label() + "' is controlled by a "
+                    + (controller.pool() ? "pool thermostat, which needs a boiler"
+                                         : "room thermostat, which cannot use a boiler") + ".");
         if (registry.hasVentOfMedium(target, !type.waterLoop()))
             throw new IllegalArgumentException(type.displayName() + " is a "
                     + (type.waterLoop() ? "water" : "air") + " source, but system '"
@@ -524,8 +542,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 "create", "thermostat", "equipment", "group", "tool", "remove", "stats", "sync");
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
-                case "create" -> filter(args[1], "thermostat", "heatpump", "ac", "furnace",
-                        "boiler", "thermometer", "rpmmonitor", "settingspanel");
+                case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
+                        "ac", "furnace", "boiler", "thermometer", "rpmmonitor", "settingspanel");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
                 case "group" -> filter(args[1], registry.thermostats().stream().map(value -> value.group().label()).distinct().toArray(String[]::new));

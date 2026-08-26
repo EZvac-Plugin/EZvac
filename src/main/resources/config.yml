@@ -13,6 +13,10 @@ controller:
 temperature:
   minimum-target-f: 60.0
   maximum-target-f: 85.0
+  # Pool thermostats clamp to their own range: water that would make a pleasant
+  # room is cold to swim in, and a hot tub would be unliveable as a room.
+  pool-minimum-target-f: 75.0
+  pool-maximum-target-f: 104.0
   cooling-f-per-minecraft-hour: 3.75
   heating-f-per-minecraft-hour: 5.0
   idle-drift-f-per-minecraft-hour: 1.25

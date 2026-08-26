@@ -15,6 +15,8 @@ public record HvacSettings(
         long minimumOffTicks,
         double minimumTargetF,
         double maximumTargetF,
+        double poolMinimumTargetF,
+        double poolMaximumTargetF,
         double coolingRateFPerHour,
         double heatingRateFPerHour,
         double idleDriftFPerHour,
@@ -51,6 +53,10 @@ public record HvacSettings(
         if (!Double.isFinite(minimumTargetF) || !Double.isFinite(maximumTargetF)
                 || minimumTargetF >= maximumTargetF) {
             throw new IllegalArgumentException("temperature target bounds are invalid");
+        }
+        if (!Double.isFinite(poolMinimumTargetF) || !Double.isFinite(poolMaximumTargetF)
+                || poolMinimumTargetF >= poolMaximumTargetF) {
+            throw new IllegalArgumentException("pool temperature target bounds are invalid");
         }
         requirePositiveFinite("temperature.cooling-f-per-minecraft-hour", coolingRateFPerHour);
         requirePositiveFinite("temperature.heating-f-per-minecraft-hour", heatingRateFPerHour);
@@ -115,6 +121,8 @@ public record HvacSettings(
                 config.getLong("controller.minimum-off-ticks", defaults.minimumOffTicks),
                 config.getDouble("temperature.minimum-target-f", defaults.minimumTargetF),
                 config.getDouble("temperature.maximum-target-f", defaults.maximumTargetF),
+                config.getDouble("temperature.pool-minimum-target-f", defaults.poolMinimumTargetF),
+                config.getDouble("temperature.pool-maximum-target-f", defaults.poolMaximumTargetF),
                 config.getDouble("temperature.cooling-f-per-minecraft-hour", defaults.coolingRateFPerHour),
                 config.getDouble("temperature.heating-f-per-minecraft-hour", defaults.heatingRateFPerHour),
                 config.getDouble("temperature.idle-drift-f-per-minecraft-hour", defaults.idleDriftFPerHour),
@@ -147,15 +155,23 @@ public record HvacSettings(
     public static HvacSettings defaults() {
         return new HvacSettings(20, 600, 60,
                 1.0, 1.0, 0.3, 0.3, 300, 200,
-                60.0, 85.0, 3.75, 5.0, 1.25, 0.50, 2.0,
+                60.0, 85.0, 75.0, 104.0, 3.75, 5.0, 1.25, 0.50, 2.0,
                 3.0, 0.40, 1_200.0, 3_600.0, 2_400.0, 4_200.0, 900.0, 1_200.0,
                 15, 30, 4_000, 200_000,
                 true, 25.0, 60, 1.6f, 0.55f);
     }
 
-    public double clampTarget(double value) {
+    /**
+     * Water is comfortable over a different span than air: a pool that would be
+     * a pleasant room is cold to swim in, and a hot tub would be unliveable as
+     * a room. The bound that applies is a property of the thermostat, so it
+     * never has to be inferred from whatever the system happens to be wired to.
+     */
+    public double clampTarget(double value, boolean pool) {
         if (!Double.isFinite(value)) throw new IllegalArgumentException("target temperature must be finite");
-        return Math.max(minimumTargetF, Math.min(maximumTargetF, value));
+        double minimum = pool ? poolMinimumTargetF : minimumTargetF;
+        double maximum = pool ? poolMaximumTargetF : maximumTargetF;
+        return Math.max(minimum, Math.min(maximum, value));
     }
 
     private static void requirePositive(String name, long value) {
