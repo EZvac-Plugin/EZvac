@@ -2,7 +2,11 @@
 
 All notable changes to EZvac are recorded here.
 
-## Unreleased
+## ALPHA 1.6
+
+Water systems, promoted from ALPHA 1.6 Pilot 1 and including everything that
+was in it. The pilot ran on real servers for a week; the pool thermostat below
+is the change that came out of it.
 
 ### Added
 
@@ -31,10 +35,10 @@ All notable changes to EZvac are recorded here.
 
 ## ALPHA 1.6 Pilot 1
 
-A pilot release. Water systems are new and their design is still settling, so
-this is published to be tried and reported on rather than relied upon. Details
-may change before ALPHA 1.6 proper, and data created by a pilot may not carry
-forward unchanged. Do not run it on a world you care about.
+Superseded by ALPHA 1.6. Published provisionally so water systems could be
+tried on real servers before the design was fixed, which is exactly what
+happened: pool thermostats exist because the pilot showed the air target range
+does not fit water.
 
 **You cannot roll back to ALPHA 1.5 once you build a water system.** 1.5 shipped
 before the forward-compatibility work below, so it reinterprets a boiler as a
