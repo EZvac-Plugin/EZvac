@@ -133,4 +133,22 @@ class PersistenceModelTest {
             assertEquals(profile, profile.previous().next());
         }
     }
+
+    @Test
+    void poolThermostatsRoundTripAndKeepTheirRange() {
+        BlockKey position = new BlockKey(UUID.randomUUID(), 1, 2, 3);
+        HvacSettings settings = HvacSettings.defaults();
+        Thermostat pool = new Thermostat(position, "spa", "poolside", 95.0, 80.0, settings, true);
+        assertTrue(pool.pool());
+        assertEquals(95.0, pool.targetF());
+
+        Thermostat restored = Thermostat.fromMap(pool.toMap(), settings);
+        assertTrue(restored.pool(), "pool flag must survive a save/load round trip");
+        assertEquals(95.0, restored.targetF());
+
+        // The same target on a room thermostat is clamped to the air ceiling.
+        Thermostat room = new Thermostat(position, "den", "house", 95.0, 80.0, settings);
+        assertFalse(room.pool());
+        assertEquals(85.0, room.targetF());
+    }
 }

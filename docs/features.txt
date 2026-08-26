@@ -10,6 +10,12 @@ SYSTEM MODEL
 ------------
 
 - One sign thermostat is the controller for one world-scoped HVAC group.
+- A pool thermostat is the same sign device with the water target range. Water
+  that would make a pleasant room is cold to swim in and a hot tub would be
+  unliveable as a room, so the two ranges overlap without either containing the
+  other: rooms clamp to 60-85 F and pools to 75-104 F, both configurable.
+  A pool thermostat may only control a boiler system, which is what stops it
+  being used to heat a room to 104 F.
 - A group may have one optional settings-panel sign. Without one, its operating
   profile is always NORMAL and matches the stock variable-speed behavior.
 - A group may contain any number of heat pumps, air conditioners, or furnaces.

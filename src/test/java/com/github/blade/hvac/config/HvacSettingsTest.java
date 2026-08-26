@@ -24,8 +24,21 @@ class HvacSettingsTest {
     @Test
     void targetsClampButNonFiniteValuesAreRejected() {
         HvacSettings value = HvacSettings.defaults();
-        assertEquals(60, value.clampTarget(40));
-        assertEquals(85, value.clampTarget(100));
-        assertThrows(IllegalArgumentException.class, () -> value.clampTarget(Double.NaN));
+        assertEquals(60, value.clampTarget(40, false));
+        assertEquals(85, value.clampTarget(100, false));
+        assertThrows(IllegalArgumentException.class, () -> value.clampTarget(Double.NaN, false));
+        assertThrows(IllegalArgumentException.class, () -> value.clampTarget(Double.NaN, true));
+    }
+
+    @Test
+    void poolTargetsUseTheWaterRange() {
+        HvacSettings value = HvacSettings.defaults();
+        assertEquals(75, value.clampTarget(40, true));      // colder than any pool should be
+        assertEquals(104, value.clampTarget(200, true));    // hot tub ceiling
+        assertEquals(82, value.clampTarget(82, true));      // ordinary pool passes through
+        // The ranges overlap but neither contains the other, which is the point:
+        // a comfortable room is a cold pool, and a hot tub is an unliveable room.
+        assertEquals(75, value.clampTarget(72, true));
+        assertEquals(85, value.clampTarget(95, false));
     }
 }
