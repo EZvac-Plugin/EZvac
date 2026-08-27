@@ -3,8 +3,10 @@ package com.github.blade.hvac.model;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
-public record RpmMonitor(BlockKey position, GroupId group, String label, EquipmentType equipmentType) {
+public record RpmMonitor(BlockKey position, GroupId group, String label,
+                        EquipmentType equipmentType, UUID owner) {
     public RpmMonitor {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(group, "group");
@@ -20,6 +22,7 @@ public record RpmMonitor(BlockKey position, GroupId group, String label, Equipme
         map.put("group", group.label());
         map.put("label", label);
         map.put("equipmentType", equipmentType.name());
+        Ownership.write(map, owner);
         return map;
     }
 
@@ -27,7 +30,8 @@ public record RpmMonitor(BlockKey position, GroupId group, String label, Equipme
         BlockKey position = BlockKey.read(map, "");
         String group = text(map.get("group"), null);
         return new RpmMonitor(position, GroupId.of(position, group),
-                text(map.get("label"), group), EquipmentType.parse(map.get("equipmentType")));
+                text(map.get("label"), group), EquipmentType.parse(map.get("equipmentType")),
+                Ownership.read(map.get("owner")));
     }
 
     private static String text(Object value, String fallback) {

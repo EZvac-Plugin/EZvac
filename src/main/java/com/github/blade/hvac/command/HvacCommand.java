@@ -21,6 +21,7 @@ import java.util.*;
 /** Compact command surface for the standalone plugin. */
 public final class HvacCommand implements CommandExecutor, TabCompleter {
     private static final String ADMIN_PERMISSION = "ezvac.admin";
+    private static final String BUILD_PERMISSION = "ezvac.build";
 
     private final HvacPlugin plugin;
     private final HvacRegistry registry;
@@ -78,12 +79,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "temperature", "temp" -> temperature(player);
                 case "list" -> list(player);
                 case "info" -> info(player);
-                case "create" -> { if (requireAdmin(player)) create(player, args); }
-                case "thermostat" -> { if (requireAdmin(player)) thermostat(player, args); }
-                case "equipment" -> { if (requireAdmin(player)) equipment(player, args); }
-                case "group" -> { if (requireAdmin(player)) group(player, args); }
-                case "tool" -> { if (requireAdmin(player)) giveTool(player); }
-                case "remove" -> { if (requireAdmin(player)) remove(player); }
+                case "create" -> { if (requireBuild(player)) create(player, args); }
+                case "thermostat" -> thermostat(player, args);
+                case "equipment" -> equipment(player, args);
+                case "group" -> group(player, args);
+                case "tool" -> { if (requireBuild(player)) giveTool(player); }
+                case "remove" -> { if (requireBuild(player)) remove(player); }
+                case "owner" -> { if (requireAdmin(player)) owner(player, args); }
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
             }
         } catch (IllegalArgumentException exception) {
@@ -108,6 +110,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         "Usage: /hvac create " + args[1] + " <id> <group> [targetF]");
                 requireSign(block);
                 GroupId target0 = GroupId.of(position, args[3]);
+                if (!mayJoin(player, target0)) return;
                 // A pool thermostat exists to unlock the water target range, so it
                 // may only control a water-loop system. Without this a player could
                 // heat a room to 104 F by pointing one at heat pumps.
@@ -118,7 +121,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 double target = args.length >= 5 ? finiteDouble(args[4], "target temperature")
                         : (pool ? 82.0 : 72.0);
                 Thermostat thermostat = new Thermostat(position, args[2], args[3], target,
-                        outdoor.temperatureAt(block.getLocation()), settings, pool);
+                        outdoor.temperatureAt(block.getLocation()), settings, pool,
+                        player.getUniqueId());
                 registry.addThermostat(thermostat);
                 displays.refreshThermostat(thermostat, true);
                 player.sendMessage(green("Created " + (pool ? "pool thermostat" : "thermostat")
@@ -135,7 +139,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "thermometer" -> {
                 requireSign(block);
                 String displayLabel = args.length >= 3 ? args[2] : "Thermometer";
-                registry.addThermometer(new Thermometer(position, displayLabel));
+                registry.addThermometer(new Thermometer(position, displayLabel, player.getUniqueId()));
                 displays.refreshAll(true);
                 player.sendMessage(green("Created independent point thermometer."));
             }
@@ -144,11 +148,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         "Usage: /hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler> [label]");
                 requireSign(block);
                 GroupId group = new GroupId(block.getWorld().getUID(), args[2]);
+                if (!mayJoin(player, group)) return;
                 EquipmentType type = parseEquipmentType(args[3]);
                 if (registry.equipmentFor(group).stream().noneMatch(unit -> unit.type() == type))
                     throw new IllegalArgumentException("No " + type.displayName() + " exists in that group.");
                 String displayLabel = args.length >= 5 ? args[4] : group.label();
-                registry.addRpmMonitor(new RpmMonitor(position, group, displayLabel, type));
+                registry.addRpmMonitor(new RpmMonitor(position, group, displayLabel, type,
+                        player.getUniqueId()));
                 displays.refreshAll(true);
                 player.sendMessage(green("Created " + type.displayName() + " RPM monitor."));
             }
@@ -157,11 +163,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         "Usage: /hvac create settingspanel <group> [label]");
                 requireSign(block);
                 GroupId group = new GroupId(block.getWorld().getUID(), args[2]);
+                if (!mayJoin(player, group)) return;
                 if (registry.thermostatFor(group) == null && registry.equipmentFor(group).isEmpty())
                     throw new IllegalArgumentException("No HVAC group named '" + group.label()
                             + "' exists in this world.");
                 String displayLabel = args.length >= 4 ? args[3] : group.label();
-                SettingsPanel panel = new SettingsPanel(position, group.label(), displayLabel);
+                SettingsPanel panel = new SettingsPanel(position, group.label(), displayLabel,
+                        player.getUniqueId());
                 registry.addSettingsPanel(panel);
                 displays.refreshSettingsPanel(panel, true);
                 player.sendMessage(green("Created settings panel for group '" + group.label()
@@ -181,6 +189,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         // Water-loop sources serve vents in water; air-loop sources serve vents
         // in a room. A system draws on one loop only.
         GroupId target = GroupId.of(position, args[2]);
+        if (!mayJoin(player, target)) return;
         Thermostat controller = registry.thermostatFor(target);
         if (controller != null && controller.pool() != type.waterLoop())
             throw new IllegalArgumentException("System '" + target.label() + "' is controlled by a "
@@ -192,7 +201,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     + target.label() + "' distributes through "
                     + (type.waterLoop() ? "iron trapdoors (air)" : "waxed copper grates (water)")
                     + ".");
-        EquipmentUnit unit = new EquipmentUnit(position, args[2], type);
+        EquipmentUnit unit = new EquipmentUnit(position, args[2], type, player.getUniqueId());
         registry.addEquipment(unit);
         player.sendMessage(green("Registered " + type.displayName() + " in group '"
                 + unit.group().label() + "'."));
@@ -203,6 +212,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 "Usage: /hvac thermostat <id> <set|enable|disable|group|info> ...");
         Thermostat thermostat = registry.thermostatById(args[1]);
         if (thermostat == null) throw new IllegalArgumentException("No thermostat named '" + args[1] + "'.");
+        boolean readOnly = args[2].equalsIgnoreCase("info");
+        if (!readOnly && !mayModify(player, thermostat.group(), thermostat.owner())) return;
         switch (args[2].toLowerCase(Locale.ROOT)) {
             case "set", "settemp" -> {
                 if (args.length < 4) throw new IllegalArgumentException("Usage: /hvac thermostat <id> set <temperatureF>");
@@ -215,6 +226,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "group", "setgroup", "sethvac" -> {
                 if (args.length < 4) throw new IllegalArgumentException("Usage: /hvac thermostat <id> group <group>");
                 GroupId replacement = GroupId.of(thermostat.position(), args[3]);
+                if (!mayJoin(player, replacement)) return;
                 Thermostat existing = registry.thermostatFor(replacement);
                 if (existing != null && existing != thermostat)
                     throw new IllegalArgumentException("That group already has thermostat '" + existing.id() + "'.");
@@ -239,11 +251,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (block == null) return;
         EquipmentUnit unit = registry.equipmentAt(BlockKey.of(block.getLocation()));
         if (unit == null) throw new IllegalArgumentException("That block is not registered HVAC equipment.");
+        if (!args[1].equalsIgnoreCase("info") && !mayModify(player, unit.group(), unit.owner())) return;
         switch (args[1].toLowerCase(Locale.ROOT)) {
             case "enable" -> { unit.setEnabled(true); player.sendMessage(green("Equipment enabled.")); }
             case "disable" -> { unit.setEnabled(false); unit.stop(); player.sendMessage(yellow("Equipment disabled.")); }
             case "group" -> {
                 if (args.length < 3) throw new IllegalArgumentException("Usage: /hvac equipment group <group>");
+                if (!mayJoin(player, GroupId.of(unit.position(), args[2]))) return;
                 unit.stop();
                 if (unit.hasOwnedOutput())
                     throw new IllegalArgumentException("The old output chunk must load before this unit can change groups.");
@@ -263,6 +277,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         GroupId group = new GroupId(player.getWorld().getUID(), args[1]);
         Thermostat thermostat = registry.thermostatFor(group);
         List<EquipmentUnit> units = registry.equipmentFor(group);
+        if (!args[2].equalsIgnoreCase("info")
+                && !mayModify(player, group, thermostat == null ? null : thermostat.owner())) return;
         if (thermostat == null && units.isEmpty())
             throw new IllegalArgumentException("No HVAC group named '" + group.label() + "' in this world.");
         switch (args[2].toLowerCase(Locale.ROOT)) {
@@ -345,10 +361,53 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(red("No EZvac device is registered at that block."));
     }
 
+    /** Resolves whatever device sits at a block and checks it against its system. */
+    private boolean mayModifyDeviceAt(Player player, BlockKey key) {
+        Thermostat thermostat = registry.thermostatAt(key);
+        if (thermostat != null) return mayModify(player, thermostat.group(), thermostat.owner());
+        EquipmentUnit unit = registry.equipmentAt(key);
+        if (unit != null) return mayModify(player, unit.group(), unit.owner());
+        ClimateVent vent = registry.ventAt(key);
+        if (vent != null) return mayModify(player, vent.group(), vent.owner());
+        SettingsPanel panel = registry.settingsPanelAt(key);
+        if (panel != null) return mayModify(player, panel.group(), panel.owner());
+        RpmMonitor monitor = registry.rpmMonitorAt(key);
+        if (monitor != null) return mayModify(player, monitor.group(), monitor.owner());
+        Thermometer probe = registry.thermometerAt(key);
+        if (probe != null) return mayModify(player, null, probe.owner());
+        return true; // nothing registered here; the caller reports that itself
+    }
+
+    private void owner(Player player, String[] args) {
+        if (args.length < 2) throw new IllegalArgumentException("Usage: /hvac owner <player>");
+        Player recipient = plugin.getServer().getPlayerExact(args[1]);
+        if (recipient == null) throw new IllegalArgumentException("Player '" + args[1]
+                + "' must be online to receive ownership.");
+        Block block = target(player);
+        if (block == null) return;
+        BlockKey key = BlockKey.of(block.getLocation());
+        Thermostat thermostat = registry.thermostatAt(key);
+        if (thermostat != null) {
+            int changed = registry.assignGroupOwner(thermostat.group(), recipient.getUniqueId());
+            player.sendMessage(green("System '" + thermostat.group().label() + "' now belongs to "
+                    + recipient.getName() + " (" + changed + " device(s) reassigned)."));
+            recipient.sendMessage(green("You now own the HVAC system '"
+                    + thermostat.group().label() + "'."));
+        } else if (registry.assignDeviceOwner(key, recipient.getUniqueId())) {
+            player.sendMessage(green("That device now belongs to " + recipient.getName() + "."));
+            recipient.sendMessage(green("You now own an EZvac device at " + key + "."));
+        } else {
+            player.sendMessage(red("No EZvac device is registered at that block."));
+            return;
+        }
+        plugin.requestImmediateSync();
+    }
+
     private void remove(Player player) {
         Block block = target(player);
         if (block == null) return;
         BlockKey key = BlockKey.of(block.getLocation());
+        if (!mayModifyDeviceAt(player, key)) return;
         Thermostat thermostat = registry.thermostatAt(key);
         if (thermostat != null) {
             registry.removeThermostat(key);
@@ -389,7 +448,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     public void handleDuctToolClick(Player player, Block block, ItemStack item, boolean unlink) {
-        if (!isDuctTool(item) || !player.hasPermission(ADMIN_PERMISSION)) return;
+        if (!isDuctTool(item)) return;
+        if (!player.hasPermission(BUILD_PERMISSION) && !player.hasPermission(ADMIN_PERMISSION)) {
+            player.sendMessage(red("You need " + BUILD_PERMISSION + " to link vents."));
+            return;
+        }
         BlockKey position = BlockKey.of(block.getLocation());
         EquipmentUnit unit = registry.equipmentAt(position);
         if (unit != null) {
@@ -408,6 +471,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (unlink) {
+            if (!mayModifyDeviceAt(player, position)) return;
             ClimateVent removed = registry.removeVent(position);
             if (removed == null) player.sendMessage(yellow("That block is not a registered vent."));
             else { airflow.invalidate(removed.group()); player.sendMessage(green("Vent unlinked.")); }
@@ -434,6 +498,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         // A system is all air or all water: water cannot come out of a ceiling
         // vent, and conditioned air cannot be piped into a pool.
+        if (!mayJoin(player, group)) return;
         boolean water = ClimateVent.isWaterVent(block.getType());
         if (registry.hasEquipmentOfLoop(group, !water)) {
             player.sendMessage(red("System '" + group.label() + "' is powered by "
@@ -448,7 +513,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             return;
         }
         ClimateVent previous = registry.ventAt(position);
-        registry.addVent(new ClimateVent(position, group));
+        registry.addVent(new ClimateVent(position, group, player.getUniqueId()));
         if (previous != null) airflow.invalidate(previous.group());
         airflow.invalidate(group);
         player.sendMessage(green((water ? "Water vent" : "Vent") + " linked to group '"
@@ -514,6 +579,46 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         };
     }
 
+    private static boolean requireBuild(CommandSender sender) {
+        if (sender.hasPermission(BUILD_PERMISSION) || sender.hasPermission(ADMIN_PERMISSION)) return true;
+        sender.sendMessage(red("You need " + BUILD_PERMISSION + " to build HVAC devices."));
+        return false;
+    }
+
+    /**
+     * Ownership resolves through the system's thermostat, so the message has to
+     * distinguish the two failures: a system someone else owns, and one nobody
+     * owns. The second is the common case right after upgrading and is baffling
+     * without an explanation.
+     */
+    /**
+     * Whether a device may be moved <em>into</em> a group. Unlike modifying, an
+     * empty or unowned destination is allowed: building equipment and then
+     * naming a group that does not exist yet is the normal way to start a
+     * system. What this blocks is joining a system somebody else owns, which
+     * would otherwise let anyone attach unwanted equipment to it.
+     */
+    private boolean mayJoin(Player player, GroupId destination) {
+        Thermostat controller = registry.thermostatFor(destination);
+        java.util.UUID owner = controller == null ? null : controller.owner();
+        if (owner == null || player.hasPermission(ADMIN_PERMISSION)
+                || owner.equals(player.getUniqueId())) return true;
+        player.sendMessage(red("Group '" + destination.label() + "' belongs to someone else."));
+        return false;
+    }
+
+    public boolean mayModify(Player player, GroupId group, java.util.UUID deviceOwner) {
+        java.util.UUID owner = registry.controllerOwner(group, deviceOwner);
+        if (Ownership.mayModify(owner, player.getUniqueId(), player.hasPermission(ADMIN_PERMISSION)))
+            return true;
+        if (owner == null)
+            player.sendMessage(red("That system has no owner, so only an administrator can change"
+                    + " it. An administrator can assign it with /hvac owner <player>."));
+        else
+            player.sendMessage(red("That system belongs to someone else."));
+        return false;
+    }
+
     private static boolean requireAdmin(CommandSender sender) {
         if (sender.hasPermission(ADMIN_PERMISSION)) return true;
         sender.sendMessage(red("You need " + ADMIN_PERMISSION + "."));
@@ -524,22 +629,29 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(gold("EZvac commands"));
         sender.sendMessage(join(aqua("/hvac temperature"), gray(" - read local/outdoor temperature")));
         sender.sendMessage(join(aqua("/hvac list | info"), gray(" - inspect systems or the targeted device")));
-        if (!sender.hasPermission(ADMIN_PERMISSION)) return;
-        sender.sendMessage(join(aqua("/hvac create thermostat <id> <group> [target]"), gray(" - register a sign")));
-        sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace <group>"), gray(" - register a dispenser")));
+        // Builders see the whole working set; only the two server-wide commands
+        // and ownership transfer are held back for administrators.
+        if (!sender.hasPermission(BUILD_PERMISSION) && !sender.hasPermission(ADMIN_PERMISSION)) return;
+        sender.sendMessage(join(aqua("/hvac create thermostat|poolthermostat <id> <group> [target]"), gray(" - register a sign")));
+        sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace|boiler <group>"), gray(" - register a dispenser")));
         sender.sendMessage(join(aqua("/hvac create thermometer [label]"), gray(" - register a point-sensor sign")));
         sender.sendMessage(join(aqua("/hvac create rpmmonitor <group> <type> [label]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create settingspanel <group> [label]"), gray(" - register profile controls")));
         sender.sendMessage(join(aqua("/hvac thermostat <id> set|enable|disable|group"), gray(" - control a thermostat")));
         sender.sendMessage(join(aqua("/hvac equipment <enable|disable|group|info>"), gray(" - edit targeted equipment")));
         sender.sendMessage(join(aqua("/hvac group <group> <enable|disable|info>"), gray(" - control a system")));
-        sender.sendMessage(join(aqua("/hvac tool | remove | stats | sync"), gray(" - link, remove, diagnose, reconcile")));
+        sender.sendMessage(join(aqua("/hvac tool | remove"), gray(" - link vents, remove the targeted device")));
+        sender.sendMessage(gray("You can change only systems you own; a system belongs to whoever owns its thermostat."));
+        if (!sender.hasPermission(ADMIN_PERMISSION)) return;
+        sender.sendMessage(join(aqua("/hvac owner <player>"), gray(" - hand a system to another player")));
+        sender.sendMessage(join(aqua("/hvac stats | sync"), gray(" - diagnose, reconcile")));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(args[0], "help", "temperature", "list", "info",
-                "create", "thermostat", "equipment", "group", "tool", "remove", "stats", "sync");
+                "create", "thermostat", "equipment", "group", "tool", "remove", "owner",
+                "stats", "sync");
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",

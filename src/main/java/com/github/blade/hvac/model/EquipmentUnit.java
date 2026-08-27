@@ -10,6 +10,7 @@ import org.bukkit.block.data.Directional;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Dispenser-backed HVAC actuator with explicit, persisted fluid ownership. */
 public final class EquipmentUnit {
@@ -23,15 +24,21 @@ public final class EquipmentUnit {
     private OperatingMode operatingMode;
     private double motorRpm;
     private BlockKey ownedOutput;
+    private UUID owner;
 
     public EquipmentUnit(BlockKey position, String groupLabel, EquipmentType type) {
+        this(position, groupLabel, type, null);
+    }
+
+    public EquipmentUnit(BlockKey position, String groupLabel, EquipmentType type, UUID owner) {
         this(position, GroupId.of(position, groupLabel), type, true, false,
-                OperatingMode.IDLE, 0.0, null);
+                OperatingMode.IDLE, 0.0, null, owner);
     }
 
     private EquipmentUnit(BlockKey position, GroupId group, EquipmentType type, boolean enabled,
                           boolean running, OperatingMode operatingMode, double motorRpm,
-                          BlockKey ownedOutput) {
+                          BlockKey ownedOutput, UUID owner) {
+        this.owner = owner;
         this.position = Objects.requireNonNull(position, "position");
         this.group = Objects.requireNonNull(group, "group");
         this.type = Objects.requireNonNull(type, "type");
@@ -54,6 +61,9 @@ public final class EquipmentUnit {
     public double motorRpm() { return motorRpm; }
     public BlockKey ownedOutput() { return ownedOutput; }
     public boolean hasOwnedOutput() { return ownedOutput != null; }
+    public UUID owner() { return owner; }
+    /** Reassigned by an administrator; see Ownership. */
+    public void setOwner(UUID owner) { this.owner = owner; }
 
     public void setGroup(String label) { this.group = GroupId.of(position, label); }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -204,6 +214,7 @@ public final class EquipmentUnit {
         map.put("running", running);
         map.put("operatingMode", operatingMode.name());
         map.put("motorRpm", motorRpm);
+        Ownership.write(map, owner);
         if (ownedOutput != null) ownedOutput.write(map, "output");
         return map;
     }
@@ -223,7 +234,7 @@ public final class EquipmentUnit {
         if (running && mode == OperatingMode.IDLE) mode = OperatingMode.COOLING;
         return new EquipmentUnit(position, GroupId.of(position, group), type,
                 bool(map, "enabled", true), running, mode,
-                number(map, "motorRpm", 0.0), output);
+                number(map, "motorRpm", 0.0), output, Ownership.read(map.get("owner")));
     }
 
     private static String string(Map<String, Object> map, String key, String fallback) {

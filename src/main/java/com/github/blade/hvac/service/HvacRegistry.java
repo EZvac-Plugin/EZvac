@@ -385,6 +385,84 @@ public final class HvacRegistry {
         return false;
     }
 
+    /**
+     * Who controls this device. Ownership resolves through the group's
+     * thermostat when there is one - own the thermostat, control the system -
+     * and falls back to the device's own owner for standalone devices and for
+     * groups that have no controller yet, such as equipment registered before
+     * its sign is placed.
+     */
+    public UUID controllerOwner(GroupId group, UUID deviceOwner) {
+        if (group != null) {
+            Thermostat controller = thermostatFor(group);
+            if (controller != null) return controller.owner();
+        }
+        return deviceOwner;
+    }
+
+    /**
+     * Stamps every device of a system with a new owner. The thermostat alone
+     * would be enough while it exists, but stamping the rest means the system
+     * does not silently revert to whoever first placed a dispenser if the
+     * thermostat is ever broken.
+     */
+    public int assignGroupOwner(GroupId group, UUID owner) {
+        int changed = 0;
+        for (Thermostat value : thermostats.values())
+            if (value.group().equals(group)) { value.setOwner(owner); changed++; }
+        for (EquipmentUnit value : equipment.values())
+            if (value.group().equals(group)) { value.setOwner(owner); changed++; }
+        for (SettingsPanel value : settingsPanels.values())
+            if (value.group().equals(group)) { value.setOwner(owner); changed++; }
+        // Vents and monitors are records, so reassigning means replacing the
+        // value. Iterate a copy of the entries to stay clear of the live map.
+        for (Map.Entry<BlockKey, ClimateVent> entry : new ArrayList<>(vents.entrySet())) {
+            ClimateVent vent = entry.getValue();
+            if (!vent.group().equals(group)) continue;
+            vents.put(entry.getKey(), new ClimateVent(vent.position(), vent.group(), owner));
+            changed++;
+        }
+        for (Map.Entry<BlockKey, RpmMonitor> entry : new ArrayList<>(rpmMonitors.entrySet())) {
+            RpmMonitor monitor = entry.getValue();
+            if (!monitor.group().equals(group)) continue;
+            rpmMonitors.put(entry.getKey(), new RpmMonitor(monitor.position(), monitor.group(),
+                    monitor.label(), monitor.equipmentType(), owner));
+            changed++;
+        }
+        if (changed > 0) markDirty();
+        return changed;
+    }
+
+    /** Reassigns a single device, for standalone thermometers and orphans. */
+    public boolean assignDeviceOwner(BlockKey position, UUID owner) {
+        Thermostat thermostat = thermostats.get(position);
+        if (thermostat != null) { thermostat.setOwner(owner); markDirty(); return true; }
+        EquipmentUnit unit = equipment.get(position);
+        if (unit != null) { unit.setOwner(owner); markDirty(); return true; }
+        SettingsPanel panel = settingsPanels.get(position);
+        if (panel != null) { panel.setOwner(owner); markDirty(); return true; }
+        Thermometer probe = thermometers.get(position);
+        if (probe != null) {
+            thermometers.put(position, new Thermometer(probe.position(), probe.label(), owner));
+            markDirty();
+            return true;
+        }
+        ClimateVent vent = vents.get(position);
+        if (vent != null) {
+            vents.put(position, new ClimateVent(vent.position(), vent.group(), owner));
+            markDirty();
+            return true;
+        }
+        RpmMonitor monitor = rpmMonitors.get(position);
+        if (monitor != null) {
+            rpmMonitors.put(position, new RpmMonitor(monitor.position(), monitor.group(),
+                    monitor.label(), monitor.equipmentType(), owner));
+            markDirty();
+            return true;
+        }
+        return false;
+    }
+
     /** True when this group already has equipment belonging to the given loop. */
     public boolean hasEquipmentOfLoop(GroupId group, boolean waterLoop) {
         for (EquipmentUnit unit : equipment.values())

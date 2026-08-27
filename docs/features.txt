@@ -1,4 +1,4 @@
-EZVAC ALPHA 1.6 FEATURES
+EZVAC ALPHA 1.6.1 FEATURES
 ========================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
@@ -229,7 +229,38 @@ and settings panels live in one versioned plugins/EZvac/hvac.yml file.
 PERMISSIONS
 -----------
 
-- ezvac.use (default true): help, temperature, list, info, and settings-panel use.
-- ezvac.admin (default op): create, change, link, remove, sync, and stats.
+- ezvac.use (default true): help, temperature, list, and info.
+- ezvac.build (default op): create, link, and remove devices, plus operate the
+  systems you own. Grant this to trusted players on a public server.
+- ezvac.admin (default op): everything, on any system regardless of owner, plus
+  sync, stats, and /hvac owner. Implies ezvac.build and ezvac.use.
 
 See commands.txt for the full command reference.
+
+
+DEVICE OWNERSHIP
+----------------
+
+Every device records the player who created it. A system is owned by its
+thermostat: whoever owns the thermostat owns the whole group, whatever the
+individual devices say. Devices with no thermostat - a standalone thermometer,
+or equipment built before its thermostat - fall back to their own creator.
+
+Only the owner or an administrator may change a system. That covers commands,
+editing the thermostat sign, cycling a settings panel, linking or unlinking
+vents, and removing devices. Reading is unrestricted: anyone with ezvac.use can
+see temperatures, lists, and device info.
+
+You cannot attach a device to a system somebody else owns. Creating equipment,
+a monitor, or a panel in another player's group is refused, as is moving an
+existing device into it or linking a vent to it. Naming a group that does not
+exist yet is always allowed, which is how a new system starts.
+
+Devices that carry no owner - anything built before ALPHA 1.6.1 - are
+administrator-only. This is deliberate. Treating them as public would make all
+pre-existing infrastructure editable by everyone the moment ezvac.build is
+granted, which is exactly when a server opens up. An administrator assigns them
+with /hvac owner.
+
+EZvac does not protect device blocks from being broken. Use a land-protection
+plugin for that; ownership governs the plugin's own commands and interactions.

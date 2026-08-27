@@ -2,6 +2,77 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 1.6.1
+
+Device ownership. Until now every EZvac device was operable by any operator and
+by nobody else, which is fine on a private server and unusable on a public one:
+there was no way to let players build HVAC systems without letting them edit
+each other's. This release closes that gap. No simulation behaviour changes.
+
+### Added
+
+- **Device ownership.** Every device records the player who created it. A system
+  is owned by its **thermostat** — whoever owns the thermostat owns the whole
+  group, whatever the individual devices say. Standalone devices, and equipment
+  built before its thermostat, fall back to their own creator.
+
+  Only the owner or an administrator may change a system. That covers commands,
+  editing the thermostat sign, cycling a settings panel, linking and unlinking
+  vents with the duct tool, and removing devices. Reading — `/hvac list`,
+  `/hvac info`, `/hvac temperature` — stays open to everyone.
+
+  Attaching a device to somebody else's system is refused: creating equipment,
+  monitors, or panels in their group, moving an existing device into it, and
+  linking a vent to it. Naming a group that does not exist yet is always allowed,
+  which is how a new system starts.
+
+- **`ezvac.build`** (default op), between `ezvac.use` and `ezvac.admin`. It
+  allows building devices and running the systems you own. This is the
+  permission to grant players on a public server. `ezvac.admin` implies it and
+  bypasses ownership entirely.
+
+- **`/hvac owner <player>`** (admin). Look at a thermostat and the whole system
+  transfers, with every device in the group stamped so it does not revert if the
+  thermostat is later rebuilt. Look at any other device and only that device
+  transfers. The recipient must be online.
+
+### Changed
+
+- **Settings panels now require ownership.** Cycling a profile changes how the
+  whole system runs, so it follows the same rule as every other modification.
+  Previously any player with `ezvac.use` — which defaults to everyone — could
+  put a stranger's system into Turbo.
+- **`/hvac help` shows the build commands to builders**, not only to operators,
+  and lists `poolthermostat` and `boiler`, which were missing.
+
+### Unowned devices are administrator-only
+
+Devices created before this release carry no owner. They stay operator-only,
+exactly as they are today, until an administrator assigns them.
+
+This is deliberate rather than an oversight. Treating unowned devices as public
+would be the more forgiving upgrade, but it would make every piece of
+pre-existing infrastructure editable by everybody at the exact moment
+`ezvac.build` is granted — that is, the moment a server opens up, which is the
+only reason to grant it. Nobody loses access on upgrade: operators could already
+do everything, and they still can.
+
+### Compatibility
+
+Drop-in over ALPHA 1.6. The `hvac.yml` format version is unchanged; ownership is
+one optional `owner` key per device record, written only when a device has an
+owner.
+
+**Downgrading to 1.6 silently drops every owner.** Older builds do not know the
+key and do not preserve it, so a save from 1.6 leaves all devices unowned — that
+is, administrator-only — if you return to 1.6.1. Ownership is not lost
+destructively and can be reassigned with `/hvac owner`, but back up
+`plugins/EZvac/hvac.yml` before rolling back.
+
+EZvac still does not protect device blocks from being broken. Ownership governs
+the plugin's own commands and interactions; use a land-protection plugin such as
+GriefPrevention for the blocks themselves.
+
 ## ALPHA 1.6
 
 Water systems, promoted from ALPHA 1.6 Pilot 1 and including everything that

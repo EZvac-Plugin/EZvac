@@ -99,7 +99,9 @@ class PersistenceModelTest {
 
         Thermometer restored = Thermometer.fromMap(migrated.toMap());
         assertEquals(migrated, restored);
-        assertArrayEquals(new String[]{"position", "label"},
+        // Guards the migration that dropped "group": a thermometer measures its own
+        // block and belongs to no system, so it must never regain one.
+        assertArrayEquals(new String[]{"position", "label", "owner"},
                 java.util.Arrays.stream(Thermometer.class.getRecordComponents())
                         .map(java.lang.reflect.RecordComponent::getName).toArray(String[]::new));
     }

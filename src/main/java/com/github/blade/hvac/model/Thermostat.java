@@ -6,6 +6,7 @@ import com.github.blade.hvac.simulation.ThermalModel;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
 /** Persistent state for one sign-based thermostat/controller. */
 public final class Thermostat {
@@ -22,24 +23,31 @@ public final class Thermostat {
     private double lastOutdoorF;
     /** Pool thermostats clamp to the water range and pair only with boilers. */
     private final boolean pool;
+    private UUID owner;
 
     public Thermostat(BlockKey position, String id, String groupLabel,
                       double targetF, double roomF, HvacSettings settings) {
-        this(position, id, groupLabel, targetF, roomF, settings, false);
+        this(position, id, groupLabel, targetF, roomF, settings, false, null);
     }
 
     public Thermostat(BlockKey position, String id, String groupLabel,
                       double targetF, double roomF, HvacSettings settings, boolean pool) {
+        this(position, id, groupLabel, targetF, roomF, settings, pool, null);
+    }
+
+    public Thermostat(BlockKey position, String id, String groupLabel, double targetF,
+                      double roomF, HvacSettings settings, boolean pool, UUID owner) {
         this(position, id, GroupId.of(position, groupLabel), settings.clampTarget(targetF, pool),
                 ThermalModel.clampTemperature(roomF), true, OperatingMode.IDLE,
-                settings.minimumOffTicks(), 72.0, 52.0, 62.0, pool);
+                settings.minimumOffTicks(), 72.0, 52.0, 62.0, pool, owner);
     }
 
     private Thermostat(BlockKey position, String id, GroupId group, double targetF,
                        double roomF, boolean enabled, OperatingMode mode, long ticksInMode,
                        double outdoorNoonF, double outdoorMidnightF, double lastOutdoorF,
-                       boolean pool) {
+                       boolean pool, UUID owner) {
         this.pool = pool;
+        this.owner = owner;
         this.position = Objects.requireNonNull(position, "position");
         this.id = validateId(id);
         this.group = Objects.requireNonNull(group, "group");
@@ -67,6 +75,9 @@ public final class Thermostat {
     public double outdoorMidnightF() { return outdoorMidnightF; }
     public double lastOutdoorF() { return lastOutdoorF; }
     public boolean pool() { return pool; }
+    public UUID owner() { return owner; }
+    /** Reassigned by an administrator; see Ownership. */
+    public void setOwner(UUID owner) { this.owner = owner; }
 
     public void setId(String id) { this.id = validateId(id); }
     public void setGroup(String label) { this.group = GroupId.of(position, label); }
@@ -99,6 +110,7 @@ public final class Thermostat {
         map.put("outdoorMidnightF", outdoorMidnightF);
         map.put("lastOutdoorF", lastOutdoorF);
         map.put("pool", pool);
+        Ownership.write(map, owner);
         return map;
     }
 
@@ -116,7 +128,8 @@ public final class Thermostat {
                 settings.clampTarget(target, pool), ThermalModel.clampTemperature(room),
                 bool(map, "enabled", true), OperatingMode.parse(map.get("mode")), ticks,
                 number(map, "outdoorNoonF", 72.0), number(map, "outdoorMidnightF", 52.0),
-                number(map, "lastOutdoorF", number(map, "lastOutdoorTempF", 62.0)), pool);
+                number(map, "lastOutdoorF", number(map, "lastOutdoorTempF", 62.0)), pool,
+                Ownership.read(map.get("owner")));
     }
 
     public static String validateId(String value) {
