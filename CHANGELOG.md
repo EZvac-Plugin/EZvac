@@ -26,6 +26,11 @@ each other's. This release closes that gap. No simulation behaviour changes.
   linking a vent to it. Naming a group that does not exist yet is always allowed,
   which is how a new system starts.
 
+  A group is owned even before it has a thermostat. That window - between
+  building the first dispenser and building the sign - is the normal state of a
+  half-built system, and consulting only the thermostat would let somebody else
+  drop their own sign onto your equipment and take the system over.
+
 - **`ezvac.build`** (default op), between `ezvac.use` and `ezvac.admin`. It
   allows building devices and running the systems you own. This is the
   permission to grant players on a public server. `ezvac.admin` implies it and

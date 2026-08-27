@@ -599,8 +599,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
      * would otherwise let anyone attach unwanted equipment to it.
      */
     private boolean mayJoin(Player player, GroupId destination) {
-        Thermostat controller = registry.thermostatFor(destination);
-        java.util.UUID owner = controller == null ? null : controller.owner();
+        java.util.UUID owner = registry.groupOwner(destination);
         if (owner == null || player.hasPermission(ADMIN_PERMISSION)
                 || owner.equals(player.getUniqueId())) return true;
         player.sendMessage(red("Group '" + destination.label() + "' belongs to someone else."));

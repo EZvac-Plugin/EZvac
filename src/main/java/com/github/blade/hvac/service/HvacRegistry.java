@@ -406,6 +406,30 @@ public final class HvacRegistry {
      * does not silently revert to whoever first placed a dispenser if the
      * thermostat is ever broken.
      */
+    /**
+     * Who owns a system, for the purpose of deciding whether a device may join
+     * it. The thermostat answers when there is one, but a group can exist as
+     * equipment alone - that is the normal state between building the first
+     * dispenser and building the sign - and it still belongs to whoever built
+     * it. Consulting only the thermostat would leave that window open for
+     * somebody else to drop their thermostat onto another player's equipment
+     * and take the system over.
+     */
+    public UUID groupOwner(GroupId group) {
+        if (group == null) return null;
+        Thermostat controller = thermostatFor(group);
+        if (controller != null && controller.owner() != null) return controller.owner();
+        for (EquipmentUnit value : equipment.values())
+            if (value.group().equals(group) && value.owner() != null) return value.owner();
+        for (SettingsPanel value : settingsPanels.values())
+            if (value.group().equals(group) && value.owner() != null) return value.owner();
+        for (ClimateVent value : vents.values())
+            if (value.group().equals(group) && value.owner() != null) return value.owner();
+        for (RpmMonitor value : rpmMonitors.values())
+            if (value.group().equals(group) && value.owner() != null) return value.owner();
+        return null;
+    }
+
     public int assignGroupOwner(GroupId group, UUID owner) {
         int changed = 0;
         for (Thermostat value : thermostats.values())
