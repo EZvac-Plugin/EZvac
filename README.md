@@ -1,9 +1,6 @@
 # EZvac
 
 
-<img width="1080" height="1080" alt="ezvac" src="https://github.com/user-attachments/assets/833ee011-10f5-4a2c-8a26-4ebac1387a31" />
-
-
 <img width="1080" height="1080" alt="ezvac-logo" src="https://github.com/user-attachments/assets/41b316f7-3826-4913-98da-626209b56cb3" />
 
 
