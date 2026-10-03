@@ -65,9 +65,8 @@ public final class HvacListener implements Listener {
             return;
         }
         event.setCancelled(true);
-        if (!event.getPlayer().hasPermission("ezvac.admin")) {
-            event.getPlayer().sendMessage(Component.text(
-                    "You may not edit this thermostat.", NamedTextColor.RED));
+        // Editing line 3 sets the target, so it is a modification like any other.
+        if (!command.mayModify(event.getPlayer(), thermostat.group(), thermostat.owner())) {
             refreshLater(key);
             return;
         }
@@ -97,11 +96,10 @@ public final class HvacListener implements Listener {
                 BlockKey.of(event.getClickedBlock().getLocation()));
         if (panel == null) return;
         event.setCancelled(true);
-        if (!event.getPlayer().hasPermission("ezvac.use")) {
-            event.getPlayer().sendMessage(Component.text(
-                    "You may not control this HVAC system.", NamedTextColor.RED));
-            return;
-        }
+        // Cycling the profile changes how the whole system runs, so it follows
+        // the same ownership rule as every other modification. Before ownership
+        // existed this was open to any player with ezvac.use, which defaults on.
+        if (!command.mayModify(event.getPlayer(), panel.group(), panel.owner())) return;
         OperatingProfile profile = event.getPlayer().isSneaking()
                 ? panel.profile().previous() : panel.profile().next();
         panel.setProfile(profile);

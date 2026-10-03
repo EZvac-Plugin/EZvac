@@ -14,6 +14,12 @@ permissions:
   ezvac.use:
     description: Allows basic EZvac commands and temperature readings.
     default: true
-  ezvac.admin:
-    description: Allows creating, changing, removing, and diagnosing HVAC systems.
+  ezvac.build:
+    description: Allows creating, linking, and removing devices you own.
     default: op
+  ezvac.admin:
+    description: Allows changing and diagnosing any HVAC system, regardless of owner.
+    default: op
+    children:
+      ezvac.build: true
+      ezvac.use: true

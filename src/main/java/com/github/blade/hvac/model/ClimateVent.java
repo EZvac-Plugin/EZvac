@@ -5,8 +5,9 @@ import org.bukkit.Material;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
-public record ClimateVent(BlockKey position, GroupId group) {
+public record ClimateVent(BlockKey position, GroupId group, UUID owner) {
     /** Distributes conditioned air into a room. */
     public static final Material AIR_VENT = Material.IRON_TRAPDOOR;
 
@@ -38,6 +39,7 @@ public record ClimateVent(BlockKey position, GroupId group) {
         Map<String, Object> map = new LinkedHashMap<>();
         position.write(map, "");
         map.put("group", group.label());
+        Ownership.write(map, owner);
         return map;
     }
 
@@ -45,6 +47,7 @@ public record ClimateVent(BlockKey position, GroupId group) {
         BlockKey position = BlockKey.read(map, "");
         Object value = map.get("group");
         if (!(value instanceof String label)) throw new IllegalArgumentException("vent group is missing");
-        return new ClimateVent(position, GroupId.of(position, label));
+        return new ClimateVent(position, GroupId.of(position, label),
+                Ownership.read(map.get("owner")));
     }
 }

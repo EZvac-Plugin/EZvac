@@ -13,10 +13,15 @@ or **water**, so the same simulation heats a room or a swimming pool.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.6 adds **water systems** — boilers, waxed
+> **Release status:** EZvac ALPHA 1.6.1 adds **device ownership**, so a server
+> can let players build and run their own HVAC systems without being able to
+> touch anybody else's. ALPHA 1.6 added **water systems** — boilers, waxed
 > copper grate vents, and pool thermostats that condition a body of water
-> exactly the way vents condition a room. It supersedes ALPHA 1.6 Pilot 1 and
-> includes everything that was in it.
+> exactly the way vents condition a room.
+>
+> **Devices built before 1.6.1 have no owner and are administrator-only** until
+> an administrator assigns them with `/hvac owner <player>`. Nothing breaks on
+> upgrade; operators keep full access exactly as before.
 >
 > **You cannot roll back to ALPHA 1.5 once you build a water system** — 1.5
 > predates the forward-compatibility work and would reinterpret boilers as heat
@@ -40,7 +45,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.6.jar
+target/EzVac-ALPHA-1.6.1.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -50,7 +55,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.6.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.6.1.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -127,8 +132,22 @@ when outside every HVAC system.
 
 ## Permissions
 
-- `ezvac.use` — help, readings, inspection, and settings-panel operation.
-- `ezvac.admin` — device creation, changes, removal, linking, and diagnostics.
+- `ezvac.use` *(default: everyone)* — help, readings, and inspection.
+- `ezvac.build` *(default: op)* — create, link, and remove devices, and operate
+  the systems you own. This is the permission to grant players on a public
+  server.
+- `ezvac.admin` *(default: op)* — everything, on every system regardless of
+  owner, plus `/hvac stats`, `/hvac sync`, and `/hvac owner`. Implies the other
+  two.
+
+Every device records who created it, and a system belongs to whoever owns its
+**thermostat** — so transferring a thermostat transfers the whole group. Only
+the owner or an administrator can change a system, whether by command, sign
+edit, settings panel, or duct tool, and you cannot attach a device to a group
+somebody else owns. Reading is open to everyone.
+
+EZvac does not protect device blocks from being broken; use a land-protection
+plugin for that. See [docs/features.txt](docs/features.txt) for the full rules.
 
 ## Data and safety
 
