@@ -208,13 +208,9 @@ public final class HvacController {
         }
     }
 
+    /** A snapshot: callers rely on it staying fixed while units start and stop. */
     private Set<BlockKey> managedOutputs() {
-        Set<BlockKey> outputs = new HashSet<>();
-        for (EquipmentUnit unit : registry.equipment())
-            if (unit.ownedOutput() != null) outputs.add(unit.ownedOutput());
-        for (EquipmentUnit unit : registry.pendingCleanup())
-            if (unit.ownedOutput() != null) outputs.add(unit.ownedOutput());
-        return outputs;
+        return registry.ownedOutputs();
     }
 
     /**
