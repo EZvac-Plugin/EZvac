@@ -2,7 +2,34 @@
 
 All notable changes to EZvac are recorded here.
 
-## ALPHA 1.7 (unreleased)
+## ALPHA 1.7
+
+A foundation release. No new devices, commands, or configuration options, and
+the save file is unchanged (format 5), so this is a drop-in upgrade from any
+earlier release.
+
+### Performance
+
+EZvac used to answer questions like "which thermostat controls this group?"
+or "which unit owns this block?" by scanning and sorting every device on the
+server, and the controller asked them once per unit per cycle, so the cost grew
+with units × thermostats. Both earlier watchdog stalls (snow in 1.1, FAWE edits
+in 1.6) came from scans of this kind. The registry now keeps lookup tables by
+group, by thermostat id, by location (the vent grid from 1.6 HOTFIX 1, moved
+into the registry) and by owned output, so those answers are direct lookups.
+Releasing output ownership on a block change, the last per-event scan over all
+equipment, is now a single lookup.
+
+Measured on Purpur 1.21.1 build 2329, idle server with 200 thermostats, 400
+equipment units and 2,008 vents:
+
+| | 1.6 HOTFIX 1 | 1.7 |
+| --- | ---: | ---: |
+| Average tick | 0.6-0.7 ms | 0.3 ms |
+| Worst tick (the once-per-second controller cycle) | 8.5-10.1 ms | 2.2-2.4 ms |
+
+Large FAWE edits, mass leaf decay and falling sand perform the same as 1.6
+HOTFIX 1, which already handled them.
 
 ### Changed
 
@@ -26,6 +53,13 @@ All notable changes to EZvac are recorded here.
   device loads and that saving produces exactly what 1.6 HOTFIX 1 wrote.
 - The registry rules other code depends on, such as which duplicate wins and
   what gets preserved, are now pinned by tests that run without a server.
+- The new lookup tables are checked by 10,000 random registry changes, each
+  followed by a comparison against a from-scratch rebuild and against the old
+  full-scan answers.
+- Verified live on Purpur 1.21.1: a world built on each release from 1.0 to
+  1.6 HOTFIX 1, upgraded to 1.7 after both a clean shutdown and a simulated
+  crash, came back with every device and every unit running again, with no
+  warnings. A format-6 save file was refused and left byte-for-byte unchanged.
 
 ## ALPHA 1.6 HOTFIX 1
 

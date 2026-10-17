@@ -13,11 +13,12 @@ or **water**, so the same simulation heats a room or a swimming pool.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.6 HOTFIX 1 fixes a server stall after large
-> WorldEdit/FAWE edits, where thousands of natural block changes per tick (such
-> as buried grass decaying to dirt) each scanned every vent on the server. It is
-> a drop-in upgrade over ALPHA 1.6, which added **water systems** — boilers,
-> waxed copper grate vents, and pool thermostats.
+> **Release status:** EZvac ALPHA 1.7 rebuilds how EZvac keeps track of devices,
+> so lookups no longer scan every device on the server, and makes upgrades
+> safe by design: every earlier release's save file is covered by the test
+> suite, and a save file from a newer version is refused instead of silently
+> rewritten. No new features, commands, or settings; it is a drop-in upgrade
+> from any earlier release. See [Upgrading](#upgrading).
 >
 > **You cannot roll back to ALPHA 1.5 once you build a water system** — 1.5
 > predates the forward-compatibility work and would reinterpret boilers as heat
@@ -41,7 +42,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.6-HOTFIX1.jar
+target/EzVac-ALPHA-1.7.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -51,7 +52,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.6-HOTFIX1.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.7.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
