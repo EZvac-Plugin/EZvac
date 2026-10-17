@@ -77,6 +77,14 @@ public final class HvacRegistry {
     private final File dataFile;
     private final File backupFile;
     private boolean dirty;
+    /**
+     * False once a newer-format file has been refused. Nothing may then be
+     * written for the rest of the run - not even the save onDisable makes -
+     * so the newer file is left exactly as its own version wrote it.
+     */
+    private boolean writable = true;
+    /** The older format just upgraded from, backed up once before the first save; 0 when none. */
+    private int upgradedFromFormat;
     /** Bumped on every change to the vent set, so spatial indexes know when to rebuild. */
     private int ventsVersion;
     private volatile boolean writeInProgress;
@@ -101,7 +109,7 @@ public final class HvacRegistry {
         if (!dataFile.isFile()) return;
 
         YamlConfiguration configuration = loadWithRecovery();
-        warnOnNewerFormat(configuration);
+        checkFormat(configuration);
         preserveUnknownSections(configuration);
         readSection(configuration, "thermostats", map -> Thermostat.fromMap(map, settings),
                 this::loadThermostat);
@@ -122,16 +130,24 @@ public final class HvacRegistry {
     }
 
     /**
-     * A newer file is loaded rather than refused: known records still work, and
-     * anything this build does not understand is preserved by the reader below.
+     * EZvac supports upgrades only. A file from a newer format is refused
+     * outright: loading it here and saving it back in this build's format
+     * would silently discard whatever the newer version stored. A file from an
+     * older format loads normally and is backed up once before the first save,
+     * so a manual rollback stays possible after a format change. A missing
+     * format counts as current; every release since 1.0 has written one.
      */
-    private void warnOnNewerFormat(YamlConfiguration configuration) {
+    private void checkFormat(YamlConfiguration configuration) {
         int format = configuration.getInt("meta.format", FORMAT_VERSION);
-        if (format <= FORMAT_VERSION) return;
-        host.logger().warning("hvac.yml is format " + format + " but this build of EZvac"
-                + " understands format " + FORMAT_VERSION + ". It will still load. Records this"
-                + " build does not recognise are kept untouched and written back unchanged, but"
-                + " the devices they describe will not run until EZvac is updated.");
+        if (format > FORMAT_VERSION) {
+            writable = false;
+            throw new IllegalStateException("hvac.yml is format " + format + ", written by a newer"
+                    + " version of EZvac, but this build understands format " + FORMAT_VERSION
+                    + ". Downgrading EZvac is not supported, so the file has been left untouched"
+                    + " and EZvac will not start. Update EZvac, or restore the hvac.yml.format"
+                    + FORMAT_VERSION + ".bak backup made when the newer version first upgraded it.");
+        }
+        if (format < FORMAT_VERSION) upgradedFromFormat = format;
     }
 
     /**
@@ -206,6 +222,7 @@ public final class HvacRegistry {
      * the dump is roughly 90% of the cost and touches nothing but the snapshot.
      */
     public void save(boolean synchronous) {
+        if (!writable) return;
         if (!dirty && dataFile.isFile()) return;
         // A slow disk must never queue a second write against the same files.
         // Leaving the registry dirty lets the next periodic save retry.
@@ -227,6 +244,10 @@ public final class HvacRegistry {
         }
 
         dirty = false;
+        if (!backUpBeforeUpgradeSave()) {
+            dirty = true;
+            return;
+        }
         if (synchronous || !host.isEnabled()) {
             if (!writeSnapshot(configuration)) dirty = true;
             return;
@@ -247,6 +268,29 @@ public final class HvacRegistry {
                 }
             }
         });
+    }
+
+    /**
+     * Copies a file from an older format aside before it is first overwritten.
+     * An existing backup is never replaced: the first one is the true original.
+     * Runs on the calling thread, before any write can be queued.
+     */
+    private boolean backUpBeforeUpgradeSave() {
+        if (upgradedFromFormat == 0 || !dataFile.isFile()) return true;
+        File backup = new File(host.dataFolder(), "hvac.yml.format" + upgradedFromFormat + ".bak");
+        try {
+            if (!backup.isFile()) {
+                Files.copy(dataFile.toPath(), backup.toPath());
+                host.logger().info("Upgraded hvac.yml from format " + upgradedFromFormat + " to "
+                        + FORMAT_VERSION + "; the original was kept as " + backup.getName());
+            }
+            upgradedFromFormat = 0;
+            return true;
+        } catch (IOException exception) {
+            host.logger().log(Level.SEVERE, "Could not back up hvac.yml before upgrading it;"
+                    + " it will not be overwritten until the backup succeeds", exception);
+            return false;
+        }
     }
 
     /**
@@ -596,6 +640,8 @@ public final class HvacRegistry {
     }
 
     private void clear() {
+        writable = true;
+        upgradedFromFormat = 0;
         thermostats.clear(); equipment.clear(); vents.clear(); thermometers.clear();
         rpmMonitors.clear(); settingsPanels.clear(); pendingCleanup.clear(); preservedRecords.clear();
         ventsVersion++;

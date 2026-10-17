@@ -2,6 +2,31 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 1.7 (unreleased)
+
+### Changed
+
+- **Upgrade-only save files.** Upgrading from any earlier release is
+  supported; downgrading is not. A save file written by a newer EZvac (a higher
+  `meta.format`) is now refused: EZvac logs why, does not start, and leaves the
+  file exactly as it was. Previously it loaded the file with a warning and then
+  saved it back in its own format, which could silently discard whatever the
+  newer version had stored. When a future release changes the format, it backs
+  up the original first as `hvac.yml.format<N>.bak`.
+
+  Nothing about the save file itself changes in this release: it is still
+  format 5, and every earlier release's files load unchanged.
+
+### Testing
+
+- **Upgrade compatibility suite.** Real save files from every release since
+  ALPHA 1.0 are part of the test suite, each produced by that release on a
+  Purpur 1.21.1 server with one of every device it supports, both after a clean
+  shutdown and mid-run (as a crash would leave them). The tests check that every
+  device loads and that saving produces exactly what 1.6 HOTFIX 1 wrote.
+- The registry rules other code depends on, such as which duplicate wins and
+  what gets preserved, are now pinned by tests that run without a server.
+
 ## ALPHA 1.6 HOTFIX 1
 
 A performance fix. No new devices, commands, or configuration options, and
