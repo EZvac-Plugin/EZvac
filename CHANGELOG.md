@@ -31,8 +31,9 @@ A performance fix. No new devices, commands, or configuration options, and
   from a block change, so those systems were sometimes treated as in range and
   rebuilt for no reason. The grid lookup only ever compares nearby vents.
 
-Thanks to [@colebolebole](https://github.com/colebolebole) for catching this on
-the "Soms" server and for the log that pinned it down.
+Thanks to [@colebolebole](https://github.com/colebolebole), who spotted the bug:
+he noticed the stall after large FAWE edits on his server "Soms", worked out
+what triggered it, and sent the log that pinned it down.
 
 ### Performance
 
