@@ -1,0 +1,60 @@
+# Hand-built from the legacy keys EZvac still migrates (pre-1.0 field names).
+# Real releases since 1.0 never wrote these; see the per-release fixtures.
+meta:
+  format: 5
+thermostats:
+  item0:
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 10
+    y: 64
+    z: 10
+    label: Lobby
+    hvacGroupLabel: lobby
+    targetTempF: 70.0
+    roomTempF: 75.0
+    mode: COOLING
+    modeElapsedMinecraftHours: 0.25
+    lastOutdoorTempF: 88.0
+equipment:
+  item0:
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 14
+    y: 64
+    z: 10
+    label: lobby
+    equipmentType: AC
+    enabled: true
+    running: true
+    operatingMode: COOLING
+    motorRpm: 2400.0
+    waterWorldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    waterX: 15
+    waterY: 64
+    waterZ: 10
+cleanup:
+  item0:
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 20
+    y: 64
+    z: 10
+    label: lobby
+    equipmentType: HEAT_PUMP
+    running: false
+    waterWorldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    waterX: 21
+    waterY: 64
+    waterZ: 10
+vents:
+  item0:
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 18
+    y: 66
+    z: 10
+    group: lobby
+thermometers:
+  item0:
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 30
+    y: 64
+    z: 10
+    group: outdoor_probe

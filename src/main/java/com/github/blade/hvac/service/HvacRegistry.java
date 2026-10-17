@@ -18,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.*;
 import java.util.function.Function;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /** The sole owner of runtime device state and unified atomic persistence. */
 public final class HvacRegistry {
@@ -29,12 +30,41 @@ public final class HvacRegistry {
 
     public record PruneResult(Set<GroupId> invalidatedGroups, int removedDevices) {}
 
+    /**
+     * The few server services persistence needs. The plugin supplies the real
+     * ones; tests supply a plain folder and run work inline, which lets the
+     * registry load and save real hvac.yml files without a running server.
+     */
+    public interface Host {
+        File dataFolder();
+        Logger logger();
+        boolean isEnabled();
+        void runAsync(Runnable task);
+        /** May throw IllegalStateException while the plugin is shutting down. */
+        void runSync(Runnable task);
+
+        static Host of(HvacPlugin plugin) {
+            Objects.requireNonNull(plugin, "plugin");
+            return new Host() {
+                @Override public File dataFolder() { return plugin.getDataFolder(); }
+                @Override public Logger logger() { return plugin.getLogger(); }
+                @Override public boolean isEnabled() { return plugin.isEnabled(); }
+                @Override public void runAsync(Runnable task) {
+                    plugin.getServer().getScheduler().runTaskAsynchronously(plugin, task);
+                }
+                @Override public void runSync(Runnable task) {
+                    plugin.getServer().getScheduler().runTask(plugin, task);
+                }
+            };
+        }
+    }
+
     /** Sections this build understands; anything else is preserved verbatim. */
     private static final Set<String> KNOWN_SECTIONS = Set.of(
             "thermostats", "equipment", "cleanup", "vents",
             "thermometers", "rpmMonitors", "settingsPanels");
 
-    private final HvacPlugin plugin;
+    private final Host host;
     private final HvacSettings settings;
     private final Map<BlockKey, Thermostat> thermostats = new HashMap<>();
     private final Map<BlockKey, EquipmentUnit> equipment = new HashMap<>();
@@ -54,12 +84,16 @@ public final class HvacRegistry {
     private final Object writeLock = new Object();
 
     public HvacRegistry(HvacPlugin plugin, HvacSettings settings) {
-        this.plugin = Objects.requireNonNull(plugin, "plugin");
+        this(Host.of(plugin), settings);
+    }
+
+    public HvacRegistry(Host host, HvacSettings settings) {
+        this.host = Objects.requireNonNull(host, "host");
         this.settings = Objects.requireNonNull(settings, "settings");
-        if (!plugin.getDataFolder().isDirectory() && !plugin.getDataFolder().mkdirs())
+        if (!host.dataFolder().isDirectory() && !host.dataFolder().mkdirs())
             throw new IllegalStateException("Could not create EZvac data directory");
-        dataFile = new File(plugin.getDataFolder(), "hvac.yml");
-        backupFile = new File(plugin.getDataFolder(), "hvac.yml.bak");
+        dataFile = new File(host.dataFolder(), "hvac.yml");
+        backupFile = new File(host.dataFolder(), "hvac.yml.bak");
     }
 
     public void load() {
@@ -94,7 +128,7 @@ public final class HvacRegistry {
     private void warnOnNewerFormat(YamlConfiguration configuration) {
         int format = configuration.getInt("meta.format", FORMAT_VERSION);
         if (format <= FORMAT_VERSION) return;
-        plugin.getLogger().warning("hvac.yml is format " + format + " but this build of EZvac"
+        host.logger().warning("hvac.yml is format " + format + " but this build of EZvac"
                 + " understands format " + FORMAT_VERSION + ". It will still load. Records this"
                 + " build does not recognise are kept untouched and written back unchanged, but"
                 + " the devices they describe will not run until EZvac is updated.");
@@ -119,7 +153,7 @@ public final class HvacRegistry {
                 preserved++;
             }
             if (preserved > 0)
-                plugin.getLogger().warning("Preserving " + preserved + " unrecognised '" + section
+                host.logger().warning("Preserving " + preserved + " unrecognised '" + section
                         + "' record(s) from a newer EZvac; they are kept but not active.");
         }
     }
@@ -136,7 +170,7 @@ public final class HvacRegistry {
                 configuration = new YamlConfiguration();
                 configuration.load(backupFile);
                 Files.copy(backupFile.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                plugin.getLogger().severe("Recovered unreadable hvac.yml from hvac.yml.bak");
+                host.logger().severe("Recovered unreadable hvac.yml from hvac.yml.bak");
                 return configuration;
             } catch (IOException | InvalidConfigurationException backupFailure) {
                 primary.addSuppressed(backupFailure);
@@ -157,7 +191,7 @@ public final class HvacRegistry {
             try {
                 destination.accept(parser.apply(values));
             } catch (RuntimeException exception) {
-                plugin.getLogger().warning("Preserving invalid " + section + "." + key
+                host.logger().warning("Preserving invalid " + section + "." + key
                         + ": " + exception.getMessage());
                 preservedRecords.computeIfAbsent(section, ignored -> new ArrayList<>()).add(values);
             }
@@ -193,21 +227,21 @@ public final class HvacRegistry {
         }
 
         dirty = false;
-        if (synchronous || !plugin.isEnabled()) {
+        if (synchronous || !host.isEnabled()) {
             if (!writeSnapshot(configuration)) dirty = true;
             return;
         }
         writeInProgress = true;
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+        host.runAsync(() -> {
             boolean written;
             try {
                 written = writeSnapshot(configuration);
             } finally {
                 writeInProgress = false;
             }
-            if (!written && plugin.isEnabled()) {
+            if (!written && host.isEnabled()) {
                 try {
-                    plugin.getServer().getScheduler().runTask(plugin, () -> dirty = true);
+                    host.runSync(() -> dirty = true);
                 } catch (IllegalStateException disabling) {
                     // The plugin shut down mid-write; onDisable already saved.
                 }
@@ -226,7 +260,7 @@ public final class HvacRegistry {
     }
 
     private boolean replaceDataFile(YamlConfiguration configuration) {
-        File temporary = new File(plugin.getDataFolder(), "hvac.yml.tmp");
+        File temporary = new File(host.dataFolder(), "hvac.yml.tmp");
         try {
             Files.writeString(temporary.toPath(), configuration.saveToString(),
                     StandardCharsets.UTF_8);
@@ -240,7 +274,7 @@ public final class HvacRegistry {
             }
             return true;
         } catch (IOException exception) {
-            plugin.getLogger().log(Level.SEVERE, "Could not save hvac.yml", exception);
+            host.logger().log(Level.SEVERE, "Could not save hvac.yml", exception);
             return false;
         }
     }
@@ -336,7 +370,7 @@ public final class HvacRegistry {
     private void preserve(String section, Map<String, Object> record, String reason) {
         preservedRecords.computeIfAbsent(section, ignored -> new ArrayList<>())
                 .add(new LinkedHashMap<>(record));
-        plugin.getLogger().warning("Preserving " + section + " record: " + reason);
+        host.logger().warning("Preserving " + section + " record: " + reason);
     }
 
     public Collection<Thermostat> thermostats() { return Collections.unmodifiableCollection(thermostats.values()); }

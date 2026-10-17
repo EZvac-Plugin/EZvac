@@ -1,0 +1,65 @@
+meta:
+  format: 5
+thermostats:
+  item0:
+    id: Lobby
+    group: lobby
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 10
+    y: 64
+    z: 10
+    targetF: 70.0
+    roomF: 75.0
+    enabled: true
+    mode: COOLING
+    ticksInMode: 250
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 52.0
+    lastOutdoorF: 88.0
+    pool: false
+equipment:
+  item0:
+    group: lobby
+    equipmentType: AIR_CONDITIONER
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 14
+    y: 64
+    z: 10
+    enabled: true
+    running: true
+    operatingMode: COOLING
+    motorRpm: 2400.0
+    outputWorldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    outputX: 15
+    outputY: 64
+    outputZ: 10
+cleanup:
+  item0:
+    group: lobby
+    equipmentType: HEAT_PUMP
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 20
+    y: 64
+    z: 10
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+    outputWorldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    outputX: 21
+    outputY: 64
+    outputZ: 10
+vents:
+  item0:
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 18
+    y: 66
+    z: 10
+    group: lobby
+thermometers:
+  item0:
+    worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
+    x: 30
+    y: 64
+    z: 10
+    label: outdoor_probe
