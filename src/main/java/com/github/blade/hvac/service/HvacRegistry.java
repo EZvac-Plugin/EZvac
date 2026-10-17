@@ -47,6 +47,8 @@ public final class HvacRegistry {
     private final File dataFile;
     private final File backupFile;
     private boolean dirty;
+    /** Bumped on every change to the vent set, so spatial indexes know when to rebuild. */
+    private int ventsVersion;
     private volatile boolean writeInProgress;
     /** Serializes writers so a shutdown save can never race an in-flight async one. */
     private final Object writeLock = new Object();
@@ -81,6 +83,7 @@ public final class HvacRegistry {
         readSection(configuration, "settingsPanels", SettingsPanel::fromMap,
                 this::loadSettingsPanel);
         resolveLoadedConflicts();
+        ventsVersion++;
         dirty = false;
     }
 
@@ -339,6 +342,7 @@ public final class HvacRegistry {
     public Collection<Thermostat> thermostats() { return Collections.unmodifiableCollection(thermostats.values()); }
     public Collection<EquipmentUnit> equipment() { return Collections.unmodifiableCollection(equipment.values()); }
     public Collection<ClimateVent> vents() { return Collections.unmodifiableCollection(vents.values()); }
+    public int ventsVersion() { return ventsVersion; }
     public Collection<Thermometer> thermometers() { return Collections.unmodifiableCollection(thermometers.values()); }
     public Collection<RpmMonitor> rpmMonitors() { return Collections.unmodifiableCollection(rpmMonitors.values()); }
     public Collection<SettingsPanel> settingsPanels() { return Collections.unmodifiableCollection(settingsPanels.values()); }
@@ -428,6 +432,7 @@ public final class HvacRegistry {
         if (kind != DeviceKind.NONE && kind != DeviceKind.VENT)
             throw new IllegalArgumentException("another HVAC device is registered at that block");
         vents.put(vent.position(), vent);
+        ventsVersion++;
         dirty = true;
     }
 
@@ -460,7 +465,11 @@ public final class HvacRegistry {
         dirty = true;
         return unit;
     }
-    public ClimateVent removeVent(BlockKey key) { ClimateVent value = vents.remove(key); dirty |= value != null; return value; }
+    public ClimateVent removeVent(BlockKey key) {
+        ClimateVent value = vents.remove(key);
+        if (value != null) { ventsVersion++; dirty = true; }
+        return value;
+    }
     public boolean removeThermometer(BlockKey key) { boolean value = thermometers.remove(key) != null; dirty |= value; return value; }
     public boolean removeRpmMonitor(BlockKey key) { boolean value = rpmMonitors.remove(key) != null; dirty |= value; return value; }
     public boolean removeSettingsPanel(BlockKey key) {
@@ -520,7 +529,7 @@ public final class HvacRegistry {
             if (!value.position().isChunkLoaded()) continue;
             var location = value.position().location();
             if (location != null && ClimateVent.isVentBlock(location.getBlock().getType())) continue;
-            invalidated.add(value.group()); ventIterator.remove(); removed++;
+            invalidated.add(value.group()); ventIterator.remove(); removed++; ventsVersion++;
         }
         removed += pruneSigns(thermometers.values().iterator(), Thermometer::position);
         removed += pruneSigns(rpmMonitors.values().iterator(), RpmMonitor::position);
@@ -555,6 +564,7 @@ public final class HvacRegistry {
     private void clear() {
         thermostats.clear(); equipment.clear(); vents.clear(); thermometers.clear();
         rpmMonitors.clear(); settingsPanels.clear(); pendingCleanup.clear(); preservedRecords.clear();
+        ventsVersion++;
         dirty = false;
     }
 }

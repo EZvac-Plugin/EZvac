@@ -1,5 +1,5 @@
-EZVAC ALPHA 1.6 FEATURES
-========================
+EZVAC ALPHA 1.6 HOTFIX 1 FEATURES
+=================================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
 forks, including Purpur. Climate systems are identified only by world and group
@@ -165,6 +165,13 @@ Airflow is event-invalidated and rebuilt incrementally. It never force-loads a
 chunk, inspects at most 4,000 nodes per server tick by default, and caps a group
 at 200,000 cells. Chunk events invalidate only vent systems whose possible
 airflow radius intersects that chunk, instead of every system in the world.
+
+Vents are indexed on a coarse grid at least as wide as the airflow range, so a
+block change looks only at vents in the few grid cells around it rather than at
+every vent on the server. Natural changes between two full solid blocks, such as
+buried grass decaying to dirt or concrete powder setting, cannot open or close
+an airflow path and are ignored outright. Both matter after large WorldEdit or
+FAWE fills, which can produce thousands of such changes per tick.
 
 Rebuilds are debounced. A system waits 20 ticks after its last invalidation
 before rebuilding, so a door being toggled repeatedly does not restart the walk

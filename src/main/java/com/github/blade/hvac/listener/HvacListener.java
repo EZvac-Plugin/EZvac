@@ -154,10 +154,25 @@ public final class HvacListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onFade(BlockFadeEvent event) { changed(event.getBlock()); }
+    public void onFade(BlockFadeEvent event) {
+        if (!inert(event.getBlock().getType(), event.getNewState().getType())) changed(event.getBlock());
+    }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onForm(BlockFormEvent event) { changed(event.getBlock()); }
+    public void onForm(BlockFormEvent event) {
+        if (!inert(event.getBlock().getType(), event.getNewState().getType())) changed(event.getBlock());
+    }
+
+    /**
+     * A full opaque cube turning into another one - grass decaying to dirt,
+     * concrete powder setting - can neither open nor close an airflow path,
+     * and neither side can be an owned water or lava output. These fire by
+     * the thousand per tick after a large WorldEdit fill, so they are dropped
+     * before any lookup.
+     */
+    private static boolean inert(Material from, Material to) {
+        return from.isOccluding() && to.isOccluding();
+    }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onLeavesDecay(LeavesDecayEvent event) { changed(event.getBlock()); }
