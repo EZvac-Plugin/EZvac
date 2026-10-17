@@ -50,6 +50,23 @@ The remaining worst tick with the hotfix is the FAWE operation itself. Airflow
 behaviour is unchanged: breaking a block next to a vent still triggers exactly
 one rebuild of that system, and breaking one out of range triggers none.
 
+Grass was not the only trigger. Any natural block change EZvac listens to went
+through the same scan, so other mass changes were affected too. These were
+measured on the same server with 2,008 vents and 400 equipment units, against
+a run with no EZvac installed so the game's own cost is visible:
+
+| Scenario | No EZvac | 1.6 | 1.6 HOTFIX 1 |
+| --- | ---: | ---: | ---: |
+| Leaves decay, 128 x 40 x 128 with no logs, `randomTickSpeed` 3, average tick | 19-36 ms | 48-52 ms | 19-40 ms |
+| Leaves decay, `randomTickSpeed` 100, peak 5 s average | 131 ms | 479 ms | 149 ms |
+| Leaves decay, `randomTickSpeed` 100, worst single tick | 564 ms | 1,964 ms | 667 ms |
+| 65,536 falling sand blocks, worst single tick | 616 ms | 1,550 ms | 641 ms |
+| Snowfall over 320 x 320 in a thunderstorm, average tick | 2-3 ms | 2-6 ms | 2-4 ms |
+
+With the hotfix, leaves decay and falling sand cost about what the game itself
+spends on them. Snowfall was never a problem: snow forms slowly enough that it
+does not produce a flood of events.
+
 ## ALPHA 1.6
 
 Water systems, promoted from ALPHA 1.6 Pilot 1 and including everything that
