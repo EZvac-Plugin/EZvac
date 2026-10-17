@@ -1,0 +1,121 @@
+meta:
+  format: 5
+thermostats:
+  item0:
+    id: main
+    group: house
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 0
+    targetF: 60.0
+    roomF: 68.22969779243851
+    enabled: true
+    mode: COOLING
+    ticksInMode: 1120
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 52.0
+    lastOutdoorF: 72.0
+    pool: false
+  item1:
+    id: work
+    group: office
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 16
+    targetF: 60.0
+    roomF: 69.1781250000001
+    enabled: true
+    mode: COOLING
+    ticksInMode: 900
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 52.0
+    lastOutdoorF: 72.0
+    pool: false
+equipment:
+  item0:
+    group: house
+    equipmentType: HEAT_PUMP
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 0
+    enabled: true
+    running: true
+    operatingMode: COOLING
+    motorRpm: 4200.0
+    outputWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    outputX: 11
+    outputY: -60
+    outputZ: 0
+  item1:
+    group: house
+    equipmentType: FURNACE
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 4
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+  item2:
+    group: office
+    equipmentType: AIR_CONDITIONER
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 8
+    enabled: true
+    running: true
+    operatingMode: COOLING
+    motorRpm: 3600.0
+    outputWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    outputX: 11
+    outputY: -60
+    outputZ: 8
+vents:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 16
+    y: -60
+    z: 0
+    group: house
+  item1:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 16
+    y: -60
+    z: 4
+    group: house
+  item2:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 16
+    y: -60
+    z: 8
+    group: office
+thermometers:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 4
+    label: porch
+rpmMonitors:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 8
+    group: house
+    label: fan
+    equipmentType: HEAT_PUMP
+settingsPanels:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 12
+    group: house
+    label: controls
+    profile: TURBO

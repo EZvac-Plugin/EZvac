@@ -45,6 +45,29 @@ Tests live under `src/test/java`. The simulation classes (`simulation/`,
 `config/`, and the `model/` records) have no Bukkit dependencies and are
 directly unit-testable — please add coverage there when you change them.
 
+## Upgrade compatibility
+
+EZvac supports upgrading from any earlier release; downgrades are not
+supported. `RegistryCompatibilityTest` enforces the upgrade side using real
+`hvac.yml` files under `src/test/resources/compat/<release>/`:
+
+- `hvac.yml` is what that release left after a clean shutdown, and
+  `hvac-running.yml` is its last periodic save while equipment ran (what a
+  crash leaves). Each release produced its own files on a real Purpur 1.21.1
+  server, and each was confirmed to load cleanly in that release. Don't edit
+  them by hand; add a new folder when a release ships.
+- `expected-*.yml` are the goldens: what loading and saving that file must
+  produce. If a change makes one of them fail, the change has altered what
+  EZvac writes, so stop and decide whether that's intended. Only regenerate
+  them deliberately, and review the diff:
+
+  ```shell
+  mvn verify -Dezvac.recordGolden=true
+  ```
+
+`RegistryBehaviourTest` pins the registry rules other code depends on, such
+as which device wins a duplicate and what gets preserved.
+
 ## Testing against a real server
 
 Anything touching Bukkit APIs is not covered by the unit tests. For those
