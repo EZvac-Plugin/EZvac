@@ -2,6 +2,53 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 1.6 HOTFIX 1
+
+A performance fix. No new devices, commands, or configuration options, and
+`hvac.yml` is unchanged (format 5), so this is a drop-in upgrade over 1.6.
+
+### Fixed
+
+- **Server stall after large WorldEdit/FAWE edits.** A `//set grass_block` over
+  a large area drove the server into the hundreds of milliseconds per tick and
+  then into watchdog thread dumps. FAWE itself was not the cause: once the
+  edit finished, every buried grass block decayed to dirt on random ticks,
+  firing a block-fade event per block, and EZvac answered each one by scanning
+  every vent on the server. Thousands of events per tick against thousands of
+  vents stalled the main thread. A high `randomTickSpeed` multiplies the number
+  of events and makes it considerably worse, but the stall happened at the
+  default too.
+
+  Vents are now indexed on a coarse grid at least as wide as the airflow range,
+  so a block change only looks at vents in the few grid cells around it. Chunk
+  load and unload invalidation uses the same index. Natural fade and form
+  changes between two full solid blocks, such as grass decaying to dirt or
+  concrete powder setting, cannot open or close an airflow path or touch an
+  owned water or lava output, so they are now ignored before any lookup.
+
+- **Spurious rebuilds of distant vent systems.** The vent distance check used
+  32-bit arithmetic, which overflowed for vents more than about 46,000 blocks
+  from a block change, so those systems were sometimes treated as in range and
+  rebuilt for no reason. The grid lookup only ever compares nearby vents.
+
+Thanks to [@colebolebole](https://github.com/colebolebole) for catching this on
+the "Soms" server and for the log that pinned it down.
+
+### Performance
+
+Measured on Purpur 1.21.1 build 2329 with FastAsyncWorldEdit 2.15.4 and 2,008
+registered vents, after `//set grass_block` over a 128 x 40 x 128 region:
+
+| Scenario | 1.6 | 1.6 HOTFIX 1 |
+| --- | ---: | ---: |
+| `randomTickSpeed` 3, average tick while grass decays | 20-35 ms | 2-4 ms |
+| `randomTickSpeed` 100, average tick while grass decays | up to 313 ms | about 3 ms |
+| `randomTickSpeed` 100, worst single tick | 1,086 ms | 159 ms |
+
+The remaining worst tick with the hotfix is the FAWE operation itself. Airflow
+behaviour is unchanged: breaking a block next to a vent still triggers exactly
+one rebuild of that system, and breaking one out of range triggers none.
+
 ## ALPHA 1.6
 
 Water systems, promoted from ALPHA 1.6 Pilot 1 and including everything that
