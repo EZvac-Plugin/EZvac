@@ -55,6 +55,18 @@ and pull request.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
+### Upgrading
+
+Upgrading from any earlier EZvac release is supported: replace the jar and
+restart. Your `plugins/EZvac/hvac.yml` is read as-is, and every release's save
+file is covered by the test suite.
+
+**Downgrading is not supported.** From ALPHA 1.7 on, EZvac refuses to start on
+a save file written by a newer version, and leaves the file untouched, instead
+of loading it and silently discarding what it doesn't understand. When a
+release changes the save format, it first keeps the original as
+`hvac.yml.format<N>.bak`; restore that file if you ever need to go back.
+
 ## Core devices
 
 - **Thermostat:** One sign controller per world-scoped HVAC group, 60-85 F.
