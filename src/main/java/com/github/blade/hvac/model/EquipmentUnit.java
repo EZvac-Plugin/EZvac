@@ -10,6 +10,7 @@ import org.bukkit.block.data.Directional;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 
 /** Dispenser-backed HVAC actuator with explicit, persisted fluid ownership. */
 public final class EquipmentUnit {
@@ -23,6 +24,8 @@ public final class EquipmentUnit {
     private OperatingMode operatingMode;
     private double motorRpm;
     private BlockKey ownedOutput;
+    /** Told (previous, current) on every owned-output change, so the registry's index stays current. */
+    private BiConsumer<BlockKey, BlockKey> ownedOutputWatcher;
 
     public EquipmentUnit(BlockKey position, String groupLabel, EquipmentType type) {
         this(position, GroupId.of(position, groupLabel), type, true, false,
@@ -54,6 +57,17 @@ public final class EquipmentUnit {
     public double motorRpm() { return motorRpm; }
     public BlockKey ownedOutput() { return ownedOutput; }
     public boolean hasOwnedOutput() { return ownedOutput != null; }
+
+    /** Installed by HvacRegistry while it tracks this unit; null stops reporting. */
+    public void watchOwnedOutput(BiConsumer<BlockKey, BlockKey> watcher) { this.ownedOutputWatcher = watcher; }
+
+    /** Every owned-output change after construction goes through here. */
+    private void setOwnedOutput(BlockKey output) {
+        BlockKey previous = ownedOutput;
+        ownedOutput = output;
+        if (ownedOutputWatcher != null && !Objects.equals(previous, output))
+            ownedOutputWatcher.accept(previous, output);
+    }
 
     public void setGroup(String label) { this.group = GroupId.of(position, label); }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -130,7 +144,7 @@ public final class EquipmentUnit {
                 operatingMode = requestedMode;
                 return wasRunning ? Actuation.UNCHANGED : Actuation.STARTED;
             }
-            ownedOutput = null; // externally replaced; never claim it implicitly
+            setOwnedOutput(null); // externally replaced; never claim it implicitly
         }
         if (!front.getType().isAir()) {
             running = false;
@@ -138,7 +152,7 @@ public final class EquipmentUnit {
             return wasRunning ? Actuation.STOPPED : Actuation.UNCHANGED;
         }
         front.setType(type.outputMaterial(), true);
-        ownedOutput = output;
+        setOwnedOutput(output);
         running = true;
         operatingMode = requestedMode;
         return wasRunning ? Actuation.UNCHANGED : Actuation.STARTED;
@@ -159,13 +173,13 @@ public final class EquipmentUnit {
         if (location == null) return false;
         Block block = location.getBlock();
         if (block.getType() == type.outputMaterial()) block.setType(Material.AIR, true);
-        ownedOutput = null;
+        setOwnedOutput(null);
         return true;
     }
 
     public boolean releaseOwnershipAt(BlockKey changedBlock) {
         if (ownedOutput == null || !ownedOutput.equals(changedBlock)) return false;
-        ownedOutput = null;
+        setOwnedOutput(null);
         return true;
     }
 

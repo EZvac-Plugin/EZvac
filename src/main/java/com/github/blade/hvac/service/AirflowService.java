@@ -96,18 +96,6 @@ public final class AirflowService {
     private long visitedCells;
     private long cappedRebuilds;
 
-    /**
-     * Vents bucketed by world and a coarse x/z grid at least as wide as the
-     * airflow range. Block-change events arrive in bursts of thousands per
-     * tick - grass decaying under a WorldEdit fill, leaves decaying after a
-     * tree is cleared - and scanning every vent on the server for each one
-     * stalled the main thread into a watchdog dump. A lookup now touches at
-     * most four cells. Rebuilt lazily whenever the registry's vent set changes.
-     */
-    private final Map<UUID, Long2ObjectOpenHashMap<List<ClimateVent>>> ventIndex = new HashMap<>();
-    private int indexedVentsVersion;
-    private boolean ventIndexBuilt;
-    private int ventCellShift;
 
     public AirflowService(HvacRegistry registry, OutdoorTemperatureService outdoor, HvacSettings settings) {
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -128,8 +116,9 @@ public final class AirflowService {
 
     public void invalidateNear(Location location) {
         if (location == null || location.getWorld() == null) return;
-        Long2ObjectOpenHashMap<List<ClimateVent>> cells = ventCells(location.getWorld().getUID());
+        Long2ObjectOpenHashMap<List<ClimateVent>> cells = registry.ventCells(location.getWorld().getUID());
         if (cells == null) return;
+        int shift = registry.ventCellShift();
 
         int blockX = location.getBlockX();
         int blockY = location.getBlockY();
@@ -140,9 +129,9 @@ public final class AirflowService {
         int maxRangeSq = maxRange * maxRange;
 
         Set<GroupId> affected = null;
-        for (int cellX = (blockX - maxRange) >> ventCellShift; cellX <= (blockX + maxRange) >> ventCellShift; cellX++) {
-            for (int cellZ = (blockZ - maxRange) >> ventCellShift; cellZ <= (blockZ + maxRange) >> ventCellShift; cellZ++) {
-                List<ClimateVent> bucket = cells.get(cellKey(cellX, cellZ));
+        for (int cellX = (blockX - maxRange) >> shift; cellX <= (blockX + maxRange) >> shift; cellX++) {
+            for (int cellZ = (blockZ - maxRange) >> shift; cellZ <= (blockZ + maxRange) >> shift; cellZ++) {
+                List<ClimateVent> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
                 if (bucket == null) continue;
                 for (ClimateVent vent : bucket) {
                     BlockKey pos = vent.position();
@@ -174,32 +163,6 @@ public final class AirflowService {
         }
     }
 
-    /** The world's vent grid, or null when the world has no vents at all. */
-    private Long2ObjectOpenHashMap<List<ClimateVent>> ventCells(UUID worldId) {
-        int version = registry.ventsVersion();
-        if (!ventIndexBuilt || version != indexedVentsVersion) {
-            ventIndex.clear();
-            // Cells at least as wide as the search radius keep a lookup to 2x2 cells.
-            int reach = settings.airflowMaximumRange() + 2;
-            ventCellShift = 4;
-            while ((1 << ventCellShift) < reach) ventCellShift++;
-            for (ClimateVent vent : registry.vents()) {
-                BlockKey pos = vent.position();
-                ventIndex.computeIfAbsent(pos.worldId(), ignored -> new Long2ObjectOpenHashMap<>())
-                        .computeIfAbsent(cellKey(pos.x() >> ventCellShift, pos.z() >> ventCellShift),
-                                ignored -> new ArrayList<>())
-                        .add(vent);
-            }
-            indexedVentsVersion = version;
-            ventIndexBuilt = true;
-        }
-        return ventIndex.get(worldId);
-    }
-
-    private static long cellKey(int cellX, int cellZ) {
-        return (long) cellX << 32 | (cellZ & 0xFFFFFFFFL);
-    }
-
     public void invalidateWorld(World world) {
         if (world == null) return;
         UUID worldId = world.getUID();
@@ -210,16 +173,17 @@ public final class AirflowService {
     /** Invalidates only systems whose maximum possible path can intersect this chunk. */
     public void invalidateChunk(Chunk chunk) {
         if (chunk == null) return;
-        Long2ObjectOpenHashMap<List<ClimateVent>> cells = ventCells(chunk.getWorld().getUID());
+        Long2ObjectOpenHashMap<List<ClimateVent>> cells = registry.ventCells(chunk.getWorld().getUID());
         if (cells == null) return;
+        int shift = registry.ventCellShift();
         int minimumX = chunk.getX() << 4;
         int minimumZ = chunk.getZ() << 4;
         int maximumX = minimumX + 15;
         int maximumZ = minimumZ + 15;
         int maxRange = settings.airflowMaximumRange();
-        for (int cellX = (minimumX - maxRange) >> ventCellShift; cellX <= (maximumX + maxRange) >> ventCellShift; cellX++) {
-            for (int cellZ = (minimumZ - maxRange) >> ventCellShift; cellZ <= (maximumZ + maxRange) >> ventCellShift; cellZ++) {
-                List<ClimateVent> bucket = cells.get(cellKey(cellX, cellZ));
+        for (int cellX = (minimumX - maxRange) >> shift; cellX <= (maximumX + maxRange) >> shift; cellX++) {
+            for (int cellZ = (minimumZ - maxRange) >> shift; cellZ <= (maximumZ + maxRange) >> shift; cellZ++) {
+                List<ClimateVent> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
                 if (bucket == null) continue;
                 for (ClimateVent vent : bucket) {
                     int dx = vent.position().x() < minimumX ? minimumX - vent.position().x()
@@ -293,8 +257,7 @@ public final class AirflowService {
         List<BlockKey> seeds = new ArrayList<>();
         boolean hasVent = false;
         boolean water = false;
-        for (ClimateVent vent : registry.vents()) {
-            if (!vent.group().equals(group)) continue;
+        for (ClimateVent vent : registry.ventsFor(group)) {
             hasVent = true;
             BlockKey pos = vent.position();
             if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) continue;
@@ -427,8 +390,7 @@ public final class AirflowService {
     }
 
     private boolean hasVents(GroupId group) {
-        for (ClimateVent vent : registry.vents()) if (vent.group().equals(group)) return true;
-        return false;
+        return !registry.ventsFor(group).isEmpty();
     }
 
     public String stats() {

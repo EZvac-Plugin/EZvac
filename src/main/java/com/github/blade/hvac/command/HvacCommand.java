@@ -219,7 +219,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 if (existing != null && existing != thermostat)
                     throw new IllegalArgumentException("That group already has thermostat '" + existing.id() + "'.");
                 GroupId previous = thermostat.group();
-                thermostat.setGroup(args[3]);
+                registry.regroupThermostat(thermostat, args[3]);
                 airflow.invalidate(previous);
                 airflow.invalidate(thermostat.group());
                 registry.markDirty();
@@ -247,7 +247,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 unit.stop();
                 if (unit.hasOwnedOutput())
                     throw new IllegalArgumentException("The old output chunk must load before this unit can change groups.");
-                unit.setGroup(args[2]);
+                registry.regroupEquipment(unit, args[2]);
                 player.sendMessage(green("Equipment moved to group '" + unit.group().label() + "'."));
             }
             case "info" -> showEquipment(player, unit);
