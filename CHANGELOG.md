@@ -2,6 +2,38 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 1.7 HOTFIX 1
+
+A data-safety fix, found by stress-testing 1.7. No other changes; the save
+file is unchanged (format 5), so this is a drop-in upgrade.
+
+### Fixed
+
+- **An unreadable save file could be replaced by an empty one.** If
+  `hvac.yml` could not be parsed (for example after a typo while hand-editing
+  it) and there was no readable `hvac.yml.bak`, EZvac correctly refused to
+  start, but the shutdown that followed still saved. With nothing loaded, that
+  save wrote an empty file over `hvac.yml` and moved the original into
+  `hvac.yml.bak`. The next start then loaded the empty file without complaint,
+  and its first save rotated the original out of `hvac.yml.bak` as well, so
+  every device was lost after two restarts. This affected every release since
+  ALPHA 1.0.
+
+  Any failed load now leaves EZvac read-only for that run, the same way 1.7
+  already treated a save file from a newer version. Nothing is written,
+  rotated or backed up until the file loads, and the log says so instead of
+  claiming state was saved. The error message says the file was left
+  untouched and what to do next.
+
+- **Recovering from the backup no longer discards the unreadable file.** When
+  `hvac.yml` is unreadable but `hvac.yml.bak` is fine, EZvac still loads the
+  backup, but it now first keeps the unreadable file as
+  `hvac.yml.unreadable-<timestamp>`, because it may hold changes newer than the
+  backup, or hand edits worth repairing.
+
+Verified on Purpur 1.21.1: a broken `hvac.yml` with no backup now survives two
+restarts byte-for-byte, where 1.7 had replaced it with an empty file.
+
 ## ALPHA 1.7
 
 A foundation release. No new devices, commands, or configuration options, and
