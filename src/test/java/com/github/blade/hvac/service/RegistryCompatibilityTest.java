@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Upgrade compatibility: every hvac.yml a released EZvac ever wrote must load
- * with the same devices, and must save back exactly as 1.6 HOTFIX 1 saved it.
+ * with the same devices, and must save back exactly as its golden records.
  *
  * <p>Each release's fixtures were produced by running that release on a real
  * Purpur 1.21.1 server and building one of every device it supports.
@@ -29,8 +29,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * outputs retracted); {@code hvac-running.yml} is the last periodic save
  * while units ran - what a crash leaves - so it carries owned outputs.
  *
- * <p>The {@code expected-*.yml} goldens are the 1.6 HOTFIX 1 output for the
- * same input. Regenerate them only on purpose, with
+ * <p>The {@code expected-*.yml} goldens are what EZvac saved for that input
+ * when the fixture was added (1.6 HOTFIX 1 for every release up to and
+ * including it). Regenerate them only on purpose, with
  * {@code mvn verify -Dezvac.recordGolden=true}, and review the diff.
  */
 class RegistryCompatibilityTest {
@@ -44,7 +45,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("ALPHA-1.5", false, false),
                 Arguments.of("ALPHA-1.6-P1", true, false),
                 Arguments.of("ALPHA-1.6", true, true),
-                Arguments.of("ALPHA-1.6-HOTFIX1", true, true));
+                Arguments.of("ALPHA-1.6-HOTFIX1", true, true),
+                Arguments.of("ALPHA-1.7", true, true));
     }
 
     @TempDir Path folder;
