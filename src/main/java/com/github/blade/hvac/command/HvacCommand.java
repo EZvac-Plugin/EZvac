@@ -2,6 +2,7 @@ package com.github.blade.hvac.command;
 
 import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
 import net.kyori.adventure.text.Component;
@@ -21,6 +22,7 @@ import java.util.*;
 /** Compact command surface for the standalone plugin. */
 public final class HvacCommand implements CommandExecutor, TabCompleter {
     private static final String ADMIN_PERMISSION = "ezvac.admin";
+    private static final String HUD_PERMISSION = "ezvac.hud";
 
     private final HvacPlugin plugin;
     private final HvacRegistry registry;
@@ -29,13 +31,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private final AirflowService airflow;
     private final DisplayService displays;
     private final HvacSettings settings;
+    private final ClimateHudService hud;
     private final NamespacedKey toolKey;
     private final NamespacedKey toolGroupKey;
     private final NamespacedKey toolWorldKey;
 
     public HvacCommand(HvacPlugin plugin, HvacRegistry registry, HvacController controller,
                        OutdoorTemperatureService outdoor, AirflowService airflow,
-                       DisplayService displays, HvacSettings settings) {
+                       DisplayService displays, HvacSettings settings, ClimateHudService hud) {
         this.plugin = plugin;
         this.registry = registry;
         this.controller = controller;
@@ -43,6 +46,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         this.airflow = airflow;
         this.displays = displays;
         this.settings = settings;
+        this.hud = hud;
         toolKey = new NamespacedKey(plugin, "duct_link_tool");
         toolGroupKey = new NamespacedKey(plugin, "duct_group");
         toolWorldKey = new NamespacedKey(plugin, "duct_world");
@@ -76,6 +80,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         try {
             switch (subcommand) {
                 case "temperature", "temp" -> temperature(player);
+                case "hud" -> hud(player, args);
                 case "list" -> list(player);
                 case "info" -> info(player);
                 case "create" -> { if (requireAdmin(player)) create(player, args); }
@@ -90,6 +95,25 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(red(exception.getMessage()));
         }
         return true;
+    }
+
+    private void hud(Player player, String[] args) {
+        if (!player.hasPermission(HUD_PERMISSION)) {
+            player.sendMessage(red("You may not use the climate HUD."));
+            return;
+        }
+        if (!hud.enabled()) {
+            player.sendMessage(yellow("The climate HUD is turned off on this server."));
+            return;
+        }
+        boolean show;
+        if (args.length < 2) show = !hud.isShowing(player);
+        else if (args[1].equalsIgnoreCase("on")) show = true;
+        else if (args[1].equalsIgnoreCase("off")) show = false;
+        else throw new IllegalArgumentException("Usage: /hvac hud [on|off]");
+        hud.setShowing(player, show);
+        player.sendMessage(show ? green("Climate HUD on. Use /hvac hud again to hide it.")
+                : gray("Climate HUD off."));
     }
 
     private void create(Player player, String[] args) {
@@ -523,6 +547,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private static void help(CommandSender sender) {
         sender.sendMessage(gold("EZvac commands"));
         sender.sendMessage(join(aqua("/hvac temperature"), gray(" - read local/outdoor temperature")));
+        if (sender.hasPermission(HUD_PERMISSION))
+            sender.sendMessage(join(aqua("/hvac hud [on|off]"), gray(" - show or hide the on-screen climate HUD")));
         sender.sendMessage(join(aqua("/hvac list | info"), gray(" - inspect systems or the targeted device")));
         if (!sender.hasPermission(ADMIN_PERMISSION)) return;
         sender.sendMessage(join(aqua("/hvac create thermostat <id> <group> [target]"), gray(" - register a sign")));
@@ -538,7 +564,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return filter(args[0], "help", "temperature", "list", "info",
+        if (args.length == 1) return filter(args[0], "help", "temperature", "hud", "list", "info",
                 "create", "thermostat", "equipment", "group", "tool", "remove", "stats", "sync");
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -546,6 +572,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         "ac", "furnace", "boiler", "thermometer", "rpmmonitor", "settingspanel");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
+                case "hud" -> filter(args[1], "on", "off");
                 case "group" -> filter(args[1], registry.thermostats().stream().map(value -> value.group().label()).distinct().toArray(String[]::new));
                 default -> List.of();
             };

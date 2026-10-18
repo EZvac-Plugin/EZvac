@@ -48,3 +48,54 @@ audio:
   hum-refresh-ticks: 60
   hum-volume: 1.6
   hum-pitch: 0.55
+
+# On-screen climate HUD and PlaceholderAPI placeholders (ALPHA 1.8).
+# Players turn the HUD on or off for themselves with /hvac hud. Text uses
+# MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:
+# {temp} {bar} {comfort} {outdoor} {group} {thermostat} {mode} {target} {zone} {version}
+hud:
+  enabled: true
+  # sidebar (scoreboard on the right), actionbar (above the hotbar) or bossbar (top)
+  style: sidebar
+  update-ticks: 10
+  units: F
+  # Shown where no system conditions the air.
+  none-text: none
+  sidebar:
+    # EZvac never takes over a sidebar another plugin or the server is using;
+    # servers with their own scoreboard plugin can use the placeholders instead.
+    title: "<gradient:#3999fb:#f69500><bold>Climate</bold></gradient> <dark_gray>-</dark_gray> <gray>EZvac"
+    lines:
+      - "<gray>Here: <white>{temp}"
+      - "{bar} {comfort}"
+      - "<gray>Outside: <white>{outdoor}"
+      - ""
+      - "<gray>System: <white>{group}"
+      - "<gray>Mode: <white>{mode}"
+      - "<gray>Airflow: <white>{zone}"
+      # {version} is the short EZvac version: A1.8, or A1.8_H1 for a hotfix.
+      # <font:uniform> is Minecraft's narrower built-in font, for a quieter footer.
+      - "<dark_gray><font:uniform>Version: {version}</font>"
+    # Scoreboard plugins that draw their own sidebar. If any is installed, the
+    # HUD uses the action bar instead so it never covers the server's board;
+    # put %ezvac_temp% and friends into that plugin's scoreboard instead.
+    # Empty the list to always use the sidebar.
+    yield-to-plugins: [TAB, FeatherBoard, AnimatedScoreboard, SimpleScore, KiteBoard, QuickBoard, TitleManager, BetterScoreboard]
+  actionbar:
+    format: "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{group}"
+  bossbar:
+    format: "<white>{temp}</white> <gray>-</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}"
+  bar:
+    length: 10
+    filled: "▮"
+    empty: "▯"
+    empty-color: "#4a4a4a"
+    # The bar is empty at cold-f and full at hot-f.
+    cold-f: 50.0
+    hot-f: 95.0
+  comfort:
+    cold: { below-f: 60.0, label: Cold, color: "#5ab0ff" }
+    cool: { below-f: 68.0, label: Cool, color: "#8fd3ff" }
+    comfortable: { label: Comfortable, color: "#6ee07a" }
+    warm: { above-f: 78.0, label: Warm, color: "#ffb347" }
+    hot: { above-f: 86.0, label: Hot, color: "#ff5c5c" }

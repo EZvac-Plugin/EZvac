@@ -1,5 +1,5 @@
-EZVAC ALPHA 1.7 HOTFIX 1 FEATURES
-=================================
+EZVAC ALPHA 1.8 FEATURES
+========================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
 forks, including Purpur. Climate systems are identified only by world and group
@@ -216,6 +216,31 @@ EZvac never performs broad sound/category stops, so it cannot silence an
 unrelated beacon, furnace, or another plugin's audio.
 
 
+CLIMATE HUD AND PLACEHOLDERS
+----------------------------
+
+- /hvac hud shows, per player, the local temperature, a cold-to-hot bar, a
+  comfort label (cold, cool, comfortable, warm, hot), the outdoor temperature,
+  and the conditioning system with its mode, target, and core/leakage zone.
+- Styles: a scoreboard sidebar (default, score numbers hidden), the action bar,
+  or a boss bar whose fill and colour follow the temperature.
+- Off by default per player; the choice is stored in the player's own data,
+  so hvac.yml is unchanged.
+- The sidebar never replaces a scoreboard in use: it attaches only while the
+  player is on the server's main scoreboard and nothing else is shown there,
+  steps back if another plugin later takes over, and is not used at all when a
+  packet-based scoreboard plugin such as TAB is installed (the action bar is
+  used instead; see hud.sidebar.yield-to-plugins).
+- With PlaceholderAPI installed, %ezvac_temp%, %ezvac_bar%, %ezvac_group% and
+  the rest expose the same values to other plugins. Without it, EZvac logs one
+  line saying what installing it would add.
+- Values come from one snapshot per player, refreshed on the main thread every
+  hud.update-ticks (default 10). Placeholder requests from any thread only read
+  that snapshot, so frequently refreshing HUD plugins add no extra lookups.
+- Temperature lookups (HUD, /hvac temperature, thermometers) check only the
+  systems with vents near the spot, not every system in the world.
+
+
 PERSISTENCE
 -----------
 
@@ -237,6 +262,7 @@ PERMISSIONS
 -----------
 
 - ezvac.use (default true): help, temperature, list, info, and settings-panel use.
+- ezvac.hud (default true): show the on-screen climate HUD with /hvac hud.
 - ezvac.admin (default op): create, change, link, remove, sync, and stats.
 
 See commands.txt for the full command reference.
