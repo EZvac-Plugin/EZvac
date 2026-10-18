@@ -13,8 +13,14 @@ or **water**, so the same simulation heats a room or a swimming pool.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.7 rebuilds how EZvac keeps track of devices,
-> so lookups no longer scan every device on the server, and makes upgrades
+> **Release status:** EZvac ALPHA 1.7 HOTFIX 1 fixes a long-standing data-loss bug:
+> if `hvac.yml` became unreadable (for example after a hand-edit typo) and no
+> usable backup existed, EZvac replaced it with an empty save on shutdown. A
+> save file that cannot be read is now never overwritten. Everything below
+> from ALPHA 1.7 still applies.
+>
+> ALPHA 1.7 rebuilt how EZvac keeps track of devices,
+> so lookups no longer scan every device on the server, and made upgrades
 > safe by design: every earlier release's save file is covered by the test
 > suite, and a save file from a newer version is refused instead of silently
 > rewritten. No new features, commands, or settings; it is a drop-in upgrade
@@ -42,7 +48,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.7.jar
+target/EzVac-ALPHA-1.7-HOTFIX1.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -52,7 +58,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.7.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.7-HOTFIX1.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 

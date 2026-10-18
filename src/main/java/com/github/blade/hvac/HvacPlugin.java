@@ -72,7 +72,10 @@ public final class HvacPlugin extends JavaPlugin {
             registry.shutdownEquipment();
             registry.save(true); // shutdown must not hand work to the scheduler
         }
-        getLogger().info("EZvac disabled; owned loaded outputs were retracted and state was saved.");
+        if (registry != null && !registry.isWritable())
+            getLogger().warning("EZvac disabled without saving: hvac.yml could not be loaded, so it was left untouched.");
+        else
+            getLogger().info("EZvac disabled; owned loaded outputs were retracted and state was saved.");
     }
 
     private void runController(long elapsedTicks) {

@@ -79,9 +79,13 @@ public final class HvacRegistry {
     private final File backupFile;
     private boolean dirty;
     /**
-     * False once a newer-format file has been refused. Nothing may then be
-     * written for the rest of the run - not even the save onDisable makes -
-     * so the newer file is left exactly as its own version wrote it.
+     * False once a load has failed for any reason - a newer format, or a file
+     * that cannot be read. Nothing may then be written for the rest of the
+     * run, not even the save onDisable makes, because the registry is empty
+     * and the file on disk is the only copy of the data. Before this applied
+     * to unreadable files, a typo in hvac.yml with no usable backup was
+     * replaced by an empty save on shutdown, and the next save rotated the
+     * original out of hvac.yml.bak too, losing every device.
      */
     private boolean writable = true;
     /** The older format just upgraded from, backed up once before the first save; 0 when none. */
@@ -128,7 +132,15 @@ public final class HvacRegistry {
     public void load() {
         clear();
         if (!dataFile.isFile()) return;
+        try {
+            loadExisting();
+        } catch (RuntimeException failure) {
+            writable = false;
+            throw failure;
+        }
+    }
 
+    private void loadExisting() {
         YamlConfiguration configuration = loadWithRecovery();
         checkFormat(configuration);
         preserveUnknownSections(configuration);
@@ -202,17 +214,32 @@ public final class HvacRegistry {
             return configuration;
         } catch (IOException | InvalidConfigurationException primary) {
             if (!backupFile.isFile())
-                throw new IllegalStateException("hvac.yml is unreadable and no backup exists", primary);
+                throw new IllegalStateException("hvac.yml is unreadable and no backup exists. The file"
+                        + " has been left untouched and EZvac will not start; fix the error reported"
+                        + " below, or restore a copy of hvac.yml, then restart.", primary);
             try {
                 configuration = new YamlConfiguration();
                 configuration.load(backupFile);
-                Files.copy(backupFile.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                host.logger().severe("Recovered unreadable hvac.yml from hvac.yml.bak");
-                return configuration;
             } catch (IOException | InvalidConfigurationException backupFailure) {
                 primary.addSuppressed(backupFailure);
-                throw new IllegalStateException("Both hvac.yml and its backup are unreadable", primary);
+                throw new IllegalStateException("Both hvac.yml and hvac.yml.bak are unreadable. Both"
+                        + " have been left untouched and EZvac will not start; fix the errors reported"
+                        + " below, or restore a copy of hvac.yml, then restart.", primary);
             }
+            // The unreadable file may hold changes newer than the backup, or hand
+            // edits worth repairing, so it is kept aside rather than overwritten.
+            File unreadable = new File(host.dataFolder(), "hvac.yml.unreadable-" + System.currentTimeMillis());
+            try {
+                Files.copy(dataFile.toPath(), unreadable.toPath());
+                Files.copy(backupFile.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException copyFailure) {
+                primary.addSuppressed(copyFailure);
+                throw new IllegalStateException("hvac.yml is unreadable and could not be set aside for"
+                        + " recovery from hvac.yml.bak; nothing was changed and EZvac will not start.", primary);
+            }
+            host.logger().severe("Recovered unreadable hvac.yml from hvac.yml.bak; the unreadable file"
+                    + " was kept as " + unreadable.getName());
+            return configuration;
         }
     }
 
@@ -647,6 +674,8 @@ public final class HvacRegistry {
     }
 
     public void markDirty() { dirty = true; }
+    /** False after a failed load: this run will never write hvac.yml. */
+    public boolean isWritable() { return writable; }
     public boolean isDirty() { return dirty; }
 
     public boolean releaseOutputOwnership(BlockKey changed) {
