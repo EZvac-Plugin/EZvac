@@ -1,7 +1,10 @@
 package com.github.blade.hvac;
 
 import com.github.blade.hvac.command.HvacCommand;
+import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.hud.ClimateHudService;
+import com.github.blade.hvac.integration.placeholderapi.PlaceholderApiBridge;
 import com.github.blade.hvac.listener.HvacListener;
 import com.github.blade.hvac.service.*;
 import org.bukkit.command.PluginCommand;
@@ -20,6 +23,9 @@ public final class HvacPlugin extends JavaPlugin {
     private DisplayService displays;
     private HvacController controller;
     private HvacAudioService audio;
+    private ClimateHudService hud;
+    /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
+    private Runnable placeholderUnregister;
     private BukkitTask controllerTask;
     private BukkitTask airflowTask;
     private boolean immediateSyncQueued;
@@ -38,15 +44,26 @@ public final class HvacPlugin extends JavaPlugin {
             displays = new DisplayService(this, registry, airflow, outdoor, settings);
             controller = new HvacController(this, registry, outdoor, airflow, settings);
             audio = new HvacAudioService(settings);
+            hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()));
 
             HvacCommand commandHandler = new HvacCommand(this, registry, controller,
-                    outdoor, airflow, displays, settings);
+                    outdoor, airflow, displays, settings, hud);
             PluginCommand command = Objects.requireNonNull(getCommand("hvac"),
                     "Command 'hvac' is missing from plugin.yml");
             command.setExecutor(commandHandler);
             command.setTabCompleter(commandHandler);
             getServer().getPluginManager().registerEvents(new HvacListener(
                     this, registry, airflow, displays, commandHandler), this);
+            getServer().getPluginManager().registerEvents(hud, this);
+            hud.start();
+            if (hud.sidebarYieldedTo() != null)
+                getLogger().info(hud.sidebarYieldedTo() + " draws its own scoreboard, so the /hvac hud overlay uses"
+                        + " the action bar instead of the sidebar. To show EZvac in that scoreboard, add"
+                        + " %ezvac_temp%, %ezvac_bar% and friends to it (needs PlaceholderAPI).");
+            if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) registerPlaceholders();
+            else getLogger().info("PlaceholderAPI is not installed. The /hvac hud overlay works without it;"
+                    + " install PlaceholderAPI to also show %ezvac_temp%, %ezvac_bar%, %ezvac_group% and"
+                    + " more in scoreboard, TAB, and chat plugins.");
 
             controllerTask = getServer().getScheduler().runTaskTimer(this,
                     () -> runController(settings.controllerPeriodTicks()),
@@ -64,8 +81,27 @@ public final class HvacPlugin extends JavaPlugin {
         }
     }
 
+    /** Only reached when PlaceholderAPI is enabled, so its classes are never needed otherwise. */
+    private void registerPlaceholders() {
+        try {
+            PlaceholderApiBridge bridge = PlaceholderApiBridge.register(this, hud);
+            if (bridge == null) {
+                getLogger().warning("PlaceholderAPI refused the %ezvac_*% placeholders.");
+                return;
+            }
+            placeholderUnregister = bridge::unregister;
+            hud.setPlaceholdersActive(true);
+            getLogger().info("Registered %ezvac_*% placeholders with PlaceholderAPI.");
+        } catch (LinkageError | RuntimeException failure) {
+            getLogger().log(Level.WARNING, "Could not register EZvac placeholders with PlaceholderAPI;"
+                    + " the /hvac hud overlay still works.", failure);
+        }
+    }
+
     @Override
     public void onDisable() {
+        if (placeholderUnregister != null) placeholderUnregister.run();
+        if (hud != null) hud.shutdown();
         if (controllerTask != null) controllerTask.cancel();
         if (airflowTask != null) airflowTask.cancel();
         if (registry != null) {

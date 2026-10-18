@@ -13,25 +13,12 @@ or **water**, so the same simulation heats a room or a swimming pool.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.7 HOTFIX 1 fixes a long-standing data-loss bug:
-> if `hvac.yml` became unreadable (for example after a hand-edit typo) and no
-> usable backup existed, EZvac replaced it with an empty save on shutdown. A
-> save file that cannot be read is now never overwritten. Everything below
-> from ALPHA 1.7 still applies.
->
-> ALPHA 1.7 rebuilt how EZvac keeps track of devices,
-> so lookups no longer scan every device on the server, and made upgrades
-> safe by design: every earlier release's save file is covered by the test
-> suite, and a save file from a newer version is refused instead of silently
-> rewritten. No new features, commands, or settings; it is a drop-in upgrade
-> from any earlier release. See [Upgrading](#upgrading).
->
-> **You cannot roll back to ALPHA 1.5 once you build a water system** — 1.5
-> predates the forward-compatibility work and would reinterpret boilers as heat
-> pumps and delete grate vents. From 1.6 onward a downgrade degrades gracefully.
-> See [CHANGELOG.md](CHANGELOG.md).
->
-> This is alpha software: back up your server and EZvac data before upgrading.
+> **Release status:** EZvac ALPHA 1.8 adds an on-screen **climate HUD**
+> (`/hvac hud`): the temperature where you stand, a cold-to-hot bar, and the
+> system conditioning that spot, as a scoreboard sidebar, action bar, or boss
+> bar. With PlaceholderAPI installed, the same values are available as
+> `%ezvac_*%` placeholders. No save-file changes; a drop-in upgrade from any
+> earlier release. See [Climate HUD and placeholders](#climate-hud-and-placeholders).
 
 ## Requirements
 
@@ -48,7 +35,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.7-HOTFIX1.jar
+target/EzVac-ALPHA-1.8.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -58,7 +45,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.7-HOTFIX1.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.8.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -139,6 +126,41 @@ It reads the temperature at its own block: full conditioned temperature in a
 vent core, blended temperature near the airflow edge, or outdoor temperature
 when outside every HVAC system.
 
+## Climate HUD and placeholders
+
+Players can keep the climate where they stand on screen:
+
+```text
+/hvac hud [on|off]
+```
+
+It shows the local temperature, a cold-to-hot bar with a comfort label, the
+outdoor temperature, and the system conditioning that spot, its mode and
+target, and whether you are in its core or its leakage edge. It is off by
+default for each player, and EZvac remembers each player's choice.
+
+By default the HUD is a scoreboard **sidebar**; `hud.style` in `config.yml`
+switches it to the **action bar** or a **boss bar**. EZvac never takes over a
+sidebar the server already uses: if a scoreboard plugin such as TAB is
+installed, the HUD uses the action bar instead.
+
+With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
+(optional), the same values are available to scoreboard, TAB, and chat
+plugins as placeholders:
+
+| Placeholder | Example |
+| --- | --- |
+| `%ezvac_temp%` (`_temp_f`, `_temp_c`) | `72.4°F` |
+| `%ezvac_outdoor%` (`_outdoor_f`, `_outdoor_c`) | `88.0°F` |
+| `%ezvac_bar%` / `%ezvac_bar_plain%` | `▮▮▮▮▮▯▯▯▯▯` (coloured / plain) |
+| `%ezvac_comfort%` | `Comfortable` |
+| `%ezvac_group%`, `%ezvac_thermostat%` | `house`, `main` |
+| `%ezvac_mode%`, `%ezvac_target%` | `Cooling to 70.0°F`, `70.0°F` |
+| `%ezvac_zone%`, `%ezvac_influence%`, `%ezvac_conditioned%` | `Core`, `100`, `true` |
+
+Text, colours, bar length and range, comfort bands, and units (°F or °C) are
+all configurable under `hud:` in `config.yml`.
+
 ## Documentation
 
 - [Full feature reference](docs/features.txt)
@@ -148,6 +170,7 @@ when outside every HVAC system.
 ## Permissions
 
 - `ezvac.use` — help, readings, inspection, and settings-panel operation.
+- `ezvac.hud` — show the on-screen climate HUD (default: everyone).
 - `ezvac.admin` — device creation, changes, removal, linking, and diagnostics.
 
 ## Data and safety

@@ -351,20 +351,10 @@ public final class AirflowService {
             return new TemperatureReading(outside, outside, 0.0, -1, null, null);
         }
         long key = pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
-        GroupId best = null;
-        int bestDistance = Integer.MAX_VALUE;
-        for (Map.Entry<GroupId, Long2ByteMap> entry : completed.entrySet()) {
-            GroupId group = entry.getKey();
-            if (!group.worldId().equals(location.getWorld().getUID())) continue;
-            if (requiredGroup != null && !requiredGroup.equals(group)) continue;
-            byte rawDistance = entry.getValue().get(key);
-            if (rawDistance == ABSENT) continue;
-            int distance = rawDistance;
-            if (distance < bestDistance || (distance == bestDistance && (best == null || group.compareTo(best) < 0))) {
-                best = group;
-                bestDistance = distance;
-            }
-        }
+        Nearest nearest = nearestGroup(candidateGroups(location.getWorld().getUID(),
+                location.getBlockX(), location.getBlockZ()), key, requiredGroup);
+        GroupId best = nearest == null ? null : nearest.group();
+        int bestDistance = nearest == null ? Integer.MAX_VALUE : nearest.distance();
         if (best == null) {
             if (requiredGroup != null && !hasVents(requiredGroup)) {
                 Thermostat thermostat = registry.thermostatFor(requiredGroup);
@@ -380,6 +370,63 @@ public final class AirflowService {
         double influence = influenceForDistance(bestDistance);
         return new TemperatureReading(outside + (thermostat.roomF() - outside) * influence,
                 outside, influence, bestDistance, best, thermostat);
+    }
+
+    record Nearest(GroupId group, int distance) {}
+
+    /**
+     * Groups whose airflow map could contain a block at x/z: those with a vent
+     * in the grid cells around it. Every cell of a map lies within the maximum
+     * range (+1 for the vent's own neighbour) of one of its group's vents, so
+     * this finds every group a scan of all maps would, without visiting the
+     * maps of systems elsewhere in the world. Before 1.8 every lookup scanned
+     * them all, which a HUD refreshing many players would multiply.
+     */
+    Set<GroupId> candidateGroups(UUID worldId, int blockX, int blockZ) {
+        Long2ObjectOpenHashMap<List<ClimateVent>> cells = registry.ventCells(worldId);
+        if (cells == null) return Set.of();
+        int reach = settings.airflowMaximumRange() + 2;
+        int shift = registry.ventCellShift();
+        Set<GroupId> groups = new HashSet<>();
+        for (int cellX = (blockX - reach) >> shift; cellX <= (blockX + reach) >> shift; cellX++) {
+            for (int cellZ = (blockZ - reach) >> shift; cellZ <= (blockZ + reach) >> shift; cellZ++) {
+                List<ClimateVent> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
+                if (bucket == null) continue;
+                for (ClimateVent vent : bucket) groups.add(vent.group());
+            }
+        }
+        return groups;
+    }
+
+    /** The candidate whose completed map reaches the block soonest; ties go to the lower GroupId. */
+    Nearest nearestGroup(Iterable<GroupId> candidates, long key, GroupId requiredGroup) {
+        GroupId best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (GroupId group : candidates) {
+            if (requiredGroup != null && !requiredGroup.equals(group)) continue;
+            Long2ByteMap map = completed.get(group);
+            if (map == null) continue;
+            byte rawDistance = map.get(key);
+            if (rawDistance == ABSENT) continue;
+            int distance = rawDistance;
+            if (distance < bestDistance || (distance == bestDistance && (best == null || group.compareTo(best) < 0))) {
+                best = group;
+                bestDistance = distance;
+            }
+        }
+        return best == null ? null : new Nearest(best, bestDistance);
+    }
+
+    /** Test support: installs a finished airflow map as if a rebuild had produced it. */
+    void putCompletedMap(GroupId group, Long2ByteMap map) {
+        completed.put(group, map);
+    }
+
+    /** Test support: the old full scan over every completed map in the world. */
+    Nearest nearestGroupByFullScan(UUID worldId, long key, GroupId requiredGroup) {
+        List<GroupId> all = new ArrayList<>();
+        for (GroupId group : completed.keySet()) if (group.worldId().equals(worldId)) all.add(group);
+        return nearestGroup(all, key, requiredGroup);
     }
 
     public double influenceForDistance(int distance) {

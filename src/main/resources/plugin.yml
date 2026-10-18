@@ -4,6 +4,7 @@ main: com.github.blade.hvac.HvacPlugin
 api-version: '1.21'
 author: blade
 description: Standalone thermostat, HVAC equipment, airflow, and room-climate simulation.
+softdepend: [PlaceholderAPI]
 commands:
   hvac:
     description: Manage EZvac systems.
@@ -13,6 +14,9 @@ commands:
 permissions:
   ezvac.use:
     description: Allows basic EZvac commands and temperature readings.
+    default: true
+  ezvac.hud:
+    description: Allows showing the on-screen climate HUD with /hvac hud.
     default: true
   ezvac.admin:
     description: Allows creating, changing, removing, and diagnosing HVAC systems.

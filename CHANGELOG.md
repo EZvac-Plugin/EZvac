@@ -2,6 +2,44 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 1.8
+
+The climate where you stand, always on screen. No changes to the save file
+(still format 5), so this is a drop-in upgrade.
+
+### Added
+
+- **Climate HUD.** `/hvac hud [on|off]` shows the local temperature, a
+  cold-to-hot bar with a comfort label, the outdoor temperature, and the
+  system conditioning that spot with its mode, target and core/leakage zone.
+  Off by default for each player; each player's choice is remembered.
+- **Three styles:** a Hypixel-style scoreboard sidebar (default, with the score
+  numbers hidden), the action bar, or a boss bar whose fill and colour follow
+  the temperature. Set with `hud.style`.
+- **Never steals a scoreboard.** The sidebar attaches only while nothing else
+  uses the player's sidebar, and steps back if another plugin takes over.
+  Packet-based scoreboard plugins such as TAB cannot be seen through the
+  server's scoreboard API, so when one is installed the HUD uses the action
+  bar instead (`hud.sidebar.yield-to-plugins`).
+- **PlaceholderAPI placeholders** (optional): `%ezvac_temp%`, `%ezvac_bar%`,
+  `%ezvac_comfort%`, `%ezvac_group%`, `%ezvac_mode%`, `%ezvac_zone%` and more,
+  for scoreboard, TAB and chat plugins. Without PlaceholderAPI EZvac logs one
+  line saying what installing it would add.
+- **Configurable** text (MiniMessage), colours, bar glyphs, length and range,
+  comfort bands, and °F or °C under `hud:` in `config.yml`. Configs from
+  earlier releases load unchanged and use the defaults.
+- New permission `ezvac.hud` (default: everyone).
+
+### Performance
+
+- Values come from one snapshot per player, refreshed on the main thread every
+  half second. Placeholder requests, which HUD plugins often make from other
+  threads and many times a second, only read that snapshot.
+- Temperature lookups now check only systems with vents near the spot instead
+  of every system in the world, using the vent grid from 1.7. This also speeds
+  up thermometer signs and `/hvac temperature`. A test compares it against the
+  old full scan, ties included.
+
 ## ALPHA 1.7 HOTFIX 1
 
 A data-safety fix, found by stress-testing 1.7. No other changes; the save
