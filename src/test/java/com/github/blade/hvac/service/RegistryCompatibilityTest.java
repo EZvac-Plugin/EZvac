@@ -46,7 +46,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("ALPHA-1.6-P1", true, false),
                 Arguments.of("ALPHA-1.6", true, true),
                 Arguments.of("ALPHA-1.6-HOTFIX1", true, true),
-                Arguments.of("ALPHA-1.7", true, true));
+                Arguments.of("ALPHA-1.7", true, true),
+                Arguments.of("ALPHA-1.8", true, true));
     }
 
     @TempDir Path folder;
