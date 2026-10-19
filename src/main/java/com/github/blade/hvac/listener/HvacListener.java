@@ -73,17 +73,37 @@ public final class HvacListener implements Listener {
         }
         String line = event.line(2) == null ? ""
                 : PlainTextComponentSerializer.plainText().serialize(event.line(2));
+        
+        // Check for OFF keyword
+        if (line.trim().equalsIgnoreCase("OFF")) {
+            thermostat.setEnabled(false);
+            registry.markDirty();
+            event.getPlayer().sendMessage(Component.text(
+                    "Thermostat '" + thermostat.id() + "' disabled.", NamedTextColor.YELLOW));
+            plugin.requestImmediateSync();
+            refreshLater(key);
+            return;
+        }
+        
         Matcher matcher = NUMBER.matcher(line);
         if (matcher.find()) {
             try {
                 thermostat.setTargetF(Double.parseDouble(matcher.group()), plugin.settings());
+                // Auto-enable thermostat when setting a temperature
+                if (!thermostat.enabled()) {
+                    thermostat.setEnabled(true);
+                    event.getPlayer().sendMessage(Component.text(
+                            "Thermostat enabled and target set to " + String.format(
+                                    java.util.Locale.US, "%.1f F.", thermostat.targetF()), NamedTextColor.GREEN));
+                } else {
+                    event.getPlayer().sendMessage(Component.text(String.format(
+                            java.util.Locale.US, "Target set to %.1f F.", thermostat.targetF()), NamedTextColor.GREEN));
+                }
                 registry.markDirty();
-                event.getPlayer().sendMessage(Component.text(String.format(
-                        java.util.Locale.US, "Target set to %.1f F.", thermostat.targetF()), NamedTextColor.GREEN));
                 plugin.requestImmediateSync();
             } catch (IllegalArgumentException exception) {
                 event.getPlayer().sendMessage(Component.text(
-                        "Line 3 must contain a finite target temperature.", NamedTextColor.RED));
+                        "Line 3 must contain a finite target temperature or 'OFF'.", NamedTextColor.RED));
             }
         }
         refreshLater(key);
@@ -115,11 +135,24 @@ public final class HvacListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDuctTool(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
-                || !command.isDuctTool(event.getItem())) return;
-        event.setCancelled(true);
-        command.handleDuctToolClick(event.getPlayer(), event.getClickedBlock(), event.getItem(),
-                event.getPlayer().isSneaking());
+        if (!command.isDuctTool(event.getItem())) return;
+        
+        // Handle right-click on blocks (select thermostat, link vent, or unlink with sneak)
+        if (event.getAction() == Action.RIGHT_CLICK_BLOCK && event.getClickedBlock() != null) {
+            event.setCancelled(true);
+            command.handleDuctToolClick(event.getPlayer(), event.getClickedBlock(), event.getItem(),
+                    event.getPlayer().isSneaking());
+            return;
+        }
+        
+        // Handle right-click on air (clear selection)
+        if (event.getAction() == Action.RIGHT_CLICK_AIR) {
+            event.setCancelled(true);
+            // Create a dummy air block at player location for clearing
+            command.handleDuctToolClick(event.getPlayer(), 
+                    event.getPlayer().getLocation().getBlock(), event.getItem(),
+                    false);
+        }
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

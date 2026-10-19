@@ -59,9 +59,13 @@ public final class HvacController {
         // Nothing in the thermostat phase changes output ownership, so this
         // snapshot is invariant across the loop instead of rebuilt per device.
         Set<BlockKey> managedOutputs = managedOutputs();
+        
+        // Compute zone allocations for multi-zone groups
+        Map<ZoneId, Double> zoneCapacity = computeZoneCapacity(deliveredEquivalent);
+        
         for (Thermostat thermostat : thermostats) {
             try {
-                updateThermostat(thermostat, deliveredEquivalent, elapsedTicks, managedOutputs);
+                updateThermostat(thermostat, deliveredEquivalent, zoneCapacity, elapsedTicks, managedOutputs);
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.SEVERE, "Could not update thermostat '"
                         + thermostat.id() + "' at " + thermostat.position(), exception);
@@ -89,9 +93,19 @@ public final class HvacController {
         ordered.sort(Comparator.comparing(EquipmentUnit::position));
         for (EquipmentUnit unit : ordered) {
             try {
-                Thermostat controller = registry.thermostatFor(unit.group());
-                boolean validController = controller != null && isControllerLoaded(controller)
-                        && controller.enabled() && controller.mode() == unit.operatingMode();
+                // Check if ANY thermostat in the group is calling for this equipment's mode
+                List<Thermostat> groupThermostats = registry.thermostatsFor(unit.group());
+                boolean validController = false;
+                Thermostat activeController = null;
+                
+                for (Thermostat t : groupThermostats) {
+                    if (isControllerLoaded(t) && t.enabled() && t.mode() == unit.operatingMode()) {
+                        validController = true;
+                        activeController = t;
+                        break; // Found at least one thermostat calling for this mode
+                    }
+                }
+                
                 BlockKey output = unit.ownedOutput();
                 boolean delivering = validController && unit.isDelivering() && output != null
                         && reservedOutputs.add(output);
@@ -100,10 +114,16 @@ public final class HvacController {
                     unit.advanceMotor(0.0, elapsedTicks, settings);
                     continue;
                 }
+                
+                // Use the primary thermostat for computing requested capacity
+                // (multi-zone allocation happens in computeZoneCapacity)
+                Thermostat tempController = registry.thermostatFor(unit.group());
+                final Thermostat primaryController = tempController != null ? tempController : activeController;
+                
                 double requested = unit.type() == EquipmentType.FURNACE ? 1.0
                         : sharedVariableCommands.computeIfAbsent(unit.group(), ignored ->
                         PerformanceModel.requestedVariableCapacity(
-                                Math.abs(controller.roomF() - controller.targetF()), settings));
+                                Math.abs(primaryController.roomF() - primaryController.targetF()), settings));
                 OperatingProfile profile = unit.type() == EquipmentType.FURNACE
                         ? OperatingProfile.NORMAL : sharedProfiles.computeIfAbsent(
                         unit.group(), registry::profileFor);
@@ -126,15 +146,64 @@ public final class HvacController {
         return equivalent;
     }
 
+    /**
+     * Computes zone-specific capacity allocation for multi-zone groups.
+     * For single-zone groups, returns empty (falls back to group-level capacity).
+     */
+    private Map<ZoneId, Double> computeZoneCapacity(Map<GroupId, Double> groupCapacity) {
+        Map<ZoneId, Double> zoneCapacity = new HashMap<>();
+        
+        // Group equipment by group ID
+        Map<GroupId, List<EquipmentUnit>> equipmentByGroup = new HashMap<>();
+        for (EquipmentUnit unit : registry.equipment()) {
+            equipmentByGroup.computeIfAbsent(unit.group(), k -> new ArrayList<>()).add(unit);
+        }
+        
+        for (Map.Entry<GroupId, Double> entry : groupCapacity.entrySet()) {
+            GroupId group = entry.getKey();
+            double totalCapacity = entry.getValue();
+            
+            // Check if this is a multi-zone group
+            List<ZoneId> zones = registry.zonesFor(group);
+            if (zones.size() <= 1) {
+                // Single zone - no allocation needed, will use group capacity
+                continue;
+            }
+            
+            // Get the primary thermostat to determine group operating mode
+            Thermostat primaryThermostat = registry.thermostatFor(group);
+            if (primaryThermostat == null || !primaryThermostat.enabled()) {
+                continue;
+            }
+            
+            OperatingMode groupMode = primaryThermostat.mode();
+            if (groupMode == OperatingMode.IDLE) {
+                continue;
+            }
+            
+            // Allocate capacity across zones based on demand
+            List<ZoneController.ZoneDemand> demands = ZoneController.allocateCapacity(
+                    group, registry, groupMode, totalCapacity, settings);
+            
+            for (ZoneController.ZoneDemand demand : demands) {
+                zoneCapacity.put(demand.zoneId(), demand.allocatedCapacity());
+            }
+        }
+        
+        return zoneCapacity;
+    }
+
     private void updateThermostat(Thermostat thermostat, Map<GroupId, Double> delivered,
-                                  long elapsedTicks, Set<BlockKey> managedOutputs) {
-        boolean authoritative = registry.thermostatFor(thermostat.group()) == thermostat;
+                                  Map<ZoneId, Double> zoneCapacity, long elapsedTicks, Set<BlockKey> managedOutputs) {
+        boolean authoritative = registry.thermostatFor(thermostat.zoneId()) == thermostat;
         boolean controllerLoaded = authoritative && isControllerLoaded(thermostat);
         double outside = outdoor.temperatureFor(thermostat);
         OperatingMode intervalMode = controllerLoaded && thermostat.enabled()
                 ? thermostat.mode() : OperatingMode.IDLE;
+        // Use zone-specific capacity if available, fall back to group capacity for single-zone systems
         double capacity = intervalMode == OperatingMode.IDLE ? 0.0
-                : delivered.getOrDefault(thermostat.group(), 0.0);
+                : zoneCapacity.getOrDefault(thermostat.zoneId(), 
+                        delivered.getOrDefault(thermostat.group(), 0.0));
         double boundary = switch (intervalMode) {
             case COOLING -> thermostat.targetF() - settings.coolingStopBelowF();
             case HEATING -> thermostat.targetF() + settings.heatingStopAboveF();
@@ -175,11 +244,35 @@ public final class HvacController {
         Set<EquipmentUnit> selected = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (EquipmentUnit unit : ordered) {
-            Thermostat controller = registry.thermostatFor(unit.group());
-            if (controller == null || !isControllerLoaded(controller) || !controller.enabled()
-                    || controller.mode() == OperatingMode.IDLE || !unit.type().supports(controller.mode())) continue;
+            // For multi-zone groups, check if ANY zone needs this equipment
+            // For single-zone groups, use the primary thermostat (backward compatible)
+            List<ZoneId> zones = registry.zonesFor(unit.group());
+            OperatingMode groupMode = null;
+            boolean anyControllerEnabled = false;
+            
+            if (zones.size() > 1) {
+                // Multi-zone: check all thermostats in the group
+                for (Thermostat t : registry.thermostatsFor(unit.group())) {
+                    if (isControllerLoaded(t) && t.enabled() && t.mode() != OperatingMode.IDLE) {
+                        groupMode = t.mode();
+                        anyControllerEnabled = true;
+                        break; // Found at least one active thermostat
+                    }
+                }
+            } else {
+                // Single-zone: use primary thermostat (backward compatible)
+                Thermostat controller = registry.thermostatFor(unit.group());
+                if (controller != null && isControllerLoaded(controller) && controller.enabled()) {
+                    groupMode = controller.mode();
+                    anyControllerEnabled = true;
+                }
+            }
+            
+            if (!anyControllerEnabled || groupMode == null || groupMode == OperatingMode.IDLE 
+                    || !unit.type().supports(groupMode)) continue;
+            
             BlockKey output = unit.outputPosition();
-            if (output != null && unit.canStart(controller.mode(), managedOutputs.contains(output))
+            if (output != null && unit.canStart(groupMode, managedOutputs.contains(output))
                     && reserved.add(output)) selected.add(unit);
         }
 
@@ -197,7 +290,18 @@ public final class HvacController {
         }
         for (EquipmentUnit unit : ordered) {
             if (!selected.contains(unit)) continue;
-            Thermostat controller = registry.thermostatFor(unit.group());
+            // Find any thermostat in the group that's calling for this equipment's mode
+            Thermostat controller = null;
+            for (Thermostat t : registry.thermostatsFor(unit.group())) {
+                if (isControllerLoaded(t) && t.enabled() && t.mode() != OperatingMode.IDLE) {
+                    controller = t;
+                    break;
+                }
+            }
+            if (controller == null) {
+                // Fallback to primary thermostat for backward compatibility
+                controller = registry.thermostatFor(unit.group());
+            }
             try {
                 record(unit.start(controller.mode()), unit, started, stopped);
             } catch (RuntimeException exception) {

@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 
-public record ClimateVent(BlockKey position, GroupId group) {
+public record ClimateVent(BlockKey position, GroupId group, String zone) {
     /** Distributes conditioned air into a room. */
     public static final Material AIR_VENT = Material.IRON_TRAPDOOR;
 
@@ -30,14 +30,34 @@ public record ClimateVent(BlockKey position, GroupId group) {
     public ClimateVent {
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(group, "group");
+        // Normalize zone name (null becomes empty string for primary zone)
+        zone = zone == null ? ZoneId.PRIMARY_ZONE : zone.trim();
         if (!position.worldId().equals(group.worldId()))
             throw new IllegalArgumentException("vent and group worlds differ");
+    }
+
+    /**
+     * Returns the ZoneId for this vent.
+     */
+    public ZoneId zoneId() {
+        return new ZoneId(group, zone);
+    }
+
+    /**
+     * Returns true if this vent is in the primary/default zone.
+     */
+    public boolean isPrimaryZone() {
+        return zone.isEmpty();
     }
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         position.write(map, "");
         map.put("group", group.label());
+        // Only save zone if it's not the primary zone (backward compatible)
+        if (!zone.isEmpty()) {
+            map.put("zone", zone);
+        }
         return map;
     }
 
@@ -45,6 +65,9 @@ public record ClimateVent(BlockKey position, GroupId group) {
         BlockKey position = BlockKey.read(map, "");
         Object value = map.get("group");
         if (!(value instanceof String label)) throw new IllegalArgumentException("vent group is missing");
-        return new ClimateVent(position, GroupId.of(position, label));
+        // Zone is optional for backward compatibility
+        Object zoneValue = map.get("zone");
+        String zone = zoneValue instanceof String z ? z : ZoneId.PRIMARY_ZONE;
+        return new ClimateVent(position, GroupId.of(position, label), zone);
     }
 }

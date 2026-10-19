@@ -3,11 +3,13 @@ package com.github.blade.hvac;
 import com.github.blade.hvac.command.HvacCommand;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.listener.HvacListener;
+import com.github.blade.hvac.model.ThermalProperties;
 import com.github.blade.hvac.service.*;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
 import java.util.Objects;
 import java.util.logging.Level;
 
@@ -33,8 +35,13 @@ public final class HvacPlugin extends JavaPlugin {
             settings = HvacSettings.load(getConfig());
             registry = new HvacRegistry(this, settings);
             registry.load();
+            
+            // Load thermal properties for insulation simulation
+            File thermalPropertiesFile = new File(getDataFolder(), "blockResistance.yml");
+            ThermalProperties thermalProperties = ThermalProperties.loadFrom(thermalPropertiesFile, getLogger());
+            
             outdoor = new OutdoorTemperatureService();
-            airflow = new AirflowService(registry, outdoor, settings);
+            airflow = new AirflowService(registry, outdoor, settings, thermalProperties);
             displays = new DisplayService(this, registry, airflow, outdoor, settings);
             controller = new HvacController(this, registry, outdoor, airflow, settings);
             audio = new HvacAudioService(settings);

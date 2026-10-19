@@ -32,6 +32,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private final NamespacedKey toolKey;
     private final NamespacedKey toolGroupKey;
     private final NamespacedKey toolWorldKey;
+    private final NamespacedKey toolZoneKey;
 
     public HvacCommand(HvacPlugin plugin, HvacRegistry registry, HvacController controller,
                        OutdoorTemperatureService outdoor, AirflowService airflow,
@@ -46,6 +47,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         toolKey = new NamespacedKey(plugin, "duct_link_tool");
         toolGroupKey = new NamespacedKey(plugin, "duct_group");
         toolWorldKey = new NamespacedKey(plugin, "duct_world");
+        toolZoneKey = new NamespacedKey(plugin, "duct_zone");
     }
 
     @Override
@@ -82,7 +84,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "thermostat" -> { if (requireAdmin(player)) thermostat(player, args); }
                 case "equipment" -> { if (requireAdmin(player)) equipment(player, args); }
                 case "group" -> { if (requireAdmin(player)) group(player, args); }
-                case "tool" -> { if (requireAdmin(player)) giveTool(player); }
+                case "zones" -> zones(player, args);
+                case "tool" -> { if (requireAdmin(player)) giveTool(player, args); }
                 case "remove" -> { if (requireAdmin(player)) remove(player); }
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
             }
@@ -105,7 +108,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "thermostat", "poolthermostat", "pool" -> {
                 boolean pool = !args[1].equalsIgnoreCase("thermostat");
                 if (args.length < 4) throw new IllegalArgumentException(
-                        "Usage: /hvac create " + args[1] + " <id> <group> [targetF]");
+                        "Usage: /hvac create " + args[1] + " <id> <group> [zone] [targetF]");
                 requireSign(block);
                 GroupId target0 = GroupId.of(position, args[3]);
                 // A pool thermostat exists to unlock the water target range, so it
@@ -115,15 +118,38 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     throw new IllegalArgumentException("System '" + target0.label() + "' is powered by "
                             + (pool ? "air-loop equipment; a pool thermostat needs boilers"
                                     : "boilers; use /hvac create poolthermostat") + ".");
-                double target = args.length >= 5 ? finiteDouble(args[4], "target temperature")
-                        : (pool ? 82.0 : 72.0);
-                Thermostat thermostat = new Thermostat(position, args[2], args[3], target,
+                
+                // Parse optional zone and targetF parameters
+                // Syntax: <id> <group> [zone] [targetF]
+                // - If args[4] is a number, it's targetF (no zone specified)
+                // - If args[4] is not a number, it's zone name
+                String zone = ZoneId.PRIMARY_ZONE;
+                double target = pool ? 82.0 : 72.0;
+                
+                if (args.length >= 5) {
+                    try {
+                        // Try parsing args[4] as temperature
+                        target = finiteDouble(args[4], "target temperature");
+                        // Success - no zone specified, args[4] was targetF
+                    } catch (IllegalArgumentException e) {
+                        // args[4] is not a number, treat it as zone name
+                        zone = args[4];
+                        // Check if args[5] contains targetF
+                        if (args.length >= 6) {
+                            target = finiteDouble(args[5], "target temperature");
+                        }
+                    }
+                }
+                
+                ZoneId zoneId = new ZoneId(target0, zone);
+                Thermostat thermostat = new Thermostat(position, args[2], args[3], zone, target,
                         outdoor.temperatureAt(block.getLocation()), settings, pool);
                 registry.addThermostat(thermostat);
                 displays.refreshThermostat(thermostat, true);
                 player.sendMessage(green("Created " + (pool ? "pool thermostat" : "thermostat")
-                        + " '" + thermostat.id() + "' for group '" + thermostat.group().label()
-                        + "'. Target range " + String.format(Locale.US, "%.0f-%.0f F",
+                        + " '" + thermostat.id() + "' for group '" + thermostat.group().label() + "'"
+                        + (zone.isEmpty() ? "" : " zone '" + zone + "'")
+                        + ". Target range " + String.format(Locale.US, "%.0f-%.0f F",
                         pool ? settings.poolMinimumTargetF() : settings.minimumTargetF(),
                         pool ? settings.poolMaximumTargetF() : settings.maximumTargetF()) + "."));
             }
@@ -293,8 +319,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         } else {
             String zone = reading.airflowDistance() <= settings.airflowCoreRange()
                     ? "core" : Math.round(reading.influence() * 100) + "% leakage";
+            String resistanceInfo = reading.thermalResistance() > 0.01
+                    ? String.format(Locale.US, " | Insulation: %.1f", reading.thermalResistance())
+                    : "";
             player.sendMessage(join(gray("Group: "), white(reading.group().label()), gray(" | Path: "),
-                    white(reading.airflowDistance() + " blocks"), gray(" | Zone: "), white(zone)));
+                    white(reading.airflowDistance() + " blocks"), gray(" | Zone: "), white(zone),
+                    gray(resistanceInfo)));
         }
     }
 
@@ -345,6 +375,54 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(red("No EZvac device is registered at that block."));
     }
 
+    private void zones(Player player, String[] args) {
+        if (args.length < 2) {
+            player.sendMessage(red("Usage: /hvac zones <group>"));
+            return;
+        }
+        
+        String groupName = args[1];
+        GroupId group = new GroupId(player.getWorld().getUID(), groupName);
+        
+        List<ZoneId> zones = registry.zonesFor(group);
+        if (zones.isEmpty()) {
+            player.sendMessage(red("No HVAC group named '" + groupName + "' exists in this world."));
+            return;
+        }
+        
+        player.sendMessage(gold("Zones in group '" + groupName + "':"));
+        
+        for (ZoneId zoneId : zones) {
+            String zoneName = zoneId.zoneName().isEmpty() ? "(primary zone)" : zoneId.zoneName();
+            
+            // Count thermostats and vents in this zone
+            List<Thermostat> zoneThermostats = registry.thermostatsFor(group).stream()
+                    .filter(t -> t.zoneId().equals(zoneId))
+                    .toList();
+            long ventCount = registry.ventsFor(zoneId).size();
+            
+            // Get zone status from first enabled thermostat
+            String status = "no thermostat";
+            for (Thermostat t : zoneThermostats) {
+                if (t.enabled()) {
+                    status = String.format(Locale.US, "%.1f/%.1f F, %s", 
+                            t.roomF(), t.targetF(), t.mode().name());
+                    break;
+                }
+            }
+            
+            player.sendMessage(join(
+                    white("  " + zoneName),
+                    gray(" | "),
+                    white(zoneThermostats.size() + " thermostat(s)"),
+                    gray(", "),
+                    white(ventCount + " vent(s)"),
+                    gray(" | "),
+                    white(status)
+            ));
+        }
+    }
+
     private void remove(Player player) {
         Block block = target(player);
         if (block == null) return;
@@ -369,18 +447,23 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         plugin.requestImmediateSync();
     }
 
-    private void giveTool(Player player) {
+    private void giveTool(Player player, String[] args) {
+        // Syntax: /hvac tool (no arguments needed)
         ItemStack tool = new ItemStack(Material.STICK);
         ItemMeta meta = tool.getItemMeta();
         meta.displayName(Component.text("HVAC Duct Link Tool", NamedTextColor.AQUA));
-        meta.lore(List.of(
-                Component.text("Select equipment, then vents.", NamedTextColor.GRAY),
-                Component.text("Iron trapdoor = air, waxed copper grate = water.", NamedTextColor.GRAY),
-                Component.text("Sneak-click a vent to unlink it.", NamedTextColor.GRAY)));
+        
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("Right-click thermostat to select zone", NamedTextColor.GRAY));
+        lore.add(Component.text("Right-click vent to link to zone", NamedTextColor.GRAY));
+        lore.add(Component.text("Right-click air to clear selection", NamedTextColor.GRAY));
+        lore.add(Component.text("Sneak + right-click vent to unlink", NamedTextColor.GRAY));
+        
+        meta.lore(lore);
         meta.getPersistentDataContainer().set(toolKey, PersistentDataType.BYTE, (byte) 1);
         tool.setItemMeta(meta);
         player.getInventory().addItem(tool);
-        player.sendMessage(green("Duct link tool added to your inventory."));
+        player.sendMessage(green("HVAC duct link tool added to your inventory."));
     }
 
     public boolean isDuctTool(ItemStack item) {
@@ -391,40 +474,68 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     public void handleDuctToolClick(Player player, Block block, ItemStack item, boolean unlink) {
         if (!isDuctTool(item) || !player.hasPermission(ADMIN_PERMISSION)) return;
         BlockKey position = BlockKey.of(block.getLocation());
-        EquipmentUnit unit = registry.equipmentAt(position);
-        if (unit != null) {
-            ItemMeta meta = item.getItemMeta();
-            meta.getPersistentDataContainer().set(toolGroupKey, PersistentDataType.STRING, unit.group().label());
-            meta.getPersistentDataContainer().set(toolWorldKey, PersistentDataType.STRING, unit.group().worldId().toString());
-            meta.lore(List.of(Component.text("Selected: " + unit.group().label(), NamedTextColor.GRAY),
-                    Component.text("Click vents to link them.", NamedTextColor.GRAY)));
+        ItemMeta meta = item.getItemMeta();
+        
+        // Check if clicking a thermostat to select zone
+        Thermostat thermostat = registry.thermostatAt(position);
+        if (thermostat != null && !unlink) {
+            // Store the thermostat's group and zone in the tool
+            meta.getPersistentDataContainer().set(toolGroupKey, PersistentDataType.STRING, thermostat.group().label());
+            meta.getPersistentDataContainer().set(toolWorldKey, PersistentDataType.STRING, thermostat.group().worldId().toString());
+            meta.getPersistentDataContainer().set(toolZoneKey, PersistentDataType.STRING, thermostat.zone());
+            
+            String zoneName = thermostat.zone().isEmpty() ? "(primary zone)" : thermostat.zone();
+            meta.lore(List.of(
+                    Component.text("Selected: " + thermostat.group().label(), NamedTextColor.GREEN),
+                    Component.text("Zone: " + zoneName, NamedTextColor.GREEN),
+                    Component.text("Right-click vents to link them", NamedTextColor.GRAY),
+                    Component.text("Right-click air to clear", NamedTextColor.GRAY)
+            ));
             item.setItemMeta(meta);
-            player.sendMessage(green("Selected group '" + unit.group().label() + "'."));
+            player.sendMessage(green("Selected zone '" + zoneName + "' in group '" + thermostat.group().label() + "'."));
             return;
         }
+        
+        // Right-click on non-vent block: clear selection
         if (!ClimateVent.isVentBlock(block.getType())) {
-            player.sendMessage(yellow("Select registered equipment, an iron trapdoor (air),"
-                    + " or a waxed copper grate (water)."));
+            meta.getPersistentDataContainer().remove(toolGroupKey);
+            meta.getPersistentDataContainer().remove(toolWorldKey);
+            meta.getPersistentDataContainer().remove(toolZoneKey);
+            meta.lore(List.of(
+                    Component.text("Right-click thermostat to select zone", NamedTextColor.GRAY),
+                    Component.text("Right-click vent to link to zone", NamedTextColor.GRAY),
+                    Component.text("Right-click air to clear selection", NamedTextColor.GRAY),
+                    Component.text("Sneak + right-click vent to unlink", NamedTextColor.GRAY)
+            ));
+            item.setItemMeta(meta);
+            player.sendMessage(yellow("Selection cleared."));
             return;
         }
+        
+        // Right-click on vent with sneak: unlink
         if (unlink) {
             ClimateVent removed = registry.removeVent(position);
             if (removed == null) player.sendMessage(yellow("That block is not a registered vent."));
-            else { airflow.invalidate(removed.group()); player.sendMessage(green("Vent unlinked.")); }
+            else { 
+                airflow.invalidate(removed.group()); 
+                player.sendMessage(green("Vent unlinked from group '" + removed.group().label() + "' zone '" + 
+                        (removed.zone().isEmpty() ? "(primary)" : removed.zone()) + "'.")); 
+            }
             return;
         }
-        ItemMeta meta = item.getItemMeta();
+        
+        // Right-click on vent: link to selected zone
         String label = meta.getPersistentDataContainer().get(toolGroupKey, PersistentDataType.STRING);
         String worldText = meta.getPersistentDataContainer().get(toolWorldKey, PersistentDataType.STRING);
         if (label == null || worldText == null) {
-            player.sendMessage(red("Select registered equipment with this tool first."));
+            player.sendMessage(red("Right-click a thermostat first to select a zone."));
             return;
         }
         UUID worldId;
         try { worldId = UUID.fromString(worldText); }
         catch (IllegalArgumentException exception) { player.sendMessage(red("This tool contains invalid link data.")); return; }
         if (!worldId.equals(block.getWorld().getUID())) {
-            player.sendMessage(red("Equipment and vents must be in the same world."));
+            player.sendMessage(red("Thermostat and vents must be in the same world."));
             return;
         }
         GroupId group = new GroupId(worldId, label);
@@ -448,11 +559,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             return;
         }
         ClimateVent previous = registry.ventAt(position);
-        registry.addVent(new ClimateVent(position, group));
+        // Read zone from tool, default to primary zone for backward compatibility
+        String zone = meta.getPersistentDataContainer().getOrDefault(toolZoneKey, PersistentDataType.STRING, ZoneId.PRIMARY_ZONE);
+        registry.addVent(new ClimateVent(position, group, zone));
         if (previous != null) airflow.invalidate(previous.group());
         airflow.invalidate(group);
+        String zoneName = zone.isEmpty() ? "(primary zone)" : zone;
         player.sendMessage(green((water ? "Water vent" : "Vent") + " linked to group '"
-                + group.label() + "'."));
+                + group.label() + "' zone '" + zoneName + "'."));
     }
 
     private void showThermostat(Player player, Thermostat thermostat) {
@@ -524,8 +638,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(gold("EZvac commands"));
         sender.sendMessage(join(aqua("/hvac temperature"), gray(" - read local/outdoor temperature")));
         sender.sendMessage(join(aqua("/hvac list | info"), gray(" - inspect systems or the targeted device")));
+        sender.sendMessage(join(aqua("/hvac zones <group>"), gray(" - list all zones in a group")));
         if (!sender.hasPermission(ADMIN_PERMISSION)) return;
-        sender.sendMessage(join(aqua("/hvac create thermostat <id> <group> [target]"), gray(" - register a sign")));
+        sender.sendMessage(join(aqua("/hvac create thermostat <id> <group> [zone] [target]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace <group>"), gray(" - register a dispenser")));
         sender.sendMessage(join(aqua("/hvac create thermometer [label]"), gray(" - register a point-sensor sign")));
         sender.sendMessage(join(aqua("/hvac create rpmmonitor <group> <type> [label]"), gray(" - register a sign")));
@@ -533,12 +648,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac thermostat <id> set|enable|disable|group"), gray(" - control a thermostat")));
         sender.sendMessage(join(aqua("/hvac equipment <enable|disable|group|info>"), gray(" - edit targeted equipment")));
         sender.sendMessage(join(aqua("/hvac group <group> <enable|disable|info>"), gray(" - control a system")));
-        sender.sendMessage(join(aqua("/hvac tool | remove | stats | sync"), gray(" - link, remove, diagnose, reconcile")));
+        sender.sendMessage(join(aqua("/hvac tool [group] [zone]"), gray(" - get a duct linker tool")));
+        sender.sendMessage(join(aqua("/hvac remove | stats | sync"), gray(" - remove device, diagnose, reconcile")));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return filter(args[0], "help", "temperature", "list", "info",
+        if (args.length == 1) return filter(args[0], "help", "temperature", "list", "info", "zones",
                 "create", "thermostat", "equipment", "group", "tool", "remove", "stats", "sync");
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -546,7 +662,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         "ac", "furnace", "boiler", "thermometer", "rpmmonitor", "settingspanel");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
-                case "group" -> filter(args[1], registry.thermostats().stream().map(value -> value.group().label()).distinct().toArray(String[]::new));
+                case "group", "zones" -> filter(args[1], registry.thermostats().stream().map(value -> value.group().label()).distinct().toArray(String[]::new));
                 default -> List.of();
             };
         }

@@ -7,7 +7,7 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 
-import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -23,10 +23,17 @@ public final class OutdoorTemperatureService {
 
     /**
      * Classification is pure string matching over a biome's name, and it ran
-     * per thermostat per cycle and per thermometer per refresh. Biome is an
-     * enum, so each one only ever needs classifying once.
+     * per thermostat per cycle and per thermometer per refresh. Each biome
+     * only ever needs classifying once.
+     *
+     * <p>A plain HashMap is used rather than EnumMap: modern Paper (1.21+)
+     * implements Biome as an extensible pseudo-enum backed by the biome
+     * registry to support datapack-defined biomes. Its enum constants array
+     * is not reliably available via reflection, which makes
+     * {@code Class.getEnumConstants()} return null and crashes EnumMap's
+     * constructor with a NullPointerException.
      */
-    private final Map<Biome, Profile> profileCache = new EnumMap<>(Biome.class);
+    private final Map<Biome, Profile> profileCache = new HashMap<>();
 
     private Profile cachedProfile(Biome biome) {
         Profile cached = profileCache.get(biome);

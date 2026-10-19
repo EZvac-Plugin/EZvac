@@ -12,6 +12,7 @@ public final class Thermostat {
     private final BlockKey position;
     private String id;
     private GroupId group;
+    private String zone;
     private double targetF;
     private double roomF;
     private boolean enabled;
@@ -30,12 +31,17 @@ public final class Thermostat {
 
     public Thermostat(BlockKey position, String id, String groupLabel,
                       double targetF, double roomF, HvacSettings settings, boolean pool) {
-        this(position, id, GroupId.of(position, groupLabel), settings.clampTarget(targetF, pool),
+        this(position, id, groupLabel, ZoneId.PRIMARY_ZONE, targetF, roomF, settings, pool);
+    }
+
+    public Thermostat(BlockKey position, String id, String groupLabel, String zone,
+                      double targetF, double roomF, HvacSettings settings, boolean pool) {
+        this(position, id, GroupId.of(position, groupLabel), zone, settings.clampTarget(targetF, pool),
                 ThermalModel.clampTemperature(roomF), true, OperatingMode.IDLE,
                 settings.minimumOffTicks(), 72.0, 52.0, 62.0, pool);
     }
 
-    private Thermostat(BlockKey position, String id, GroupId group, double targetF,
+    private Thermostat(BlockKey position, String id, GroupId group, String zone, double targetF,
                        double roomF, boolean enabled, OperatingMode mode, long ticksInMode,
                        double outdoorNoonF, double outdoorMidnightF, double lastOutdoorF,
                        boolean pool) {
@@ -43,6 +49,7 @@ public final class Thermostat {
         this.position = Objects.requireNonNull(position, "position");
         this.id = validateId(id);
         this.group = Objects.requireNonNull(group, "group");
+        this.zone = zone == null ? ZoneId.PRIMARY_ZONE : zone.trim();
         if (!position.worldId().equals(group.worldId()))
             throw new IllegalArgumentException("thermostat and group worlds differ");
         this.targetF = targetF;
@@ -58,6 +65,7 @@ public final class Thermostat {
     public BlockKey position() { return position; }
     public String id() { return id; }
     public GroupId group() { return group; }
+    public String zone() { return zone; }
     public double targetF() { return targetF; }
     public double roomF() { return roomF; }
     public boolean enabled() { return enabled; }
@@ -68,8 +76,23 @@ public final class Thermostat {
     public double lastOutdoorF() { return lastOutdoorF; }
     public boolean pool() { return pool; }
 
+    /**
+     * Returns the ZoneId for this thermostat.
+     */
+    public ZoneId zoneId() {
+        return new ZoneId(group, zone);
+    }
+
+    /**
+     * Returns true if this thermostat is in the primary/default zone.
+     */
+    public boolean isPrimaryZone() {
+        return zone.isEmpty();
+    }
+
     public void setId(String id) { this.id = validateId(id); }
     public void setGroup(String label) { this.group = GroupId.of(position, label); }
+    public void setZone(String zoneName) { this.zone = ZoneId.validateZoneName(zoneName); }
     public void setTargetF(double targetF, HvacSettings settings) {
         this.targetF = settings.clampTarget(targetF, pool);
     }
@@ -89,6 +112,10 @@ public final class Thermostat {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", id);
         map.put("group", group.label());
+        // Only save zone if it's not the primary zone (backward compatible)
+        if (!zone.isEmpty()) {
+            map.put("zone", zone);
+        }
         position.write(map, "");
         map.put("targetF", targetF);
         map.put("roomF", roomF);
@@ -106,13 +133,14 @@ public final class Thermostat {
         BlockKey position = BlockKey.read(map, "");
         String id = string(map, "id", string(map, "label", null));
         String groupLabel = string(map, "group", string(map, "hvacGroupLabel", null));
+        String zone = string(map, "zone", ZoneId.PRIMARY_ZONE);
         double target = number(map, "targetF", number(map, "targetTempF", 72.0));
         double room = number(map, "roomF", number(map, "roomTempF", 72.0));
         long ticks = whole(map, "ticksInMode", -1L);
         if (ticks < 0L) ticks = Math.max(0L, Math.round(number(map,
                 "modeElapsedMinecraftHours", settings.minimumOffTicks() / 1_000.0) * 1_000.0));
         boolean pool = bool(map, "pool", false);
-        return new Thermostat(position, id, GroupId.of(position, groupLabel),
+        return new Thermostat(position, id, GroupId.of(position, groupLabel), zone,
                 settings.clampTarget(target, pool), ThermalModel.clampTemperature(room),
                 bool(map, "enabled", true), OperatingMode.parse(map.get("mode")), ticks,
                 number(map, "outdoorNoonF", 72.0), number(map, "outdoorMidnightF", 52.0),

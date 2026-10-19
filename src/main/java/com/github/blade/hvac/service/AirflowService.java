@@ -4,6 +4,8 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.*;
 import it.unimi.dsi.fastutil.longs.Long2ByteMap;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2FloatMap;
+import it.unimi.dsi.fastutil.longs.Long2FloatOpenHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -18,11 +20,12 @@ import java.util.*;
 /** Event-invalidated, tick-budgeted airflow maps for registered vent systems. */
 public final class AirflowService {
     public record TemperatureReading(double localF, double outdoorF, double influence,
-                                     int airflowDistance, GroupId group, Thermostat thermostat) {
+                                     int airflowDistance, GroupId group, Thermostat thermostat,
+                                     double thermalResistance) {
         public boolean conditioned() { return group != null && thermostat != null && influence > 0.0; }
     }
 
-    private record Node(int x, int y, int z, int distance) {}
+    private record Node(int x, int y, int z, int distance, float resistance) {}
 
     private static final class Rebuild {
         final GroupId group;
@@ -30,6 +33,7 @@ public final class AirflowService {
         final boolean water;
         final ArrayDeque<Node> queue = new ArrayDeque<>();
         final Long2ByteOpenHashMap distances = new Long2ByteOpenHashMap();
+        final Long2FloatOpenHashMap thermalResistances = new Long2FloatOpenHashMap();
         boolean capped;
         // Chunk lookups dominate the walk, and a breadth-first frontier stays
         // within a chunk for long runs. The cache is cleared every tick so a
@@ -43,6 +47,7 @@ public final class AirflowService {
             this.group = group;
             this.water = water;
             distances.defaultReturnValue(ABSENT);
+            thermalResistances.defaultReturnValue(-1.0f);
         }
 
         void clearChunkCache() {
@@ -85,7 +90,9 @@ public final class AirflowService {
     private final HvacRegistry registry;
     private final OutdoorTemperatureService outdoor;
     private final HvacSettings settings;
+    private final ThermalProperties thermalProperties;
     private final Map<GroupId, Long2ByteMap> completed = new HashMap<>();
+    private final Map<GroupId, Long2FloatMap> completedResistances = new HashMap<>();
     private final LinkedHashSet<GroupId> dirty = new LinkedHashSet<>();
     private final Map<GroupId, Long> dirtySince = new HashMap<>();
     private final Map<GroupId, Long> dirtyFirst = new HashMap<>();
@@ -95,10 +102,12 @@ public final class AirflowService {
     private long visitedCells;
     private long cappedRebuilds;
 
-    public AirflowService(HvacRegistry registry, OutdoorTemperatureService outdoor, HvacSettings settings) {
+    public AirflowService(HvacRegistry registry, OutdoorTemperatureService outdoor, 
+                          HvacSettings settings, ThermalProperties thermalProperties) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.thermalProperties = Objects.requireNonNull(thermalProperties, "thermalProperties");
         for (ClimateVent vent : registry.vents()) dirty.add(vent.group());
     }
 
@@ -197,6 +206,7 @@ public final class AirflowService {
                 active = begin(group);
                 if (active == null) {
                     completed.remove(group);
+                    completedResistances.remove(group);
                     continue;
                 }
             }
@@ -208,6 +218,7 @@ public final class AirflowService {
                 // handed over directly. Copying it cost ~42 ms in a single
                 // tick at the configured cell cap.
                 completed.put(active.group, active.distances);
+                completedResistances.put(active.group, active.thermalResistances);
                 visitedCells += active.distances.size();
                 completedRebuilds++;
                 if (active.capped) cappedRebuilds++;
@@ -258,7 +269,7 @@ public final class AirflowService {
         for (BlockKey pos : seeds) {
             int x = pos.x(), y = pos.y(), z = pos.z();
             for (int[] direction : DIRECTIONS)
-                enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0);
+                enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0, 0.0f);
         }
         return rebuild;
     }
@@ -274,12 +285,12 @@ public final class AirflowService {
             int next = node.distance + 1;
             for (int[] direction : DIRECTIONS)
                 enqueue(rebuild, world, node.x + direction[0], node.y + direction[1],
-                        node.z + direction[2], next);
+                        node.z + direction[2], next, node.resistance);
         }
         return processed;
     }
 
-    private void enqueue(Rebuild rebuild, World world, int x, int y, int z, int distance) {
+    private void enqueue(Rebuild rebuild, World world, int x, int y, int z, int distance, float resistance) {
         if (rebuild.distances.size() >= settings.airflowMaximumCells()) {
             rebuild.capped = true;
             return;
@@ -294,8 +305,16 @@ public final class AirflowService {
         // A branch rather than a predicate field: this runs thousands of times
         // per tick and stays monomorphic this way.
         if (!(rebuild.water ? isWaterPath(block) : isAirPath(block))) return;
+        
+        // Calculate thermal resistance from adjacent solid blocks
+        float thermalResistance = resistance;
+        if (thermalProperties.isEnabled()) {
+            thermalResistance += calculateAdjacentResistance(world, chunk, x, y, z);
+        }
+        
         rebuild.distances.put(key, (byte) distance);
-        rebuild.queue.addLast(new Node(x, y, z, distance));
+        rebuild.thermalResistances.put(key, thermalResistance);
+        rebuild.queue.addLast(new Node(x, y, z, distance, thermalResistance));
     }
 
     static boolean isAirPath(Block block) {
@@ -328,6 +347,54 @@ public final class AirflowService {
                 || Tag.FENCE_GATES.isTagged(type) || type == Material.BARREL;
     }
 
+    /**
+     * Calculates thermal resistance from blocks adjacent to this air cell.
+     * Solid blocks (walls, floors, ceilings) contribute their thermal resistance
+     * to the accumulated value, reducing temperature influence through this path.
+     */
+    private float calculateAdjacentResistance(World world, Chunk chunk, int x, int y, int z) {
+        float totalResistance = 0.0f;
+        int adjacentCount = 0;
+        
+        // Check all 6 adjacent blocks
+        for (int[] direction : DIRECTIONS) {
+            int nx = x + direction[0];
+            int ny = y + direction[1];
+            int nz = z + direction[2];
+            
+            if (ny < world.getMinHeight() || ny >= world.getMaxHeight()) continue;
+            
+            // Get the block (may need to fetch a different chunk)
+            Block adjacent;
+            if ((nx >> 4) == (x >> 4) && (nz >> 4) == (z >> 4)) {
+                // Same chunk - use cached chunk
+                adjacent = chunk.getBlock(nx & 15, ny, nz & 15);
+            } else {
+                // Different chunk - need to check if loaded
+                int chunkX = nx >> 4;
+                int chunkZ = nz >> 4;
+                if (!world.isChunkLoaded(chunkX, chunkZ)) continue;
+                adjacent = world.getBlockAt(nx, ny, nz);
+            }
+            
+            Material material = adjacent.getType();
+            
+            // Only solid/opaque blocks contribute thermal resistance
+            // Air passages don't create thermal barriers
+            if (!material.isAir() && !adjacent.isLiquid() && !adjacent.isPassable()) {
+                double blockResistance = thermalProperties.getResistance(material);
+                if (blockResistance > 0.0) {
+                    totalResistance += blockResistance;
+                    adjacentCount++;
+                }
+            }
+        }
+        
+        // Average resistance across adjacent barrier blocks
+        // This prevents double-counting when airflow runs along a wall
+        return adjacentCount > 0 ? totalResistance / adjacentCount : 0.0f;
+    }
+
     public TemperatureReading temperatureAt(Location location) {
         return temperatureAt(location, null);
     }
@@ -336,11 +403,12 @@ public final class AirflowService {
         double outside = outdoor.temperatureAt(location);
         if (location == null || location.getWorld() == null
                 || !location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
-            return new TemperatureReading(outside, outside, 0.0, -1, null, null);
+            return new TemperatureReading(outside, outside, 0.0, -1, null, null, 0.0);
         }
         long key = pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         GroupId best = null;
         int bestDistance = Integer.MAX_VALUE;
+        float bestResistance = 0.0f;
         for (Map.Entry<GroupId, Long2ByteMap> entry : completed.entrySet()) {
             GroupId group = entry.getKey();
             if (!group.worldId().equals(location.getWorld().getUID())) continue;
@@ -351,6 +419,8 @@ public final class AirflowService {
             if (distance < bestDistance || (distance == bestDistance && (best == null || group.compareTo(best) < 0))) {
                 best = group;
                 bestDistance = distance;
+                Long2FloatMap resistances = completedResistances.get(group);
+                bestResistance = resistances != null ? resistances.get(key) : 0.0f;
             }
         }
         if (best == null) {
@@ -358,28 +428,87 @@ public final class AirflowService {
                 Thermostat thermostat = registry.thermostatFor(requiredGroup);
                 if (thermostat != null)
                     return new TemperatureReading(thermostat.roomF(), outside, 1.0, -1,
-                            requiredGroup, thermostat);
+                            requiredGroup, thermostat, 0.0);
             }
-            return new TemperatureReading(outside, outside, 0.0, -1, null, null);
+            return new TemperatureReading(outside, outside, 0.0, -1, null, null, 0.0);
         }
-        Thermostat thermostat = registry.thermostatFor(best);
+        // For multi-zone systems, find the nearest zone by checking which zone's vents are closest
+        Thermostat thermostat = findNearestZoneThermostat(location, best, key);
+        if (thermostat == null) {
+            // Fallback to primary thermostat for single-zone or when no zone is found
+            thermostat = registry.thermostatFor(best);
+        }
         if (thermostat == null)
-            return new TemperatureReading(outside, outside, 0.0, bestDistance, best, null);
-        double influence = influenceForDistance(bestDistance);
+            return new TemperatureReading(outside, outside, 0.0, bestDistance, best, null, bestResistance);
+        double influence = influenceForDistanceAndResistance(bestDistance, bestResistance);
         return new TemperatureReading(outside + (thermostat.roomF() - outside) * influence,
-                outside, influence, bestDistance, best, thermostat);
+                outside, influence, bestDistance, best, thermostat, bestResistance);
     }
 
     public double influenceForDistance(int distance) {
-        if (distance < 0 || distance > settings.airflowMaximumRange()) return 0.0;
-        if (distance <= settings.airflowCoreRange()) return 1.0;
-        return (settings.airflowMaximumRange() - distance)
+        return influenceForDistanceAndResistance(distance, 0.0);
+    }
+
+    /**
+     * Calculates temperature influence based on both airflow distance and
+     * accumulated thermal resistance. Resistance acts as "effective additional
+     * distance" - well-insulated paths lose influence faster.
+     */
+    public double influenceForDistanceAndResistance(int distance, double thermalResistance) {
+        if (!thermalProperties.isEnabled()) thermalResistance = 0.0;
+        
+        // Effective distance includes thermal resistance as additional blocks
+        double effectiveDistance = distance + thermalResistance;
+        
+        if (effectiveDistance < 0 || effectiveDistance > settings.airflowMaximumRange()) return 0.0;
+        if (effectiveDistance <= settings.airflowCoreRange()) return 1.0;
+        return (settings.airflowMaximumRange() - effectiveDistance)
                 / (double) (settings.airflowMaximumRange() - settings.airflowCoreRange());
     }
 
     private boolean hasVents(GroupId group) {
         for (ClimateVent vent : registry.vents()) if (vent.group().equals(group)) return true;
         return false;
+    }
+
+    /**
+     * Finds the thermostat for the zone closest to the given location.
+     * For multi-zone systems, this determines which zone's vents are nearest.
+     */
+    private Thermostat findNearestZoneThermostat(Location location, GroupId group, long locationKey) {
+        List<ZoneId> zones = registry.zonesFor(group);
+        if (zones.size() <= 1) {
+            // Single zone or no zones - use primary thermostat
+            return null; // Caller will fallback to primary
+        }
+        
+        // Find the closest vent for each zone
+        ZoneId closestZone = null;
+        double closestDistanceSq = Double.MAX_VALUE;
+        
+        for (ZoneId zone : zones) {
+            List<ClimateVent> zoneVents = registry.ventsFor(zone);
+            for (ClimateVent vent : zoneVents) {
+                BlockKey ventPos = vent.position();
+                if (!location.getWorld().getUID().equals(ventPos.worldId())) continue;
+                if (!location.getWorld().isChunkLoaded(ventPos.x() >> 4, ventPos.z() >> 4)) continue;
+                
+                double dx = location.getX() - ventPos.x();
+                double dy = location.getY() - ventPos.y();
+                double dz = location.getZ() - ventPos.z();
+                double distanceSq = dx * dx + dy * dy + dz * dz;
+                
+                if (distanceSq < closestDistanceSq) {
+                    closestDistanceSq = distanceSq;
+                    closestZone = zone;
+                }
+            }
+        }
+        
+        if (closestZone == null) return null;
+        
+        // Get the thermostat for the closest zone
+        return registry.thermostatFor(closestZone);
     }
 
     public String stats() {

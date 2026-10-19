@@ -289,16 +289,16 @@ public final class HvacRegistry {
 
     private void resolveLoadedConflicts() {
         Set<String> ids = new HashSet<>();
-        Set<GroupId> groups = new HashSet<>();
+        Set<ZoneId> zones = new HashSet<>();
         List<Thermostat> orderedThermostats = new ArrayList<>(thermostats.values());
         orderedThermostats.sort(Comparator.comparing(Thermostat::position));
         for (Thermostat thermostat : orderedThermostats) {
             boolean duplicateId = !ids.add(thermostat.id().toLowerCase(Locale.ROOT));
-            boolean duplicateGroup = !groups.add(thermostat.group());
-            if (!duplicateId && !duplicateGroup) continue;
+            boolean duplicateZone = !zones.add(thermostat.zoneId());
+            if (!duplicateId && !duplicateZone) continue;
             thermostats.remove(thermostat.position());
             preserve("thermostats", thermostat.toMap(), duplicateId
-                    ? "duplicate thermostat id" : "duplicate group controller");
+                    ? "duplicate thermostat id" : "duplicate zone controller");
         }
 
         Set<BlockKey> occupied = new HashSet<>(thermostats.keySet());
@@ -356,9 +356,65 @@ public final class HvacRegistry {
                 .min(Comparator.comparing(Thermostat::position)).orElse(null);
     }
 
+    /**
+     * Returns the primary thermostat for a group (backward compatible with single-zone systems).
+     * For multi-zone systems, this returns the primary/default zone thermostat, or the first
+     * thermostat if no primary zone exists.
+     */
     public Thermostat thermostatFor(GroupId group) {
-        return thermostats.values().stream().filter(value -> value.group().equals(group))
-                .min(Comparator.comparing(Thermostat::position)).orElse(null);
+        List<Thermostat> groupThermostats = thermostatsFor(group);
+        if (groupThermostats.isEmpty()) return null;
+        // Prefer primary zone thermostat for backward compatibility
+        return groupThermostats.stream()
+                .filter(Thermostat::isPrimaryZone)
+                .findFirst()
+                .orElse(groupThermostats.get(0));
+    }
+
+    /**
+     * Returns all thermostats for a group (supports multi-zone systems).
+     */
+    public List<Thermostat> thermostatsFor(GroupId group) {
+        return thermostats.values().stream()
+                .filter(value -> value.group().equals(group))
+                .sorted(Comparator.comparing(Thermostat::position))
+                .toList();
+    }
+
+    /**
+     * Returns the thermostat for a specific zone.
+     */
+    public Thermostat thermostatFor(ZoneId zoneId) {
+        return thermostats.values().stream()
+                .filter(t -> t.group().equals(zoneId.group()) && t.zone().equals(zoneId.zoneName()))
+                .min(Comparator.comparing(Thermostat::position))
+                .orElse(null);
+    }
+
+    /**
+     * Returns all vents for a specific zone.
+     */
+    public List<ClimateVent> ventsFor(ZoneId zoneId) {
+        return vents.values().stream()
+                .filter(v -> v.group().equals(zoneId.group()) && v.zone().equals(zoneId.zoneName()))
+                .sorted(Comparator.comparing(ClimateVent::position))
+                .toList();
+    }
+
+    /**
+     * Returns all zones in a group that have at least one thermostat or vent.
+     */
+    public List<ZoneId> zonesFor(GroupId group) {
+        Set<ZoneId> zones = new java.util.TreeSet<>();
+        thermostats.values().stream()
+                .filter(t -> t.group().equals(group))
+                .map(Thermostat::zoneId)
+                .forEach(zones::add);
+        vents.values().stream()
+                .filter(v -> v.group().equals(group))
+                .map(ClimateVent::zoneId)
+                .forEach(zones::add);
+        return new ArrayList<>(zones);
     }
 
     public List<EquipmentUnit> equipmentFor(GroupId group) {
@@ -411,8 +467,9 @@ public final class HvacRegistry {
         requireFree(thermostat.position());
         if (thermostatById(thermostat.id()) != null)
             throw new IllegalArgumentException("thermostat id already exists");
-        if (thermostatFor(thermostat.group()) != null)
-            throw new IllegalArgumentException("that world already has a thermostat for this group");
+        // Allow multiple thermostats per group if they're in different zones
+        if (thermostatFor(thermostat.zoneId()) != null)
+            throw new IllegalArgumentException("that zone already has a thermostat");
         thermostats.put(thermostat.position(), thermostat);
         dirty = true;
     }
