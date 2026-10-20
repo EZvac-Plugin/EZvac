@@ -1,5 +1,5 @@
 meta:
-  format: 5
+  format: 6
 thermostats:
   item0:
     id: main
@@ -17,6 +17,8 @@ thermostats:
     outdoorMidnightF: 52.0
     lastOutdoorF: 72.0
     pool: false
+    outdoorDownfall: 0.4
+    outdoorPrecipitation: RAIN
   item1:
     id: work
     group: office
@@ -33,6 +35,8 @@ thermostats:
     outdoorMidnightF: 52.0
     lastOutdoorF: 72.0
     pool: false
+    outdoorDownfall: 0.4
+    outdoorPrecipitation: RAIN
   item2:
     id: spa
     group: pool
@@ -49,6 +53,8 @@ thermostats:
     outdoorMidnightF: 52.0
     lastOutdoorF: 72.0
     pool: false
+    outdoorDownfall: 0.4
+    outdoorPrecipitation: RAIN
 equipment:
   item0:
     group: house

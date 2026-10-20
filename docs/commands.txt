@@ -1,5 +1,5 @@
-EZVAC ALPHA 1.9 - COMMAND REFERENCE
-===================================
+EZVAC ALPHA 2.0 PILOT 1 - COMMAND REFERENCE
+===========================================
 
 All commands use /hvac. /climate is an alias.
 
@@ -13,8 +13,10 @@ BASIC COMMANDS (ezvac.use)
 /hvac temperature
 /hvac temp
   Reports local temperature, outdoor temperature, the influencing vent group,
-  airflow-path distance, and core/leakage status. In water it reports the water
-  temperature (natural water where no pool system reaches) and the air above.
+  airflow-path distance, and core/leakage status, plus the outdoor weather and,
+  in air, the humidity and "feels like" temperature. In water it reports the
+  water temperature (natural water where no pool system reaches) and the air
+  above.
 
 /hvac hud [on|off]
   Shows or hides the on-screen climate HUD for yourself (ezvac.hud). With no
@@ -27,7 +29,9 @@ BASIC COMMANDS (ezvac.use)
 
 /hvac info
   Looks up the targeted thermostat, equipment unit, vent, thermometer, RPM
-  monitor, or settings panel within six blocks.
+  monitor, settings panel, or dehumidifier within six blocks. A thermostat also
+  shows its room's humidity; a dehumidifier shows the space it dries, its
+  humidity, setpoint, state and tank.
 
 
 CREATE DEVICES (ezvac.admin)
@@ -59,8 +63,13 @@ CREATE DEVICES (ezvac.admin)
   Look at a dispenser. Registers typed equipment in the specified group.
 
 /hvac create thermometer [label]
+/hvac create hygrometer [label]
+/hvac create thermohygrometer [label]
   Look at a sign. Creates an independent point sensor at that block. It needs no
   group and may be placed outdoors; its reading matches /hvac temperature there.
+  A thermometer shows temperature, a hygrometer humidity (inside and outside),
+  and a thermo-hygrometer temperature, humidity and feels-like.
+  "thermohygro" is a shorthand.
 
 /hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler|poolheatpump> [label]
   Look at a sign. Matching typed equipment must already exist in the group.
@@ -68,6 +77,20 @@ CREATE DEVICES (ezvac.admin)
 /hvac create settingspanel <group> [label]
   Look at a sign. Creates the group's single operating-profile panel in NORMAL.
   The group must already contain a thermostat or equipment.
+
+/hvac create dehumidifier [label]
+  Look at a sign on an iron block (on its side, or standing on top) that sits on
+  a waxed copper grate. Registers a standalone dehumidifier at 45%. It needs no
+  group. The grate must not be linked as a water vent. "dehum" is a shorthand.
+
+DEHUMIDIFIER USE (ezvac.use)
+--------------------------------
+
+- Right-click the sign to step the setpoint: 35, 40, 45, 50, 55, 60% (wraps).
+- Sneak-right-click to switch it on or off. Off freezes the tank as it is.
+- It starts 2% above the setpoint and runs until the setpoint is reached.
+- A full tank waterlogs the grate and shows "Emptying..." for 30 seconds.
+- Breaking the sign, the iron block or the grate removes it.
 
 SETTINGS PANEL USE (ezvac.use)
 --------------------------------
@@ -99,7 +122,8 @@ THERMOSTATS (ezvac.admin)
 
 Thermostat signs may also be edited. Put a finite number on line 3. Non-admin
 players cannot modify registered thermostat signs; thermometer, RPM, and
-settings-panel signs are always read-only through the sign editor.
+settings-panel and dehumidifier signs are always read-only through the sign
+editor.
 
 
 EQUIPMENT AND GROUPS (ezvac.admin)
@@ -130,7 +154,8 @@ VENT LINKING (ezvac.admin)
      - waxed copper grate -> water vent, conditions the water around it
 3. Sneak-right-click a registered vent to unlink it.
 
-The selected group must still contain equipment when a vent is linked.
+The selected group must still contain equipment when a vent is linked. A
+dehumidifier's grate cannot be linked as a vent.
 
 A system is all air or all water, and its equipment must match. Linking a
 waxed copper grate to a system that uses iron trapdoors is refused, as is
@@ -159,7 +184,9 @@ INSTALL / UPGRADE
 -----------------
 
 1. Stop the server and back up the existing plugins/EZvac directory, if present.
-2. Put EzVac-ALPHA-1.9.jar in the server plugins directory.
+2. Put EzVac-ALPHA-2.0-P1.jar in the server plugins directory. Upgrading from
+   1.x moves hvac.yml to format 6 and keeps the original as
+   hvac.yml.format5.bak.
 3. Start Paper 1.21.1 (or Purpur) on Java 21.
 4. Confirm that EZvac enables without errors.
 5. Use /hvac stats and /hvac list, then test one full heating and cooling cycle.

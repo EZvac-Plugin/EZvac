@@ -2,6 +2,55 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.0 Pilot 1
+
+A prerelease of the 2.0 realism update: weather, humidity, "feels like" and
+dehumidifiers. It moves `hvac.yml` to **format 6**. Upgrading from any 1.x
+release is supported and needs no conversion; the first save keeps your 1.x
+file as `hvac.yml.format5.bak`. Releases 1.7 to 1.9 refuse a format 6 file
+(they leave it untouched), so going back means restoring that backup.
+
+### Added
+
+- **Weather.** Rain and thunder cool the outdoor air (by 6 °F and 9 °F by
+  default) and narrow the day/night swing; snow cools a little. The change
+  eases in over about two in-game hours instead of switching instantly. Only
+  biomes with precipitation react (not deserts, savannas, badlands, the Nether
+  or the End). The HUD, idle drift, ETAs, thermometers and pools all follow;
+  natural water barely reacts. Tuning under `weather:`.
+- **Humidity.** Moisture is simulated as a dew point and shown as relative
+  humidity. Outdoors it comes from the biome (deserts dry, jungles and swamps
+  humid), rises at night, and climbs toward 100% in rain. Indoors each air
+  system's room drifts toward the outdoor moisture, cooling dries it, heating
+  lowers its RH, and water inside a room evaporates into it, faster when it is
+  warm. Tuning under `humidity:`.
+- **Feels like.** The apparent temperature from temperature, humidity and
+  outdoor wind. Shown on the HUD and in `/hvac temperature`.
+- **Dehumidifiers.** An iron block on a waxed copper grate with a sign,
+  registered with `/hvac create dehumidifier [label]`. It needs no system: it
+  dries the room of the system around it, or its own zone anywhere else (a
+  shed, a basement). Click the sign to step the setpoint (35-60%), sneak-click
+  to switch it on or off. A full tank waterlogs the grate while it empties.
+  Tuning under `dehumidifier:`.
+- Placeholders `%ezvac_feels_like%` (`_f`, `_c`), `%ezvac_humidity%` and
+  `%ezvac_weather%`; HUD tokens `{feels}`, `{humidity}` and `{weather}`.
+- **Hygrometers and thermo-hygrometers.** `/hvac create hygrometer [label]`
+  and `/hvac create thermohygrometer [label]` register sign sensors that work
+  like thermometers: a hygrometer shows humidity inside and outside, a
+  thermo-hygrometer shows temperature, humidity and feels-like together.
+  Thermometers are unchanged.
+- `/hvac info` on a thermostat shows its room's humidity and feels-like.
+
+### Changed
+
+- **The HUD's comfort word, bar and boss-bar colour follow "feels like"** in
+  air, so a humid 84 °F room reads Hot and a windy storm reads colder. Water is
+  still judged by its temperature.
+- The default HUD gains `Feels like` and `Humidity` lines and shows the weather
+  next to `Outside`. Configs that set their own `hud.sidebar.lines` keep them.
+- `hvac.yml` format 6: thermostats store their room's moisture and their
+  biome's downfall and precipitation, and a new `dehumidifiers` section.
+
 ## ALPHA 1.9
 
 Pools get a heat pump of their own, and water now reads like water. No

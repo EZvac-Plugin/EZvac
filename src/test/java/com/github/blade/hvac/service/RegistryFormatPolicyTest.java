@@ -86,6 +86,19 @@ class RegistryFormatPolicyTest {
     }
 
     @Test
+    void aOneDotXSaveIsKeptAsFormat5WhenTwoDotZeroFirstSaves() throws IOException {
+        String release19 = file("meta:\n  format: 5\n");
+        Files.writeString(data, release19, StandardCharsets.UTF_8);
+        HvacRegistry registry = registry();
+        registry.load();
+        assertNotNull(registry.thermostatById("main"), "a 1.x save loads as it is");
+        registry.markDirty();
+        registry.save(true);
+        assertEquals(release19, Files.readString(folder.resolve("hvac.yml.format5.bak"), StandardCharsets.UTF_8));
+        assertTrue(Files.readString(data, StandardCharsets.UTF_8).contains("format: 6"));
+    }
+
+    @Test
     void anExistingUpgradeBackupIsNeverReplaced() throws IOException {
         Path backup = folder.resolve("hvac.yml.format4.bak");
         Files.writeString(backup, "the very first original", StandardCharsets.UTF_8);

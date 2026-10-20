@@ -130,8 +130,10 @@ public record HudSettings(
                 "<gradient:#3999fb:#f69500><bold>Climate</bold></gradient> <dark_gray>-</dark_gray> <gray>EZvac",
                 List.of(
                         "<gray>Here: <white>{temp}",
+                        "<gray>Feels like: <white>{feels}",
                         "{bar} {comfort}",
-                        "<gray>Outside: <white>{outdoor}",
+                        "<gray>Humidity: <white>{humidity}",
+                        "<gray>Outside: <white>{outdoor} <gray>{weather}",
                         "",
                         "<gray>System: <white>{group}",
                         "<gray>Mode: <white>{mode}",
@@ -139,8 +141,9 @@ public record HudSettings(
                         "<dark_gray><font:uniform>Version: {version}</font>"),
                 List.of("TAB", "FeatherBoard", "AnimatedScoreboard", "SimpleScore", "KiteBoard",
                         "QuickBoard", "TitleManager", "BetterScoreboard"),
-                "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{group}",
-                "<white>{temp}</white> <gray>-</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}",
+                "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{humidity}"
+                        + " <dark_gray>|</dark_gray> <gray>{group}",
+                "<white>{temp}</white> <gray>feels {feels} -</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}",
                 10, "▮", "▯", "#4a4a4a", 50.0, 95.0,
                 new Band(60.0, "Cold", "#5ab0ff"),
                 new Band(68.0, "Cool", "#8fd3ff"),
@@ -156,7 +159,7 @@ public record HudSettings(
                 List.of(
                         "<gray>Water: <white>{temp}",
                         "{bar} {comfort}",
-                        "<gray>Air: <white>{outdoor}",
+                        "<gray>Air: <white>{outdoor} <gray>{weather}",
                         "",
                         "<gray>Pool: <white>{group}",
                         "<gray>Mode: <white>{mode}",

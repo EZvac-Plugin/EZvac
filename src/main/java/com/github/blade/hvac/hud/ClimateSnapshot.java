@@ -15,11 +15,31 @@ package com.github.blade.hvac.hud;
  * @param targetF      thermostat target, or NaN when there is none
  * @param core         true inside the full-strength core range
  * @param water        true when the player is in water; localF is then the water temperature
+ * @param humidity     relative humidity of the air (%), NaN in water or when unknown
+ * @param feelsLikeF   apparent temperature; the water temperature in water
+ * @param weather      outdoor weather word (Clear, Rain, Thunder, Snow), empty where there is none
  */
 public record ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
                               String group, String thermostat, String mode, double targetF,
-                              boolean core, boolean water) {
+                              boolean core, boolean water, double humidity, double feelsLikeF,
+                              String weather) {
+    public ClimateSnapshot {
+        if (!Double.isFinite(feelsLikeF)) feelsLikeF = localF;
+        if (weather == null) weather = "";
+    }
+
+    /** A snapshot without humidity: it feels like its temperature. */
+    public ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
+                           String group, String thermostat, String mode, double targetF,
+                           boolean core, boolean water) {
+        this(localF, outdoorF, influence, distance, group, thermostat, mode, targetF, core, water,
+                Double.NaN, localF, "");
+    }
+
     public boolean conditioned() { return group != null && thermostat != null && influence > 0.0; }
+
+    /** The temperature comfort is judged by: how air feels, or simply the water's temperature. */
+    public double comfortF() { return water ? localF : feelsLikeF; }
 
     /** A spot no system reaches: the local temperature is simply the outdoor one. */
     public static ClimateSnapshot outdoors(double outdoorF) {

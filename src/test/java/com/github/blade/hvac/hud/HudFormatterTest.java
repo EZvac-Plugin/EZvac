@@ -126,6 +126,24 @@ class HudFormatterTest {
     }
 
     @Test
+    void airComfortFollowsHowItFeels() {
+        ClimateSnapshot muggy = new ClimateSnapshot(84.0, 90.0, 1.0, 2, "house", "main", "IDLE", 72.0, true, false,
+                75.0, 92.0, "Clear");
+        assertEquals("Hot", format.band(muggy).label(), "84 F at 75% feels like 92 F");
+        assertEquals("Warm", format.band(84.0).label(), "the thermometer alone says warm");
+        assertEquals("Feels like: 92.0°F|Humidity: 75%|Outside: 90.0°F Clear",
+                plain(format.render("Feels like: {feels}|Humidity: {humidity}|Outside: {outdoor} {weather}", muggy)));
+    }
+
+    @Test
+    void waterShowsNoHumidity() {
+        ClimateSnapshot pool = new ClimateSnapshot(84.0, 90.0, 0.4, 20, "pool", "spa", "HEATING", 84.0, false, true,
+                Double.NaN, 84.0, "");
+        assertEquals("none", format.humidity(pool));
+        assertEquals("84.0°F", format.feelsLike(pool));
+    }
+
+    @Test
     void valuesCannotInjectFormatting() {
         ClimateSnapshot sneaky = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "<red>evil", "main", "IDLE", 70.0, true, false);
         assertEquals("<red>evil", plain(format.render("{group}", sneaky)));

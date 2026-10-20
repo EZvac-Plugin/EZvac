@@ -1,6 +1,7 @@
 package com.github.blade.hvac;
 
 import com.github.blade.hvac.command.HvacCommand;
+import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
@@ -17,12 +18,15 @@ import java.util.logging.Level;
 /** Standalone EZvac bootstrap and lifecycle owner. */
 public final class HvacPlugin extends JavaPlugin {
     private HvacSettings settings;
+    private ClimateSettings climate;
+    private WeatherService weather;
     private HvacRegistry registry;
     private OutdoorTemperatureService outdoor;
     private AirflowService airflow;
     private DisplayService displays;
     private HvacController controller;
     private HvacAudioService audio;
+    private DehumidifierService dehumidifiers;
     private ClimateHudService hud;
     /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
     private Runnable placeholderUnregister;
@@ -37,23 +41,26 @@ public final class HvacPlugin extends JavaPlugin {
         try {
             saveDefaultConfig();
             settings = HvacSettings.load(getConfig());
+            climate = ClimateSettings.load(getConfig());
             registry = new HvacRegistry(this, settings);
             registry.load();
-            outdoor = new OutdoorTemperatureService();
+            weather = new WeatherService(climate.weather());
+            outdoor = new OutdoorTemperatureService(climate, weather);
             airflow = new AirflowService(registry, outdoor, settings);
             displays = new DisplayService(this, registry, airflow, outdoor, settings);
-            controller = new HvacController(this, registry, outdoor, airflow, settings);
+            dehumidifiers = new DehumidifierService(registry, airflow, outdoor);
+            controller = new HvacController(this, registry, outdoor, airflow, settings, dehumidifiers);
             audio = new HvacAudioService(settings);
             hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()));
 
             HvacCommand commandHandler = new HvacCommand(this, registry, controller,
-                    outdoor, airflow, displays, settings, hud);
+                    outdoor, airflow, displays, settings, hud, dehumidifiers);
             PluginCommand command = Objects.requireNonNull(getCommand("hvac"),
                     "Command 'hvac' is missing from plugin.yml");
             command.setExecutor(commandHandler);
             command.setTabCompleter(commandHandler);
             getServer().getPluginManager().registerEvents(new HvacListener(
-                    this, registry, airflow, displays, commandHandler), this);
+                    this, registry, airflow, displays, commandHandler, dehumidifiers), this);
             getServer().getPluginManager().registerEvents(hud, this);
             hud.start();
             if (hud.sidebarYieldedTo() != null)
@@ -74,7 +81,8 @@ public final class HvacPlugin extends JavaPlugin {
             getLogger().info("EZvac enabled: " + registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.vents().size() + " vent(s), "
-                    + registry.settingsPanels().size() + " settings panel(s).");
+                    + registry.settingsPanels().size() + " settings panel(s), "
+                    + registry.dehumidifiers().size() + " dehumidifier(s).");
         } catch (RuntimeException exception) {
             getLogger().log(Level.SEVERE, "EZvac could not start safely", exception);
             getServer().getPluginManager().disablePlugin(this);
@@ -117,9 +125,13 @@ public final class HvacPlugin extends JavaPlugin {
     private void runController(long elapsedTicks) {
         if (!isEnabled() || controller == null) return;
         try {
+            weather.advance(elapsedTicks);
+            dehumidifiers.prepare();
             HvacController.CycleResult result = controller.cycle(elapsedTicks);
+            DehumidifierService.Changes drying = dehumidifiers.afterCycle(elapsedTicks);
             audio.applyTransitions(result);
-            audio.tickHum(result.running(), elapsedTicks);
+            audio.applyDehumidifierTransitions(drying);
+            audio.tickHum(result.running(), drying.running(), elapsedTicks);
             if (result.prunedDevices() > 0)
                 getLogger().info("Removed " + result.prunedDevices() + " missing HVAC device record(s).");
 
@@ -160,4 +172,5 @@ public final class HvacPlugin extends JavaPlugin {
     }
 
     public HvacSettings settings() { return settings; }
+    public ClimateSettings climate() { return climate; }
 }

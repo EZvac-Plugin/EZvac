@@ -1,5 +1,5 @@
-EZVAC ALPHA 1.9 FEATURES
-========================
+EZVAC ALPHA 2.0 PILOT 1 FEATURES
+================================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
 forks, including Purpur. Climate systems are identified only by world and group
@@ -119,6 +119,55 @@ Outdoor temperature follows Minecraft time and broad biome profiles:
 Profiles are cached per thermostat, so an unloaded thermostat never causes a
 chunk load merely to sample its biome.
 
+Weather (weather: in config.yml):
+
+- Rain cools the daily mean by 6 F, thunder by 9 F, snow by 3 F, and full rain
+  narrows the day/night swing by 60%. The effect eases in and out over two
+  in-game hours, because vanilla weather switches instantly.
+- Only biomes that get precipitation react. Deserts, savannas, badlands, the
+  Nether and the End ignore weather; snowy biomes get snow.
+- Natural water follows only 10% of the air's shift.
+- Outdoor wind (1.5 / 3 / 5 m/s clear / rain / thunder) lowers "feels like".
+
+
+HUMIDITY AND FEELS LIKE
+-----------------------
+
+- Moisture is simulated as a dew point and shown as relative humidity. Heating
+  a room lowers its RH without changing its moisture; cooling dries it.
+- Outdoor RH comes from the biome's vanilla downfall: about 30% at the daily
+  mean in a desert, 54% on plains, 84% in a jungle or swamp. The dew point is
+  steady through the day, so RH rises at night. Rain and snow pull it toward
+  97%.
+- Each air system's room drifts toward the outdoor moisture (15% of the gap per
+  in-game hour). Delivered cooling pulls it toward the coil's 45 F dew point.
+- Water bordering a room's airflow evaporates into it, scaled by how much of the
+  space is water surface and by how much warmer than the air the water is. A
+  heated pool hall gets muggy.
+- Feels like is Steadman's apparent temperature: temperature, humidity and
+  wind. Indoors there is no wind; at the edge of a system's reach it blends in.
+- The HUD's comfort word, bar and boss-bar colour follow feels like in air.
+  Water is judged by its temperature alone.
+- The dew point never exceeds the air temperature; the excess condenses.
+
+
+DEHUMIDIFIERS
+-------------
+
+- An iron block on a waxed copper grate, controlled by a sign on the iron block.
+  It belongs to no group.
+- Its own airflow zone (12 blocks by default) decides what it dries: the room
+  of an air system whose airflow surrounds it, or else the zone itself, which
+  keeps its own moisture and is what the HUD reads there.
+- It dries 3 F of dew point per in-game hour in a space up to 1,500 cells,
+  proportionally less in larger ones, and starts 2% above its setpoint.
+- The water it removes fills a tank. Full, the grate is waterlogged and the
+  unit empties for 30 seconds, then carries on. The grate's water is never
+  allowed to flow.
+- Click: next setpoint preset. Sneak-click: power. Both need ezvac.use.
+- Hygrometers and thermo-hygrometers are point sensors like thermometers:
+  humidity inside and outside, or temperature, humidity and feels-like.
+
 
 VENTS AND AIRFLOW
 -----------------
@@ -228,9 +277,10 @@ unrelated beacon, furnace, or another plugin's audio.
 CLIMATE HUD AND PLACEHOLDERS
 ----------------------------
 
-- /hvac hud shows, per player, the local temperature, a cold-to-hot bar, a
-  comfort label (cold, cool, comfortable, warm, hot), the outdoor temperature,
-  and the conditioning system with its mode, target, and core/leakage zone.
+- /hvac hud shows, per player, the local temperature, how warm it feels, a
+  cold-to-hot bar, a comfort label (cold, cool, comfortable, warm, hot), the
+  humidity, the outdoor temperature and weather, and the conditioning system
+  with its mode, target, and core/leakage zone.
 - Styles: a scoreboard sidebar (default, score numbers hidden), the action bar,
   or a boss bar whose fill and colour follow the temperature.
 - Off by default per player; the choice is stored in the player's own data,
@@ -240,8 +290,9 @@ CLIMATE HUD AND PLACEHOLDERS
   steps back if another plugin later takes over, and is not used at all when a
   packet-based scoreboard plugin such as TAB is installed (the action bar is
   used instead; see hud.sidebar.yield-to-plugins).
-- With PlaceholderAPI installed, %ezvac_temp%, %ezvac_bar%, %ezvac_group% and
-  the rest expose the same values to other plugins. Without it, EZvac logs one
+- With PlaceholderAPI installed, %ezvac_temp%, %ezvac_feels_like%,
+  %ezvac_humidity%, %ezvac_weather%, %ezvac_bar%, %ezvac_group% and the rest
+  expose the same values to other plugins. Without it, EZvac logs one
   line saying what installing it would add.
 - In water the HUD uses its own layout and scale (hud.water): Water, Air, Pool
   and Circulation lines, a 60-104 F bar, and pool comfort bands where 78-86 F is
@@ -262,7 +313,9 @@ PERSISTENCE
 -----------
 
 All thermostats, equipment, pending cleanup, vents, thermometers, RPM monitors,
-and settings panels live in one versioned plugins/EZvac/hvac.yml file.
+settings panels and dehumidifiers live in one versioned plugins/EZvac/hvac.yml
+file (format 6 since 2.0; a 1.x file is kept as hvac.yml.format5.bak before
+its first 2.0 save).
 
 - Records use immutable world UUID + integer block coordinates.
 - World unloads require no detach/rebind rewrite.
@@ -278,7 +331,8 @@ and settings panels live in one versioned plugins/EZvac/hvac.yml file.
 PERMISSIONS
 -----------
 
-- ezvac.use (default true): help, temperature, list, info, and settings-panel use.
+- ezvac.use (default true): help, temperature, list, info, and settings-panel
+  and dehumidifier use.
 - ezvac.hud (default true): show the on-screen climate HUD with /hvac hud.
 - ezvac.admin (default op): create, change, link, remove, sync, and stats.
 

@@ -8,17 +8,18 @@ EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
 1.21.1 and its forks, including Purpur. It provides sign thermostats,
 variable-speed heat pumps and air conditioners, furnaces, ducted airflow, point
 thermometers, RPM monitors, operating-profile panels, outdoor climate
-simulation, and persistent room temperatures. Systems condition either **air**
-or **water**, so the same simulation heats a room or a swimming pool.
+simulation with weather, humidity and "feels like" temperatures, standalone
+dehumidifiers, and persistent room temperatures. Systems condition either
+**air** or **water**, so the same simulation heats a room or a swimming pool.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.9 adds **pool heat pumps** (heat *and*
-> cool a pool, alone or alongside a boiler) and makes water read like water:
-> the climate HUD switches to a water layout and pool comfort scale, lakes and
-> the sea read the biome's natural water temperature, and idle pools drift
-> toward it. No save-file changes; a drop-in upgrade from any earlier release.
-> See [Climate HUD and placeholders](#climate-hud-and-placeholders).
+> **Release status:** EZvac ALPHA 2.0 Pilot 1 is a prerelease of the 2.0
+> realism update: **weather** changes the outdoor air, rooms have **humidity**,
+> the HUD shows how warm it **feels**, and **dehumidifiers** dry a room or a
+> shed. It moves `hvac.yml` to format 6 and keeps your 1.x save as
+> `hvac.yml.format5.bak`. See [Weather and humidity](#weather-and-humidity)
+> and [Dehumidifiers](#dehumidifiers).
 
 ## Requirements
 
@@ -35,7 +36,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.9.jar
+target/EzVac-ALPHA-2.0-P1.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -45,7 +46,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.9.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-2.0-P1.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -78,8 +79,12 @@ release changes the save format, it first keeps the original as
   of water. A system is all air or all water; water bodies behave exactly like
   rooms.
 - **Thermometer:** Independent sign sensor that measures its own block.
+- **Hygrometer / thermo-hygrometer:** The same sensor for humidity, or for
+  temperature, humidity and "feels like" together.
 - **RPM monitor:** Type-specific sign showing RPM, capacity, and unit counts.
 - **Settings panel:** Sign control for Eco, Normal, and Turbo operation.
+- **Dehumidifier:** Standalone unit (iron block on a waxed copper grate, with a
+  sign) that dries the air around it. See [Dehumidifiers](#dehumidifiers).
 
 Registered equipment does not consume buckets, fuel, water, lava, power, or
 inventory items. EZvac records and removes only fluid sources that it created.
@@ -129,6 +134,78 @@ It reads the temperature at its own block: full conditioned temperature in a
 vent core, blended temperature near the airflow edge, or outdoor temperature
 when outside every HVAC system.
 
+Hygrometers and thermo-hygrometers are placed the same way and read the same
+spot:
+
+```text
+/hvac create hygrometer [label]
+/hvac create thermohygrometer [label]
+```
+
+```text
+Hygrometer          cellar
+Inside: 58%         In 72.1 F 58%
+Outside: 41%        Feels 73.0 F
+                    Out 64.0 F 41%
+```
+
+## Weather and humidity
+
+**Weather** changes the outdoor air. Rain and thunder cool the day (by 6 °F
+and 9 °F by default) and narrow the day/night swing; snow cools a little.
+Vanilla weather switches in an instant, so the effect eases in and out over
+about two in-game hours. Deserts, savannas, badlands, the Nether and the End
+never get weather. Everything that uses the outdoor temperature follows it:
+the HUD, idle drift, ETAs, thermometers and pools (natural water reacts only
+slightly).
+
+**Humidity** is simulated as moisture (a dew point) and shown as relative
+humidity, which is how real thermostats work, and it makes the physics come
+out right on its own:
+
+- Outdoors it comes from the biome's vanilla downfall (deserts are dry,
+  jungles and swamps humid), rises at night as the air cools, and climbs
+  toward 100% in rain.
+- Indoors, each air system's room drifts toward the outdoor moisture. Cooling
+  dries the air, heating lowers the RH (dry winter air), and water inside a
+  room evaporates into it, faster when it is warm: a heated pool hall gets
+  muggy.
+
+**Feels like** is the apparent temperature: humid heat feels hotter, dry air
+and outdoor wind feel cooler. The HUD's comfort word and bar follow it.
+
+Tuning lives under `weather:` and `humidity:` in `config.yml`.
+
+## Dehumidifiers
+
+Build an **iron block on top of a waxed copper grate**, put a sign on the iron
+block (on its side, or standing on top), and while looking at the sign run:
+
+```text
+/hvac create dehumidifier [label]
+```
+
+It needs no system. It dries the air within its own short reach (12 blocks
+of airflow by default): the room of the system whose air surrounds it, or,
+anywhere else (a shed, a basement), that space itself, which the HUD then
+reads.
+
+```text
+EZvac | basement
+58% > 45%
+Running
+Tank 40%
+```
+
+- **Click** the sign to step the setpoint: 35, 40, 45, 50, 55, 60%.
+- **Sneak-click** to switch it on or off. Off keeps the tank as it is.
+- It starts 2% above the setpoint and runs down to it.
+- The water it removes fills its **tank**. When the tank is full the grate
+  fills with water and the sign shows `Emptying...` for 30 seconds, then it
+  carries on. The water never leaves the grate.
+
+Breaking the sign, the iron block or the grate removes it.
+
 ## Climate HUD and placeholders
 
 Players can keep the climate where they stand on screen:
@@ -137,9 +214,10 @@ Players can keep the climate where they stand on screen:
 /hvac hud [on|off]
 ```
 
-It shows the local temperature, a cold-to-hot bar with a comfort label, the
-outdoor temperature, and the system conditioning that spot, its mode and
-target, and whether you are in its core or its leakage edge. It is off by
+It shows the local temperature, how warm it feels, a cold-to-hot bar with a
+comfort label, the humidity, the outdoor temperature and weather, and the
+system conditioning that spot, its mode and target, and whether you are in its
+core or its leakage edge. It is off by
 default for each player, and EZvac remembers each player's choice.
 
 By default the HUD is a scoreboard **sidebar**; `hud.style` in `config.yml`
@@ -154,6 +232,9 @@ plugins as placeholders:
 | Placeholder | Example |
 | --- | --- |
 | `%ezvac_temp%` (`_temp_f`, `_temp_c`) | `72.4°F` |
+| `%ezvac_feels_like%` (`_feels_like_f`, `_feels_like_c`) | `74.1°F` |
+| `%ezvac_humidity%` | `48%` |
+| `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`; empty in dry biomes) |
 | `%ezvac_outdoor%` (`_outdoor_f`, `_outdoor_c`) | `88.0°F` |
 | `%ezvac_bar%` / `%ezvac_bar_plain%` | `▮▮▮▮▮▯▯▯▯▯` (coloured / plain) |
 | `%ezvac_comfort%` | `Comfortable` |
@@ -179,7 +260,8 @@ all configurable under `hud:` (and `hud.water:`) in `config.yml`.
 
 ## Permissions
 
-- `ezvac.use` — help, readings, inspection, and settings-panel operation.
+- `ezvac.use` — help, readings, inspection, and settings-panel and
+  dehumidifier operation.
 - `ezvac.hud` — show the on-screen climate HUD (default: everyone).
 - `ezvac.admin` — device creation, changes, removal, linking, and diagnostics.
 

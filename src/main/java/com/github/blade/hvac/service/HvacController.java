@@ -3,10 +3,12 @@ package com.github.blade.hvac.service;
 import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.*;
+import com.github.blade.hvac.simulation.HumidityModel;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.ThermalModel;
 import com.github.blade.hvac.simulation.ThermostatControl;
 import org.bukkit.Tag;
+import org.bukkit.World;
 
 import java.util.*;
 import java.util.logging.Level;
@@ -32,19 +34,22 @@ public final class HvacController {
     private final OutdoorTemperatureService outdoor;
     private final AirflowService airflow;
     private final HvacSettings settings;
+    private final DehumidifierService dehumidifiers;
 
     public HvacController(HvacPlugin plugin, HvacRegistry registry,
                           OutdoorTemperatureService outdoor, AirflowService airflow,
-                          HvacSettings settings) {
+                          HvacSettings settings, DehumidifierService dehumidifiers) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.dehumidifiers = Objects.requireNonNull(dehumidifiers, "dehumidifiers");
     }
 
     public CycleResult cycle(long elapsedTicks) {
         if (elapsedTicks < 0) throw new IllegalArgumentException("elapsed ticks must be non-negative");
+        simulatedTicks += elapsedTicks;
         HvacRegistry.PruneResult pruned = registry.pruneMissingLoadedDevices();
         for (GroupId group : pruned.invalidatedGroups()) airflow.invalidate(group);
         registry.reconcilePendingCleanup();
@@ -143,6 +148,7 @@ public final class HvacController {
         ThermalModel.Result thermal = ThermalModel.step(thermostat.roomF(), boundary, outside,
                 intervalMode, capacity, elapsedTicks, settings);
         thermostat.setRoomF(thermal.temperatureF());
+        if (!thermostat.pool()) updateHumidity(thermostat, intervalMode, capacity, elapsedTicks, managedOutputs);
 
         boolean coolingAvailable = controllerLoaded && hasAvailableEquipment(
                 thermostat.group(), OperatingMode.COOLING, managedOutputs);
@@ -155,6 +161,55 @@ public final class HvacController {
                 authoritative && controllerLoaded && thermostat.enabled(),
                 coolingAvailable, heatingAvailable, elapsedTicks, settings);
         thermostat.setControlState(control.mode(), control.ticksInMode());
+    }
+
+    /** Pools have no air of their own to hold moisture; every air system does. */
+    private void updateHumidity(Thermostat thermostat, OperatingMode mode, double capacity, long elapsedTicks,
+                                Set<BlockKey> managedOutputs) {
+        OutdoorTemperatureService.Outdoor out = outdoor.cachedClimateFor(thermostat);
+        AirflowService.WaterExposure exposure = airflow.waterExposure(thermostat.group())
+                .excluding(thermostat.group().worldId(), managedOutputs);
+        HumidityModel.Loads loads = new HumidityModel.Loads(
+                mode == OperatingMode.COOLING ? capacity : 0.0, exposure.wetFraction(),
+                exposure.waterCells().length == 0 ? Double.NaN : waterTemperature(thermostat, exposure),
+                dehumidifiers.scaleFor(thermostat.group()));
+        HumidityModel.Result result = HumidityModel.step(thermostat.roomDewPointF(), thermostat.roomF(),
+                out.dewPointF(), loads, elapsedTicks, outdoor.climate());
+        thermostat.setRoomDewPointF(result.dewPointF());
+        dehumidifiers.credit(thermostat.group(), result.dehumidifiedF());
+    }
+
+    /** Samples to estimate the temperature of a space's water: a heated pool evaporates faster than a pond. */
+    private static final int WATER_SAMPLES = 4;
+    /** Water temperature barely moves within seconds, so each space's is re-measured this often. */
+    private static final long WATER_REFRESH_TICKS = 200L;
+
+    private record WaterReading(double temperatureF, long measuredAt) {}
+
+    private final Map<GroupId, WaterReading> waterReadings = new HashMap<>();
+    private long simulatedTicks;
+
+    private double waterTemperature(Thermostat thermostat, AirflowService.WaterExposure exposure) {
+        WaterReading cached = waterReadings.get(thermostat.group());
+        if (cached != null && simulatedTicks - cached.measuredAt() < WATER_REFRESH_TICKS) return cached.temperatureF();
+        World world = thermostat.position().world();
+        if (world == null) return Double.NaN;
+        long[] cells = exposure.waterCells();
+        int step = Math.max(1, cells.length / WATER_SAMPLES);
+        double total = 0.0;
+        int samples = 0;
+        for (int index = 0; index < cells.length && samples < WATER_SAMPLES; index += step) {
+            int x = AirflowService.unpackX(cells[index]);
+            int z = AirflowService.unpackZ(cells[index]);
+            if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
+            total += airflow.waterTemperatureAt(world, x, AirflowService.unpackY(cells[index]), z);
+            samples++;
+        }
+        double value = samples == 0 ? Double.NaN : total / samples;
+        // Systems come and go; a stale entry only costs one map slot until the next sweep.
+        if (waterReadings.size() > 2 * registry.thermostats().size() + 16) waterReadings.clear();
+        waterReadings.put(thermostat.group(), new WaterReading(value, simulatedTicks));
+        return value;
     }
 
     private boolean hasAvailableEquipment(GroupId group, OperatingMode mode,

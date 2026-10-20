@@ -45,6 +45,7 @@ public final class DisplayService {
         for (Thermometer thermometer : registry.thermometers()) refreshThermometer(thermometer, force);
         for (RpmMonitor monitor : registry.rpmMonitors()) refreshRpmMonitor(monitor, force);
         for (SettingsPanel panel : registry.settingsPanels()) refreshSettingsPanel(panel, force);
+        for (Dehumidifier dehumidifier : registry.dehumidifiers()) refreshDehumidifier(dehumidifier, force);
     }
 
     public void invalidate(BlockKey position) {
@@ -110,16 +111,41 @@ public final class DisplayService {
         var location = thermometer.position().location();
         if (location == null) return;
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
-        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s", reading.localF(),
-                reading.outdoorF(), thermometer.label());
+        String inside = percent(reading.humidity());
+        String outside = thermometer.reads() == Thermometer.Reads.TEMPERATURE ? ""
+                : percent(outdoor.climateAt(location).humidity());
+        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s", reading.localF(),
+                reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label());
         render(thermometer.position(), fingerprint, force, side -> {
             side.line(0, Component.text(shorten(thermometer.label()), NamedTextColor.AQUA));
-            side.line(1, Component.text("Thermometer", NamedTextColor.WHITE));
-            side.line(2, Component.text(String.format(Locale.US, "Inside: %.1f F", reading.localF()),
-                    NamedTextColor.YELLOW));
-            side.line(3, Component.text(String.format(Locale.US, "Outside: %.1f F", reading.outdoorF()),
-                    NamedTextColor.GRAY));
+            switch (thermometer.reads()) {
+                case TEMPERATURE -> {
+                    side.line(1, Component.text("Thermometer", NamedTextColor.WHITE));
+                    side.line(2, Component.text(String.format(Locale.US, "Inside: %.1f F", reading.localF()),
+                            NamedTextColor.YELLOW));
+                    side.line(3, Component.text(String.format(Locale.US, "Outside: %.1f F", reading.outdoorF()),
+                            NamedTextColor.GRAY));
+                }
+                case HUMIDITY -> {
+                    side.line(1, Component.text("Hygrometer", NamedTextColor.WHITE));
+                    side.line(2, Component.text("Inside: " + inside, NamedTextColor.AQUA));
+                    side.line(3, Component.text("Outside: " + outside, NamedTextColor.GRAY));
+                }
+                case BOTH -> {
+                    side.line(1, Component.text(String.format(Locale.US, "In %.1f F %s", reading.localF(), inside),
+                            NamedTextColor.YELLOW));
+                    side.line(2, Component.text(String.format(Locale.US, "Feels %.1f F", reading.feelsLikeF()),
+                            NamedTextColor.WHITE));
+                    side.line(3, Component.text(String.format(Locale.US, "Out %.1f F %s", reading.outdoorF(), outside),
+                            NamedTextColor.GRAY));
+                }
+            }
         });
+    }
+
+    /** "45%", or "--%" where there is no air to measure (a sign in water). */
+    private static String percent(double humidity) {
+        return Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%";
     }
 
     private void refreshRpmMonitor(RpmMonitor monitor, boolean force) {
@@ -161,6 +187,33 @@ public final class DisplayService {
             side.line(1, Component.text(shorten("System: " + panel.group().label()), NamedTextColor.WHITE));
             side.line(2, Component.text("[ " + panel.profile().name() + " ]", profileColor));
             side.line(3, Component.text("Click > | Sneak <", NamedTextColor.GRAY));
+        });
+    }
+
+    public void refreshDehumidifier(Dehumidifier dehumidifier, boolean force) {
+        double humidity = dehumidifier.lastHumidity();
+        String reading = (Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
+                + " > " + dehumidifier.setpoint() + "%";
+        Dehumidifier.State state = dehumidifier.state();
+        String stateText = switch (state) {
+            case OFF -> "OFF";
+            case IDLE -> "Idle";
+            case RUNNING -> "Running";
+            case EMPTYING -> "Emptying...";
+        };
+        NamedTextColor stateColor = switch (state) {
+            case OFF -> NamedTextColor.RED;
+            case IDLE -> NamedTextColor.GRAY;
+            case RUNNING -> NamedTextColor.GREEN;
+            case EMPTYING -> NamedTextColor.AQUA;
+        };
+        String tank = "Tank " + Math.round(dehumidifier.tank() * 100) + "%";
+        String fingerprint = dehumidifier.label() + "|" + reading + "|" + state + "|" + tank;
+        render(dehumidifier.position(), fingerprint, force, side -> {
+            side.line(0, Component.text(shorten("EZvac | " + dehumidifier.label()), NamedTextColor.AQUA));
+            side.line(1, Component.text(reading, NamedTextColor.WHITE));
+            side.line(2, Component.text(stateText, stateColor));
+            side.line(3, Component.text(tank, NamedTextColor.GRAY));
         });
     }
 

@@ -1,6 +1,7 @@
 package com.github.blade.hvac.model;
 
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.ThermalModel;
 
 import java.util.LinkedHashMap;
@@ -20,8 +21,16 @@ public final class Thermostat {
     private double outdoorNoonF;
     private double outdoorMidnightF;
     private double lastOutdoorF;
+    /** The biome's vanilla downfall (0 desert .. 1 jungle), cached like the noon/midnight profile. */
+    private double outdoorDownfall = DEFAULT_DOWNFALL;
+    private Precipitation outdoorPrecipitation = Precipitation.RAIN;
+    /** The air's moisture as a dew point; NaN until first simulated (2.0). */
+    private double roomDewPointF = Double.NaN;
     /** Pool thermostats clamp to the water range and pair only with boilers. */
     private final boolean pool;
+
+    /** A temperate biome's downfall, used until the thermostat's chunk is first sampled. */
+    public static final double DEFAULT_DOWNFALL = 0.4;
 
     public Thermostat(BlockKey position, String id, String groupLabel,
                       double targetF, double roomF, HvacSettings settings) {
@@ -67,6 +76,10 @@ public final class Thermostat {
     public double outdoorMidnightF() { return outdoorMidnightF; }
     public double lastOutdoorF() { return lastOutdoorF; }
     public boolean pool() { return pool; }
+    public double outdoorDownfall() { return outdoorDownfall; }
+    public Precipitation outdoorPrecipitation() { return outdoorPrecipitation; }
+    public double roomDewPointF() { return roomDewPointF; }
+    public boolean hasRoomDewPoint() { return Double.isFinite(roomDewPointF); }
 
     public void setId(String id) { this.id = validateId(id); }
     public void setGroup(String label) { this.group = GroupId.of(position, label); }
@@ -84,6 +97,15 @@ public final class Thermostat {
         this.outdoorMidnightF = ThermalModel.clampTemperature(midnightF);
     }
     public void setLastOutdoorF(double outdoorF) { this.lastOutdoorF = ThermalModel.clampTemperature(outdoorF); }
+    public void setOutdoorHumidityProfile(double downfall, Precipitation precipitation) {
+        this.outdoorDownfall = Double.isFinite(downfall) ? Math.max(0.0, Math.min(1.0, downfall)) : DEFAULT_DOWNFALL;
+        this.outdoorPrecipitation = Objects.requireNonNull(precipitation, "precipitation");
+    }
+    /** The dew point never exceeds the air temperature: that would be more than 100% RH. */
+    public void setRoomDewPointF(double dewPointF) {
+        if (!Double.isFinite(dewPointF)) { this.roomDewPointF = Double.NaN; return; }
+        this.roomDewPointF = Math.min(roomF, ThermalModel.clampTemperature(dewPointF));
+    }
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
@@ -99,6 +121,9 @@ public final class Thermostat {
         map.put("outdoorMidnightF", outdoorMidnightF);
         map.put("lastOutdoorF", lastOutdoorF);
         map.put("pool", pool);
+        map.put("outdoorDownfall", outdoorDownfall);
+        map.put("outdoorPrecipitation", outdoorPrecipitation.name());
+        if (hasRoomDewPoint()) map.put("roomDewPointF", roomDewPointF);
         return map;
     }
 
@@ -112,11 +137,17 @@ public final class Thermostat {
         if (ticks < 0L) ticks = Math.max(0L, Math.round(number(map,
                 "modeElapsedMinecraftHours", settings.minimumOffTicks() / 1_000.0) * 1_000.0));
         boolean pool = bool(map, "pool", false);
-        return new Thermostat(position, id, GroupId.of(position, groupLabel),
+        Thermostat thermostat = new Thermostat(position, id, GroupId.of(position, groupLabel),
                 settings.clampTarget(target, pool), ThermalModel.clampTemperature(room),
                 bool(map, "enabled", true), OperatingMode.parse(map.get("mode")), ticks,
                 number(map, "outdoorNoonF", 72.0), number(map, "outdoorMidnightF", 52.0),
                 number(map, "lastOutdoorF", number(map, "lastOutdoorTempF", 62.0)), pool);
+        // Saves from before 2.0 have no humidity: the defaults stand until the
+        // biome is sampled, and the room's moisture starts at the outdoor level.
+        thermostat.setOutdoorHumidityProfile(number(map, "outdoorDownfall", DEFAULT_DOWNFALL),
+                Precipitation.parse(map.get("outdoorPrecipitation")));
+        thermostat.setRoomDewPointF(number(map, "roomDewPointF", Double.NaN));
+        return thermostat;
     }
 
     public static String validateId(String value) {
