@@ -18,8 +18,15 @@ import java.util.*;
 
 /** Event-invalidated, tick-budgeted airflow maps for registered vent systems. */
 public final class AirflowService {
+    /**
+     * @param localF   temperature at the spot: the air there, or the water when {@code water}
+     * @param outdoorF the outdoor air temperature, whatever the spot's medium
+     * @param water    true when the spot is in water; unconditioned water reads the
+     *                 biome's natural water temperature rather than the air's
+     */
     public record TemperatureReading(double localF, double outdoorF, double influence,
-                                     int airflowDistance, GroupId group, Thermostat thermostat) {
+                                     int airflowDistance, GroupId group, Thermostat thermostat,
+                                     boolean water) {
         public boolean conditioned() { return group != null && thermostat != null && influence > 0.0; }
     }
 
@@ -318,7 +325,15 @@ public final class AirflowService {
         if (block.isLiquid()) return false;
         if (isOpenable(type) && block.getBlockData() instanceof Openable openable)
             return openable.isOpen();
+        // A carpet is a sixteenth of a block of cloth on the floor, but the game
+        // gives it collision, so it counted as solid: a carpeted floor left a
+        // hole in the airflow exactly where players stand.
+        if (isCarpet(type)) return true;
         return block.isPassable();
+    }
+
+    static boolean isCarpet(Material type) {
+        return Tag.WOOL_CARPETS.isTagged(type) || type == Material.MOSS_CARPET;
     }
 
     /**
@@ -344,12 +359,33 @@ public final class AirflowService {
         return temperatureAt(location, null);
     }
 
+    /**
+     * The climate a player feels, from where their feet and eyes are. In water:
+     * the eyes when submerged, else the feet (wading, swimming at the surface).
+     * In air: head height first. A player standing on a carpet, slab, stairs,
+     * or snow has their feet inside that block, which air does not fill, so a
+     * feet-only reading used to show the outdoor temperature while their head
+     * was in a conditioned room. The feet are the fallback.
+     */
+    public TemperatureReading temperatureForBody(Location feet, Location eyes) {
+        if (eyes.getBlock().getType() == Material.WATER) return temperatureAt(eyes);
+        if (feet.getBlock().getType() == Material.WATER) return temperatureAt(feet);
+        TemperatureReading head = temperatureAt(eyes);
+        if (head.conditioned()) return head;
+        TemperatureReading foot = temperatureAt(feet);
+        return foot.conditioned() ? foot : head;
+    }
+
     public TemperatureReading temperatureAt(Location location, GroupId requiredGroup) {
         double outside = outdoor.temperatureAt(location);
         if (location == null || location.getWorld() == null
                 || !location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
-            return new TemperatureReading(outside, outside, 0.0, -1, null, null);
+            return new TemperatureReading(outside, outside, 0.0, -1, null, null, false);
         }
+        // Water keeps its own steady temperature, so a spot in water blends
+        // toward the biome's natural water rather than toward the air above it.
+        boolean water = location.getBlock().getType() == Material.WATER;
+        double baseline = water ? outdoor.naturalWaterAt(location) : outside;
         long key = pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         Nearest nearest = nearestGroup(candidateGroups(location.getWorld().getUID(),
                 location.getBlockX(), location.getBlockZ()), key, requiredGroup);
@@ -360,16 +396,16 @@ public final class AirflowService {
                 Thermostat thermostat = registry.thermostatFor(requiredGroup);
                 if (thermostat != null)
                     return new TemperatureReading(thermostat.roomF(), outside, 1.0, -1,
-                            requiredGroup, thermostat);
+                            requiredGroup, thermostat, water);
             }
-            return new TemperatureReading(outside, outside, 0.0, -1, null, null);
+            return new TemperatureReading(baseline, outside, 0.0, -1, null, null, water);
         }
         Thermostat thermostat = registry.thermostatFor(best);
         if (thermostat == null)
-            return new TemperatureReading(outside, outside, 0.0, bestDistance, best, null);
+            return new TemperatureReading(baseline, outside, 0.0, bestDistance, best, null, water);
         double influence = influenceForDistance(bestDistance);
-        return new TemperatureReading(outside + (thermostat.roomF() - outside) * influence,
-                outside, influence, bestDistance, best, thermostat);
+        return new TemperatureReading(baseline + (thermostat.roomF() - baseline) * influence,
+                outside, influence, bestDistance, best, thermostat, water);
     }
 
     record Nearest(GroupId group, int distance) {}

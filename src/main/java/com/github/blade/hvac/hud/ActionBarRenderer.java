@@ -13,7 +13,7 @@ public final class ActionBarRenderer implements HudRenderer {
 
     @Override
     public void render(Player player, ClimateSnapshot snapshot) {
-        player.sendActionBar(format.render(format.settings().actionBarFormat(), snapshot));
+        player.sendActionBar(format.render(format.medium(snapshot).actionBarFormat(), snapshot));
     }
 
     @Override

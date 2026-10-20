@@ -142,6 +142,23 @@ public final class ThermalModel {
                 + (noonF - midnightF) / 2.0 * Math.cos(angle));
     }
 
+    /**
+     * The temperature of natural water - a lake, the sea, an unheated pool -
+     * in a biome. Water holds heat, so it has no day/night swing: it follows
+     * the biome's daily mean, pulled toward mild values (a desert lake is not
+     * as hot as desert air, a cold lake not as cold as cold air) and never
+     * below the point where it would be ice.
+     */
+    public static double naturalWaterTemperature(double noonF, double midnightF) {
+        requireFinite("noon temperature", noonF);
+        requireFinite("midnight temperature", midnightF);
+        double mean = (noonF + midnightF) / 2.0;
+        return Math.max(NATURAL_WATER_MINIMUM_F, Math.min(NATURAL_WATER_MAXIMUM_F, mean * 0.85 + 8.0));
+    }
+
+    public static final double NATURAL_WATER_MINIMUM_F = 33.0;
+    public static final double NATURAL_WATER_MAXIMUM_F = 90.0;
+
     public static double aggregateCapacity(double equivalentUnits, double maximum) {
         requireFinite("equivalent units", equivalentUnits);
         requireFinite("maximum capacity", maximum);

@@ -35,7 +35,8 @@ public record HudSettings(
         Band comfortable,
         Band warm,
         Band hot,
-        String noneText
+        String noneText,
+        Medium water
 ) {
     /** Where the built-in overlay is drawn. */
     public enum Style {
@@ -64,6 +65,37 @@ public record HudSettings(
         public TextColor textColor() { return Objects.requireNonNull(TextColor.fromHexString(color)); }
     }
 
+    /**
+     * What the HUD shows in one medium. The top-level 1.8 settings are the air
+     * medium; {@code hud.water} holds the water one, because a pool reads on
+     * its own scale: 84 F is a pleasant pool and a warm room.
+     */
+    public record Medium(List<String> sidebarLines, String actionBarFormat, String bossBarFormat,
+                         double barColdF, double barHotF,
+                         Band cold, Band cool, Band comfortable, Band warm, Band hot) {
+        public Medium {
+            sidebarLines = List.copyOf(Objects.requireNonNull(sidebarLines, "sidebar lines"));
+            Objects.requireNonNull(actionBarFormat, "actionbar format");
+            Objects.requireNonNull(bossBarFormat, "bossbar format");
+            if (sidebarLines.isEmpty() || sidebarLines.size() > 15)
+                throw new IllegalArgumentException("hud sidebar lines must have 1 to 15 lines");
+            if (!Double.isFinite(barColdF) || !Double.isFinite(barHotF) || barColdF >= barHotF)
+                throw new IllegalArgumentException("hud bar cold-f must be below hot-f");
+            Objects.requireNonNull(cold, "cold"); Objects.requireNonNull(cool, "cool");
+            Objects.requireNonNull(comfortable, "comfortable"); Objects.requireNonNull(warm, "warm");
+            Objects.requireNonNull(hot, "hot");
+            if (!(cold.limitF() <= cool.limitF() && cool.limitF() <= warm.limitF() && warm.limitF() <= hot.limitF()))
+                throw new IllegalArgumentException(
+                        "hud comfort limits must rise: cold.below <= cool.below <= warm.above <= hot.above");
+        }
+    }
+
+    /** The air medium, built from the top-level settings. */
+    public Medium air() {
+        return new Medium(sidebarLines, actionBarFormat, bossBarFormat, barColdF, barHotF,
+                cold, cool, comfortable, warm, hot);
+    }
+
     public HudSettings {
         Objects.requireNonNull(style, "style");
         Objects.requireNonNull(title, "title");
@@ -72,6 +104,7 @@ public record HudSettings(
         Objects.requireNonNull(barFilled, "bar filled glyph");
         Objects.requireNonNull(barEmpty, "bar empty glyph");
         Objects.requireNonNull(noneText, "none text");
+        Objects.requireNonNull(water, "water medium");
         sidebarLines = List.copyOf(Objects.requireNonNull(sidebarLines, "sidebar lines"));
         sidebarYieldTo = List.copyOf(Objects.requireNonNull(sidebarYieldTo, "sidebar yield-to plugins"));
         if (updateTicks < 1) throw new IllegalArgumentException("hud.update-ticks must be at least 1");
@@ -114,7 +147,29 @@ public record HudSettings(
                 new Band(0.0, "Comfortable", "#6ee07a"),
                 new Band(78.0, "Warm", "#ffb347"),
                 new Band(86.0, "Hot", "#ff5c5c"),
-                "none");
+                "none",
+                defaultWater());
+    }
+
+    private static Medium defaultWater() {
+        return new Medium(
+                List.of(
+                        "<gray>Water: <white>{temp}",
+                        "{bar} {comfort}",
+                        "<gray>Air: <white>{outdoor}",
+                        "",
+                        "<gray>Pool: <white>{group}",
+                        "<gray>Mode: <white>{mode}",
+                        "<gray>Circulation: <white>{zone}",
+                        "<dark_gray><font:uniform>Version: {version}</font>"),
+                "<aqua>Water</aqua> <white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{group}",
+                "<aqua>Water</aqua> <white>{temp}</white> <gray>-</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}",
+                60.0, 104.0,
+                new Band(70.0, "Cold", "#5ab0ff"),
+                new Band(78.0, "Cool", "#8fd3ff"),
+                new Band(0.0, "Comfortable", "#6ee07a"),
+                new Band(86.0, "Warm", "#ffb347"),
+                new Band(95.0, "Hot tub", "#ff5c5c"));
     }
 
     public static HudSettings load(FileConfiguration config) {
@@ -147,7 +202,23 @@ public record HudSettings(
                 band(hud, "comfort.comfortable", null, d.comfortable),
                 band(hud, "comfort.warm", "above-f", d.warm),
                 band(hud, "comfort.hot", "above-f", d.hot),
-                hud.getString("none-text", d.noneText));
+                hud.getString("none-text", d.noneText),
+                water(hud.getConfigurationSection("water"), d.water));
+    }
+
+    private static Medium water(ConfigurationSection water, Medium d) {
+        if (water == null) return d;
+        return new Medium(
+                water.isList("sidebar.lines") ? water.getStringList("sidebar.lines") : d.sidebarLines(),
+                water.getString("actionbar.format", d.actionBarFormat()),
+                water.getString("bossbar.format", d.bossBarFormat()),
+                water.getDouble("bar.cold-f", d.barColdF()),
+                water.getDouble("bar.hot-f", d.barHotF()),
+                band(water, "comfort.cold", "below-f", d.cold()),
+                band(water, "comfort.cool", "below-f", d.cool()),
+                band(water, "comfort.comfortable", null, d.comfortable()),
+                band(water, "comfort.warm", "above-f", d.warm()),
+                band(water, "comfort.hot", "above-f", d.hot()));
     }
 
     private static Band band(ConfigurationSection hud, String path, String limitKey, Band fallback) {

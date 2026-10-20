@@ -101,7 +101,7 @@ public final class DisplayService {
         }
         OperatingProfile profile = registry.profileFor(thermostat.group());
         OptionalLong eta = EtaEstimator.estimateTicks(thermostat.roomF(), thermostat.targetF(),
-                outdoor.temperatureFor(thermostat), thermostat.mode(), snapshots, profile, settings);
+                outdoor.driftBaselineFor(thermostat), thermostat.mode(), snapshots, profile, settings);
         etaCache.put(thermostat.position(), new CachedEta(thermostat.mode(), thermostat.enabled(), eta));
         return eta;
     }

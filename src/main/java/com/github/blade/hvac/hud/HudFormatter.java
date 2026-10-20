@@ -18,6 +18,7 @@ public final class HudFormatter {
             Pattern.compile("ALPHA-([0-9]+(?:[.][0-9]+)*)(?:-HOTFIX([0-9]+))?(?:-P([0-9]+))?", Pattern.CASE_INSENSITIVE);
 
     private final HudSettings settings;
+    private final HudSettings.Medium air;
     private final String version;
 
     public HudFormatter(HudSettings settings) {
@@ -27,6 +28,7 @@ public final class HudFormatter {
     /** @param pluginVersion the full plugin version, shown short through {version} */
     public HudFormatter(HudSettings settings, String pluginVersion) {
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.air = settings.air();
         this.version = shortVersion(pluginVersion);
     }
 
@@ -63,36 +65,57 @@ public final class HudFormatter {
         return String.format(Locale.US, "%.1f°C", (fahrenheit - 32.0) * 5.0 / 9.0);
     }
 
-    public HudSettings.Band band(double fahrenheit) {
-        if (fahrenheit < settings.cold().limitF()) return settings.cold();
-        if (fahrenheit < settings.cool().limitF()) return settings.cool();
-        if (fahrenheit > settings.hot().limitF()) return settings.hot();
-        if (fahrenheit > settings.warm().limitF()) return settings.warm();
-        return settings.comfortable();
+    /** The settings for the snapshot's medium: water readings use the water scale and wording. */
+    public HudSettings.Medium medium(ClimateSnapshot snapshot) {
+        return snapshot.water() ? settings.water() : air;
+    }
+
+    public HudSettings.Band band(double fahrenheit) { return band(fahrenheit, air); }
+
+    public HudSettings.Band band(double fahrenheit, HudSettings.Medium medium) {
+        if (fahrenheit < medium.cold().limitF()) return medium.cold();
+        if (fahrenheit < medium.cool().limitF()) return medium.cool();
+        if (fahrenheit > medium.hot().limitF()) return medium.hot();
+        if (fahrenheit > medium.warm().limitF()) return medium.warm();
+        return medium.comfortable();
+    }
+
+    public HudSettings.Band band(ClimateSnapshot snapshot) {
+        return band(snapshot.localF(), medium(snapshot));
     }
 
     /** 0 at the bar's cold end, 1 at its hot end, clamped. */
-    public double fraction(double fahrenheit) {
-        double value = (fahrenheit - settings.barColdF()) / (settings.barHotF() - settings.barColdF());
+    public double fraction(double fahrenheit) { return fraction(fahrenheit, air); }
+
+    public double fraction(double fahrenheit, HudSettings.Medium medium) {
+        double value = (fahrenheit - medium.barColdF()) / (medium.barHotF() - medium.barColdF());
         if (Double.isNaN(value)) return 0.0;
         return Math.max(0.0, Math.min(1.0, value));
     }
 
-    public int filledSegments(double fahrenheit) {
-        return (int) Math.round(fraction(fahrenheit) * settings.barLength());
+    public double fraction(ClimateSnapshot snapshot) { return fraction(snapshot.localF(), medium(snapshot)); }
+
+    private int filledSegments(double fahrenheit, HudSettings.Medium medium) {
+        return (int) Math.round(fraction(fahrenheit, medium) * settings.barLength());
     }
 
-    public String barPlain(double fahrenheit) {
-        int filled = filledSegments(fahrenheit);
+    public String barPlain(double fahrenheit) { return barPlain(fahrenheit, air); }
+
+    public String barPlain(ClimateSnapshot snapshot) { return barPlain(snapshot.localF(), medium(snapshot)); }
+
+    private String barPlain(double fahrenheit, HudSettings.Medium medium) {
+        int filled = filledSegments(fahrenheit, medium);
         return settings.barFilled().repeat(filled) + settings.barEmpty().repeat(settings.barLength() - filled);
     }
 
     /** The bar as MiniMessage: filled part in the comfort colour, the rest dimmed. */
-    public String barMini(double fahrenheit) {
-        int filled = filledSegments(fahrenheit);
+    public String barMini(double fahrenheit) { return barMini(fahrenheit, air); }
+
+    private String barMini(double fahrenheit, HudSettings.Medium medium) {
+        int filled = filledSegments(fahrenheit, medium);
         StringBuilder out = new StringBuilder();
         if (filled > 0)
-            out.append("<color:").append(band(fahrenheit).color()).append('>')
+            out.append("<color:").append(band(fahrenheit, medium).color()).append('>')
                     .append(escape(settings.barFilled().repeat(filled))).append("</color>");
         if (filled < settings.barLength())
             out.append("<color:").append(settings.barEmptyColor()).append('>')
@@ -101,12 +124,16 @@ public final class HudFormatter {
     }
 
     /** The bar with legacy section-sign colours, for placeholder consumers. */
-    public String barLegacy(double fahrenheit) {
-        return LegacyComponentSerializer.legacySection().serialize(MINI.deserialize(barMini(fahrenheit)));
+    public String barLegacy(double fahrenheit) { return legacy(barMini(fahrenheit, air)); }
+
+    public String barLegacy(ClimateSnapshot snapshot) { return legacy(barMini(snapshot.localF(), medium(snapshot))); }
+
+    private static String legacy(String mini) {
+        return LegacyComponentSerializer.legacySection().serialize(MINI.deserialize(mini));
     }
 
-    public String comfortMini(double fahrenheit) {
-        HudSettings.Band band = band(fahrenheit);
+    private String comfortMini(double fahrenheit, HudSettings.Medium medium) {
+        HudSettings.Band band = band(fahrenheit, medium);
         return "<color:" + band.color() + ">" + escape(band.label()) + "</color>";
     }
 
@@ -130,21 +157,22 @@ public final class HudFormatter {
         return Double.isNaN(snapshot.targetF()) ? settings.noneText() : temperature(snapshot.targetF());
     }
 
-    /** "Core", "62% leakage", or "Outside". */
+    /** Air: "Core", "62% leakage", "Outside". Water: "Core", "62% mixing", "Natural water". */
     public String zone(ClimateSnapshot snapshot) {
-        if (!snapshot.conditioned()) return "Outside";
+        if (!snapshot.conditioned()) return snapshot.water() ? "Natural water" : "Outside";
         if (snapshot.core()) return "Core";
-        return Math.round(snapshot.influence() * 100) + "% leakage";
+        return Math.round(snapshot.influence() * 100) + (snapshot.water() ? "% mixing" : "% leakage");
     }
 
     // ---- templates ----
 
     /** Replaces the tokens in a MiniMessage template. Plain values are escaped. */
     public String fill(String template, ClimateSnapshot snapshot) {
+        HudSettings.Medium medium = medium(snapshot);
         return template
                 .replace("{temp}", escape(temperature(snapshot.localF())))
-                .replace("{bar}", barMini(snapshot.localF()))
-                .replace("{comfort}", comfortMini(snapshot.localF()))
+                .replace("{bar}", barMini(snapshot.localF(), medium))
+                .replace("{comfort}", comfortMini(snapshot.localF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
                 .replace("{group}", escape(group(snapshot)))
                 .replace("{thermostat}", escape(thermostat(snapshot)))
@@ -162,11 +190,17 @@ public final class HudFormatter {
         return MINI.deserialize(settings.title().replace("{version}", escape(version)));
     }
 
-    public BossBar.Color bossBarColor(double fahrenheit) {
-        HudSettings.Band band = band(fahrenheit);
-        if (band == settings.cold() || band == settings.cool()) return BossBar.Color.BLUE;
-        if (band == settings.warm()) return BossBar.Color.YELLOW;
-        if (band == settings.hot()) return BossBar.Color.RED;
+    public BossBar.Color bossBarColor(double fahrenheit) { return bossBarColor(fahrenheit, air); }
+
+    public BossBar.Color bossBarColor(ClimateSnapshot snapshot) {
+        return bossBarColor(snapshot.localF(), medium(snapshot));
+    }
+
+    private BossBar.Color bossBarColor(double fahrenheit, HudSettings.Medium medium) {
+        HudSettings.Band band = band(fahrenheit, medium);
+        if (band == medium.cold() || band == medium.cool()) return BossBar.Color.BLUE;
+        if (band == medium.warm()) return BossBar.Color.YELLOW;
+        if (band == medium.hot()) return BossBar.Color.RED;
         return BossBar.Color.GREEN;
     }
 

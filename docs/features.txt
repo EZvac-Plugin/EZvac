@@ -1,4 +1,4 @@
-EZVAC ALPHA 1.8 FEATURES
+EZVAC ALPHA 1.9 FEATURES
 ========================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
@@ -14,18 +14,18 @@ SYSTEM MODEL
   that would make a pleasant room is cold to swim in and a hot tub would be
   unliveable as a room, so the two ranges overlap without either containing the
   other: rooms clamp to 60-85 F and pools to 75-104 F, both configurable.
-  A pool thermostat may only control a boiler system, which is what stops it
-  being used to heat a room to 104 F.
+  A pool thermostat may only control water-loop equipment (boilers and pool
+  heat pumps), which is what stops it being used to heat a room to 104 F.
 - A group may have one optional settings-panel sign. Without one, its operating
   profile is always NORMAL and matches the stock variable-speed behavior.
 - A group may contain any number of heat pumps, air conditioners, or furnaces.
-- Heat pumps cool and heat; air conditioners cool only; furnaces and boilers
-  heat only.
+- Heat pumps and pool heat pumps cool and heat; air conditioners cool only;
+  furnaces and boilers heat only.
 - Dispensers are authoritative actuators. Registered equipment cancels vanilla
   dispense behavior so inventory contents and redstone cannot fight the plugin.
 - Equipment does not consume buckets, fuel, water, power, or other resources.
-- Heat pumps, ACs, and boilers use water as their visible output. Furnaces
-  use lava.
+- Heat pumps, ACs, boilers, and pool heat pumps use water as their visible
+  output. Furnaces use lava.
 - Only the exact output source created and recorded by EZvac is retracted.
   Player fluid is never adopted merely because it is in front of a dispenser.
 - Shared output blocks have one deterministic winner. Losing units stop and
@@ -131,19 +131,27 @@ A system conditions either air or water, decided by the vent blocks it uses:
 - Iron trapdoors are air vents. They condition the room around them, and the
   system is fed by heat pumps, air conditioners, or furnaces.
 - Waxed copper grates are water vents. Placed in a body of water they condition
-  that water, and the system is fed by a boiler. Only the unweathered waxed
+  that water, and the system is fed by boilers and/or pool heat pumps. A pool
+  heat pump heats and cools like an air heat pump (variable speed, operating
+  profiles), so a pool can be cooled as well as heated. Only the unweathered waxed
   grate counts: waxed copper never oxidises, so a registered vent cannot change
   material on its own, and every vent in a build keeps one appearance.
   Scraping the wax off with an axe changes the block and unregisters the vent,
   the same as breaking it.
 - A system must be all air or all water. Linking a waxed copper grate to a
   system that already uses iron trapdoors is refused, and the reverse likewise.
-- Sources belong to a loop as well, and the two must agree. Boilers are the
-  water loop; heat pumps, air conditioners, and furnaces are the air loop.
-  Registering a boiler for a system that distributes through iron trapdoors is
-  refused, as is linking an iron trapdoor to a system powered by a boiler. A
-  boiler therefore never affects room climate, and a heat pump never
-  conditions a body of water.
+- Sources belong to a loop as well, and the two must agree. Boilers and pool
+  heat pumps are the water loop; heat pumps, air conditioners, and furnaces are
+  the air loop. Registering water-loop equipment for a system that distributes
+  through iron trapdoors is refused, as is linking an iron trapdoor to a system
+  powered by water-loop equipment. Water-loop equipment therefore never affects
+  room climate, and an air heat pump never conditions a body of water.
+- Water keeps its own temperature. Water no pool system reaches - lakes, the
+  sea, an unheated pool - reads the biome's natural water temperature: the
+  biome's daily mean pulled toward mild values, with no day/night swing and
+  never below 33 F. Readings at the edge of a pool blend toward that natural
+  water, not toward the air, and an idle pool drifts toward it the way an idle
+  room drifts toward the outdoor air.
 - Everything else is identical between the two. Water bodies behave exactly
   like rooms: the same thermostat, the same hysteresis and minimum run and off
   timers, the same capacity from multiple units, the same distance falloff from
@@ -157,6 +165,7 @@ A system conditions either air or water, decided by the vent blocks it uses:
 - Passable blocks carry air.
 - Liquids and solid blocks stop air.
 - Open doors/trapdoors pass air; closed ones stop it.
+- Carpets (wool and moss) pass air: a carpeted floor is still part of the room.
 - Core distance 0-15 receives full thermostat temperature.
 - Distance 16-30 blends progressively back to outdoor temperature.
 - Beyond distance 30 there is no influence.
@@ -234,6 +243,14 @@ CLIMATE HUD AND PLACEHOLDERS
 - With PlaceholderAPI installed, %ezvac_temp%, %ezvac_bar%, %ezvac_group% and
   the rest expose the same values to other plugins. Without it, EZvac logs one
   line saying what installing it would add.
+- In water the HUD uses its own layout and scale (hud.water): Water, Air, Pool
+  and Circulation lines, a 60-104 F bar, and pool comfort bands where 78-86 F is
+  comfortable and above 95 F is a hot tub. It reads at the player's eyes when
+  submerged and at the feet otherwise, so swimming at the surface and wading
+  count as being in the water. %ezvac_medium% reports air or water.
+- In air, a player's climate is read at head height, falling back to the feet.
+  Standing on a carpet, slab, stairs, or snow puts the feet inside that block,
+  and the reading used to show the outdoor temperature there.
 - Values come from one snapshot per player, refreshed on the main thread every
   hud.update-ticks (default 10). Placeholder requests from any thread only read
   that snapshot, so frequently refreshing HUD plugins add no extra lookups.

@@ -14,14 +14,15 @@ package com.github.blade.hvac.hud;
  * @param mode         thermostat mode (COOLING, HEATING, IDLE), or null
  * @param targetF      thermostat target, or NaN when there is none
  * @param core         true inside the full-strength core range
+ * @param water        true when the player is in water; localF is then the water temperature
  */
 public record ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
                               String group, String thermostat, String mode, double targetF,
-                              boolean core) {
+                              boolean core, boolean water) {
     public boolean conditioned() { return group != null && thermostat != null && influence > 0.0; }
 
     /** A spot no system reaches: the local temperature is simply the outdoor one. */
     public static ClimateSnapshot outdoors(double outdoorF) {
-        return new ClimateSnapshot(outdoorF, outdoorF, 0.0, -1, null, null, null, Double.NaN, false);
+        return new ClimateSnapshot(outdoorF, outdoorF, 0.0, -1, null, null, null, Double.NaN, false, false);
     }
 }

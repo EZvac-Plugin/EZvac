@@ -56,6 +56,23 @@ class HudSettingsTest {
     }
 
     @Test
+    void theWaterMediumHasItsOwnDefaultsAndLoadsOverrides() {
+        HudSettings.Medium water = HudSettings.defaults().water();
+        assertEquals("Hot tub", water.hot().label());
+        assertEquals(95.0, water.hot().limitF());
+        assertEquals(60.0, water.barColdF());
+        assertTrue(water.sidebarLines().get(0).contains("Water"));
+
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.water.comfort.hot.above-f", 100.0);
+        config.set("hud.water.sidebar.lines", List.of("{temp}"));
+        HudSettings loaded = HudSettings.load(config);
+        assertEquals(100.0, loaded.water().hot().limitF());
+        assertEquals(List.of("{temp}"), loaded.water().sidebarLines());
+        assertEquals(HudSettings.defaults().sidebarLines(), loaded.sidebarLines(), "air is untouched");
+    }
+
+    @Test
     void invalidValuesAreRejectedWithTheirKey() {
         assertRejected("hud.style", "sideways", "hud.style");
         assertRejected("hud.units", "K", "hud.units");
@@ -66,6 +83,8 @@ class HudSettingsTest {
         assertRejected("hud.comfort.warm.above-f", 50.0, "hud.comfort");
         assertRejected("hud.sidebar.lines", List.of(), "hud.sidebar.lines");
         assertRejected("hud.sidebar.lines", java.util.Collections.nCopies(16, "x"), "hud.sidebar.lines");
+        assertRejected("hud.water.bar.hot-f", 10.0, "cold-f must be below hot-f");
+        assertRejected("hud.water.comfort.warm.above-f", 20.0, "hud comfort limits");
     }
 
     private static void assertRejected(String key, Object value, String messagePart) {

@@ -119,7 +119,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void create(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
-                    + "|furnace|boiler|thermometer|rpmmonitor|settingspanel> ..."));
+                    + "|furnace|boiler|poolheatpump|thermometer|rpmmonitor|settingspanel> ..."));
             return;
         }
         Block block = target(player);
@@ -137,8 +137,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 // heat a room to 104 F by pointing one at heat pumps.
                 if (registry.hasEquipmentOfLoop(target0, !pool))
                     throw new IllegalArgumentException("System '" + target0.label() + "' is powered by "
-                            + (pool ? "air-loop equipment; a pool thermostat needs boilers"
-                                    : "boilers; use /hvac create poolthermostat") + ".");
+                            + (pool ? "air-loop equipment; a pool thermostat needs a boiler or pool heat pump"
+                                    : "water-loop equipment; use /hvac create poolthermostat") + ".");
                 double target = args.length >= 5 ? finiteDouble(args[4], "target temperature")
                         : (pool ? 82.0 : 72.0);
                 Thermostat thermostat = new Thermostat(position, args[2], args[3], target,
@@ -156,6 +156,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     createEquipment(player, block, args, EquipmentType.AIR_CONDITIONER);
             case "furnace" -> createEquipment(player, block, args, EquipmentType.FURNACE);
             case "boiler" -> createEquipment(player, block, args, EquipmentType.BOILER);
+            case "poolheatpump", "pool_heat_pump", "poolhp" ->
+                    createEquipment(player, block, args, EquipmentType.POOL_HEAT_PUMP);
             case "thermometer" -> {
                 requireSign(block);
                 String displayLabel = args.length >= 3 ? args[2] : "Thermometer";
@@ -165,7 +167,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
             case "rpmmonitor", "rpm" -> {
                 if (args.length < 4) throw new IllegalArgumentException(
-                        "Usage: /hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler> [label]");
+                        "Usage: /hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler|poolheatpump> [label]");
                 requireSign(block);
                 GroupId group = new GroupId(block.getWorld().getUID(), args[2]);
                 EquipmentType type = parseEquipmentType(args[3]);
@@ -208,8 +210,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Thermostat controller = registry.thermostatFor(target);
         if (controller != null && controller.pool() != type.waterLoop())
             throw new IllegalArgumentException("System '" + target.label() + "' is controlled by a "
-                    + (controller.pool() ? "pool thermostat, which needs a boiler"
-                                         : "room thermostat, which cannot use a boiler") + ".");
+                    + (controller.pool() ? "pool thermostat, which needs a boiler or pool heat pump"
+                                         : "room thermostat, which cannot use water-loop equipment") + ".");
         if (registry.hasVentOfMedium(target, !type.waterLoop()))
             throw new IllegalArgumentException(type.displayName() + " is a "
                     + (type.waterLoop() ? "water" : "air") + " source, but system '"
@@ -308,15 +310,19 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private void temperature(Player player) {
-        AirflowService.TemperatureReading reading = airflow.temperatureAt(player.getLocation());
-        player.sendMessage(join(gold("Temperature"), gray(" | Here: "),
-                white(String.format(Locale.US, "%.1f F", reading.localF())), gray(" | Outside: "),
+        AirflowService.TemperatureReading reading =
+                airflow.temperatureForBody(player.getLocation(), player.getEyeLocation());
+        boolean water = reading.water();
+        player.sendMessage(join(gold("Temperature"), gray(water ? " | Water: " : " | Here: "),
+                white(String.format(Locale.US, "%.1f F", reading.localF())),
+                gray(water ? " | Air: " : " | Outside: "),
                 white(String.format(Locale.US, "%.1f F", reading.outdoorF()))));
         if (!reading.conditioned()) {
-            player.sendMessage(gray("No completed linked-vent path reaches this block."));
+            player.sendMessage(gray(water ? "Natural water: no pool system reaches this block."
+                    : "No completed linked-vent path reaches this block."));
         } else {
             String zone = reading.airflowDistance() <= settings.airflowCoreRange()
-                    ? "core" : Math.round(reading.influence() * 100) + "% leakage";
+                    ? "core" : Math.round(reading.influence() * 100) + (water ? "% mixing" : "% leakage");
             player.sendMessage(join(gray("Group: "), white(reading.group().label()), gray(" | Path: "),
                     white(reading.airflowDistance() + " blocks"), gray(" | Zone: "), white(zone)));
         }
@@ -462,7 +468,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (registry.hasEquipmentOfLoop(group, !water)) {
             player.sendMessage(red("System '" + group.label() + "' is powered by "
                     + (water ? "air-loop equipment, which cannot condition water"
-                             : "a boiler, which cannot condition air") + "."));
+                             : "water-loop equipment, which cannot condition air") + "."));
             return;
         }
         if (registry.hasVentOfMedium(group, !water)) {
@@ -533,8 +539,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "ac", "airconditioner", "air_conditioner" -> EquipmentType.AIR_CONDITIONER;
             case "furnace" -> EquipmentType.FURNACE;
             case "boiler" -> EquipmentType.BOILER;
+            case "poolheatpump", "pool_heat_pump", "poolhp" -> EquipmentType.POOL_HEAT_PUMP;
             default -> throw new IllegalArgumentException(
-                    "equipment type must be heatpump, ac, furnace, or boiler");
+                    "equipment type must be heatpump, ac, furnace, boiler, or poolheatpump");
         };
     }
 
@@ -553,6 +560,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (!sender.hasPermission(ADMIN_PERMISSION)) return;
         sender.sendMessage(join(aqua("/hvac create thermostat <id> <group> [target]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace <group>"), gray(" - register a dispenser")));
+        sender.sendMessage(join(aqua("/hvac create boiler|poolheatpump <group>"), gray(" - register a pool source")));
         sender.sendMessage(join(aqua("/hvac create thermometer [label]"), gray(" - register a point-sensor sign")));
         sender.sendMessage(join(aqua("/hvac create rpmmonitor <group> <type> [label]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create settingspanel <group> [label]"), gray(" - register profile controls")));
@@ -569,7 +577,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
-                        "ac", "furnace", "boiler", "thermometer", "rpmmonitor", "settingspanel");
+                        "ac", "furnace", "boiler", "poolheatpump", "thermometer", "rpmmonitor", "settingspanel");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
                 case "hud" -> filter(args[1], "on", "off");
@@ -582,7 +590,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length == 3 && args[0].equalsIgnoreCase("group"))
             return filter(args[2], "enable", "disable", "info");
         if (args.length == 4 && args[0].equalsIgnoreCase("create") && args[1].equalsIgnoreCase("rpmmonitor"))
-            return filter(args[3], "heatpump", "ac", "furnace", "boiler");
+            return filter(args[3], "heatpump", "ac", "furnace", "boiler", "poolheatpump");
         return List.of();
     }
 
