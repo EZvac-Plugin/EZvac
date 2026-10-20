@@ -14,7 +14,7 @@ public final class PlaceholderResolver {
     public static final List<String> KEYS = List.of(
             "temp", "temp_f", "temp_c", "outdoor", "outdoor_f", "outdoor_c",
             "bar", "bar_plain", "comfort", "group", "thermostat", "mode", "target",
-            "influence", "zone", "conditioned");
+            "influence", "zone", "conditioned", "medium");
 
     private final HudFormatter format;
 
@@ -38,9 +38,9 @@ public final class PlaceholderResolver {
             case "outdoor" -> format.temperature(snapshot.outdoorF());
             case "outdoor_f" -> HudFormatter.fahrenheit(snapshot.outdoorF());
             case "outdoor_c" -> HudFormatter.celsius(snapshot.outdoorF());
-            case "bar" -> format.barLegacy(snapshot.localF());
-            case "bar_plain" -> format.barPlain(snapshot.localF());
-            case "comfort" -> format.band(snapshot.localF()).label();
+            case "bar" -> format.barLegacy(snapshot);
+            case "bar_plain" -> format.barPlain(snapshot);
+            case "comfort" -> format.band(snapshot).label();
             case "group" -> format.group(snapshot);
             case "thermostat" -> format.thermostat(snapshot);
             case "mode" -> format.mode(snapshot);
@@ -48,6 +48,7 @@ public final class PlaceholderResolver {
             case "influence" -> Long.toString(Math.round(snapshot.influence() * 100));
             case "zone" -> format.zone(snapshot);
             case "conditioned" -> Boolean.toString(snapshot.conditioned());
+            case "medium" -> snapshot.water() ? "water" : "air";
             default -> null;
         };
     }

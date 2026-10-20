@@ -1,4 +1,4 @@
-EZVAC ALPHA 1.8 - COMMAND REFERENCE
+EZVAC ALPHA 1.9 - COMMAND REFERENCE
 ===================================
 
 All commands use /hvac. /climate is an alias.
@@ -13,7 +13,8 @@ BASIC COMMANDS (ezvac.use)
 /hvac temperature
 /hvac temp
   Reports local temperature, outdoor temperature, the influencing vent group,
-  airflow-path distance, and core/leakage status.
+  airflow-path distance, and core/leakage status. In water it reports the water
+  temperature (natural water where no pool system reaches) and the air above.
 
 /hvac hud [on|off]
   Shows or hides the on-screen climate HUD for yourself (ezvac.hud). With no
@@ -43,19 +44,25 @@ CREATE DEVICES (ezvac.admin)
 /hvac create poolthermostat <id> <group> [targetF]
   Registers the targeted sign as a pool thermostat: identical to a thermostat
   except that it clamps to the water target range (75-104 F by default) and may
-  only control a system powered by boilers. Defaults to 82 F.
+  only control a system powered by water-loop equipment (boilers and pool heat
+  pumps). Defaults to 82 F.
   "pool" works as a shorthand for "poolthermostat".
 
 /hvac create boiler <group>
   Registers the targeted dispenser as a boiler: a heating-only water-loop
   source for a system whose vents are waxed copper grates placed in water.
+
+/hvac create poolheatpump <group>
+  Registers the targeted dispenser as a pool heat pump: a variable-speed
+  water-loop source that heats and cools, so a pool can be cooled as well as
+  heated. It can share a system with a boiler. "poolhp" is a shorthand.
   Look at a dispenser. Registers typed equipment in the specified group.
 
 /hvac create thermometer [label]
   Look at a sign. Creates an independent point sensor at that block. It needs no
   group and may be placed outdoors; its reading matches /hvac temperature there.
 
-/hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler> [label]
+/hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler|poolheatpump> [label]
   Look at a sign. Matching typed equipment must already exist in the group.
 
 /hvac create settingspanel <group> [label]
@@ -128,8 +135,8 @@ The selected group must still contain equipment when a vent is linked.
 A system is all air or all water, and its equipment must match. Linking a
 waxed copper grate to a system that uses iron trapdoors is refused, as is
 linking either kind to a system whose equipment belongs to the other loop:
-boilers are the water loop, and heat pumps, air conditioners, and furnaces
-are the air loop.
+boilers and pool heat pumps are the water loop, and heat pumps, air
+conditioners, and furnaces are the air loop.
 
 
 REMOVAL AND DIAGNOSTICS (ezvac.admin)
@@ -152,7 +159,7 @@ INSTALL / UPGRADE
 -----------------
 
 1. Stop the server and back up the existing plugins/EZvac directory, if present.
-2. Put EzVac-ALPHA-1.8.jar in the server plugins directory.
+2. Put EzVac-ALPHA-1.9.jar in the server plugins directory.
 3. Start Paper 1.21.1 (or Purpur) on Java 21.
 4. Confirm that EZvac enables without errors.
 5. Use /hvac stats and /hvac list, then test one full heating and cooling cycle.

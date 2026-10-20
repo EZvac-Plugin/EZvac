@@ -138,15 +138,16 @@ public final class ClimateHudService implements Listener {
     }
 
     private ClimateSnapshot capture(Player player) {
-        AirflowService.TemperatureReading reading = airflow.temperatureAt(player.getLocation());
+        AirflowService.TemperatureReading reading =
+                airflow.temperatureForBody(player.getLocation(), player.getEyeLocation());
         Thermostat thermostat = reading.thermostat();
         if (reading.group() == null || thermostat == null)
             return new ClimateSnapshot(reading.localF(), reading.outdoorF(), 0.0, reading.airflowDistance(),
-                    null, null, null, Double.NaN, false);
+                    null, null, null, Double.NaN, false, reading.water());
         return new ClimateSnapshot(reading.localF(), reading.outdoorF(), reading.influence(),
                 reading.airflowDistance(), reading.group().label(), thermostat.id(),
                 thermostat.mode().name(), thermostat.targetF(),
-                reading.influence() >= 1.0);
+                reading.influence() >= 1.0, reading.water());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

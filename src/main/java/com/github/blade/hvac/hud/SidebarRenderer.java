@@ -104,11 +104,17 @@ public final class SidebarRenderer implements HudRenderer {
     }
 
     private void update(Board board, ClimateSnapshot snapshot) {
-        List<String> templates = format.settings().sidebarLines();
+        List<String> templates = format.medium(snapshot).sidebarLines();
         int count = Math.min(MAX_LINES, templates.size());
+        // Air and water layouts may have different line counts: drop the extras.
+        while (board.lines.size() > count) {
+            board.scoreboard.resetScores(entry(board.lines.size() - 1));
+            board.lines.remove(board.lines.size() - 1);
+        }
         for (int i = 0; i < count; i++) {
             Component line = format.render(templates.get(i), snapshot);
-            if (i < board.lines.size() && board.lines.get(i).equals(line)) continue;
+            if (i < board.lines.size() && board.lines.get(i).equals(line)
+                    && board.objective.getScore(entry(i)).getScore() == count - i) continue;
             // Higher scores sit higher on the sidebar; the entry names are never shown.
             Score score = board.objective.getScore(entry(i));
             score.setScore(count - i);

@@ -16,7 +16,7 @@ class HudFormatterTest {
     }
 
     private static ClimateSnapshot cooled(double localF) {
-        return new ClimateSnapshot(localF, 88.0, 0.6, 21, "house", "main", "COOLING", 70.0, false);
+        return new ClimateSnapshot(localF, 88.0, 0.6, 21, "house", "main", "COOLING", 70.0, false, false);
     }
 
     @Test
@@ -77,7 +77,7 @@ class HudFormatterTest {
 
     @Test
     void coreAndIdleRenderPlainly() {
-        ClimateSnapshot idleCore = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "house", "main", "IDLE", 70.0, true);
+        ClimateSnapshot idleCore = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "house", "main", "IDLE", 70.0, true, false);
         assertEquals("Idle|Core", plain(format.render("{mode}|{zone}", idleCore)));
     }
 
@@ -101,8 +101,33 @@ class HudFormatterTest {
     }
 
     @Test
+    void waterUsesItsOwnScaleAndWording() {
+        ClimateSnapshot pool = new ClimateSnapshot(84.0, 90.0, 0.4, 20, "pool", "spa", "HEATING", 84.0, false, true);
+        assertEquals("Comfortable", format.band(pool).label(), "84 F is a pleasant pool");
+        assertEquals("Warm", format.band(84.0).label(), "but a warm room");
+        assertEquals("Water: 84.0°F|Air: 90.0°F|Pool: pool|Circulation: 40% mixing",
+                plain(format.render("<gray>Water: {temp}|Air: {outdoor}|Pool: {group}|Circulation: {zone}", pool)));
+        assertEquals(BossBar.Color.GREEN, format.bossBarColor(pool));
+        ClimateSnapshot hotTub = new ClimateSnapshot(102.0, 70.0, 1.0, 2, "spa", "spa", "IDLE", 102.0, true, true);
+        assertEquals("Hot tub", format.band(hotTub).label());
+        ClimateSnapshot lake = new ClimateSnapshot(61.0, 72.0, 0.0, -1, null, null, null, Double.NaN, false, true);
+        assertEquals("Natural water", format.zone(lake));
+        assertEquals("Cold", format.band(lake).label());
+        assertEquals(HudSettings.defaults().water().sidebarLines(), format.medium(pool).sidebarLines());
+        assertEquals(HudSettings.defaults().sidebarLines(), format.medium(cooled(70)).sidebarLines());
+    }
+
+    @Test
+    void theWaterBarSpansThePoolRange() {
+        ClimateSnapshot cold = new ClimateSnapshot(60.0, 70.0, 0, -1, null, null, null, Double.NaN, false, true);
+        ClimateSnapshot hot = new ClimateSnapshot(104.0, 70.0, 0, -1, null, null, null, Double.NaN, false, true);
+        assertEquals("▯▯▯▯▯▯▯▯▯▯", format.barPlain(cold));
+        assertEquals("▮▮▮▮▮▮▮▮▮▮", format.barPlain(hot));
+    }
+
+    @Test
     void valuesCannotInjectFormatting() {
-        ClimateSnapshot sneaky = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "<red>evil", "main", "IDLE", 70.0, true);
+        ClimateSnapshot sneaky = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "<red>evil", "main", "IDLE", 70.0, true, false);
         assertEquals("<red>evil", plain(format.render("{group}", sneaky)));
     }
 }

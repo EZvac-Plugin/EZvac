@@ -13,12 +13,12 @@ or **water**, so the same simulation heats a room or a swimming pool.
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 1.8 adds an on-screen **climate HUD**
-> (`/hvac hud`): the temperature where you stand, a cold-to-hot bar, and the
-> system conditioning that spot, as a scoreboard sidebar, action bar, or boss
-> bar. With PlaceholderAPI installed, the same values are available as
-> `%ezvac_*%` placeholders. No save-file changes; a drop-in upgrade from any
-> earlier release. See [Climate HUD and placeholders](#climate-hud-and-placeholders).
+> **Release status:** EZvac ALPHA 1.9 adds **pool heat pumps** (heat *and*
+> cool a pool, alone or alongside a boiler) and makes water read like water:
+> the climate HUD switches to a water layout and pool comfort scale, lakes and
+> the sea read the biome's natural water temperature, and idle pools drift
+> toward it. No save-file changes; a drop-in upgrade from any earlier release.
+> See [Climate HUD and placeholders](#climate-hud-and-placeholders).
 
 ## Requirements
 
@@ -35,7 +35,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-1.8.jar
+target/EzVac-ALPHA-1.9.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -45,7 +45,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-1.8.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-1.9.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -65,11 +65,14 @@ release changes the save format, it first keeps the original as
 
 - **Thermostat:** One sign controller per world-scoped HVAC group, 60-85 F.
 - **Pool thermostat:** The same sign for water systems, 75-104 F. Only controls
-  boiler systems, so it cannot be used to overheat a room.
+  water-loop equipment (boilers and pool heat pumps), so it cannot be used to
+  overheat a room.
 - **Heat pump:** Dispenser-backed variable-speed cooling and heating.
 - **Air conditioner:** Dispenser-backed variable-speed cooling.
 - **Furnace:** Dispenser-backed fixed-capacity heating.
-- **Boiler:** Dispenser-backed fixed-capacity heating for water systems.
+- **Boiler:** Dispenser-backed heating for water systems.
+- **Pool heat pump:** Dispenser-backed variable-speed heating *and* cooling for
+  water systems. It can share a pool system with a boiler.
 - **Vent:** Explicitly linked iron trapdoor that seeds duct airflow.
 - **Water vent:** Explicitly linked waxed copper grate that conditions a body
   of water. A system is all air or all water; water bodies behave exactly like
@@ -157,9 +160,16 @@ plugins as placeholders:
 | `%ezvac_group%`, `%ezvac_thermostat%` | `house`, `main` |
 | `%ezvac_mode%`, `%ezvac_target%` | `Cooling to 70.0°F`, `70.0°F` |
 | `%ezvac_zone%`, `%ezvac_influence%`, `%ezvac_conditioned%` | `Core`, `100`, `true` |
+| `%ezvac_medium%` | `air` or `water` |
+
+In water the HUD switches to water readings: `Water`, `Pool` and `Circulation`
+lines, a pool comfort scale (84 °F is a pleasant swim; above 95 °F is a hot
+tub), and `%ezvac_medium%` reports `water`. Water no pool system reaches,
+such as lakes and the sea, reads the biome's natural water temperature: steady,
+with no day/night swing.
 
 Text, colours, bar length and range, comfort bands, and units (°F or °C) are
-all configurable under `hud:` in `config.yml`.
+all configurable under `hud:` (and `hud.water:`) in `config.yml`.
 
 ## Documentation
 

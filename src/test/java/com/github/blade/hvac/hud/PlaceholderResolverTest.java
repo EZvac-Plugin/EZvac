@@ -11,7 +11,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlaceholderResolverTest {
     private final PlaceholderResolver resolver = new PlaceholderResolver(new HudFormatter(HudSettings.defaults()));
     private final ClimateSnapshot cooled =
-            new ClimateSnapshot(72.5, 88.0, 0.6, 21, "house", "main", "COOLING", 70.0, false);
+            new ClimateSnapshot(72.5, 88.0, 0.6, 21, "house", "main", "COOLING", 70.0, false, false);
 
     @Test
     void everyKeyResolves() {
@@ -22,7 +22,7 @@ class PlaceholderResolverTest {
                 Map.entry("comfort", "Comfortable"), Map.entry("group", "house"),
                 Map.entry("thermostat", "main"), Map.entry("mode", "Cooling to 70.0°F"),
                 Map.entry("target", "70.0°F"), Map.entry("influence", "60"),
-                Map.entry("zone", "60% leakage"), Map.entry("conditioned", "true")));
+                Map.entry("zone", "60% leakage"), Map.entry("conditioned", "true"), Map.entry("medium", "air")));
         for (String key : PlaceholderResolver.KEYS) {
             String value = resolver.resolve(cooled, key);
             assertNotNull(value, key);
@@ -46,6 +46,14 @@ class PlaceholderResolverTest {
     void aPlayerWithoutASnapshotYetGetsTheNoneText() {
         assertEquals("none", resolver.resolve(null, "temp"));
         assertNull(resolver.resolve(null, "nonsense"));
+    }
+
+    @Test
+    void waterReadingsReportTheirMedium() {
+        ClimateSnapshot pool = new ClimateSnapshot(84.0, 90.0, 1.0, 2, "pool", "spa", "HEATING", 84.0, true, true);
+        assertEquals("water", resolver.resolve(pool, "medium"));
+        assertEquals("Comfortable", resolver.resolve(pool, "comfort"));
+        assertEquals("Core", resolver.resolve(pool, "zone"));
     }
 
     @Test

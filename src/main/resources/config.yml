@@ -99,3 +99,30 @@ hud:
     comfortable: { label: Comfortable, color: "#6ee07a" }
     warm: { above-f: 78.0, label: Warm, color: "#ffb347" }
     hot: { above-f: 86.0, label: Hot, color: "#ff5c5c" }
+  # Shown instead of the settings above while the player is in water. A pool
+  # has its own scale: 84 F is a pleasant swim, and above 95 F it's a hot tub.
+  # Unconditioned water reads the biome's natural water temperature.
+  water:
+    sidebar:
+      lines:
+        - "<gray>Water: <white>{temp}"
+        - "{bar} {comfort}"
+        - "<gray>Air: <white>{outdoor}"
+        - ""
+        - "<gray>Pool: <white>{group}"
+        - "<gray>Mode: <white>{mode}"
+        - "<gray>Circulation: <white>{zone}"
+        - "<dark_gray><font:uniform>Version: {version}</font>"
+    actionbar:
+      format: "<aqua>Water</aqua> <white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{group}"
+    bossbar:
+      format: "<aqua>Water</aqua> <white>{temp}</white> <gray>-</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}"
+    bar:
+      cold-f: 60.0
+      hot-f: 104.0
+    comfort:
+      cold: { below-f: 70.0, label: Cold, color: "#5ab0ff" }
+      cool: { below-f: 78.0, label: Cool, color: "#8fd3ff" }
+      comfortable: { label: Comfortable, color: "#6ee07a" }
+      warm: { above-f: 86.0, label: Warm, color: "#ffb347" }
+      hot: { above-f: 95.0, label: Hot tub, color: "#ff5c5c" }

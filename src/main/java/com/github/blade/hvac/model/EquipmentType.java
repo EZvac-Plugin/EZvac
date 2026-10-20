@@ -13,7 +13,13 @@ public enum EquipmentType {
      * that sit in water rather than in air. Like every source it is unaware of
      * what it is heating; the vents decide that.
      */
-    BOILER(false, true, Material.WATER, "Boiler", true);
+    BOILER(false, true, Material.WATER, "Boiler", true),
+    /**
+     * Water-loop heat pump: heats and cools a body of water, variable speed
+     * like an air heat pump. It can share a pool system with a boiler, the way
+     * a heat pump and a furnace share a house.
+     */
+    POOL_HEAT_PUMP(true, true, Material.WATER, "Pool heat pump", true);
 
     private final boolean cooling;
     private final boolean heating;

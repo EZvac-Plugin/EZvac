@@ -18,9 +18,9 @@ public final class BossBarRenderer implements HudRenderer {
 
     @Override
     public void render(Player player, ClimateSnapshot snapshot) {
-        float progress = (float) format.fraction(snapshot.localF());
-        BossBar.Color color = format.bossBarColor(snapshot.localF());
-        var name = format.render(format.settings().bossBarFormat(), snapshot);
+        float progress = (float) format.fraction(snapshot);
+        BossBar.Color color = format.bossBarColor(snapshot);
+        var name = format.render(format.medium(snapshot).bossBarFormat(), snapshot);
         BossBar bar = bars.get(player.getUniqueId());
         if (bar == null) {
             bar = BossBar.bossBar(name, progress, color, BossBar.Overlay.NOTCHED_10);

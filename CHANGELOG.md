@@ -2,6 +2,52 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 1.9
+
+Pools get a heat pump of their own, and water now reads like water. No
+save-file changes (still format 5), so this is a drop-in upgrade.
+
+### Added
+
+- **Pool heat pump.** `/hvac create poolheatpump <group>` registers a
+  water-loop heat pump: variable speed, ECO/NORMAL/TURBO profiles, and it heats
+  *and* cools, so a pool can now be cooled as well as heated. It uses the pool
+  target range, links only to waxed copper grates and pool thermostats, and can
+  share a system with a boiler (the boiler adds steady heat, the heat pump
+  modulates). RPM monitors accept `poolheatpump`.
+- **Water-aware HUD.** In water the HUD switches to its own layout (`Water`,
+  `Air`, `Pool`, `Circulation`) and its own comfort scale: 78-86 F is a
+  comfortable swim and above 95 F is a hot tub, where the room scale would call
+  84 F warm. It reads at your eyes when submerged and at your feet otherwise,
+  so surface swimming and wading count. Configurable under `hud.water`; new
+  placeholder `%ezvac_medium%` (`air` or `water`).
+- **Natural water temperature.** Water no pool system reaches - lakes, the sea,
+  an unheated pool - reads the biome's natural water temperature instead of the
+  air's: the biome's daily mean pulled toward mild values, steady through the
+  day, and never below 33 F.
+
+### Changed
+
+- **Pools drift toward natural water, not the air.** An idle pool on a pool
+  thermostat now cools (or warms) toward its biome's natural water temperature,
+  and readings at a pool's edge blend toward it, instead of toward the outdoor
+  air. A heated desert pool left alone cools toward about 84 F rather than
+  staying at the 100 F noon air. Pools still on a room thermostat (from
+  ALPHA 1.6 Pilot 1) keep the air behaviour.
+- `/hvac temperature` reports water and air separately when you are in water.
+
+### Fixed
+
+- **Carpets let air through.** A carpet has a sliver of collision, so EZvac
+  treated it as solid: a carpeted floor left a hole in the airflow exactly where
+  players stand, and the HUD showed the outdoor temperature at your feet while
+  your head was in the conditioned room. Wool and moss carpets now pass air.
+- **Player readings use head height.** Standing on a bottom slab, stairs, or a
+  snow layer had the same effect, because your feet are inside that block. The
+  HUD, placeholders and `/hvac temperature` now read at head height in air and
+  fall back to your feet.
+- Messages that named only boilers now name all water-loop equipment.
+
 ## ALPHA 1.8
 
 The climate where you stand, always on screen. No changes to the save file

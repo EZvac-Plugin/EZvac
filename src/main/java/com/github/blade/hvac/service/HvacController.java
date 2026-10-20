@@ -130,7 +130,7 @@ public final class HvacController {
                                   long elapsedTicks, Set<BlockKey> managedOutputs) {
         boolean authoritative = registry.thermostatFor(thermostat.group()) == thermostat;
         boolean controllerLoaded = authoritative && isControllerLoaded(thermostat);
-        double outside = outdoor.temperatureFor(thermostat);
+        double outside = outdoor.driftBaselineFor(thermostat);
         OperatingMode intervalMode = controllerLoaded && thermostat.enabled()
                 ? thermostat.mode() : OperatingMode.IDLE;
         double capacity = intervalMode == OperatingMode.IDLE ? 0.0

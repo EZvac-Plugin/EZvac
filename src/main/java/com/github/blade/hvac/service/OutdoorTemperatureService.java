@@ -53,6 +53,28 @@ public final class OutdoorTemperatureService {
         return value;
     }
 
+    /**
+     * What a thermostat's space drifts toward when nothing conditions it: the
+     * outdoor air for a room, the biome's natural water for a pool. A heated
+     * pool left alone cools toward lake temperature, not toward a hot noon.
+     */
+    public double driftBaselineFor(Thermostat thermostat) {
+        return thermostat.pool() ? naturalWaterFor(thermostat) : temperatureFor(thermostat);
+    }
+
+    /** Natural water temperature at a thermostat's biome, refreshing its cached profile like temperatureFor. */
+    public double naturalWaterFor(Thermostat thermostat) {
+        temperatureFor(thermostat);
+        return ThermalModel.naturalWaterTemperature(thermostat.outdoorNoonF(), thermostat.outdoorMidnightF());
+    }
+
+    /** Natural water temperature at a location: steady, with no day/night swing. */
+    public double naturalWaterAt(Location location) {
+        if (location == null || location.getWorld() == null) return 60.0;
+        Profile profile = cachedProfile(location.getBlock().getBiome());
+        return ThermalModel.naturalWaterTemperature(profile.noon, profile.midnight);
+    }
+
     public double temperatureAt(Location location) {
         if (location == null || location.getWorld() == null) return 70.0;
         Profile profile = cachedProfile(location.getBlock().getBiome());
