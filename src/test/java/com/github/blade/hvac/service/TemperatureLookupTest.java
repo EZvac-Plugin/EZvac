@@ -82,6 +82,29 @@ class TemperatureLookupTest {
     }
 
     @Test
+    void packedPositionsUnpackForEvaporationSampling() {
+        for (int[] p : new int[][] {{0, 0, 0}, {-1, -64, -1}, {12_345, 319, -98_765}, {-30_000_000, -2_048, 29_999_999}}) {
+            long key = AirflowService.pack(p[0], p[1], p[2]);
+            assertEquals(p[0], AirflowService.unpackX(key));
+            assertEquals(p[1], AirflowService.unpackY(key));
+            assertEquals(p[2], AirflowService.unpackZ(key));
+        }
+        assertEquals(0.05, new AirflowService.WaterExposure(500, new long[25]).wetFraction(), 1e-12);
+        assertEquals(0.0, AirflowService.WaterExposure.NONE.wetFraction());
+    }
+
+    @Test
+    void aHeatPumpsOwnWaterOutputIsNotAPool() {
+        long output = AirflowService.pack(10, 64, 5);
+        long pool = AirflowService.pack(3, 63, 3);
+        AirflowService.WaterExposure exposure = new AirflowService.WaterExposure(400, new long[]{output, pool});
+        AirflowService.WaterExposure real = exposure.excluding(WORLD, Set.of(new BlockKey(WORLD, 10, 64, 5)));
+        assertArrayEquals(new long[]{pool}, real.waterCells());
+        assertSame(exposure, exposure.excluding(WORLD, Set.of()), "nothing to exclude, nothing copied");
+        assertSame(exposure, exposure.excluding(WORLD, Set.of(new BlockKey(OTHER, 10, 64, 5))), "an output in another world is not this one");
+    }
+
+    @Test
     void aWorldWithoutVentsHasNoCandidates() {
         HvacSettings settings = HvacSettings.defaults();
         HvacRegistry registry = new HvacRegistry(new TestHost(folder.toFile()), settings);

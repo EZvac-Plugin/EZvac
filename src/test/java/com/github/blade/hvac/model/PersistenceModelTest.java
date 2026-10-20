@@ -99,9 +99,22 @@ class PersistenceModelTest {
 
         Thermometer restored = Thermometer.fromMap(migrated.toMap());
         assertEquals(migrated, restored);
-        assertArrayEquals(new String[]{"position", "label"},
+        assertArrayEquals(new String[]{"position", "label", "reads"},
                 java.util.Arrays.stream(Thermometer.class.getRecordComponents())
                         .map(java.lang.reflect.RecordComponent::getName).toArray(String[]::new));
+        assertEquals(Thermometer.Reads.TEMPERATURE, migrated.reads(), "every pre-2.0 sensor is a thermometer");
+        assertFalse(migrated.toMap().containsKey("reads"), "and still saves exactly as before");
+    }
+
+    @Test
+    void hygrometersAndThermoHygrometersRoundTrip() {
+        BlockKey position = new BlockKey(UUID.randomUUID(), 3, 64, 3);
+        for (Thermometer.Reads reads : new Thermometer.Reads[]{Thermometer.Reads.HUMIDITY, Thermometer.Reads.BOTH}) {
+            Thermometer sensor = new Thermometer(position, "cellar", reads);
+            assertEquals(reads.name(), sensor.toMap().get("reads"));
+            assertEquals(sensor, Thermometer.fromMap(sensor.toMap()));
+        }
+        assertEquals("Thermo-hygrometer", Thermometer.Reads.BOTH.displayName());
     }
 
     @Test

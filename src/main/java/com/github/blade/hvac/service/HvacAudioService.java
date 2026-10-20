@@ -1,6 +1,8 @@
 package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.Dehumidifier;
 import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.EquipmentUnit;
 import org.bukkit.Location;
@@ -27,7 +29,20 @@ public final class HvacAudioService {
         for (EquipmentUnit unit : result.stopped()) playShutdown(unit);
     }
 
-    public void tickHum(Collection<EquipmentUnit> running, long elapsedTicks) {
+    /** A dehumidifier clicks on and off, and gurgles as it starts emptying a full tank. */
+    public void applyDehumidifierTransitions(DehumidifierService.Changes changes) {
+        if (!settings.audioEnabled()) return;
+        for (Dehumidifier unit : changes.started()) {
+            playNearby(unit.unit(), Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.4f, 1.6f);
+            playNearby(unit.unit(), Sound.BLOCK_BEACON_ACTIVATE, 0.2f, 1.2f);
+        }
+        for (Dehumidifier unit : changes.stopped())
+            playNearby(unit.unit(), Sound.BLOCK_WOODEN_BUTTON_CLICK_OFF, 0.4f, 1.4f);
+        for (Dehumidifier unit : changes.emptying())
+            playNearby(unit.grate(), Sound.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, 0.8f, 0.8f);
+    }
+
+    public void tickHum(Collection<EquipmentUnit> running, Collection<Dehumidifier> drying, long elapsedTicks) {
         if (!settings.audioEnabled() || elapsedTicks <= 0) return;
         ticksSinceHum += elapsedTicks;
         if (ticksSinceHum < settings.humRefreshTicks()) return;
@@ -35,6 +50,9 @@ public final class HvacAudioService {
         for (EquipmentUnit unit : running) {
             playNearby(unit, Sound.BLOCK_BEACON_AMBIENT, settings.humVolume(), settings.humPitch());
         }
+        // Smaller and quieter than a heat pump: a higher, softer hum.
+        for (Dehumidifier unit : drying)
+            playNearby(unit.unit(), Sound.BLOCK_BEACON_AMBIENT, settings.humVolume() * 0.4f, settings.humPitch() * 1.6f);
     }
 
     private void playStartup(EquipmentUnit unit) {
@@ -59,8 +77,12 @@ public final class HvacAudioService {
     }
 
     private void playNearby(EquipmentUnit unit, Sound sound, float volume, float pitch) {
-        if (!unit.position().isChunkLoaded()) return;
-        Location block = unit.position().location();
+        playNearby(unit.position(), sound, volume, pitch);
+    }
+
+    private void playNearby(BlockKey position, Sound sound, float volume, float pitch) {
+        if (!position.isChunkLoaded()) return;
+        Location block = position.location();
         if (block == null) return;
         Location source = block.clone().add(0.5, 0.5, 0.5);
         World world = source.getWorld();

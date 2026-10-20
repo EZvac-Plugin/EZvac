@@ -5,7 +5,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 /** A climate system is scoped to exactly one world and normalized label. */
-public record GroupId(UUID worldId, String label) implements Comparable<GroupId> {
+public record GroupId(UUID worldId, String label) implements Comparable<GroupId>, AirflowTarget {
     public GroupId {
         Objects.requireNonNull(worldId, "worldId");
         label = normalizeLabel(label);

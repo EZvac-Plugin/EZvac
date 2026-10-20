@@ -49,10 +49,70 @@ audio:
   hum-volume: 1.6
   hum-pitch: 0.55
 
+# Weather changes the outdoor air (2.0). Rain and thunder cool the day and
+# narrow the day/night swing; snow cools a little. Vanilla weather switches in
+# an instant, so the effect eases in and out over ease-hours (in-game hours).
+# Deserts, savannas, badlands, the Nether and the End never get weather.
+# Everything that uses the outdoor temperature follows: the HUD, idle drift,
+# ETAs, thermometers and pools (natural water only takes water-share of it).
+weather:
+  enabled: true
+  ease-hours: 2.0
+  rain-cooling-f: 6.0
+  thunder-cooling-f: 9.0
+  snow-cooling-f: 3.0
+  # Share of the day/night swing that full rain removes.
+  swing-reduction: 0.6
+  water-share: 0.1
+  # Outdoor wind in m/s, used for "feels like". Indoors there is none.
+  wind-clear-ms: 1.5
+  wind-rain-ms: 3.0
+  wind-thunder-ms: 5.0
+
+# Humidity (2.0). Moisture is simulated as a dew point and shown as relative
+# humidity, so heating a room lowers its RH and cooling dries it.
+humidity:
+  # Outdoor RH at the daily mean in the driest (desert) and wettest (jungle,
+  # swamp) biomes; other biomes fall in between by their vanilla downfall.
+  outdoor-rh-dry: 30.0
+  outdoor-rh-wet: 90.0
+  # Outdoor RH that full rain or snow pulls toward.
+  rain-rh: 97.0
+  # Share of the gap to the outdoor dew point a room closes per in-game hour.
+  infiltration-per-hour: 0.15
+  # Cooling equipment dries the air toward the coil's dew point.
+  coil-dew-point-f: 45.0
+  cooling-dry-f-per-minecraft-hour: 4.0
+  # Water inside a room (a pool, a fountain) evaporates into its air; warmer
+  # water evaporates faster.
+  evaporation-f-per-minecraft-hour: 30.0
+
+# Standalone dehumidifiers (2.0): an iron block on a waxed copper grate with a
+# sign on the iron block, registered with /hvac create dehumidifier.
+dehumidifier:
+  # Reach of the unit's own airflow zone, in blocks.
+  range: 12
+  maximum-cells: 20000
+  # Drying rate in a space of reference-cells; bigger spaces dry slower.
+  dry-f-per-minecraft-hour: 3.0
+  dry-dew-point-f: 35.0
+  reference-cells: 1500
+  # In-game hours of full-rate drying that fill the tank. When it's full the
+  # grate fills with water and the unit empties it for empty-seconds.
+  tank-fill-hours: 8.0
+  empty-seconds: 30
+  default-setpoint: 45
+  # Clicking the sign cycles these setpoints (% RH).
+  presets: [35, 40, 45, 50, 55, 60]
+  # It starts again once RH is this far above the setpoint.
+  hysteresis: 2.0
+
 # On-screen climate HUD and PlaceholderAPI placeholders (ALPHA 1.8).
 # Players turn the HUD on or off for themselves with /hvac hud. Text uses
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:
-# {temp} {bar} {comfort} {outdoor} {group} {thermostat} {mode} {target} {zone} {version}
+# {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {group} {thermostat}
+# {mode} {target} {zone} {version}
+# In air, {bar} and {comfort} follow {feels}: humid heat reads hotter, wind colder.
 hud:
   enabled: true
   # sidebar (scoreboard on the right), actionbar (above the hotbar) or bossbar (top)
@@ -67,8 +127,10 @@ hud:
     title: "<gradient:#3999fb:#f69500><bold>Climate</bold></gradient> <dark_gray>-</dark_gray> <gray>EZvac"
     lines:
       - "<gray>Here: <white>{temp}"
+      - "<gray>Feels like: <white>{feels}"
       - "{bar} {comfort}"
-      - "<gray>Outside: <white>{outdoor}"
+      - "<gray>Humidity: <white>{humidity}"
+      - "<gray>Outside: <white>{outdoor} <gray>{weather}"
       - ""
       - "<gray>System: <white>{group}"
       - "<gray>Mode: <white>{mode}"
@@ -82,9 +144,9 @@ hud:
     # Empty the list to always use the sidebar.
     yield-to-plugins: [TAB, FeatherBoard, AnimatedScoreboard, SimpleScore, KiteBoard, QuickBoard, TitleManager, BetterScoreboard]
   actionbar:
-    format: "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{group}"
+    format: "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{humidity} <dark_gray>|</dark_gray> <gray>{group}"
   bossbar:
-    format: "<white>{temp}</white> <gray>-</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}"
+    format: "<white>{temp}</white> <gray>feels {feels} -</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}"
   bar:
     length: 10
     filled: "▮"
@@ -107,7 +169,7 @@ hud:
       lines:
         - "<gray>Water: <white>{temp}"
         - "{bar} {comfort}"
-        - "<gray>Air: <white>{outdoor}"
+        - "<gray>Air: <white>{outdoor} <gray>{weather}"
         - ""
         - "<gray>Pool: <white>{group}"
         - "<gray>Mode: <white>{mode}"

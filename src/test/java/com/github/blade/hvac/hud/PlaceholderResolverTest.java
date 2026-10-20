@@ -11,7 +11,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class PlaceholderResolverTest {
     private final PlaceholderResolver resolver = new PlaceholderResolver(new HudFormatter(HudSettings.defaults()));
     private final ClimateSnapshot cooled =
-            new ClimateSnapshot(72.5, 88.0, 0.6, 21, "house", "main", "COOLING", 70.0, false, false);
+            new ClimateSnapshot(72.5, 88.0, 0.6, 21, "house", "main", "COOLING", 70.0, false, false,
+                    45.0, 73.4, "Rain");
 
     @Test
     void everyKeyResolves() {
@@ -22,7 +23,9 @@ class PlaceholderResolverTest {
                 Map.entry("comfort", "Comfortable"), Map.entry("group", "house"),
                 Map.entry("thermostat", "main"), Map.entry("mode", "Cooling to 70.0°F"),
                 Map.entry("target", "70.0°F"), Map.entry("influence", "60"),
-                Map.entry("zone", "60% leakage"), Map.entry("conditioned", "true"), Map.entry("medium", "air")));
+                Map.entry("zone", "60% leakage"), Map.entry("conditioned", "true"), Map.entry("medium", "air"),
+                Map.entry("feels_like", "73.4°F"), Map.entry("feels_like_f", "73.4°F"),
+                Map.entry("feels_like_c", "23.0°C"), Map.entry("humidity", "45%"), Map.entry("weather", "Rain")));
         for (String key : PlaceholderResolver.KEYS) {
             String value = resolver.resolve(cooled, key);
             assertNotNull(value, key);

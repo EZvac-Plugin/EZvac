@@ -5,6 +5,8 @@ import com.github.blade.hvac.model.*;
 import it.unimi.dsi.fastutil.longs.Long2ByteMap;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import com.github.blade.hvac.simulation.Psychrometrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -19,25 +21,70 @@ import java.util.*;
 /** Event-invalidated, tick-budgeted airflow maps for registered vent systems. */
 public final class AirflowService {
     /**
-     * @param localF   temperature at the spot: the air there, or the water when {@code water}
-     * @param outdoorF the outdoor air temperature, whatever the spot's medium
-     * @param water    true when the spot is in water; unconditioned water reads the
-     *                 biome's natural water temperature rather than the air's
+     * @param localF     temperature at the spot: the air there, or the water when {@code water}
+     * @param outdoorF   the outdoor air temperature, whatever the spot's medium
+     * @param water      true when the spot is in water; unconditioned water reads the
+     *                   biome's natural water temperature rather than the air's
+     * @param humidity   relative humidity of the air at the spot (%), NaN in water
+     * @param feelsLikeF apparent temperature; in water, the water temperature
+     * @param weather    the outdoor weather word, empty where weather never reaches
      */
     public record TemperatureReading(double localF, double outdoorF, double influence,
                                      int airflowDistance, GroupId group, Thermostat thermostat,
-                                     boolean water) {
+                                     boolean water, double humidity, double feelsLikeF, String weather) {
         public boolean conditioned() { return group != null && thermostat != null && influence > 0.0; }
     }
+
+    /**
+     * How much water an air system's space holds open to its air, for
+     * evaporation: the water blocks bordering its airflow map.
+     *
+     * @param airCells   cells in the airflow map
+     * @param waterCells packed positions of bordering water blocks (capped)
+     */
+    public record WaterExposure(int airCells, long[] waterCells) {
+        public static final WaterExposure NONE = new WaterExposure(0, new long[0]);
+        public double wetFraction() { return airCells <= 0 ? 0.0 : waterCells.length / (double) airCells; }
+
+        /**
+         * Without the given blocks. Every heat pump and AC puts out a water
+         * block at the edge of the room it serves; that is equipment, not a
+         * pool, and counting it made every such room humidify itself.
+         */
+        public WaterExposure excluding(UUID worldId, Set<BlockKey> blocks) {
+            if (waterCells.length == 0 || blocks.isEmpty()) return this;
+            long[] kept = new long[waterCells.length];
+            int count = 0;
+            for (long cell : waterCells)
+                if (!blocks.contains(new BlockKey(worldId, unpackX(cell), unpackY(cell), unpackZ(cell))))
+                    kept[count++] = cell;
+            return count == waterCells.length ? this : new WaterExposure(airCells, Arrays.copyOf(kept, count));
+        }
+    }
+
+    /** Bordering water blocks a single map records; beyond this a space is simply "very wet". */
+    private static final int MAXIMUM_WATER_CELLS = 4_096;
+
+    /**
+     * A dehumidifier's zone reaching a spot.
+     *
+     * @param influence 0..1, full near the unit and fading to its zone's edge
+     */
+    public record ZoneReading(Dehumidifier dehumidifier, int distance, double influence) {}
 
     private record Node(int x, int y, int z, int distance) {}
 
     private static final class Rebuild {
-        final GroupId group;
-        /** Water systems traverse water; air systems traverse open air. */
+        final AirflowTarget target;
+        /** Water systems traverse water; air systems and dehumidifier zones traverse open air. */
         final boolean water;
+        /** Path length and cell cap: a system's, or the smaller ones of a dehumidifier's zone. */
+        final int range;
+        final int maximumCells;
         final ArrayDeque<Node> queue = new ArrayDeque<>();
         final Long2ByteOpenHashMap distances = new Long2ByteOpenHashMap();
+        /** Water blocks the air walk bumped into: pools, fountains, a lake outside an open door. */
+        final LongOpenHashSet waterCells = new LongOpenHashSet();
         boolean capped;
         // Chunk lookups dominate the walk, and a breadth-first frontier stays
         // within a chunk for long runs. The cache is cleared every tick so a
@@ -47,9 +94,11 @@ public final class AirflowService {
         private Chunk cachedChunk;
         private boolean chunkCached;
 
-        Rebuild(GroupId group, boolean water) {
-            this.group = group;
+        Rebuild(AirflowTarget target, boolean water, int range, int maximumCells) {
+            this.target = target;
             this.water = water;
+            this.range = range;
+            this.maximumCells = maximumCells;
             distances.defaultReturnValue(ABSENT);
         }
 
@@ -93,10 +142,11 @@ public final class AirflowService {
     private final HvacRegistry registry;
     private final OutdoorTemperatureService outdoor;
     private final HvacSettings settings;
-    private final Map<GroupId, Long2ByteMap> completed = new HashMap<>();
-    private final LinkedHashSet<GroupId> dirty = new LinkedHashSet<>();
-    private final Map<GroupId, Long> dirtySince = new HashMap<>();
-    private final Map<GroupId, Long> dirtyFirst = new HashMap<>();
+    private final Map<AirflowTarget, Long2ByteMap> completed = new HashMap<>();
+    private final Map<AirflowTarget, WaterExposure> exposures = new HashMap<>();
+    private final LinkedHashSet<AirflowTarget> dirty = new LinkedHashSet<>();
+    private final Map<AirflowTarget, Long> dirtySince = new HashMap<>();
+    private final Map<AirflowTarget, Long> dirtyFirst = new HashMap<>();
     private long ticks;
     private Rebuild active;
     private long completedRebuilds;
@@ -109,12 +159,13 @@ public final class AirflowService {
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.settings = Objects.requireNonNull(settings, "settings");
         for (ClimateVent vent : registry.vents()) dirty.add(vent.group());
+        for (Dehumidifier dehumidifier : registry.dehumidifiers()) dirty.add(ZoneId.of(dehumidifier));
     }
 
-    public void invalidate(GroupId group) {
-        dirty.add(group);
-        dirtySince.put(group, ticks);
-        dirtyFirst.putIfAbsent(group, ticks);
+    public void invalidate(AirflowTarget target) {
+        dirty.add(target);
+        dirtySince.put(target, ticks);
+        dirtyFirst.putIfAbsent(target, ticks);
         // An in-flight rebuild is deliberately allowed to finish. Discarding it
         // meant a repeatedly invalidated system - a door on a redstone clock -
         // burned the whole node budget every tick and never produced a map at
@@ -168,6 +219,33 @@ public final class AirflowService {
         if (affected != null) {
             for (GroupId group : affected) invalidate(group);
         }
+        invalidateZonesNear(location.getWorld().getUID(), blockX, blockY, blockZ, packed);
+    }
+
+    /** Dehumidifier zones that hold this block, or whose unit is close enough that they could now. */
+    private void invalidateZonesNear(UUID worldId, int blockX, int blockY, int blockZ, long packed) {
+        Long2ObjectOpenHashMap<List<Dehumidifier>> cells = registry.dehumidifierCells(worldId);
+        if (cells == null) return;
+        int shift = registry.ventCellShift();
+        int reach = zoneRange() + 2;
+        for (int cellX = (blockX - reach) >> shift; cellX <= (blockX + reach) >> shift; cellX++) {
+            for (int cellZ = (blockZ - reach) >> shift; cellZ <= (blockZ + reach) >> shift; cellZ++) {
+                List<Dehumidifier> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
+                if (bucket == null) continue;
+                for (Dehumidifier dehumidifier : bucket) {
+                    ZoneId zone = ZoneId.of(dehumidifier);
+                    Long2ByteMap map = completed.get(zone);
+                    BlockKey unit = dehumidifier.unit();
+                    if ((map != null && map.containsKey(packed)) || Math.abs(unit.x() - blockX)
+                            + Math.abs(unit.y() - blockY) + Math.abs(unit.z() - blockZ) <= reach)
+                        invalidate(zone);
+                }
+            }
+        }
+    }
+
+    private int zoneRange() {
+        return outdoor.climate().dehumidifier().range();
     }
 
     public void invalidateWorld(World world) {
@@ -175,6 +253,8 @@ public final class AirflowService {
         UUID worldId = world.getUID();
         for (ClimateVent vent : registry.vents())
             if (vent.group().worldId().equals(worldId)) invalidate(vent.group());
+        for (Dehumidifier dehumidifier : registry.dehumidifiers())
+            if (dehumidifier.unit().worldId().equals(worldId)) invalidate(ZoneId.of(dehumidifier));
     }
 
     /** Invalidates only systems whose maximum possible path can intersect this chunk. */
@@ -201,6 +281,31 @@ public final class AirflowService {
                 }
             }
         }
+        Long2ObjectOpenHashMap<List<Dehumidifier>> zones = registry.dehumidifierCells(chunk.getWorld().getUID());
+        if (zones == null) return;
+        int zoneRange = zoneRange();
+        for (int cellX = (minimumX - zoneRange) >> shift; cellX <= (maximumX + zoneRange) >> shift; cellX++) {
+            for (int cellZ = (minimumZ - zoneRange) >> shift; cellZ <= (maximumZ + zoneRange) >> shift; cellZ++) {
+                List<Dehumidifier> bucket = zones.get(HvacRegistry.cellKey(cellX, cellZ));
+                if (bucket == null) continue;
+                for (Dehumidifier dehumidifier : bucket) {
+                    BlockKey unit = dehumidifier.unit();
+                    int dx = unit.x() < minimumX ? minimumX - unit.x() : Math.max(0, unit.x() - maximumX);
+                    int dz = unit.z() < minimumZ ? minimumZ - unit.z() : Math.max(0, unit.z() - maximumZ);
+                    if (dx + dz <= zoneRange) invalidate(ZoneId.of(dehumidifier));
+                }
+            }
+        }
+    }
+
+    /** Drops a removed dehumidifier's zone. */
+    public void forget(AirflowTarget target) {
+        dirty.remove(target);
+        dirtySince.remove(target);
+        dirtyFirst.remove(target);
+        completed.remove(target);
+        exposures.remove(target);
+        if (active != null && active.target.equals(target)) active = null;
     }
 
     /** Called each server tick; no invocation can inspect more than the configured node budget. */
@@ -211,12 +316,13 @@ public final class AirflowService {
         while (budget > 0) {
             if (active == null) {
                 if (started >= MAXIMUM_REBUILD_STARTS_PER_TICK) return;
-                GroupId group = nextSettledGroup();
-                if (group == null) return;
+                AirflowTarget target = nextSettledTarget();
+                if (target == null) return;
                 started++;
-                active = begin(group);
+                active = begin(target);
                 if (active == null) {
-                    completed.remove(group);
+                    completed.remove(target);
+                    exposures.remove(target);
                     continue;
                 }
             }
@@ -227,7 +333,10 @@ public final class AirflowService {
                 // The finished Rebuild is discarded below, so its map can be
                 // handed over directly. Copying it cost ~42 ms in a single
                 // tick at the configured cell cap.
-                completed.put(active.group, active.distances);
+                completed.put(active.target, active.distances);
+                if (active.water || active.waterCells.isEmpty()) exposures.remove(active.target);
+                else exposures.put(active.target, new WaterExposure(active.distances.size(),
+                        active.waterCells.toLongArray()));
                 visitedCells += active.distances.size();
                 completedRebuilds++;
                 if (active.capped) cappedRebuilds++;
@@ -236,19 +345,19 @@ public final class AirflowService {
         }
     }
 
-    /** Returns the oldest dirty system that has stopped changing, or null. */
-    private GroupId nextSettledGroup() {
-        for (Iterator<GroupId> iterator = dirty.iterator(); iterator.hasNext(); ) {
-            GroupId group = iterator.next();
-            Long since = dirtySince.get(group);
-            Long first = dirtyFirst.get(group);
+    /** Returns the oldest dirty system or zone that has stopped changing, or null. */
+    private AirflowTarget nextSettledTarget() {
+        for (Iterator<AirflowTarget> iterator = dirty.iterator(); iterator.hasNext(); ) {
+            AirflowTarget target = iterator.next();
+            Long since = dirtySince.get(target);
+            Long first = dirtyFirst.get(target);
             boolean settled = since == null || ticks - since >= REBUILD_DEBOUNCE_TICKS;
             boolean overdue = first != null && ticks - first >= MAXIMUM_REBUILD_DEFERRAL_TICKS;
             if (!settled && !overdue) continue;
             iterator.remove();
-            dirtySince.remove(group);
-            dirtyFirst.remove(group);
-            return group;
+            dirtySince.remove(target);
+            dirtyFirst.remove(target);
+            return target;
         }
         return null;
     }
@@ -258,6 +367,27 @@ public final class AirflowService {
      * decides which blocks the walk may traverse. A single water vent makes the
      * whole system a water system, so a stray trapdoor cannot strand a pool.
      */
+    private Rebuild begin(AirflowTarget target) {
+        return switch (target) {
+            case GroupId group -> begin(group);
+            case ZoneId zone -> begin(zone);
+        };
+    }
+
+    /** A dehumidifier's zone starts from the air around its iron block. */
+    private Rebuild begin(ZoneId zone) {
+        BlockKey unit = zone.unit();
+        World world = Bukkit.getWorld(unit.worldId());
+        if (world == null || registry.dehumidifierAt(unit) == null
+                || !world.isChunkLoaded(unit.x() >> 4, unit.z() >> 4)) return null;
+        var settings = outdoor.climate().dehumidifier();
+        Rebuild rebuild = new Rebuild(zone, false, settings.range(), settings.maximumCells());
+        rebuild.clearChunkCache();
+        for (int[] direction : DIRECTIONS)
+            enqueue(rebuild, world, unit.x() + direction[0], unit.y() + direction[1], unit.z() + direction[2], 0);
+        return rebuild;
+    }
+
     private Rebuild begin(GroupId group) {
         World world = Bukkit.getWorld(group.worldId());
         if (world == null) return null;
@@ -272,7 +402,7 @@ public final class AirflowService {
             seeds.add(pos);
         }
         if (!hasVent) return null;
-        Rebuild rebuild = new Rebuild(group, water);
+        Rebuild rebuild = new Rebuild(group, water, settings.airflowMaximumRange(), settings.airflowMaximumCells());
         rebuild.clearChunkCache();
         for (BlockKey pos : seeds) {
             int x = pos.x(), y = pos.y(), z = pos.z();
@@ -283,13 +413,16 @@ public final class AirflowService {
     }
 
     private int advance(Rebuild rebuild, int budget) {
-        World world = Bukkit.getWorld(rebuild.group.worldId());
+        World world = Bukkit.getWorld(switch (rebuild.target) {
+            case GroupId group -> group.worldId();
+            case ZoneId zone -> zone.unit().worldId();
+        });
         if (world == null) { rebuild.queue.clear(); return 1; }
         int processed = 0;
         while (processed < budget && !rebuild.queue.isEmpty() && !rebuild.capped) {
             Node node = rebuild.queue.removeFirst();
             processed++;
-            if (node.distance >= settings.airflowMaximumRange()) continue;
+            if (node.distance >= rebuild.range) continue;
             int next = node.distance + 1;
             for (int[] direction : DIRECTIONS)
                 enqueue(rebuild, world, node.x + direction[0], node.y + direction[1],
@@ -299,7 +432,7 @@ public final class AirflowService {
     }
 
     private void enqueue(Rebuild rebuild, World world, int x, int y, int z, int distance) {
-        if (rebuild.distances.size() >= settings.airflowMaximumCells()) {
+        if (rebuild.distances.size() >= rebuild.maximumCells) {
             rebuild.capped = true;
             return;
         }
@@ -312,7 +445,11 @@ public final class AirflowService {
         Block block = chunk.getBlock(x & 15, y, z & 15);
         // A branch rather than a predicate field: this runs thousands of times
         // per tick and stays monomorphic this way.
-        if (!(rebuild.water ? isWaterPath(block) : isAirPath(block))) return;
+        if (!(rebuild.water ? isWaterPath(block) : isAirPath(block))) {
+            if (!rebuild.water && rebuild.waterCells.size() < MAXIMUM_WATER_CELLS
+                    && block.getType() == Material.WATER) rebuild.waterCells.add(key);
+            return;
+        }
         rebuild.distances.put(key, (byte) distance);
         rebuild.queue.addLast(new Node(x, y, z, distance));
     }
@@ -377,15 +514,16 @@ public final class AirflowService {
     }
 
     public TemperatureReading temperatureAt(Location location, GroupId requiredGroup) {
-        double outside = outdoor.temperatureAt(location);
+        OutdoorTemperatureService.Outdoor out = outdoor.climateAt(location);
+        double outside = out.airF();
         if (location == null || location.getWorld() == null
                 || !location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) {
-            return new TemperatureReading(outside, outside, 0.0, -1, null, null, false);
+            return reading(null, outside, out, 0.0, -1, null, null, false);
         }
         // Water keeps its own steady temperature, so a spot in water blends
         // toward the biome's natural water rather than toward the air above it.
         boolean water = location.getBlock().getType() == Material.WATER;
-        double baseline = water ? outdoor.naturalWaterAt(location) : outside;
+        double baseline = water ? out.waterF() : outside;
         long key = pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         Nearest nearest = nearestGroup(candidateGroups(location.getWorld().getUID(),
                 location.getBlockX(), location.getBlockZ()), key, requiredGroup);
@@ -395,18 +533,119 @@ public final class AirflowService {
             if (requiredGroup != null && !hasVents(requiredGroup)) {
                 Thermostat thermostat = registry.thermostatFor(requiredGroup);
                 if (thermostat != null)
-                    return new TemperatureReading(thermostat.roomF(), outside, 1.0, -1,
-                            requiredGroup, thermostat, water);
+                    return reading(location, thermostat.roomF(), out, 1.0, -1, requiredGroup, thermostat, water);
             }
-            return new TemperatureReading(baseline, outside, 0.0, -1, null, null, water);
+            return reading(location, baseline, out, 0.0, -1, null, null, water);
         }
         Thermostat thermostat = registry.thermostatFor(best);
         if (thermostat == null)
-            return new TemperatureReading(baseline, outside, 0.0, bestDistance, best, null, water);
+            return reading(location, baseline, out, 0.0, bestDistance, best, null, water);
         double influence = influenceForDistance(bestDistance);
-        return new TemperatureReading(baseline + (thermostat.roomF() - baseline) * influence,
-                outside, influence, bestDistance, best, thermostat, water);
+        return reading(location, baseline + (thermostat.roomF() - baseline) * influence,
+                out, influence, bestDistance, best, thermostat, water);
     }
+
+    /**
+     * Completes a reading with humidity and feels-like. Moisture blends from
+     * the outdoors toward the system's air by the same influence temperature
+     * does; the RH then follows from the blended temperature. Wind only
+     * reaches the parts of a spot the system does not condition.
+     */
+    private TemperatureReading reading(Location location, double localF, OutdoorTemperatureService.Outdoor out,
+                                       double influence, int distance, GroupId group, Thermostat thermostat,
+                                       boolean water) {
+        if (water)
+            return new TemperatureReading(localF, out.airF(), influence, distance, group, thermostat,
+                    true, Double.NaN, localF, out.weather());
+        double dew = out.dewPointF();
+        if (thermostat != null && !thermostat.pool() && thermostat.hasRoomDewPoint() && influence > 0.0) {
+            dew += (thermostat.roomDewPointF() - dew) * influence;
+        } else if (location != null) {
+            // No system conditions this air, but a standalone dehumidifier may be drying it.
+            ZoneReading zone = zoneAt(location.getWorld().getUID(),
+                    location.getBlockX(), location.getBlockY(), location.getBlockZ());
+            if (zone != null && zone.dehumidifier().servedGroup() == null
+                    && Double.isFinite(zone.dehumidifier().zoneDewPointF()))
+                dew += (zone.dehumidifier().zoneDewPointF() - dew) * zone.influence();
+        }
+        double humidity = Psychrometrics.relativeHumidity(localF, dew);
+        double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, out.windMs() * (1.0 - influence));
+        return new TemperatureReading(localF, out.airF(), influence, distance, group, thermostat,
+                false, humidity, feelsLike, out.weather());
+    }
+
+    /**
+     * The temperature of the water at a block: a pool system's where one
+     * reaches it, blended toward natural water by influence, else natural
+     * water. Only what evaporation needs, without the humidity and feels-like
+     * work of a full reading.
+     */
+    public double waterTemperatureAt(World world, int x, int y, int z) {
+        double natural = outdoor.naturalWaterAt(new Location(world, x, y, z));
+        Nearest nearest = nearestGroup(candidateGroups(world.getUID(), x, z), pack(x, y, z), null);
+        if (nearest == null) return natural;
+        Thermostat thermostat = registry.thermostatFor(nearest.group());
+        if (thermostat == null) return natural;
+        return natural + (thermostat.roomF() - natural) * influenceForDistance(nearest.distance());
+    }
+
+    /** The water a system's air (or a dehumidifier's zone) touches, from its last completed map. */
+    public WaterExposure waterExposure(AirflowTarget target) {
+        return exposures.getOrDefault(target, WaterExposure.NONE);
+    }
+
+    /** Cells in a target's last completed map; 0 when it has none yet. */
+    public int mapSize(AirflowTarget target) {
+        Long2ByteMap map = completed.get(target);
+        return map == null ? 0 : map.size();
+    }
+
+    /** The system whose completed map reaches this block soonest, or null. */
+    public GroupId systemAt(UUID worldId, int x, int y, int z) {
+        Nearest nearest = nearestGroup(candidateGroups(worldId, x, z), pack(x, y, z), null);
+        return nearest == null ? null : nearest.group();
+    }
+
+    /**
+     * The dehumidifier zone that reaches this block soonest, or null. Influence
+     * is full over the first half of the zone's range and fades to its edge.
+     */
+    public ZoneReading zoneAt(UUID worldId, int x, int y, int z) {
+        Long2ObjectOpenHashMap<List<Dehumidifier>> cells = registry.dehumidifierCells(worldId);
+        if (cells == null) return null;
+        int shift = registry.ventCellShift();
+        int range = zoneRange();
+        int reach = range + 2;
+        long key = pack(x, y, z);
+        Dehumidifier best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (int cellX = (x - reach) >> shift; cellX <= (x + reach) >> shift; cellX++) {
+            for (int cellZ = (z - reach) >> shift; cellZ <= (z + reach) >> shift; cellZ++) {
+                List<Dehumidifier> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
+                if (bucket == null) continue;
+                for (Dehumidifier dehumidifier : bucket) {
+                    Long2ByteMap map = completed.get(ZoneId.of(dehumidifier));
+                    if (map == null) continue;
+                    byte distance = map.get(key);
+                    if (distance == ABSENT) continue;
+                    if (distance < bestDistance || (distance == bestDistance
+                            && dehumidifier.position().compareTo(best.position()) < 0)) {
+                        best = dehumidifier;
+                        bestDistance = distance;
+                    }
+                }
+            }
+        }
+        if (best == null) return null;
+        double core = range / 2.0;
+        double influence = bestDistance <= core ? 1.0 : Math.max(0.0, (range - bestDistance) / (range - core));
+        return new ZoneReading(best, bestDistance, influence);
+    }
+
+    /** Unpacks a position packed by the airflow maps, for callers outside this class. */
+    public static int unpackX(long key) { return (int) (key >> 38); }
+    public static int unpackY(long key) { return (int) (key << 52 >> 52); }
+    public static int unpackZ(long key) { return (int) (key << 26 >> 38); }
 
     record Nearest(GroupId group, int distance) {}
 
@@ -461,7 +700,8 @@ public final class AirflowService {
     /** Test support: the old full scan over every completed map in the world. */
     Nearest nearestGroupByFullScan(UUID worldId, long key, GroupId requiredGroup) {
         List<GroupId> all = new ArrayList<>();
-        for (GroupId group : completed.keySet()) if (group.worldId().equals(worldId)) all.add(group);
+        for (AirflowTarget target : completed.keySet())
+            if (target instanceof GroupId group && group.worldId().equals(worldId)) all.add(group);
         return nearestGroup(all, key, requiredGroup);
     }
 

@@ -80,8 +80,9 @@ public final class HudFormatter {
         return medium.comfortable();
     }
 
+    /** Air is judged by how it feels (humidity and wind included); water by its temperature. */
     public HudSettings.Band band(ClimateSnapshot snapshot) {
-        return band(snapshot.localF(), medium(snapshot));
+        return band(snapshot.comfortF(), medium(snapshot));
     }
 
     /** 0 at the bar's cold end, 1 at its hot end, clamped. */
@@ -93,7 +94,7 @@ public final class HudFormatter {
         return Math.max(0.0, Math.min(1.0, value));
     }
 
-    public double fraction(ClimateSnapshot snapshot) { return fraction(snapshot.localF(), medium(snapshot)); }
+    public double fraction(ClimateSnapshot snapshot) { return fraction(snapshot.comfortF(), medium(snapshot)); }
 
     private int filledSegments(double fahrenheit, HudSettings.Medium medium) {
         return (int) Math.round(fraction(fahrenheit, medium) * settings.barLength());
@@ -101,7 +102,7 @@ public final class HudFormatter {
 
     public String barPlain(double fahrenheit) { return barPlain(fahrenheit, air); }
 
-    public String barPlain(ClimateSnapshot snapshot) { return barPlain(snapshot.localF(), medium(snapshot)); }
+    public String barPlain(ClimateSnapshot snapshot) { return barPlain(snapshot.comfortF(), medium(snapshot)); }
 
     private String barPlain(double fahrenheit, HudSettings.Medium medium) {
         int filled = filledSegments(fahrenheit, medium);
@@ -126,7 +127,7 @@ public final class HudFormatter {
     /** The bar with legacy section-sign colours, for placeholder consumers. */
     public String barLegacy(double fahrenheit) { return legacy(barMini(fahrenheit, air)); }
 
-    public String barLegacy(ClimateSnapshot snapshot) { return legacy(barMini(snapshot.localF(), medium(snapshot))); }
+    public String barLegacy(ClimateSnapshot snapshot) { return legacy(barMini(snapshot.comfortF(), medium(snapshot))); }
 
     private static String legacy(String mini) {
         return LegacyComponentSerializer.legacySection().serialize(MINI.deserialize(mini));
@@ -153,6 +154,16 @@ public final class HudFormatter {
         return mode + " to " + temperature(snapshot.targetF());
     }
 
+    /** "45%", or the none text in water or where humidity is unknown. */
+    public String humidity(ClimateSnapshot snapshot) {
+        if (snapshot.water() || !Double.isFinite(snapshot.humidity())) return settings.noneText();
+        return Math.round(snapshot.humidity()) + "%";
+    }
+
+    public String feelsLike(ClimateSnapshot snapshot) {
+        return temperature(snapshot.feelsLikeF());
+    }
+
     public String target(ClimateSnapshot snapshot) {
         return Double.isNaN(snapshot.targetF()) ? settings.noneText() : temperature(snapshot.targetF());
     }
@@ -171,8 +182,11 @@ public final class HudFormatter {
         HudSettings.Medium medium = medium(snapshot);
         return template
                 .replace("{temp}", escape(temperature(snapshot.localF())))
-                .replace("{bar}", barMini(snapshot.localF(), medium))
-                .replace("{comfort}", comfortMini(snapshot.localF(), medium))
+                .replace("{feels}", escape(feelsLike(snapshot)))
+                .replace("{humidity}", escape(humidity(snapshot)))
+                .replace("{weather}", escape(snapshot.weather()))
+                .replace("{bar}", barMini(snapshot.comfortF(), medium))
+                .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
                 .replace("{group}", escape(group(snapshot)))
                 .replace("{thermostat}", escape(thermostat(snapshot)))
@@ -193,7 +207,7 @@ public final class HudFormatter {
     public BossBar.Color bossBarColor(double fahrenheit) { return bossBarColor(fahrenheit, air); }
 
     public BossBar.Color bossBarColor(ClimateSnapshot snapshot) {
-        return bossBarColor(snapshot.localF(), medium(snapshot));
+        return bossBarColor(snapshot.comfortF(), medium(snapshot));
     }
 
     private BossBar.Color bossBarColor(double fahrenheit, HudSettings.Medium medium) {

@@ -5,12 +5,15 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
+import com.github.blade.hvac.simulation.Psychrometrics;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.type.WallSign;
 import org.bukkit.command.*;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -32,13 +35,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private final DisplayService displays;
     private final HvacSettings settings;
     private final ClimateHudService hud;
+    private final DehumidifierService dehumidifiers;
     private final NamespacedKey toolKey;
     private final NamespacedKey toolGroupKey;
     private final NamespacedKey toolWorldKey;
 
     public HvacCommand(HvacPlugin plugin, HvacRegistry registry, HvacController controller,
                        OutdoorTemperatureService outdoor, AirflowService airflow,
-                       DisplayService displays, HvacSettings settings, ClimateHudService hud) {
+                       DisplayService displays, HvacSettings settings, ClimateHudService hud,
+                       DehumidifierService dehumidifiers) {
         this.plugin = plugin;
         this.registry = registry;
         this.controller = controller;
@@ -47,6 +52,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         this.displays = displays;
         this.settings = settings;
         this.hud = hud;
+        this.dehumidifiers = dehumidifiers;
         toolKey = new NamespacedKey(plugin, "duct_link_tool");
         toolGroupKey = new NamespacedKey(plugin, "duct_group");
         toolWorldKey = new NamespacedKey(plugin, "duct_world");
@@ -119,7 +125,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void create(Player player, String[] args) {
         if (args.length < 2) {
             player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
-                    + "|furnace|boiler|poolheatpump|thermometer|rpmmonitor|settingspanel> ..."));
+                    + "|furnace|boiler|poolheatpump|thermometer|hygrometer|thermohygrometer|rpmmonitor"
+                    + "|settingspanel|dehumidifier> ..."));
             return;
         }
         Block block = target(player);
@@ -158,12 +165,17 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "boiler" -> createEquipment(player, block, args, EquipmentType.BOILER);
             case "poolheatpump", "pool_heat_pump", "poolhp" ->
                     createEquipment(player, block, args, EquipmentType.POOL_HEAT_PUMP);
-            case "thermometer" -> {
+            case "thermometer", "hygrometer", "thermohygrometer", "thermohygro", "thermo-hygrometer" -> {
                 requireSign(block);
-                String displayLabel = args.length >= 3 ? args[2] : "Thermometer";
-                registry.addThermometer(new Thermometer(position, displayLabel));
+                Thermometer.Reads reads = switch (args[1].toLowerCase(Locale.ROOT)) {
+                    case "thermometer" -> Thermometer.Reads.TEMPERATURE;
+                    case "hygrometer" -> Thermometer.Reads.HUMIDITY;
+                    default -> Thermometer.Reads.BOTH;
+                };
+                String displayLabel = args.length >= 3 ? args[2] : reads.displayName().replace("-", "");
+                registry.addThermometer(new Thermometer(position, displayLabel, reads));
                 displays.refreshAll(true);
-                player.sendMessage(green("Created independent point thermometer."));
+                player.sendMessage(green("Created independent point " + reads.displayName().toLowerCase(Locale.ROOT) + "."));
             }
             case "rpmmonitor", "rpm" -> {
                 if (args.length < 4) throw new IllegalArgumentException(
@@ -193,9 +205,39 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 player.sendMessage(green("Created settings panel for group '" + group.label()
                         + "' in NORMAL mode."));
             }
+            case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
             default -> throw new IllegalArgumentException("Unknown device type '" + args[1] + "'.");
         }
         plugin.requestImmediateSync();
+    }
+
+    /**
+     * A dehumidifier is an iron block on a waxed copper grate, controlled by
+     * the sign the player is looking at: a wall sign on the iron block, or a
+     * sign standing on top of it.
+     */
+    private void createDehumidifier(Player player, Block sign, BlockKey position, String[] args) {
+        requireSign(sign);
+        Block iron = sign.getBlockData() instanceof WallSign wall
+                ? sign.getRelative(wall.getFacing().getOppositeFace()) : sign.getRelative(BlockFace.DOWN);
+        if (iron.getType() != Material.IRON_BLOCK)
+            throw new IllegalArgumentException("Put the sign on an iron block: on its side, or standing on top.");
+        Block grate = iron.getRelative(BlockFace.DOWN);
+        if (grate.getType() != ClimateVent.WATER_VENT)
+            throw new IllegalArgumentException("The iron block must sit on a waxed copper grate.");
+        BlockKey grateKey = BlockKey.of(grate.getLocation());
+        if (registry.ventAt(grateKey) != null)
+            throw new IllegalArgumentException("That grate is linked as a water vent. Unlink it first"
+                    + " (sneak-click it with /hvac tool).");
+        String label = args.length >= 3 ? args[2] : "Dehumidifier";
+        Dehumidifier dehumidifier = new Dehumidifier(position, BlockKey.of(iron.getLocation()), grateKey, label,
+                dehumidifiers.settings().defaultSetpoint());
+        registry.addDehumidifier(dehumidifier);
+        airflow.invalidate(ZoneId.of(dehumidifier));
+        displays.refreshDehumidifier(dehumidifier, true);
+        player.sendMessage(green("Created dehumidifier '" + dehumidifier.label() + "' at "
+                + dehumidifier.setpoint() + "%. Click the sign to change the setpoint, sneak-click to switch it"
+                + " on or off."));
     }
 
     private void createEquipment(Player player, Block block, String[] args, EquipmentType type) {
@@ -316,7 +358,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(join(gold("Temperature"), gray(water ? " | Water: " : " | Here: "),
                 white(String.format(Locale.US, "%.1f F", reading.localF())),
                 gray(water ? " | Air: " : " | Outside: "),
-                white(String.format(Locale.US, "%.1f F", reading.outdoorF()))));
+                white(String.format(Locale.US, "%.1f F", reading.outdoorF())
+                        + (reading.weather().isEmpty() ? "" : " " + reading.weather()))));
+        if (!water)
+            player.sendMessage(join(gray("Feels like: "),
+                    white(String.format(Locale.US, "%.1f F", reading.feelsLikeF())),
+                    gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%")));
         if (!reading.conditioned()) {
             player.sendMessage(gray(water ? "Natural water: no pool system reaches this block."
                     : "No completed linked-vent path reaches this block."));
@@ -361,8 +408,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (thermometer != null) {
             AirflowService.TemperatureReading reading = airflow.temperatureAt(block.getLocation());
             String source = reading.conditioned() ? reading.group().label() : "outdoor";
-            player.sendMessage(join(gold("Thermometer"), gray(" | Local: "),
-                    white(String.format(Locale.US, "%.1f F", reading.localF())),
+            String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
+            String local = switch (thermometer.reads()) {
+                case TEMPERATURE -> String.format(Locale.US, "%.1f F", reading.localF());
+                case HUMIDITY -> humidity;
+                case BOTH -> String.format(Locale.US, "%.1f F, %s, feels %.1f F", reading.localF(), humidity,
+                        reading.feelsLikeF());
+            };
+            player.sendMessage(join(gold(thermometer.reads().displayName()), gray(" | Local: "), white(local),
                     gray(" | Source: "), white(source)));
             return;
         }
@@ -372,6 +425,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         SettingsPanel panel = registry.settingsPanelAt(key);
         if (panel != null) { player.sendMessage(join(gold("Settings panel"), gray(" | Group: "),
                 white(panel.group().label()), gray(" | Profile: "), white(panel.profile().name()))); return; }
+        Dehumidifier dehumidifier = registry.dehumidifierAt(key);
+        if (dehumidifier != null) { showDehumidifier(player, dehumidifier); return; }
         player.sendMessage(red("No EZvac device is registered at that block."));
     }
 
@@ -389,10 +444,20 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         } else {
             ClimateVent vent = registry.removeVent(key);
             if (vent != null) { airflow.invalidate(vent.group()); player.sendMessage(green("Vent unlinked.")); }
-            else if (registry.removeThermometer(key)) player.sendMessage(green("Thermometer removed."));
+            else if (registry.thermometerAt(key) != null) {
+                String name = registry.thermometerAt(key).reads().displayName();
+                registry.removeThermometer(key);
+                player.sendMessage(green(name + " removed."));
+            }
             else if (registry.removeRpmMonitor(key)) player.sendMessage(green("RPM monitor removed."));
             else if (registry.removeSettingsPanel(key))
                 player.sendMessage(green("Settings panel removed; group reverted to NORMAL."));
+            else if (registry.dehumidifierAt(key) != null) {
+                Dehumidifier removed = registry.removeDehumidifier(key);
+                dehumidifiers.release(removed);
+                displays.invalidate(removed.position());
+                player.sendMessage(green("Dehumidifier removed."));
+            }
             else { player.sendMessage(red("No EZvac device is registered at that block.")); return; }
         }
         displays.invalidate(key);
@@ -435,6 +500,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (!ClimateVent.isVentBlock(block.getType())) {
             player.sendMessage(yellow("Select registered equipment, an iron trapdoor (air),"
                     + " or a waxed copper grate (water)."));
+            return;
+        }
+        if (registry.dehumidifierAt(position) != null) {
+            player.sendMessage(yellow("That grate is part of a dehumidifier, not a vent."));
             return;
         }
         if (unlink) {
@@ -492,6 +561,23 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 thermostat.roomF(), thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
                 gray(" | Profile: "), white(registry.profileFor(thermostat.group()).name()),
                 gray(" | "), white(thermostat.enabled() ? "enabled" : "disabled")));
+        if (!thermostat.pool() && thermostat.hasRoomDewPoint()) {
+            double humidity = Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
+            player.sendMessage(join(gray("Humidity: "), white(Math.round(humidity) + "%"),
+                    gray(" | Feels like: "), white(String.format(Locale.US, "%.1f F",
+                            Psychrometrics.apparentTemperatureF(thermostat.roomF(), humidity, 0.0)))));
+        }
+    }
+
+    private void showDehumidifier(Player player, Dehumidifier dehumidifier) {
+        String space = dehumidifier.servedGroup() == null ? "its own zone"
+                : "system '" + dehumidifier.servedGroup().label() + "'";
+        double humidity = dehumidifier.lastHumidity();
+        player.sendMessage(join(gold("Dehumidifier "), white(dehumidifier.label()), gray(" | Drying: "), white(space)));
+        player.sendMessage(join(gray("Humidity: "), white(Double.isFinite(humidity) ? Math.round(humidity) + "%" : "unknown"),
+                gray(" | Setpoint: "), white(dehumidifier.setpoint() + "%"),
+                gray(" | State: "), white(dehumidifier.state().name()),
+                gray(" | Tank: "), white(Math.round(dehumidifier.tank() * 100) + "%")));
     }
 
     private void showEquipment(Player player, EquipmentUnit unit) {
@@ -561,9 +647,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac create thermostat <id> <group> [target]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace <group>"), gray(" - register a dispenser")));
         sender.sendMessage(join(aqua("/hvac create boiler|poolheatpump <group>"), gray(" - register a pool source")));
-        sender.sendMessage(join(aqua("/hvac create thermometer [label]"), gray(" - register a point-sensor sign")));
+        sender.sendMessage(join(aqua("/hvac create thermometer|hygrometer|thermohygrometer [label]"),
+                gray(" - register a point-sensor sign")));
         sender.sendMessage(join(aqua("/hvac create rpmmonitor <group> <type> [label]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create settingspanel <group> [label]"), gray(" - register profile controls")));
+        sender.sendMessage(join(aqua("/hvac create dehumidifier [label]"), gray(" - sign on an iron block on a grate")));
         sender.sendMessage(join(aqua("/hvac thermostat <id> set|enable|disable|group"), gray(" - control a thermostat")));
         sender.sendMessage(join(aqua("/hvac equipment <enable|disable|group|info>"), gray(" - edit targeted equipment")));
         sender.sendMessage(join(aqua("/hvac group <group> <enable|disable|info>"), gray(" - control a system")));
@@ -577,7 +665,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
-                        "ac", "furnace", "boiler", "poolheatpump", "thermometer", "rpmmonitor", "settingspanel");
+                        "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
+                        "thermohygrometer", "rpmmonitor", "settingspanel", "dehumidifier");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
                 case "hud" -> filter(args[1], "on", "off");

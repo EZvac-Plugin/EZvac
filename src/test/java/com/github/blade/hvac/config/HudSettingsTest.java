@@ -15,7 +15,7 @@ class HudSettingsTest {
         assertEquals(HudSettings.Style.SIDEBAR, value.style());
         assertEquals(10, value.updateTicks());
         assertFalse(value.celsius());
-        assertEquals(8, value.sidebarLines().size());
+        assertEquals(10, value.sidebarLines().size());
     }
 
     @Test
