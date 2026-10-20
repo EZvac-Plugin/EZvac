@@ -37,28 +37,34 @@ import static org.junit.jupiter.api.Assertions.*;
 class RegistryCompatibilityTest {
     private static final Path FIXTURES = Path.of("src", "test", "resources", "compat");
 
-    /** Per release: whether it had water systems, and whether it had pool thermostats. */
+    /**
+     * Per release: whether it had water systems, whether it had pool
+     * thermostats, and whether its fixture's pool also has a pool heat pump
+     * (built for releases that have one, from 1.9 on).
+     */
     static Stream<Arguments> releases() {
         return Stream.of(
-                Arguments.of("ALPHA-1.0", false, false),
-                Arguments.of("ALPHA-1.1-HOTFIX", false, false),
-                Arguments.of("ALPHA-1.5", false, false),
-                Arguments.of("ALPHA-1.6-P1", true, false),
-                Arguments.of("ALPHA-1.6", true, true),
-                Arguments.of("ALPHA-1.6-HOTFIX1", true, true),
-                Arguments.of("ALPHA-1.7", true, true),
-                Arguments.of("ALPHA-1.8", true, true));
+                Arguments.of("ALPHA-1.0", false, false, false),
+                Arguments.of("ALPHA-1.1-HOTFIX", false, false, false),
+                Arguments.of("ALPHA-1.5", false, false, false),
+                Arguments.of("ALPHA-1.6-P1", true, false, false),
+                Arguments.of("ALPHA-1.6", true, true, false),
+                Arguments.of("ALPHA-1.6-HOTFIX1", true, true, false),
+                Arguments.of("ALPHA-1.7", true, true, false),
+                Arguments.of("ALPHA-1.8", true, true, false),
+                Arguments.of("ALPHA-1.9", true, true, true));
     }
 
     @TempDir Path folder;
 
     @ParameterizedTest(name = "{0} clean shutdown")
     @MethodSource("releases")
-    void cleanShutdownFileLoadsEveryDevice(String release, boolean water, boolean pool) throws IOException {
+    void cleanShutdownFileLoadsEveryDevice(String release, boolean water, boolean pool, boolean poolHeatPump)
+            throws IOException {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac.yml");
 
-        assertCoreDevices(registry, water, pool);
+        assertCoreDevices(registry, water, pool, poolHeatPump);
         // A clean shutdown stops every unit and retracts its output first.
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::running).count());
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::hasOwnedOutput).count());
@@ -68,15 +74,17 @@ class RegistryCompatibilityTest {
 
     @ParameterizedTest(name = "{0} crash snapshot")
     @MethodSource("releases")
-    void crashSnapshotKeepsRunningUnitsAndTheirOutputs(String release, boolean water, boolean pool)
+    void crashSnapshotKeepsRunningUnitsAndTheirOutputs(String release, boolean water, boolean pool,
+                                                       boolean poolHeatPump)
             throws IOException {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac-running.yml");
 
-        assertCoreDevices(registry, water, pool);
-        // Heat pump and AC cool their 60 F rooms; the boiler heats the pool.
-        // The furnace shares the cooling house system, so it stays idle.
-        int expectedRunning = water ? 3 : 2;
+        assertCoreDevices(registry, water, pool, poolHeatPump);
+        // Heat pump and AC cool their 60 F rooms; the boiler (and the pool heat
+        // pump, where there is one) heats the pool. The furnace shares the
+        // cooling house system, so it stays idle.
+        int expectedRunning = (water ? 3 : 2) + (poolHeatPump ? 1 : 0);
         assertEquals(expectedRunning, registry.equipment().stream().filter(EquipmentUnit::running).count());
         for (EquipmentUnit unit : registry.equipment()) {
             if (!unit.running()) continue;
@@ -120,9 +128,10 @@ class RegistryCompatibilityTest {
         assertSavesAsGolden(registry, "legacy", "expected-save.yml");
     }
 
-    private static void assertCoreDevices(HvacRegistry registry, boolean water, boolean pool) {
+    private static void assertCoreDevices(HvacRegistry registry, boolean water, boolean pool,
+                                          boolean poolHeatPump) {
         assertEquals(water ? 3 : 2, registry.thermostats().size());
-        assertEquals(water ? 4 : 3, registry.equipment().size());
+        assertEquals((water ? 4 : 3) + (poolHeatPump ? 1 : 0), registry.equipment().size());
         assertEquals(water ? 4 : 3, registry.vents().size());
         assertEquals(1, registry.thermometers().size());
         assertEquals(1, registry.rpmMonitors().size());
@@ -142,7 +151,10 @@ class RegistryCompatibilityTest {
             assertEquals(pool, spa.pool());
             // Pilot 1 pools used a room thermostat, which clamps to the 85 F ceiling.
             assertEquals(pool ? 104.0 : 85.0, spa.targetF());
-            assertEquals(EquipmentType.BOILER, registry.equipmentFor(spa.group()).get(0).type());
+            var poolUnits = registry.equipmentFor(spa.group());
+            assertEquals(EquipmentType.BOILER, poolUnits.get(0).type());
+            assertEquals(poolHeatPump ? 2 : 1, poolUnits.size());
+            if (poolHeatPump) assertEquals(EquipmentType.POOL_HEAT_PUMP, poolUnits.get(1).type());
         }
     }
 
