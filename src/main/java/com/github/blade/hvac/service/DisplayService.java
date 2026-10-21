@@ -6,7 +6,10 @@ import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.EtaEstimator;
 import com.github.blade.hvac.simulation.ThermalModel;
 import net.kyori.adventure.text.Component;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Location;
+import org.bukkit.entity.Player;
 import org.bukkit.block.Sign;
 import org.bukkit.block.sign.Side;
 import org.bukkit.block.sign.SignSide;
@@ -40,12 +43,57 @@ public final class DisplayService {
         this.settings = Objects.requireNonNull(settings, "settings");
     }
 
+    /**
+     * How far from a player, in chunks, signs keep being rewritten: four
+     * chunks, 64 blocks and a little more, well past where sign text can be
+     * read. Rewriting a sign snapshots its whole tile entity, and in profiles
+     * it was EZvac's largest single cost.
+     */
+    static final int WATCH_RADIUS_CHUNKS = 4;
+
+    /**
+     * Rewrites the signs players could be looking at. Signs farther from
+     * every player are skipped and keep the text they last showed; they
+     * remember it, so the first pass after someone comes near sees it is out
+     * of date and rewrites it. Nothing else depends on sign text: the
+     * simulation, equipment, saving and readings carry on regardless.
+     */
     public void refreshAll(boolean force) {
-        for (Thermostat thermostat : registry.thermostats()) refreshThermostat(thermostat, force);
-        for (Thermometer thermometer : registry.thermometers()) refreshThermometer(thermometer, force);
-        for (RpmMonitor monitor : registry.rpmMonitors()) refreshRpmMonitor(monitor, force);
-        for (SettingsPanel panel : registry.settingsPanels()) refreshSettingsPanel(panel, force);
-        for (Dehumidifier dehumidifier : registry.dehumidifiers()) refreshDehumidifier(dehumidifier, force);
+        Map<UUID, LongOpenHashSet> watched = watchedChunks();
+        if (watched.isEmpty()) return;
+        for (Thermostat thermostat : registry.thermostats())
+            if (watched(watched, thermostat.position())) refreshThermostat(thermostat, force);
+        for (Thermometer thermometer : registry.thermometers())
+            if (watched(watched, thermometer.position())) refreshThermometer(thermometer, force);
+        for (RpmMonitor monitor : registry.rpmMonitors())
+            if (watched(watched, monitor.position())) refreshRpmMonitor(monitor, force);
+        for (SettingsPanel panel : registry.settingsPanels())
+            if (watched(watched, panel.position())) refreshSettingsPanel(panel, force);
+        for (ClimateUnit unit : registry.climateUnits())
+            if (watched(watched, unit.position())) refreshClimateUnit(unit, force);
+    }
+
+    /** The chunks near each online player, per world. */
+    private Map<UUID, LongOpenHashSet> watchedChunks() {
+        Map<UUID, LongOpenHashSet> chunks = new HashMap<>();
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            Location location = player.getLocation();
+            if (location.getWorld() == null) continue;
+            watchAround(chunks.computeIfAbsent(location.getWorld().getUID(), ignored -> new LongOpenHashSet()),
+                    location.getBlockX() >> 4, location.getBlockZ() >> 4);
+        }
+        return chunks;
+    }
+
+    static void watchAround(LongOpenHashSet chunks, int chunkX, int chunkZ) {
+        for (int dx = -WATCH_RADIUS_CHUNKS; dx <= WATCH_RADIUS_CHUNKS; dx++)
+            for (int dz = -WATCH_RADIUS_CHUNKS; dz <= WATCH_RADIUS_CHUNKS; dz++)
+                chunks.add(HvacRegistry.cellKey(chunkX + dx, chunkZ + dz));
+    }
+
+    static boolean watched(Map<UUID, LongOpenHashSet> watched, BlockKey position) {
+        LongOpenHashSet chunks = watched.get(position.worldId());
+        return chunks != null && chunks.contains(HvacRegistry.cellKey(position.x() >> 4, position.z() >> 4));
     }
 
     public void invalidate(BlockKey position) {
@@ -117,7 +165,7 @@ public final class DisplayService {
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s", reading.localF(),
                 reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label());
         render(thermometer.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(shorten(thermometer.label()), NamedTextColor.AQUA));
+            side.line(0, Component.text(shorten(signTitle(thermometer)), NamedTextColor.AQUA));
             switch (thermometer.reads()) {
                 case TEMPERATURE -> {
                     side.line(1, Component.text("Thermometer", NamedTextColor.WHITE));
@@ -141,6 +189,15 @@ public final class DisplayService {
                 }
             }
         });
+    }
+
+    /**
+     * A sensor's label as its sign shows it. The default thermo-hygrometer
+     * label is one letter too long for a sign line, so it is shortened there;
+     * the stored label, and any label a player chose, stay as they are.
+     */
+    static String signTitle(Thermometer sensor) {
+        return sensor.label().equalsIgnoreCase("Thermohygrometer") ? "T. Hygrometer" : sensor.label();
     }
 
     /** "45%", or "--%" where there is no air to measure (a sign in water). */
@@ -190,11 +247,12 @@ public final class DisplayService {
         });
     }
 
-    public void refreshDehumidifier(Dehumidifier dehumidifier, boolean force) {
-        double humidity = dehumidifier.lastHumidity();
+    /** A dehumidifier's last line is its tank; a humidifier, being plumbed, just says what it is. */
+    public void refreshClimateUnit(ClimateUnit unit, boolean force) {
+        double humidity = unit.lastHumidity();
         String reading = (Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
-                + " > " + dehumidifier.setpoint() + "%";
-        Dehumidifier.State state = dehumidifier.state();
+                + " > " + unit.setpoint() + "%";
+        ClimateUnit.State state = unit.state();
         String stateText = switch (state) {
             case OFF -> "OFF";
             case IDLE -> "Idle";
@@ -207,13 +265,14 @@ public final class DisplayService {
             case RUNNING -> NamedTextColor.GREEN;
             case EMPTYING -> NamedTextColor.AQUA;
         };
-        String tank = "Tank " + Math.round(dehumidifier.tank() * 100) + "%";
-        String fingerprint = dehumidifier.label() + "|" + reading + "|" + state + "|" + tank;
-        render(dehumidifier.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(shorten("EZvac | " + dehumidifier.label()), NamedTextColor.AQUA));
+        String footer = unit instanceof Dehumidifier dehumidifier
+                ? "Tank " + Math.round(dehumidifier.tank() * 100) + "%" : unit.kind().displayName();
+        String fingerprint = unit.label() + "|" + reading + "|" + state + "|" + footer;
+        render(unit.position(), fingerprint, force, side -> {
+            side.line(0, Component.text(shorten("EZvac | " + unit.label()), NamedTextColor.AQUA));
             side.line(1, Component.text(reading, NamedTextColor.WHITE));
             side.line(2, Component.text(stateText, stateColor));
-            side.line(3, Component.text(tank, NamedTextColor.GRAY));
+            side.line(3, Component.text(footer, NamedTextColor.GRAY));
         });
     }
 

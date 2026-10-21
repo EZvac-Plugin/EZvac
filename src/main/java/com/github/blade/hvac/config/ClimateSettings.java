@@ -9,7 +9,8 @@ import java.util.List;
  * Kept apart from {@link HvacSettings} so the established controller tuning
  * and every caller of it stay untouched.
  */
-public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier) {
+public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
+                              Humidifier humidifier) {
     /**
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
@@ -94,12 +95,49 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         }
     }
 
+    /**
+     * @param range          airflow reach of a humidifier's own zone, in blocks
+     * @param maximumCells   cap on the cells one zone may hold
+     * @param addFPerHour    dew point rise per hour in a space of {@code referenceCells}
+     * @param referenceCells space size the rate is quoted for; larger spaces humidify slower
+     * @param presets        setpoints a click on the sign cycles through, ascending
+     * @param hysteresis     RH below the setpoint at which it starts again
+     */
+    public record Humidifier(int range, int maximumCells, double addFPerHour, int referenceCells,
+                             int defaultSetpoint, List<Integer> presets, double hysteresis) {
+        public Humidifier {
+            if (range < 1 || range > 64) throw new IllegalArgumentException("humidifier.range must be 1-64");
+            if (maximumCells < 1) throw new IllegalArgumentException("humidifier.maximum-cells must be positive");
+            requirePositive("humidifier.add-f-per-minecraft-hour", addFPerHour);
+            if (referenceCells < 1) throw new IllegalArgumentException("humidifier.reference-cells must be positive");
+            presets = presets == null ? List.of() : List.copyOf(presets.stream().sorted().distinct().toList());
+            if (presets.isEmpty()) throw new IllegalArgumentException("humidifier.presets must not be empty");
+            for (int preset : presets)
+                if (preset < 1 || preset > 99) throw new IllegalArgumentException("humidifier.presets must be 1-99%");
+            if (defaultSetpoint < 1 || defaultSetpoint > 99)
+                throw new IllegalArgumentException("humidifier.default-setpoint must be 1-99%");
+            requireNonNegative("humidifier.hysteresis", hysteresis);
+        }
+
+        /** The preset after {@code current}, wrapping around. */
+        public int nextPreset(int current) {
+            for (int preset : presets) if (preset > current) return preset;
+            return presets.get(0);
+        }
+    }
+
+    /** The farthest either kind of standalone unit reaches, for spatial lookups. */
+    public int unitRange() {
+        return Math.max(dehumidifier.range(), humidifier.range());
+    }
+
     public static ClimateSettings defaults() {
         return new ClimateSettings(
                 new Weather(true, 2.0, 6.0, 9.0, 3.0, 0.6, 0.1, 1.5, 3.0, 5.0),
                 new Humidity(30.0, 90.0, 97.0, 0.15, 45.0, 4.0, 30.0),
                 new Dehumidifier(30, 50_000, 3.0, 35.0, 1_500, 8.0, 30, 45,
-                        List.of(35, 40, 45, 50, 55, 60), 2.0));
+                        List.of(35, 40, 45, 50, 55, 60), 2.0),
+                new Humidifier(30, 50_000, 3.0, 1_500, 40, List.of(30, 35, 40, 45, 50), 2.0));
     }
 
     public static ClimateSettings load(FileConfiguration config) {
@@ -109,6 +147,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         Dehumidifier d = defaults.dehumidifier;
         List<Integer> presets = config.isList("dehumidifier.presets")
                 ? config.getIntegerList("dehumidifier.presets") : d.presets();
+        Humidifier m = defaults.humidifier;
         return new ClimateSettings(
                 new Weather(config.getBoolean("weather.enabled", w.enabled()),
                         config.getDouble("weather.ease-hours", w.easeHours()),
@@ -136,7 +175,14 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getInt("dehumidifier.empty-seconds", d.emptySeconds()),
                         config.getInt("dehumidifier.default-setpoint", d.defaultSetpoint()),
                         presets,
-                        config.getDouble("dehumidifier.hysteresis", d.hysteresis())));
+                        config.getDouble("dehumidifier.hysteresis", d.hysteresis())),
+                new Humidifier(config.getInt("humidifier.range", m.range()),
+                        config.getInt("humidifier.maximum-cells", m.maximumCells()),
+                        config.getDouble("humidifier.add-f-per-minecraft-hour", m.addFPerHour()),
+                        config.getInt("humidifier.reference-cells", m.referenceCells()),
+                        config.getInt("humidifier.default-setpoint", m.defaultSetpoint()),
+                        config.isList("humidifier.presets") ? config.getIntegerList("humidifier.presets") : m.presets(),
+                        config.getDouble("humidifier.hysteresis", m.hysteresis())));
     }
 
     private static void requireFinite(String name, double value) {

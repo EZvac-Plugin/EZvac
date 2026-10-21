@@ -14,12 +14,12 @@ dehumidifiers, and persistent room temperatures. Systems condition either
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 2.0 Pilot 2 is a prerelease of the 2.0
+> **Release status:** EZvac ALPHA 2.0 Pilot 3 is a prerelease of the 2.0
 > realism update: **weather** changes the outdoor air, rooms have **humidity**,
-> the HUD shows how warm it **feels**, and **dehumidifiers** dry a room or a
-> shed. It moves `hvac.yml` to format 6 and keeps your 1.x save as
+> the HUD shows how warm it **feels**, and **dehumidifiers** and
+> **humidifiers** dry or moisten a room or a shed. It moves `hvac.yml` to format 6 and keeps your 1.x save as
 > `hvac.yml.format5.bak`. See [Weather and humidity](#weather-and-humidity)
-> and [Dehumidifiers](#dehumidifiers).
+> and [Dehumidifiers and humidifiers](#dehumidifiers-and-humidifiers).
 
 ## Requirements
 
@@ -36,7 +36,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-2.0-P2.jar
+target/EzVac-ALPHA-2.0-P3.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -46,7 +46,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-2.0-P2.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-2.0-P3.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -61,6 +61,13 @@ a save file written by a newer version, and leaves the file untouched, instead
 of loading it and silently discarding what it doesn't understand. When a
 release changes the save format, it first keeps the original as
 `hvac.yml.format<N>.bak`; restore that file if you ever need to go back.
+
+**Your config.yml is brought up to date.** From ALPHA 2.0 Pilot 3, settings
+added since your `config.yml` was written are added to it on startup, with
+their comments, so you can see and tune them. Nothing you already have is
+changed, even where a default has since changed, and the previous file is kept
+as `config.yml.before-<version>.bak`. A `config.yml` that can't be read is
+left alone.
 
 ## Core devices
 
@@ -84,7 +91,10 @@ release changes the save format, it first keeps the original as
 - **RPM monitor:** Type-specific sign showing RPM, capacity, and unit counts.
 - **Settings panel:** Sign control for Eco, Normal, and Turbo operation.
 - **Dehumidifier:** Standalone unit (iron block on a waxed copper grate, with a
-  sign) that dries the air around it. See [Dehumidifiers](#dehumidifiers).
+  sign) that dries the air around it.
+- **Humidifier:** Standalone unit (iron block under a waxed cut copper slab,
+  with a sign) that adds moisture. See
+  [Dehumidifiers and humidifiers](#dehumidifiers-and-humidifiers).
 
 Registered equipment does not consume buckets, fuel, water, lava, power, or
 inventory items. EZvac records and removes only fluid sources that it created.
@@ -176,7 +186,9 @@ and outdoor wind feel cooler. The HUD's comfort word and bar follow it.
 
 Tuning lives under `weather:` and `humidity:` in `config.yml`.
 
-## Dehumidifiers
+## Dehumidifiers and humidifiers
+
+### Dehumidifiers
 
 Build an **iron block on top of a waxed copper grate**, put a sign on the iron
 block (on its side, or standing on top), and while looking at the sign run:
@@ -205,6 +217,34 @@ Tank 40%
   carries on. The water never leaves the grate.
 
 Breaking the sign, the iron block or the grate removes it.
+
+### Humidifiers
+
+Put a **waxed cut copper slab** (bottom half) on top of an **iron block**,
+put a sign on the side of the iron block, and while looking at the sign run:
+
+```text
+/hvac create humidifier [label]
+```
+
+```text
+EZvac | nursery
+32% > 40%
+Running
+Humidifier
+```
+
+- It works like a dehumidifier the other way round: it reaches as far, serves
+  the system room around it or else its own zone, starts 2% *below* its
+  setpoint and runs up to it, and is clicked the same way. Setpoints step
+  through 30, 35, 40, 45, 50%.
+- It is **plumbed**: it never runs dry and needs no refilling.
+- While it runs, the slab fills with water and **bubbles** like water over
+  soul sand. The water never leaves the slab.
+- It adds moisture more slowly as the air nears saturation, and stops short
+  of it.
+
+Breaking the sign, the iron block or the slab removes it.
 
 ## Climate HUD and placeholders
 

@@ -1,0 +1,163 @@
+package com.github.blade.hvac.model;
+
+import com.github.blade.hvac.config.ClimateSettings;
+import com.github.blade.hvac.simulation.ThermalModel;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.data.Waterlogged;
+
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * A standalone humidity device: an iron block with a control sign and one
+ * more block that shows its water. It needs no system. Its own airflow zone
+ * decides which space it works on: a system's room when the zone touches
+ * one, otherwise the zone itself (a shed, a basement), whose moisture it then
+ * keeps here.
+ *
+ * <p>The control logic is pure, so it can be tested without a server.
+ */
+public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
+    public enum Kind {
+        DEHUMIDIFIER("Dehumidifier"), HUMIDIFIER("Humidifier");
+
+        private final String displayName;
+        Kind(String displayName) { this.displayName = displayName; }
+        public String displayName() { return displayName; }
+    }
+
+    public enum State { OFF, IDLE, RUNNING, EMPTYING }
+
+    private final BlockKey position;
+    private final BlockKey unit;
+    private final BlockKey part;
+    private final String label;
+    private int setpoint;
+    private boolean powered;
+    protected boolean running;
+    /** Moisture of its own zone when no system's room holds it; NaN until first simulated. */
+    private double zoneDewPointF;
+    /** The system whose room its zone touches, or null; worked out each cycle, never saved. */
+    private GroupId servedGroup;
+    /** RH of the space it serves at the last cycle, for its sign; never saved. */
+    private double lastHumidity = Double.NaN;
+
+    protected ClimateUnit(BlockKey position, BlockKey unit, BlockKey part, String label, int setpoint,
+                          boolean powered, boolean running, double zoneDewPointF) {
+        this.position = Objects.requireNonNull(position, "position");
+        this.unit = Objects.requireNonNull(unit, "unit");
+        this.part = Objects.requireNonNull(part, "part");
+        if (!position.worldId().equals(unit.worldId()) || !unit.worldId().equals(part.worldId()))
+            throw new IllegalArgumentException(getClass().getSimpleName().toLowerCase(java.util.Locale.ROOT)
+                    + " parts are in different worlds");
+        this.label = Thermostat.validateId(label);
+        this.setpoint = clampSetpoint(setpoint);
+        this.powered = powered;
+        this.running = running && powered;
+        setZoneDewPointF(zoneDewPointF);
+    }
+
+    public abstract Kind kind();
+
+    /** The control sign; the key the registry files it under. */
+    public BlockKey position() { return position; }
+    /** The iron block. */
+    public BlockKey unit() { return unit; }
+    /** The block that shows its water: a dehumidifier's grate, a humidifier's slab. */
+    public BlockKey part() { return part; }
+    public String label() { return label; }
+    public int setpoint() { return setpoint; }
+    public boolean powered() { return powered; }
+    public boolean running() { return running; }
+    public double zoneDewPointF() { return zoneDewPointF; }
+    public GroupId servedGroup() { return servedGroup; }
+    public void setServedGroup(GroupId group) { this.servedGroup = group; }
+    public double lastHumidity() { return lastHumidity; }
+    public void setLastHumidity(double humidity) { this.lastHumidity = humidity; }
+
+    public State state() {
+        if (!powered) return State.OFF;
+        return running ? State.RUNNING : State.IDLE;
+    }
+
+    public void setSetpoint(int setpoint) { this.setpoint = clampSetpoint(setpoint); }
+
+    /** Off stops it at once; anything else it holds stays exactly as it is until it is back on. */
+    public void setPowered(boolean powered) {
+        this.powered = powered;
+        if (!powered) running = false;
+    }
+
+    public void setZoneDewPointF(double dewPointF) {
+        this.zoneDewPointF = Double.isFinite(dewPointF) ? ThermalModel.clampTemperature(dewPointF) : Double.NaN;
+    }
+
+    /**
+     * Decides whether to run, from the space's humidity, with hysteresis so it
+     * does not chatter around one value.
+     *
+     * @return true when the running state changed
+     */
+    public abstract boolean control(double humidity, ClimateSettings settings);
+
+    /** The setpoint a click on its sign moves to. */
+    public abstract int nextPreset(ClimateSettings settings);
+
+    /** What its water block must be, so the registry can tell when it was broken. */
+    public abstract Material partMaterial();
+
+    /**
+     * Shows water in its water block, or dries it. Set without physics, and
+     * the listener cancels any flow from it, so the water stays inside the
+     * block instead of flooding the room. Never loads a chunk.
+     */
+    public void setPartWater(boolean water) {
+        if (!part.isChunkLoaded()) return;
+        Location location = part.location();
+        if (location == null) return;
+        Block block = location.getBlock();
+        if (block.getType() != partMaterial()
+                || !(block.getBlockData() instanceof Waterlogged data) || data.isWaterlogged() == water) return;
+        data.setWaterlogged(water);
+        block.setBlockData(data, false);
+    }
+
+    public abstract Map<String, Object> toMap();
+
+    /** The fields every unit saves, in the order they are written. */
+    protected void writeCommon(Map<String, Object> map, String partPrefix) {
+        position.write(map, "");
+        unit.write(map, "unit");
+        part.write(map, partPrefix);
+        map.put("label", label);
+        map.put("setpoint", setpoint);
+        map.put("powered", powered);
+        map.put("running", running);
+    }
+
+    protected void writeZone(Map<String, Object> map) {
+        if (Double.isFinite(zoneDewPointF)) map.put("zoneDewPointF", zoneDewPointF);
+    }
+
+    private static int clampSetpoint(int value) {
+        return Math.max(1, Math.min(99, value));
+    }
+
+    protected static String text(Map<String, Object> map, String key, String fallback) {
+        Object value = map.get(key);
+        return value instanceof String text && !text.isBlank() ? text : fallback;
+    }
+
+    protected static double number(Map<String, Object> map, String key, double fallback) {
+        Object value = map.get(key);
+        return value instanceof Number number && Double.isFinite(number.doubleValue())
+                ? number.doubleValue() : fallback;
+    }
+
+    protected static boolean bool(Map<String, Object> map, String key, boolean fallback) {
+        Object value = map.get(key);
+        return value instanceof Boolean flag ? flag : fallback;
+    }
+}

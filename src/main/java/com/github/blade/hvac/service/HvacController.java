@@ -34,17 +34,17 @@ public final class HvacController {
     private final OutdoorTemperatureService outdoor;
     private final AirflowService airflow;
     private final HvacSettings settings;
-    private final DehumidifierService dehumidifiers;
+    private final ClimateUnitService units;
 
     public HvacController(HvacPlugin plugin, HvacRegistry registry,
                           OutdoorTemperatureService outdoor, AirflowService airflow,
-                          HvacSettings settings, DehumidifierService dehumidifiers) {
+                          HvacSettings settings, ClimateUnitService units) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.settings = Objects.requireNonNull(settings, "settings");
-        this.dehumidifiers = Objects.requireNonNull(dehumidifiers, "dehumidifiers");
+        this.units = Objects.requireNonNull(units, "units");
     }
 
     public CycleResult cycle(long elapsedTicks) {
@@ -172,11 +172,11 @@ public final class HvacController {
         HumidityModel.Loads loads = new HumidityModel.Loads(
                 mode == OperatingMode.COOLING ? capacity : 0.0, exposure.wetFraction(),
                 exposure.waterCells().length == 0 ? Double.NaN : waterTemperature(thermostat, exposure),
-                dehumidifiers.scaleFor(thermostat.group()));
+                units.scaleFor(thermostat.group()), units.humidifierScaleFor(thermostat.group()));
         HumidityModel.Result result = HumidityModel.step(thermostat.roomDewPointF(), thermostat.roomF(),
                 out.dewPointF(), loads, elapsedTicks, outdoor.climate());
         thermostat.setRoomDewPointF(result.dewPointF());
-        dehumidifiers.credit(thermostat.group(), result.dehumidifiedF());
+        units.credit(thermostat.group(), result.dehumidifiedF());
     }
 
     /** Samples to estimate the temperature of a space's water: a heated pool evaporates faster than a pond. */

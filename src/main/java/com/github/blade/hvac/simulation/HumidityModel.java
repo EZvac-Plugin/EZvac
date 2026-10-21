@@ -19,9 +19,16 @@ public final class HumidityModel {
      * @param waterF           temperature of that water, NaN when unknown (taken as the room's)
      * @param dehumidifierScale sum of running dehumidifiers' strength in this space, 1 = one unit
      *                          at its reference size
+     * @param humidifierScale   the same for running humidifiers
      */
-    public record Loads(double coolingCapacity, double wetFraction, double waterF, double dehumidifierScale) {
-        public static final Loads NONE = new Loads(0.0, 0.0, Double.NaN, 0.0);
+    public record Loads(double coolingCapacity, double wetFraction, double waterF, double dehumidifierScale,
+                        double humidifierScale) {
+        public static final Loads NONE = new Loads(0.0, 0.0, Double.NaN, 0.0, 0.0);
+
+        /** No humidifiers. */
+        public Loads(double coolingCapacity, double wetFraction, double waterF, double dehumidifierScale) {
+            this(coolingCapacity, wetFraction, waterF, dehumidifierScale, 0.0);
+        }
     }
 
     /**
@@ -34,7 +41,8 @@ public final class HumidityModel {
      * Advances a space's moisture. Infiltration closes a share of the gap to
      * the outdoors each hour; cooling and dehumidifiers pull toward their
      * coil's dew point, harder the further above it the air is; water
-     * evaporates faster when it is warmer than the air, and never raises the
+     * evaporates faster when it is warmer than the air; a humidifier adds
+     * moisture, easing off as the air nears saturation. Water never raises the
      * dew point past its own temperature. The dew point never exceeds the air
      * temperature: anything beyond 100% RH condenses out.
      */
@@ -51,6 +59,7 @@ public final class HumidityModel {
         double evaporation = humidity.evaporationFPerHour() * wet * (1.0 + Math.max(0.0, waterF - roomF) / 20.0);
         double cooling = humidity.coolingDryFPerHour() * Math.max(0.0, loads.coolingCapacity());
         double drying = dehumidifier.dryFPerHour() * Math.max(0.0, loads.dehumidifierScale());
+        double humidifying = settings.humidifier().addFPerHour() * Math.max(0.0, loads.humidifierScale());
 
         double remaining = elapsedTicks / ThermalModel.MINECRAFT_TICKS_PER_HOUR;
         double dehumidified = 0.0;
@@ -58,7 +67,9 @@ public final class HumidityModel {
             double hours = Math.min(STEP_HOURS, remaining);
             double rate = (outdoorDewPointF - dew) * humidity.infiltrationPerHour()
                     + evaporation * fraction((waterF - dew) / 10.0)
-                    - cooling * fraction((dew - humidity.coilDewPointF()) / 15.0);
+                    - cooling * fraction((dew - humidity.coilDewPointF()) / 15.0)
+                    // A humidifier slows as the air nears saturation, and stops short of it.
+                    + humidifying * fraction((roomF - 2.0 - dew) / 10.0);
             double removal = drying * fraction((dew - dehumidifier.dryDewPointF()) / 15.0);
             double next = Math.min(roomF, dew + (rate - removal) * hours);
             dehumidified += removal * hours;

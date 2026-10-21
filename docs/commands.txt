@@ -1,4 +1,4 @@
-EZVAC ALPHA 2.0 PILOT 2 - COMMAND REFERENCE
+EZVAC ALPHA 2.0 PILOT 3 - COMMAND REFERENCE
 ===========================================
 
 All commands use /hvac. /climate is an alias.
@@ -83,14 +83,23 @@ CREATE DEVICES (ezvac.admin)
   a waxed copper grate. Registers a standalone dehumidifier at 45%. It needs no
   group. The grate must not be linked as a water vent. "dehum" is a shorthand.
 
-DEHUMIDIFIER USE (ezvac.use)
---------------------------------
+/hvac create humidifier [label]
+  Look at a sign on the side of an iron block that has a waxed cut copper slab
+  (bottom half) on top. Registers a standalone, plumbed humidifier at 40%. It
+  needs no group. "hum" is a shorthand.
+
+DEHUMIDIFIER AND HUMIDIFIER USE (ezvac.use)
+--------------------------------------------
 
 - Right-click the sign to step the setpoint: 35, 40, 45, 50, 55, 60% (wraps).
 - Sneak-right-click to switch it on or off. Off freezes the tank as it is.
 - It starts 2% above the setpoint and runs until the setpoint is reached.
 - A full tank waterlogs the grate and shows "Emptying..." for 30 seconds.
 - Breaking the sign, the iron block or the grate removes it.
+- A humidifier is used the same way: its setpoints are 30, 35, 40, 45, 50%, it
+  starts 2% below the setpoint and runs up to it, and while it runs its slab
+  holds water and bubbles. It never needs refilling. Breaking the sign, the
+  iron block or the slab removes it.
 
 SETTINGS PANEL USE (ezvac.use)
 --------------------------------
@@ -184,7 +193,7 @@ INSTALL / UPGRADE
 -----------------
 
 1. Stop the server and back up the existing plugins/EZvac directory, if present.
-2. Put EzVac-ALPHA-2.0-P2.jar in the server plugins directory. Upgrading from
+2. Put EzVac-ALPHA-2.0-P3.jar in the server plugins directory. Upgrading from
    1.x moves hvac.yml to format 6 and keeps the original as
    hvac.yml.format5.bak.
 3. Start Paper 1.21.1 (or Purpur) on Java 21.
