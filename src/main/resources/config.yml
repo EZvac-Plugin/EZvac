@@ -90,9 +90,9 @@ humidity:
 # Standalone dehumidifiers (2.0): an iron block on a waxed copper grate with a
 # sign on the iron block, registered with /hvac create dehumidifier.
 dehumidifier:
-  # Reach of the unit's own airflow zone, in blocks.
-  range: 12
-  maximum-cells: 20000
+  # Reach of the unit's own airflow zone, in blocks (the same as a vent's).
+  range: 30
+  maximum-cells: 50000
   # Drying rate in a space of reference-cells; bigger spaces dry slower.
   dry-f-per-minecraft-hour: 3.0
   dry-dew-point-f: 35.0

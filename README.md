@@ -185,8 +185,8 @@ block (on its side, or standing on top), and while looking at the sign run:
 /hvac create dehumidifier [label]
 ```
 
-It needs no system. It dries the air within its own short reach (12 blocks
-of airflow by default): the room of the system whose air surrounds it, or,
+It needs no system. It dries the air within its own reach (30 blocks of
+airflow by default, the same as a vent): the room of the system whose air surrounds it, or,
 anywhere else (a shed, a basement), that space itself, which the HUD then
 reads.
 

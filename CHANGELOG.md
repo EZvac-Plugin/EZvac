@@ -2,6 +2,15 @@
 
 All notable changes to EZvac are recorded here.
 
+## Unreleased
+
+### Changed
+
+- **Dehumidifiers reach 2.5 times as far:** 30 blocks of airflow by default
+  (was 12), the same as a vent, so one unit covers a whole house or hall. Its
+  zone's cell cap rose to 50,000 to match. Both are `dehumidifier.range` and
+  `dehumidifier.maximum-cells` in `config.yml`.
+
 ## ALPHA 2.0 Pilot 1
 
 A prerelease of the 2.0 realism update: weather, humidity, "feels like" and
