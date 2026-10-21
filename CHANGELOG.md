@@ -18,6 +18,10 @@ untouched if you go back.
   step the setpoint (30-50%), sneak-click to switch it on or off. It is
   plumbed and never runs dry. While it runs the slab fills with water and
   bubbles, and the water never spills. Tuning under `humidifier:`.
+- **Thermostat power switch.** Sneak-right-click a thermostat sign to switch
+  its system off, and again to switch it back on, like `/hvac thermostat <id>
+  disable|enable` (needs `ezvac.use`). Units switched off on their own stay
+  off. A plain click still edits the target.
 - **config.yml keeps up.** Settings added since a server's `config.yml` was
   written (for a server upgraded from 1.x: `hud:`, `weather:`, `humidity:`,
   `dehumidifier:`, `humidifier:` and the pool target lines) are added to it on

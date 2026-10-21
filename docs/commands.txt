@@ -130,7 +130,9 @@ THERMOSTATS (ezvac.admin)
   Shows room/target, mode, group, and enable state.
 
 Thermostat signs may also be edited. Put a finite number on line 3. Non-admin
-players cannot modify registered thermostat signs; thermometer, RPM, and
+players cannot modify registered thermostat signs. Sneak-right-clicking a
+thermostat sign (ezvac.use) switches its system off or back on, like
+/hvac thermostat <id> disable|enable; units disabled on their own stay off; thermometer, RPM, and
 settings-panel and dehumidifier signs are always read-only through the sign
 editor.
 

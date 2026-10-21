@@ -92,6 +92,34 @@ public final class HvacListener implements Listener {
         refreshLater(key);
     }
 
+    /**
+     * Sneak-clicking a thermostat sign switches its system off or back on,
+     * like /hvac thermostat disable|enable. Only the thermostat is toggled: a
+     * disabled thermostat idles its whole group, and units switched off on
+     * their own stay off when it comes back. A plain click still opens the
+     * sign editor for the target.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onThermostatPower(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
+                || event.getHand() != EquipmentSlot.HAND || !event.getPlayer().isSneaking()
+                || command.isDuctTool(event.getItem())) return;
+        Thermostat thermostat = registry.thermostatAt(BlockKey.of(event.getClickedBlock().getLocation()));
+        if (thermostat == null) return;
+        event.setCancelled(true);
+        Player player = event.getPlayer();
+        if (!player.hasPermission("ezvac.use")) {
+            player.sendMessage(Component.text("You may not switch this HVAC system.", NamedTextColor.RED));
+            return;
+        }
+        thermostat.setEnabled(!thermostat.enabled());
+        registry.markDirty();
+        displays.refreshThermostat(thermostat, true);
+        plugin.requestImmediateSync();
+        player.sendMessage(Component.text("System '" + thermostat.group().label() + "' switched "
+                + (thermostat.enabled() ? "on." : "off."), thermostat.enabled() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSettingsPanel(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
