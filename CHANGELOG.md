@@ -2,6 +2,46 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.0 Pilot 3
+
+Humidifiers, a config.yml that keeps up with new settings, and cheaper signs.
+Same save format as Pilots 1 and 2 (format 6): a drop-in upgrade. Humidifiers
+are saved in their own `humidifiers` section, which Pilots 1 and 2 keep
+untouched if you go back.
+
+### Added
+
+- **Humidifiers.** An iron block with a waxed cut copper slab on top and a
+  sign on the iron block, registered with `/hvac create humidifier [label]`.
+  It adds moisture to the system room around it, or its own zone anywhere
+  else, starting 2% below its setpoint and running up to it. Click the sign to
+  step the setpoint (30-50%), sneak-click to switch it on or off. It is
+  plumbed and never runs dry. While it runs the slab fills with water and
+  bubbles, and the water never spills. Tuning under `humidifier:`.
+- **config.yml keeps up.** Settings added since a server's `config.yml` was
+  written (for a server upgraded from 1.x: `hud:`, `weather:`, `humidity:`,
+  `dehumidifier:`, `humidifier:` and the pool target lines) are added to it on
+  startup, with their comments. Existing settings are never changed, even
+  where the default has since changed; the previous file is kept as
+  `config.yml.before-<version>.bak`, and a file that can't be read is left
+  alone.
+
+### Changed
+
+- **Signs are only rewritten near players.** Thermostats, thermometers,
+  RPM monitors, panels and units more than about 64 blocks from every player
+  keep their last text until someone comes near, then update within a second.
+  The simulation, equipment, saving and readings are unaffected. Rewriting
+  signs was EZvac's largest single cost on large servers.
+- `/hvac info` and `/hvac remove` cover humidifiers; dehumidifier messages and
+  signs are unchanged.
+
+### Fixed
+
+- A thermo-hygrometer created without a label showed `Thermohygromete` on its
+  sign, one letter too long for the line. It now shows `T. Hygrometer`,
+  including on existing signs.
+
 ## ALPHA 2.0 Pilot 2
 
 The second 2.0 pilot. Same save format as Pilot 1 (format 6), so it is a

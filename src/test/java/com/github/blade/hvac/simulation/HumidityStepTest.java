@@ -57,6 +57,24 @@ class HumidityStepTest {
     }
 
     @Test
+    void aHumidifierAddsMoistureButNeverSaturatesTheRoom() {
+        HumidityModel.Loads humidifier = new HumidityModel.Loads(0, 0, Double.NaN, 0, 1.0);
+        double dryWinterRoom = Psychrometrics.dewPointF(72, 25);
+        double hour = step(dryWinterRoom, 72, dryWinterRoom, humidifier, HOUR);
+        assertTrue(hour > dryWinterRoom + 2.0 && hour <= dryWinterRoom + 3.0, "about its rated 3 F per hour");
+        double settled = step(dryWinterRoom, 72, dryWinterRoom, humidifier, 200 * HOUR);
+        assertTrue(Psychrometrics.relativeHumidity(72, settled) < 95, "stops short of saturation: " + settled);
+        assertTrue(Psychrometrics.relativeHumidity(72, settled) > 45, "but makes a dry room comfortable");
+    }
+
+    @Test
+    void aHumidifierAndADehumidifierInOneRoomPullAgainstEachOther() {
+        double alone = step(50, 72, 50, new HumidityModel.Loads(0, 0, Double.NaN, 0, 1.0), 20 * HOUR);
+        double both = step(50, 72, 50, new HumidityModel.Loads(0, 0, Double.NaN, 1.0, 1.0), 20 * HOUR);
+        assertTrue(both < alone);
+    }
+
+    @Test
     void splittingAnIntervalGivesTheSameResult() {
         HumidityModel.Loads loads = new HumidityModel.Loads(0.7, 0.02, 80, 0.5);
         double whole = step(58, 74, 61, loads, 400);

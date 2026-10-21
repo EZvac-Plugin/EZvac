@@ -66,19 +66,19 @@ public final class AirflowService {
     private static final int MAXIMUM_WATER_CELLS = 4_096;
 
     /**
-     * A dehumidifier's zone reaching a spot.
+     * A standalone unit's zone reaching a spot.
      *
      * @param influence 0..1, full near the unit and fading to its zone's edge
      */
-    public record ZoneReading(Dehumidifier dehumidifier, int distance, double influence) {}
+    public record ZoneReading(ClimateUnit unit, int distance, double influence) {}
 
     private record Node(int x, int y, int z, int distance) {}
 
     private static final class Rebuild {
         final AirflowTarget target;
-        /** Water systems traverse water; air systems and dehumidifier zones traverse open air. */
+        /** Water systems traverse water; air systems and unit zones traverse open air. */
         final boolean water;
-        /** Path length and cell cap: a system's, or the smaller ones of a dehumidifier's zone. */
+        /** Path length and cell cap: a system's, or a standalone unit's zone's. */
         final int range;
         final int maximumCells;
         final ArrayDeque<Node> queue = new ArrayDeque<>();
@@ -159,7 +159,7 @@ public final class AirflowService {
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.settings = Objects.requireNonNull(settings, "settings");
         for (ClimateVent vent : registry.vents()) dirty.add(vent.group());
-        for (Dehumidifier dehumidifier : registry.dehumidifiers()) dirty.add(ZoneId.of(dehumidifier));
+        for (ClimateUnit unit : registry.climateUnits()) dirty.add(ZoneId.of(unit));
     }
 
     public void invalidate(AirflowTarget target) {
@@ -222,20 +222,20 @@ public final class AirflowService {
         invalidateZonesNear(location.getWorld().getUID(), blockX, blockY, blockZ, packed);
     }
 
-    /** Dehumidifier zones that hold this block, or whose unit is close enough that they could now. */
+    /** Unit zones that hold this block, or whose unit is close enough that they could now. */
     private void invalidateZonesNear(UUID worldId, int blockX, int blockY, int blockZ, long packed) {
-        Long2ObjectOpenHashMap<List<Dehumidifier>> cells = registry.dehumidifierCells(worldId);
+        Long2ObjectOpenHashMap<List<ClimateUnit>> cells = registry.climateUnitCells(worldId);
         if (cells == null) return;
         int shift = registry.ventCellShift();
         int reach = zoneRange() + 2;
         for (int cellX = (blockX - reach) >> shift; cellX <= (blockX + reach) >> shift; cellX++) {
             for (int cellZ = (blockZ - reach) >> shift; cellZ <= (blockZ + reach) >> shift; cellZ++) {
-                List<Dehumidifier> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
+                List<ClimateUnit> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
                 if (bucket == null) continue;
-                for (Dehumidifier dehumidifier : bucket) {
-                    ZoneId zone = ZoneId.of(dehumidifier);
+                for (ClimateUnit climateUnit : bucket) {
+                    ZoneId zone = ZoneId.of(climateUnit);
                     Long2ByteMap map = completed.get(zone);
-                    BlockKey unit = dehumidifier.unit();
+                    BlockKey unit = climateUnit.unit();
                     if ((map != null && map.containsKey(packed)) || Math.abs(unit.x() - blockX)
                             + Math.abs(unit.y() - blockY) + Math.abs(unit.z() - blockZ) <= reach)
                         invalidate(zone);
@@ -244,8 +244,14 @@ public final class AirflowService {
         }
     }
 
+    /** The farthest any unit's zone reaches, for spatial searches. */
     private int zoneRange() {
-        return outdoor.climate().dehumidifier().range();
+        return outdoor.climate().unitRange();
+    }
+
+    private int rangeOf(ClimateUnit unit) {
+        return unit instanceof Humidifier ? outdoor.climate().humidifier().range()
+                : outdoor.climate().dehumidifier().range();
     }
 
     public void invalidateWorld(World world) {
@@ -253,8 +259,8 @@ public final class AirflowService {
         UUID worldId = world.getUID();
         for (ClimateVent vent : registry.vents())
             if (vent.group().worldId().equals(worldId)) invalidate(vent.group());
-        for (Dehumidifier dehumidifier : registry.dehumidifiers())
-            if (dehumidifier.unit().worldId().equals(worldId)) invalidate(ZoneId.of(dehumidifier));
+        for (ClimateUnit unit : registry.climateUnits())
+            if (unit.unit().worldId().equals(worldId)) invalidate(ZoneId.of(unit));
     }
 
     /** Invalidates only systems whose maximum possible path can intersect this chunk. */
@@ -281,24 +287,24 @@ public final class AirflowService {
                 }
             }
         }
-        Long2ObjectOpenHashMap<List<Dehumidifier>> zones = registry.dehumidifierCells(chunk.getWorld().getUID());
+        Long2ObjectOpenHashMap<List<ClimateUnit>> zones = registry.climateUnitCells(chunk.getWorld().getUID());
         if (zones == null) return;
         int zoneRange = zoneRange();
         for (int cellX = (minimumX - zoneRange) >> shift; cellX <= (maximumX + zoneRange) >> shift; cellX++) {
             for (int cellZ = (minimumZ - zoneRange) >> shift; cellZ <= (maximumZ + zoneRange) >> shift; cellZ++) {
-                List<Dehumidifier> bucket = zones.get(HvacRegistry.cellKey(cellX, cellZ));
+                List<ClimateUnit> bucket = zones.get(HvacRegistry.cellKey(cellX, cellZ));
                 if (bucket == null) continue;
-                for (Dehumidifier dehumidifier : bucket) {
-                    BlockKey unit = dehumidifier.unit();
+                for (ClimateUnit climateUnit : bucket) {
+                    BlockKey unit = climateUnit.unit();
                     int dx = unit.x() < minimumX ? minimumX - unit.x() : Math.max(0, unit.x() - maximumX);
                     int dz = unit.z() < minimumZ ? minimumZ - unit.z() : Math.max(0, unit.z() - maximumZ);
-                    if (dx + dz <= zoneRange) invalidate(ZoneId.of(dehumidifier));
+                    if (dx + dz <= zoneRange) invalidate(ZoneId.of(climateUnit));
                 }
             }
         }
     }
 
-    /** Drops a removed dehumidifier's zone. */
+    /** Drops a removed unit's zone. */
     public void forget(AirflowTarget target) {
         dirty.remove(target);
         dirtySince.remove(target);
@@ -374,14 +380,15 @@ public final class AirflowService {
         };
     }
 
-    /** A dehumidifier's zone starts from the air around its iron block. */
+    /** A unit's zone starts from the air around its iron block. */
     private Rebuild begin(ZoneId zone) {
         BlockKey unit = zone.unit();
         World world = Bukkit.getWorld(unit.worldId());
-        if (world == null || registry.dehumidifierAt(unit) == null
-                || !world.isChunkLoaded(unit.x() >> 4, unit.z() >> 4)) return null;
-        var settings = outdoor.climate().dehumidifier();
-        Rebuild rebuild = new Rebuild(zone, false, settings.range(), settings.maximumCells());
+        ClimateUnit climateUnit = registry.climateUnitAt(unit);
+        if (world == null || climateUnit == null || !world.isChunkLoaded(unit.x() >> 4, unit.z() >> 4)) return null;
+        int maximumCells = climateUnit instanceof Humidifier ? outdoor.climate().humidifier().maximumCells()
+                : outdoor.climate().dehumidifier().maximumCells();
+        Rebuild rebuild = new Rebuild(zone, false, rangeOf(climateUnit), maximumCells);
         rebuild.clearChunkCache();
         for (int[] direction : DIRECTIONS)
             enqueue(rebuild, world, unit.x() + direction[0], unit.y() + direction[1], unit.z() + direction[2], 0);
@@ -561,12 +568,12 @@ public final class AirflowService {
         if (thermostat != null && !thermostat.pool() && thermostat.hasRoomDewPoint() && influence > 0.0) {
             dew += (thermostat.roomDewPointF() - dew) * influence;
         } else if (location != null) {
-            // No system conditions this air, but a standalone dehumidifier may be drying it.
+            // No system conditions this air, but a standalone unit may be drying or humidifying it.
             ZoneReading zone = zoneAt(location.getWorld().getUID(),
                     location.getBlockX(), location.getBlockY(), location.getBlockZ());
-            if (zone != null && zone.dehumidifier().servedGroup() == null
-                    && Double.isFinite(zone.dehumidifier().zoneDewPointF()))
-                dew += (zone.dehumidifier().zoneDewPointF() - dew) * zone.influence();
+            if (zone != null && zone.unit().servedGroup() == null
+                    && Double.isFinite(zone.unit().zoneDewPointF()))
+                dew += (zone.unit().zoneDewPointF() - dew) * zone.influence();
         }
         double humidity = Psychrometrics.relativeHumidity(localF, dew);
         double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, out.windMs() * (1.0 - influence));
@@ -589,7 +596,7 @@ public final class AirflowService {
         return natural + (thermostat.roomF() - natural) * influenceForDistance(nearest.distance());
     }
 
-    /** The water a system's air (or a dehumidifier's zone) touches, from its last completed map. */
+    /** The water a system's air (or a unit's zone) touches, from its last completed map. */
     public WaterExposure waterExposure(AirflowTarget target) {
         return exposures.getOrDefault(target, WaterExposure.NONE);
     }
@@ -607,36 +614,36 @@ public final class AirflowService {
     }
 
     /**
-     * The dehumidifier zone that reaches this block soonest, or null. Influence
-     * is full over the first half of the zone's range and fades to its edge.
+     * The unit zone that reaches this block soonest, or null. Influence is
+     * full over the first half of that unit's range and fades to its edge.
      */
     public ZoneReading zoneAt(UUID worldId, int x, int y, int z) {
-        Long2ObjectOpenHashMap<List<Dehumidifier>> cells = registry.dehumidifierCells(worldId);
+        Long2ObjectOpenHashMap<List<ClimateUnit>> cells = registry.climateUnitCells(worldId);
         if (cells == null) return null;
         int shift = registry.ventCellShift();
-        int range = zoneRange();
-        int reach = range + 2;
+        int reach = zoneRange() + 2;
         long key = pack(x, y, z);
-        Dehumidifier best = null;
+        ClimateUnit best = null;
         int bestDistance = Integer.MAX_VALUE;
         for (int cellX = (x - reach) >> shift; cellX <= (x + reach) >> shift; cellX++) {
             for (int cellZ = (z - reach) >> shift; cellZ <= (z + reach) >> shift; cellZ++) {
-                List<Dehumidifier> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
+                List<ClimateUnit> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
                 if (bucket == null) continue;
-                for (Dehumidifier dehumidifier : bucket) {
-                    Long2ByteMap map = completed.get(ZoneId.of(dehumidifier));
+                for (ClimateUnit unit : bucket) {
+                    Long2ByteMap map = completed.get(ZoneId.of(unit));
                     if (map == null) continue;
                     byte distance = map.get(key);
                     if (distance == ABSENT) continue;
                     if (distance < bestDistance || (distance == bestDistance
-                            && dehumidifier.position().compareTo(best.position()) < 0)) {
-                        best = dehumidifier;
+                            && unit.position().compareTo(best.position()) < 0)) {
+                        best = unit;
                         bestDistance = distance;
                     }
                 }
             }
         }
         if (best == null) return null;
+        int range = rangeOf(best);
         double core = range / 2.0;
         double influence = bestDistance <= core ? 1.0 : Math.max(0.0, (range - bestDistance) / (range - core));
         return new ZoneReading(best, bestDistance, influence);

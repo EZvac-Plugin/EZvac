@@ -107,6 +107,23 @@ dehumidifier:
   # It starts again once RH is this far above the setpoint.
   hysteresis: 2.0
 
+# Standalone humidifiers (2.0 Pilot 3): an iron block with a waxed cut copper
+# slab on top and a sign on the iron block, registered with
+# /hvac create humidifier. Plumbed: it never runs dry. While it runs the slab
+# fills with water and bubbles.
+humidifier:
+  # Reach of the unit's own airflow zone, in blocks (the same as a vent's).
+  range: 30
+  maximum-cells: 50000
+  # Moisture added in a space of reference-cells; bigger spaces gain slower.
+  add-f-per-minecraft-hour: 3.0
+  reference-cells: 1500
+  default-setpoint: 40
+  # Clicking the sign cycles these setpoints (% RH).
+  presets: [30, 35, 40, 45, 50]
+  # It starts again once RH is this far below the setpoint.
+  hysteresis: 2.0
+
 # On-screen climate HUD and PlaceholderAPI placeholders (ALPHA 1.8).
 # Players turn the HUD on or off for themselves with /hvac hud. Text uses
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:

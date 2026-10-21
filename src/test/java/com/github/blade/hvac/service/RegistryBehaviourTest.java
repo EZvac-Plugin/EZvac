@@ -234,4 +234,34 @@ class RegistryBehaviourTest {
         assertTrue(registry.vents().isEmpty());
         assertNull(registry.removeVent(at(5, 66, 5)));
     }
+
+    @Test
+    void dehumidifiersAndHumidifiersSaveInTheirOwnSectionsAndShareThePartIndex() throws IOException {
+        HvacRegistry registry = new HvacRegistry(host, SETTINGS);
+        Dehumidifier dry = new Dehumidifier(at(1, 65, 0), at(0, 65, 0), at(0, 64, 0), "basement", 50);
+        Humidifier wet = new Humidifier(at(11, 65, 0), at(10, 65, 0), at(10, 66, 0), "nursery", 40);
+        registry.addClimateUnit(dry);
+        registry.addClimateUnit(wet);
+        assertSame(wet, registry.climateUnitAt(at(10, 66, 0)), "the slab finds its humidifier");
+        assertSame(dry, registry.dehumidifierAt(at(0, 64, 0)));
+        assertNull(registry.dehumidifierAt(at(10, 65, 0)), "a humidifier is not a dehumidifier");
+        assertEquals(HvacRegistry.DeviceKind.HUMIDIFIER, registry.deviceKind(at(10, 65, 0)));
+        assertThrows(IllegalArgumentException.class, () -> registry.addVent(
+                new ClimateVent(at(10, 66, 0), new GroupId(WORLD, "house"))), "a unit's block is taken");
+        assertNull(registry.indexDiscrepancy());
+
+        String file = saved(registry);
+        assertTrue(file.contains("\ndehumidifiers:\n") && file.contains("\nhumidifiers:\n"), file);
+        HvacRegistry reloaded = new HvacRegistry(host, SETTINGS);
+        reloaded.load();
+        assertEquals(List.of(at(1, 65, 0), at(11, 65, 0)),
+                reloaded.climateUnits().stream().map(ClimateUnit::position).toList());
+        assertInstanceOf(Humidifier.class, reloaded.climateUnitAt(at(11, 65, 0)));
+        assertNull(reloaded.indexDiscrepancy());
+
+        assertSame(wet.getClass(), reloaded.removeClimateUnit(at(10, 66, 0)).getClass(), "removed by its slab");
+        assertNull(reloaded.climateUnitAt(at(11, 65, 0)));
+        assertEquals(1, reloaded.climateUnits().size());
+        assertNull(reloaded.indexDiscrepancy());
+    }
 }

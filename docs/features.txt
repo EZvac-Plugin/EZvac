@@ -1,4 +1,4 @@
-EZVAC ALPHA 2.0 PILOT 2 FEATURES
+EZVAC ALPHA 2.0 PILOT 3 FEATURES
 ================================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
@@ -165,6 +165,12 @@ DEHUMIDIFIERS
   unit empties for 30 seconds, then carries on. The grate's water is never
   allowed to flow.
 - Click: next setpoint preset. Sneak-click: power. Both need ezvac.use.
+- Humidifiers are the counterpart: an iron block with a waxed cut copper slab
+  on top and a sign on the iron block. Same zone rules and controls; they add
+  3 F of dew point per in-game hour in a space up to 1,500 cells, ease off as
+  the air nears saturation, start 2% below the setpoint, and are plumbed (no
+  tank). While running the slab is waterlogged and bubbles; its water never
+  flows.
 - Hygrometers and thermo-hygrometers are point sensors like thermometers:
   humidity inside and outside, or temperature, humidity and feels-like.
 
@@ -243,6 +249,9 @@ about a second after a door moves rather than instantly.
 DISPLAYS AND AUDIO
 ------------------
 
+- Signs are rewritten only within about 64 blocks (4 chunks) of a player.
+  Farther signs keep their last text and catch up within a second of someone
+  coming near; nothing else depends on sign text.
 - Thermostat signs use a compact real-thermostat layout showing EZvac/ID,
   current room temperature, COOL/HEAT/IDLE/OFF, setpoint, live capacity, group,
   and an approximate ETA while actively heating or cooling.
@@ -313,9 +322,13 @@ PERSISTENCE
 -----------
 
 All thermostats, equipment, pending cleanup, vents, thermometers, RPM monitors,
-settings panels and dehumidifiers live in one versioned plugins/EZvac/hvac.yml
-file (format 6 since 2.0; a 1.x file is kept as hvac.yml.format5.bak before
-its first 2.0 save).
+settings panels, dehumidifiers and humidifiers live in one versioned
+plugins/EZvac/hvac.yml file (format 6 since 2.0; a 1.x file is kept as
+hvac.yml.format5.bak before its first 2.0 save).
+
+config.yml is brought up to date on startup: settings added since it was
+written are added with their comments, nothing existing is changed, and the
+previous file is kept as config.yml.before-<version>.bak.
 
 - Records use immutable world UUID + integer block coordinates.
 - World unloads require no detach/rebind rewrite.

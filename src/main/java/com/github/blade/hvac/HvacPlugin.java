@@ -2,6 +2,7 @@ package com.github.blade.hvac;
 
 import com.github.blade.hvac.command.HvacCommand;
 import com.github.blade.hvac.config.ClimateSettings;
+import com.github.blade.hvac.config.ConfigUpdater;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
@@ -9,9 +10,18 @@ import com.github.blade.hvac.integration.placeholderapi.PlaceholderApiBridge;
 import com.github.blade.hvac.listener.HvacListener;
 import com.github.blade.hvac.service.*;
 import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 
@@ -26,7 +36,10 @@ public final class HvacPlugin extends JavaPlugin {
     private DisplayService displays;
     private HvacController controller;
     private HvacAudioService audio;
-    private DehumidifierService dehumidifiers;
+    private ClimateUnitService units;
+    /** Units running after the last cycle, for the humidifier bubbles between cycles. */
+    private List<com.github.blade.hvac.model.ClimateUnit> runningUnits = List.of();
+    private BukkitTask bubbleTask;
     private ClimateHudService hud;
     /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
     private Runnable placeholderUnregister;
@@ -40,6 +53,7 @@ public final class HvacPlugin extends JavaPlugin {
     public void onEnable() {
         try {
             saveDefaultConfig();
+            addNewSettingsToConfig();
             settings = HvacSettings.load(getConfig());
             climate = ClimateSettings.load(getConfig());
             registry = new HvacRegistry(this, settings);
@@ -48,19 +62,19 @@ public final class HvacPlugin extends JavaPlugin {
             outdoor = new OutdoorTemperatureService(climate, weather);
             airflow = new AirflowService(registry, outdoor, settings);
             displays = new DisplayService(this, registry, airflow, outdoor, settings);
-            dehumidifiers = new DehumidifierService(registry, airflow, outdoor);
-            controller = new HvacController(this, registry, outdoor, airflow, settings, dehumidifiers);
+            units = new ClimateUnitService(registry, airflow, outdoor);
+            controller = new HvacController(this, registry, outdoor, airflow, settings, units);
             audio = new HvacAudioService(settings);
             hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()));
 
             HvacCommand commandHandler = new HvacCommand(this, registry, controller,
-                    outdoor, airflow, displays, settings, hud, dehumidifiers);
+                    outdoor, airflow, displays, settings, hud, units);
             PluginCommand command = Objects.requireNonNull(getCommand("hvac"),
                     "Command 'hvac' is missing from plugin.yml");
             command.setExecutor(commandHandler);
             command.setTabCompleter(commandHandler);
             getServer().getPluginManager().registerEvents(new HvacListener(
-                    this, registry, airflow, displays, commandHandler, dehumidifiers), this);
+                    this, registry, airflow, displays, commandHandler, units), this);
             getServer().getPluginManager().registerEvents(hud, this);
             hud.start();
             if (hud.sidebarYieldedTo() != null)
@@ -76,17 +90,62 @@ public final class HvacPlugin extends JavaPlugin {
                     () -> runController(settings.controllerPeriodTicks()),
                     settings.controllerPeriodTicks(), settings.controllerPeriodTicks());
             airflowTask = getServer().getScheduler().runTaskTimer(this, airflow::tick, 1L, 1L);
+            bubbleTask = getServer().getScheduler().runTaskTimer(this,
+                    () -> audio.bubble(runningUnits), HvacAudioService.BUBBLE_PERIOD_TICKS,
+                    HvacAudioService.BUBBLE_PERIOD_TICKS);
             displays.refreshAll(true);
             requestImmediateSync();
             getLogger().info("EZvac enabled: " + registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.vents().size() + " vent(s), "
                     + registry.settingsPanels().size() + " settings panel(s), "
-                    + registry.dehumidifiers().size() + " dehumidifier(s).");
+                    + registry.dehumidifiers().size() + " dehumidifier(s), "
+                    + registry.humidifiers().size() + " humidifier(s).");
         } catch (RuntimeException exception) {
             getLogger().log(Level.SEVERE, "EZvac could not start safely", exception);
             getServer().getPluginManager().disablePlugin(this);
         }
+    }
+
+    /**
+     * Writes settings added since the server's config.yml was made into it,
+     * with their comments, without touching anything already there. Before
+     * this, a server upgraded from an older release never saw new settings:
+     * they applied with their defaults, but nobody knew they existed.
+     */
+    private void addNewSettingsToConfig() {
+        File file = new File(getDataFolder(), "config.yml");
+        YamlConfiguration current = new YamlConfiguration();
+        try {
+            current.load(file);
+        } catch (IOException | InvalidConfigurationException failure) {
+            // Never rewrite a file we could not read: that would lose the admin's edits.
+            getLogger().warning("config.yml could not be read, so new settings were not added to it: "
+                    + failure.getMessage());
+            return;
+        }
+        YamlConfiguration bundled = new YamlConfiguration();
+        try (InputStream input = Objects.requireNonNull(getResource("config.yml"), "bundled config.yml")) {
+            bundled.load(new InputStreamReader(input, StandardCharsets.UTF_8));
+        } catch (IOException | InvalidConfigurationException failure) {
+            getLogger().log(Level.WARNING, "Could not read the bundled config.yml", failure);
+            return;
+        }
+        List<String> added = ConfigUpdater.addMissing(current, bundled);
+        if (added.isEmpty()) return;
+        File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
+        try {
+            if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
+            current.save(file);
+        } catch (IOException failure) {
+            getLogger().log(Level.WARNING, "Could not add new settings to config.yml; it was left as it was",
+                    failure);
+            return;
+        }
+        reloadConfig();
+        getLogger().info("Added " + added.size() + " new setting(s) to config.yml ("
+                + String.join(", ", ConfigUpdater.topLevel(added)) + "). Existing settings were not changed;"
+                + " the previous file was kept as " + backup.getName() + ".");
     }
 
     /** Only reached when PlaceholderAPI is enabled, so its classes are never needed otherwise. */
@@ -112,6 +171,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (hud != null) hud.shutdown();
         if (controllerTask != null) controllerTask.cancel();
         if (airflowTask != null) airflowTask.cancel();
+        if (bubbleTask != null) bubbleTask.cancel();
         if (registry != null) {
             registry.shutdownEquipment();
             registry.save(true); // shutdown must not hand work to the scheduler
@@ -126,12 +186,13 @@ public final class HvacPlugin extends JavaPlugin {
         if (!isEnabled() || controller == null) return;
         try {
             weather.advance(elapsedTicks);
-            dehumidifiers.prepare();
+            units.prepare();
             HvacController.CycleResult result = controller.cycle(elapsedTicks);
-            DehumidifierService.Changes drying = dehumidifiers.afterCycle(elapsedTicks);
+            ClimateUnitService.Changes unitChanges = units.afterCycle(elapsedTicks);
+            runningUnits = unitChanges.running();
             audio.applyTransitions(result);
-            audio.applyDehumidifierTransitions(drying);
-            audio.tickHum(result.running(), drying.running(), elapsedTicks);
+            audio.applyUnitTransitions(unitChanges);
+            audio.tickHum(result.running(), unitChanges.running(), elapsedTicks);
             if (result.prunedDevices() > 0)
                 getLogger().info("Removed " + result.prunedDevices() + " missing HVAC device record(s).");
 

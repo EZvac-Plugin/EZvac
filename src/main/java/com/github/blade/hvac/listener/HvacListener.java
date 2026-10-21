@@ -4,7 +4,7 @@ import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.command.HvacCommand;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.AirflowService;
-import com.github.blade.hvac.service.DehumidifierService;
+import com.github.blade.hvac.service.ClimateUnitService;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import net.kyori.adventure.text.Component;
@@ -41,16 +41,16 @@ public final class HvacListener implements Listener {
     private final AirflowService airflow;
     private final DisplayService displays;
     private final HvacCommand command;
-    private final DehumidifierService dehumidifiers;
+    private final ClimateUnitService units;
 
     public HvacListener(HvacPlugin plugin, HvacRegistry registry, AirflowService airflow,
-                        DisplayService displays, HvacCommand command, DehumidifierService dehumidifiers) {
+                        DisplayService displays, HvacCommand command, ClimateUnitService units) {
         this.plugin = plugin;
         this.registry = registry;
         this.airflow = airflow;
         this.displays = displays;
         this.command = command;
-        this.dehumidifiers = dehumidifiers;
+        this.units = units;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -59,7 +59,7 @@ public final class HvacListener implements Listener {
         Thermostat thermostat = registry.thermostatAt(key);
         if (thermostat == null) {
             if (registry.thermometerAt(key) != null || registry.rpmMonitorAt(key) != null
-                    || registry.settingsPanelAt(key) != null || registry.dehumidifierAt(key) != null) {
+                    || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null) {
                 event.setCancelled(true);
                 event.getPlayer().sendMessage(Component.text(
                         "That HVAC display is read-only.", NamedTextColor.YELLOW));
@@ -117,48 +117,52 @@ public final class HvacListener implements Listener {
     }
 
     /**
-     * Clicking a dehumidifier's sign steps its setpoint; sneak-clicking
-     * switches it on or off. The click is cancelled, so the sign editor never
-     * opens.
+     * Clicking a dehumidifier's or humidifier's sign steps its setpoint;
+     * sneak-clicking switches it on or off. The click is cancelled, so the
+     * sign editor never opens.
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onDehumidifierSign(PlayerInteractEvent event) {
+    public void onClimateUnitSign(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
                 || event.getHand() != EquipmentSlot.HAND || command.isDuctTool(event.getItem())) return;
         BlockKey key = BlockKey.of(event.getClickedBlock().getLocation());
-        Dehumidifier dehumidifier = registry.dehumidifierAt(key);
-        if (dehumidifier == null || !dehumidifier.position().equals(key)) return;
+        ClimateUnit unit = registry.climateUnitAt(key);
+        if (unit == null || !unit.position().equals(key)) return;
         event.setCancelled(true);
         Player player = event.getPlayer();
+        String name = unit.kind().displayName();
         if (!player.hasPermission("ezvac.use")) {
-            player.sendMessage(Component.text("You may not control this dehumidifier.", NamedTextColor.RED));
+            player.sendMessage(Component.text("You may not control this " + name.toLowerCase(java.util.Locale.ROOT)
+                    + ".", NamedTextColor.RED));
             return;
         }
         if (player.isSneaking()) {
-            dehumidifier.setPowered(!dehumidifier.powered());
-            player.sendMessage(Component.text("Dehumidifier switched " + (dehumidifier.powered() ? "on." : "off."),
-                    dehumidifier.powered() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+            unit.setPowered(!unit.powered());
+            player.sendMessage(Component.text(name + " switched " + (unit.powered() ? "on." : "off."),
+                    unit.powered() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
         } else {
-            dehumidifier.setSetpoint(dehumidifiers.settings().nextPreset(dehumidifier.setpoint()));
-            player.sendMessage(Component.text("Dehumidifier set to " + dehumidifier.setpoint() + "%.",
-                    NamedTextColor.AQUA));
+            unit.setSetpoint(unit.nextPreset(units.climate()));
+            player.sendMessage(Component.text(name + " set to " + unit.setpoint() + "%.", NamedTextColor.AQUA));
         }
         registry.markDirty();
-        displays.refreshDehumidifier(dehumidifier, true);
+        displays.refreshClimateUnit(unit, true);
         plugin.requestImmediateSync();
     }
 
-    /** A full dehumidifier's grate holds its water; it never spills into the room. */
+    /**
+     * A full dehumidifier's grate and a running humidifier's slab hold their
+     * water; it never spills into the room.
+     */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onDehumidifierWater(BlockFromToEvent event) {
-        if (registry.dehumidifiers().isEmpty()) return;
-        if (registry.dehumidifierAt(BlockKey.of(event.getBlock().getLocation())) != null) event.setCancelled(true);
+    public void onClimateUnitWater(BlockFromToEvent event) {
+        if (!registry.hasClimateUnits()) return;
+        if (registry.climateUnitAt(BlockKey.of(event.getBlock().getLocation())) != null) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onDehumidifierBucket(PlayerBucketFillEvent event) {
-        if (registry.dehumidifiers().isEmpty()) return;
-        if (registry.dehumidifierAt(BlockKey.of(event.getBlock().getLocation())) != null) event.setCancelled(true);
+    public void onClimateUnitBucket(PlayerBucketFillEvent event) {
+        if (!registry.hasClimateUnits()) return;
+        if (registry.climateUnitAt(BlockKey.of(event.getBlock().getLocation())) != null) event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -379,12 +383,12 @@ public final class HvacListener implements Listener {
                 } else if (panel != null && registry.removeSettingsPanel(key)) {
                     removed = true;
                     notice = "settings panel from system '" + panel.group().label() + "'";
-                } else if (registry.dehumidifierAt(key) != null) {
-                    Dehumidifier dehumidifier = registry.removeDehumidifier(key);
-                    dehumidifiers.release(dehumidifier);
-                    displays.invalidate(dehumidifier.position());
+                } else if (registry.climateUnitAt(key) != null) {
+                    ClimateUnit unit = registry.removeClimateUnit(key);
+                    units.release(unit);
+                    displays.invalidate(unit.position());
                     removed = true;
-                    notice = "dehumidifier '" + dehumidifier.label() + "'";
+                    notice = unit.kind().displayName().toLowerCase(java.util.Locale.ROOT) + " '" + unit.label() + "'";
                 } else {
                     removed = registry.removeThermometer(key); // deliberately silent
                 }
