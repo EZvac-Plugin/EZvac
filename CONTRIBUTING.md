@@ -133,3 +133,13 @@ the EZvac version, the relevant part of `plugins/EZvac/hvac.yml`, and any stack
 trace from the server log.
 Device counts and whether players were online when it happened are useful —
 several classes of problem only appear under load.
+
+## Releases and Modrinth
+
+Publishing a GitHub release also publishes it to
+[Modrinth](https://modrinth.com/plugin/ezvac-plugin): the
+`Publish to Modrinth` workflow uploads the jar attached to the release, with
+the release notes as its changelog. Prereleases go up as `beta`, other
+releases as `release`. To publish an older release, run the workflow by hand
+from the Actions tab with its tag. It needs the `MODRINTH_TOKEN` repository
+secret.

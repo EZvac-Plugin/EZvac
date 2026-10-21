@@ -1,0 +1,96 @@
+# Publishes each GitHub release to Modrinth (modrinth.com/plugin/ezvac-plugin),
+# so the Modrinth page never falls behind GitHub.
+#
+# It uploads the jar attached to the release (the one the Build workflow
+# made) with the release notes as its changelog. Prereleases such as the
+# pilots go up as "beta", everything else as "release". A version Modrinth
+# already has is skipped, so running it twice is harmless.
+#
+# Needs the repository secret MODRINTH_TOKEN: a Modrinth personal access token
+# with the Create versions, Read versions and Read projects scopes, from an
+# account allowed to upload versions to the project. The token is only ever
+# sent to Modrinth's own API.
+name: Publish to Modrinth
+
+on:
+  release:
+    types: [published]        # whenever a release is published on GitHub
+  workflow_dispatch:          # or by hand, e.g. for a release made before this existed
+    inputs:
+      tag:
+        description: Release tag to publish, e.g. ALPHA-2.0-P3
+        required: true
+
+permissions:
+  contents: read              # enough to read releases and download their jars
+
+env:
+  MODRINTH_PROJECT: dCv4gYwb  # modrinth.com/plugin/ezvac-plugin
+  GAME_VERSIONS: '["1.21", "1.21.1"]'
+  LOADERS: '["paper", "purpur"]'
+  # Modrinth asks API clients to say who they are.
+  USER_AGENT: EZvac-Plugin/EZvac release publisher (github.com/EZvac-Plugin/EZvac)
+
+jobs:
+  publish:
+    name: Publish to Modrinth
+    runs-on: ubuntu-latest
+
+    steps:
+      # The release's own jar, so Modrinth gets exactly the file GitHub has.
+      - name: Download the release and its jar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          mkdir dist
+          # The jar can arrive a moment after the release is published; retry briefly.
+          for attempt in 1 2 3 4 5 6; do
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern 'EzVac-*.jar' \
+              --dir dist --clobber && break
+            sleep 10
+          done
+          count=$(ls dist/EzVac-*.jar 2>/dev/null | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::Release $TAG should have exactly one EzVac jar attached; found $count."
+            exit 1
+          fi
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json name,body,isPrerelease > dist/release.json
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Skip if Modrinth already has this version
+        run: |
+          if curl -fsS -A "$USER_AGENT" "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT/version" \
+              | jq -e --arg tag "$TAG" 'any(.[]; .version_number == $tag)' > /dev/null; then
+            echo "Modrinth already has $TAG; nothing to do."
+            echo "SKIP=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Upload to Modrinth
+        if: env.SKIP != 'true'
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          jar=$(ls dist/EzVac-*.jar)
+          jq -n --slurpfile release dist/release.json --arg tag "$TAG" --arg project "$MODRINTH_PROJECT" \
+              --argjson games "$GAME_VERSIONS" --argjson loaders "$LOADERS" '{
+                name: $release[0].name,
+                version_number: $tag,
+                changelog: $release[0].body,
+                version_type: (if $release[0].isPrerelease then "beta" else "release" end),
+                game_versions: $games,
+                loaders: $loaders,
+                dependencies: [],
+                featured: false,
+                status: "listed",
+                project_id: $project,
+                file_parts: ["file"],
+                primary_file: "file"
+              }' > dist/version.json
+          curl -sS --fail-with-body -A "$USER_AGENT" \
+            -H "Authorization: $MODRINTH_TOKEN" \
+            -F "data=<dist/version.json;type=application/json" \
+            -F "file=@$jar;type=application/java-archive" \
+            https://api.modrinth.com/v2/version
+          echo
+          echo "Published $TAG to https://modrinth.com/plugin/ezvac-plugin/versions"
