@@ -14,7 +14,7 @@ dehumidifiers, and persistent room temperatures. Systems condition either
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 2.0 Pilot 1 is a prerelease of the 2.0
+> **Release status:** EZvac ALPHA 2.0 Pilot 2 is a prerelease of the 2.0
 > realism update: **weather** changes the outdoor air, rooms have **humidity**,
 > the HUD shows how warm it **feels**, and **dehumidifiers** dry a room or a
 > shed. It moves `hvac.yml` to format 6 and keeps your 1.x save as
@@ -36,7 +36,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-2.0-P1.jar
+target/EzVac-ALPHA-2.0-P2.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -46,7 +46,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-2.0-P1.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-2.0-P2.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
