@@ -2,14 +2,19 @@
 
 All notable changes to EZvac are recorded here.
 
-## Unreleased
+## ALPHA 2.0 Pilot 2
+
+The second 2.0 pilot. Same save format as Pilot 1 (format 6), so it is a
+drop-in upgrade from Pilot 1, and from 1.x the same way Pilot 1 was.
 
 ### Changed
 
 - **Dehumidifiers reach 2.5 times as far:** 30 blocks of airflow by default
   (was 12), the same as a vent, so one unit covers a whole house or hall. Its
   zone's cell cap rose to 50,000 to match. Both are `dehumidifier.range` and
-  `dehumidifier.maximum-cells` in `config.yml`.
+  `dehumidifier.maximum-cells` in `config.yml`. A server upgrading from
+  Pilot 1 already has `range: 12` written in its `config.yml`; change it to 30
+  (and `maximum-cells` to 50000) to get the new reach.
 
 ## ALPHA 2.0 Pilot 1
 
