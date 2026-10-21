@@ -258,6 +258,7 @@ DISPLAYS AND AUDIO
 - ETA is forward-simulated from the current equipment mix, actual RPM, future
   compressor modulation, outdoor load, and the same thermal rules as control.
 - The target can be changed by command or by editing line 3 of the sign.
+- Sneak-right-clicking the sign switches the system off or on (ezvac.use).
 - Thermometers are independent point sensors with no stored group. Each reads
   its own sign block exactly like /hvac temperature: influenced vent temperature
   where airflow reaches it, blended edge temperature, or outdoor temperature.

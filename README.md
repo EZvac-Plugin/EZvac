@@ -132,6 +132,10 @@ ETA 0:31 | house
 The ETA uses the same RPM ramping, operating profile, outdoor load, mixed-unit
 capacity, and thermal simulation as the live controller.
 
+**Sneak-right-click** a thermostat sign to switch its whole system off (the
+sign shows `System off`) and again to switch it back on. Units you switched
+off on their own stay off. A plain right-click still edits the target.
+
 ## Thermometers
 
 Create an independent point thermometer while looking at a sign:
