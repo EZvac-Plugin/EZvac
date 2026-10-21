@@ -98,7 +98,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         return new ClimateSettings(
                 new Weather(true, 2.0, 6.0, 9.0, 3.0, 0.6, 0.1, 1.5, 3.0, 5.0),
                 new Humidity(30.0, 90.0, 97.0, 0.15, 45.0, 4.0, 30.0),
-                new Dehumidifier(12, 20_000, 3.0, 35.0, 1_500, 8.0, 30, 45,
+                new Dehumidifier(30, 50_000, 3.0, 35.0, 1_500, 8.0, 30, 45,
                         List.of(35, 40, 45, 50, 55, 60), 2.0));
     }
 

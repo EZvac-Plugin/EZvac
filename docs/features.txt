@@ -156,7 +156,7 @@ DEHUMIDIFIERS
 
 - An iron block on a waxed copper grate, controlled by a sign on the iron block.
   It belongs to no group.
-- Its own airflow zone (12 blocks by default) decides what it dries: the room
+- Its own airflow zone (30 blocks by default, a vent's reach) decides what it dries: the room
   of an air system whose airflow surrounds it, or else the zone itself, which
   keeps its own moisture and is what the HUD reads there.
 - It dries 3 F of dew point per in-game hour in a space up to 1,500 cells,
