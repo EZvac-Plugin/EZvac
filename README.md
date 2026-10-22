@@ -14,7 +14,7 @@ dehumidifiers, and persistent room temperatures. Systems condition either
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 2.0 Pilot 3 is a prerelease of the 2.0
+> **Release status:** EZvac ALPHA 2.0 Pilot 4 is a prerelease of the 2.0
 > realism update: **weather** changes the outdoor air, rooms have **humidity**,
 > the HUD shows how warm it **feels**, and **dehumidifiers** and
 > **humidifiers** dry or moisten a room or a shed. It moves `hvac.yml` to format 6 and keeps your 1.x save as
@@ -36,7 +36,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-2.0-P3.jar
+target/EzVac-ALPHA-2.0-P4.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -46,7 +46,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-2.0-P3.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-2.0-P4.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -88,6 +88,8 @@ left alone.
 - **Thermometer:** Independent sign sensor that measures its own block.
 - **Hygrometer / thermo-hygrometer:** The same sensor for humidity, or for
   temperature, humidity and "feels like" together.
+- **Sensor and sensor hub:** Buttons that measure where they are, shown
+  together on one sign. See [Sensors and sensor hubs](#sensors-and-sensor-hubs).
 - **RPM monitor:** Type-specific sign showing RPM, capacity, and unit counts.
 - **Settings panel:** Sign control for Eco, Normal, and Turbo operation.
 - **Dehumidifier:** Standalone unit (iron block on a waxed copper grate, with a
@@ -189,6 +191,44 @@ out right on its own:
 and outdoor wind feel cooler. The HUD's comfort word and bar follow it.
 
 Tuning lives under `weather:` and `humidity:` in `config.yml`.
+
+## Sensors and sensor hubs
+
+A **sensor hub** is a sign that shows readings from up to nine **sensors**
+around a house, or outside. A sensor is a button, and the button decides what
+it measures:
+
+| Button | Measures |
+| --- | --- |
+| Stone button | Temperature |
+| Polished blackstone button | Humidity |
+| Mangrove button | Temperature and humidity |
+
+```text
+/hvac create sensor [label]        look at the button
+/hvac create sensor-hub [label]    look at a sign
+/hvac sensor-tool                  click the hub, then click sensors to link them
+```
+
+```text
+Home 1/3
+Kitchen 72F 45%
+Cellar 58%
+Garden 64.2F
+```
+
+- **Click** the hub to turn the page (three sensors per page, up to three
+  pages). **Sneak-click** it to switch auto-flip on or off: it turns the page
+  every 5 seconds, and remembers it across restarts.
+- **Pressing a sensor** shows its reading in chat. It never sends a redstone
+  signal.
+- A sensor reads exactly what a thermometer at that spot would, so one outside
+  follows the weather. One sensor can appear on several hubs, and a sensor in
+  an unloaded chunk shows `--`.
+- **Sneak-click** a sensor with the sensor tool to unlink it. Breaking a sensor
+  (or the block it hangs on) takes it off every hub.
+
+The duct tool is now `/hvac duct-tool`; `/hvac tool` still works.
 
 ## Dehumidifiers and humidifiers
 

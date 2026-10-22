@@ -236,6 +236,65 @@ class RegistryBehaviourTest {
     }
 
     @Test
+    void sensorsAndHubsSaveAndARemovedSensorLeavesEveryHub() throws IOException {
+        HvacRegistry registry = new HvacRegistry(host, SETTINGS);
+        Sensor kitchen = new Sensor(at(5, 65, 5), "kitchen", Thermometer.Reads.BOTH);
+        Sensor cellar = new Sensor(at(5, 60, 9), "cellar", Thermometer.Reads.HUMIDITY);
+        registry.addSensor(kitchen);
+        registry.addSensor(cellar);
+        SensorHub hall = new SensorHub(at(0, 65, 0), "hall");
+        SensorHub office = new SensorHub(at(9, 65, 0), "office");
+        hall.link(kitchen.position());
+        hall.link(cellar.position());
+        office.link(kitchen.position());
+        office.setAutoFlip(true);
+        registry.addSensorHub(hall);
+        registry.addSensorHub(office);
+        assertEquals(HvacRegistry.DeviceKind.SENSOR, registry.deviceKind(at(5, 65, 5)));
+        assertEquals(HvacRegistry.DeviceKind.SENSOR_HUB, registry.deviceKind(at(0, 65, 0)));
+        assertThrows(IllegalArgumentException.class, () -> registry.addSensor(
+                new Sensor(at(0, 65, 0), "x", Thermometer.Reads.TEMPERATURE)), "a hub's block is taken");
+        assertEquals(List.of(hall, office), registry.hubsShowing(kitchen.position()), "one sensor, two hubs");
+
+        saved(registry);
+        HvacRegistry reloaded = new HvacRegistry(host, SETTINGS);
+        reloaded.load();
+        assertEquals(kitchen, reloaded.sensorAt(at(5, 65, 5)));
+        assertEquals(List.of(kitchen.position(), cellar.position()), reloaded.sensorHubAt(at(0, 65, 0)).sensors());
+        assertTrue(reloaded.sensorHubAt(at(9, 65, 0)).autoFlip());
+
+        assertNotNull(reloaded.removeSensor(kitchen.position()));
+        assertEquals(List.of(cellar.position()), reloaded.sensorHubAt(at(0, 65, 0)).sensors());
+        assertTrue(reloaded.sensorHubAt(at(9, 65, 0)).sensors().isEmpty(), "gone from every hub");
+        assertNull(reloaded.indexDiscrepancy());
+    }
+
+    @Test
+    void aHubLinkToASensorThatNoLongerExistsIsDroppedOnLoad() throws IOException {
+        HvacRegistry registry = loadYaml("""
+                sensors:
+                  item0:
+                    worldUuid: %s
+                    x: 5
+                    y: 65
+                    z: 5
+                    label: kitchen
+                    reads: BOTH
+                sensorHubs:
+                  item0:
+                    worldUuid: %s
+                    x: 0
+                    y: 65
+                    z: 0
+                    label: hall
+                    autoFlip: false
+                    sensors: ["5,65,5", "7,65,7"]
+                """.formatted(WORLD, WORLD));
+        assertEquals(List.of(at(5, 65, 5)), registry.sensorHubAt(at(0, 65, 0)).sensors());
+        assertTrue(host.warnings().stream().anyMatch(w -> w.contains("no longer exist")), host.warnings().toString());
+    }
+
+    @Test
     void dehumidifiersAndHumidifiersSaveInTheirOwnSectionsAndShareThePartIndex() throws IOException {
         HvacRegistry registry = new HvacRegistry(host, SETTINGS);
         Dehumidifier dry = new Dehumidifier(at(1, 65, 0), at(0, 65, 0), at(0, 64, 0), "basement", 50);

@@ -71,6 +71,48 @@ public final class DisplayService {
             if (watched(watched, panel.position())) refreshSettingsPanel(panel, force);
         for (ClimateUnit unit : registry.climateUnits())
             if (watched(watched, unit.position())) refreshClimateUnit(unit, force);
+        for (SensorHub hub : registry.sensorHubs())
+            if (watched(watched, hub.position())) refreshSensorHub(hub, force);
+    }
+
+    /** Turns the page of auto-flipping sensor hubs; the next refresh draws it. */
+    public void advanceAutoFlip(long elapsedTicks) {
+        for (SensorHub hub : registry.sensorHubs()) hub.advanceAutoFlip(elapsedTicks);
+    }
+
+    /**
+     * A sensor hub's sign: its label and page on the first line, then that
+     * page's sensors, one to a line. A sensor in an unloaded chunk shows --.
+     */
+    public void refreshSensorHub(SensorHub hub, boolean force) {
+        List<String> lines = new ArrayList<>();
+        for (BlockKey key : hub.sensorsOnPage()) {
+            Sensor sensor = registry.sensorAt(key);
+            if (sensor != null) lines.add(sensorLine(sensor));
+        }
+        String pageText = " " + (hub.page() + 1) + "/" + hub.pages();
+        String header = SensorLine.fit(hub.label(), SensorLine.WIDTH - pageText.length()) + pageText;
+        String fingerprint = header + "|" + String.join("|", lines);
+        render(hub.position(), fingerprint, force, side -> {
+            side.line(0, Component.text(header, NamedTextColor.AQUA));
+            if (hub.sensors().isEmpty()) {
+                side.line(1, Component.text("No sensors", NamedTextColor.GRAY));
+                side.line(2, Component.text("Link with", NamedTextColor.GRAY));
+                side.line(3, Component.text("the sensor-tool", NamedTextColor.GRAY));
+                return;
+            }
+            for (int line = 0; line < SensorHub.PER_PAGE; line++)
+                side.line(line + 1, Component.text(line < lines.size() ? lines.get(line) : "", NamedTextColor.WHITE));
+        });
+    }
+
+    /** One sensor's reading as a sign line; never loads the sensor's chunk. */
+    public String sensorLine(Sensor sensor) {
+        BlockKey position = sensor.position();
+        var location = position.isChunkLoaded() ? position.location() : null;
+        if (location == null) return SensorLine.format(sensor.label(), sensor.reads(), false, Double.NaN, Double.NaN);
+        AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
+        return SensorLine.format(sensor.label(), sensor.reads(), true, reading.localF(), reading.humidity());
     }
 
     /** The chunks near each online player, per world. */
