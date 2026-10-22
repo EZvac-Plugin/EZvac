@@ -1,4 +1,4 @@
-EZVAC ALPHA 2.0 PILOT 3 FEATURES
+EZVAC ALPHA 2.0 PILOT 4 FEATURES
 ================================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
@@ -171,6 +171,12 @@ DEHUMIDIFIERS
   the air nears saturation, start 2% below the setpoint, and are plumbed (no
   tank). While running the slab is waterlogged and bubbles; its water never
   flows.
+- Remote sensors are buttons: stone (temperature), polished blackstone
+  (humidity), mangrove (both). A sensor hub sign shows up to nine of them,
+  three per page; a click turns the page and auto-flip turns it every 5
+  seconds. Sensors read exactly as a thermometer at the same spot, never send
+  redstone, and can appear on several hubs. Hub signs follow the same
+  near-players refresh rule as every other sign.
 - Hygrometers and thermo-hygrometers are point sensors like thermometers:
   humidity inside and outside, or temperature, humidity and feels-like.
 

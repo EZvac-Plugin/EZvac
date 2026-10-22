@@ -39,6 +39,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private final ClimateUnitService units;
     private final NamespacedKey toolKey;
     private final NamespacedKey toolGroupKey;
+    private final NamespacedKey sensorToolKey;
+    private final NamespacedKey sensorToolHubKey;
     private final NamespacedKey toolWorldKey;
 
     public HvacCommand(HvacPlugin plugin, HvacRegistry registry, HvacController controller,
@@ -56,6 +58,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         this.units = units;
         toolKey = new NamespacedKey(plugin, "duct_link_tool");
         toolGroupKey = new NamespacedKey(plugin, "duct_group");
+        sensorToolKey = new NamespacedKey(plugin, "sensor_link_tool");
+        sensorToolHubKey = new NamespacedKey(plugin, "sensor_hub");
         toolWorldKey = new NamespacedKey(plugin, "duct_world");
     }
 
@@ -94,7 +98,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "thermostat" -> { if (requireAdmin(player)) thermostat(player, args); }
                 case "equipment" -> { if (requireAdmin(player)) equipment(player, args); }
                 case "group" -> { if (requireAdmin(player)) group(player, args); }
-                case "tool" -> { if (requireAdmin(player)) giveTool(player); }
+                // "tool" was its name before the sensor tool existed; kept so old habits still work.
+                case "duct-tool", "ducttool", "tool" -> { if (requireAdmin(player)) giveTool(player); }
+                case "sensor-tool", "sensortool" -> { if (requireAdmin(player)) giveSensorTool(player); }
                 case "remove" -> { if (requireAdmin(player)) remove(player); }
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
             }
@@ -208,6 +214,24 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
             case "humidifier", "hum" -> createHumidifier(player, block, position, args);
+            case "sensor" -> {
+                Thermometer.Reads reads = Sensor.forButton(block.getType());
+                if (reads == null)
+                    throw new IllegalArgumentException("Look at a stone button (temperature), a polished blackstone"
+                            + " button (humidity) or a mangrove button (both).");
+                Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : "Sensor", reads);
+                registry.addSensor(sensor);
+                player.sendMessage(green("Created " + sensorKind(reads) + " sensor '" + sensor.label()
+                        + "'. Link it to a sensor hub with /hvac sensor-tool."));
+            }
+            case "sensor-hub", "sensorhub" -> {
+                requireSign(block);
+                SensorHub hub = new SensorHub(position, args.length >= 3 ? args[2] : "Sensors");
+                registry.addSensorHub(hub);
+                displays.refreshSensorHub(hub, true);
+                player.sendMessage(green("Created sensor hub '" + hub.label() + "'. Link up to "
+                        + SensorHub.MAX_SENSORS + " sensors to it with /hvac sensor-tool."));
+            }
             default -> throw new IllegalArgumentException("Unknown device type '" + args[1] + "'.");
         }
         plugin.requestImmediateSync();
@@ -452,6 +476,23 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 white(panel.group().label()), gray(" | Profile: "), white(panel.profile().name()))); return; }
         ClimateUnit climateUnit = registry.climateUnitAt(key);
         if (climateUnit != null) { showClimateUnit(player, climateUnit); return; }
+        Sensor sensor = registry.sensorAt(key);
+        if (sensor != null) {
+            player.sendMessage(describeSensor(sensor));
+            int hubs = registry.hubsShowing(key).size();
+            player.sendMessage(gray("Shown on " + hubs + " sensor hub" + (hubs == 1 ? "" : "s") + "."));
+            return;
+        }
+        SensorHub hub = registry.sensorHubAt(key);
+        if (hub != null) {
+            player.sendMessage(join(gold("Sensor hub "), white(hub.label()), gray(" | " + hub.sensors().size() + "/"
+                    + SensorHub.MAX_SENSORS + " sensors | auto-flip " + (hub.autoFlip() ? "on" : "off"))));
+            for (BlockKey linked : hub.sensors()) {
+                Sensor shown = registry.sensorAt(linked);
+                if (shown != null) player.sendMessage(describeSensor(shown));
+            }
+            return;
+        }
         player.sendMessage(red("No EZvac device is registered at that block."));
     }
 
@@ -483,6 +524,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 displays.invalidate(removed.position());
                 player.sendMessage(green(removed.kind().displayName() + " removed."));
             }
+            else if (registry.removeSensor(key) != null)
+                player.sendMessage(green("Sensor removed, and taken off every sensor hub that showed it."));
+            else if (registry.removeSensorHub(key) != null) player.sendMessage(green("Sensor hub removed."));
             else { player.sendMessage(red("No EZvac device is registered at that block.")); return; }
         }
         displays.invalidate(key);
@@ -501,6 +545,115 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         tool.setItemMeta(meta);
         player.getInventory().addItem(tool);
         player.sendMessage(green("Duct link tool added to your inventory."));
+    }
+
+    /**
+     * A sensor's reading for chat: everything its button measures, and the
+     * system whose air it is in. Never loads the sensor's chunk.
+     */
+    public Component describeSensor(Sensor sensor) {
+        BlockKey position = sensor.position();
+        var location = position.isChunkLoaded() ? position.location() : null;
+        if (location == null)
+            return join(gold(sensor.label()), gray(" | not loaded right now"));
+        AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
+        String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
+        String values = switch (sensor.reads()) {
+            case TEMPERATURE -> String.format(Locale.US, "%.1f F", reading.localF());
+            case HUMIDITY -> humidity;
+            case BOTH -> String.format(Locale.US, "%.1f F | %s | feels %.1f F", reading.localF(), humidity,
+                    reading.feelsLikeF());
+        };
+        String where = reading.conditioned() ? "system '" + reading.group().label() + "'" : "no system";
+        return join(gold(sensor.label()), gray(" | "), white(values), gray(" | " + where));
+    }
+
+    private static String sensorKind(Thermometer.Reads reads) {
+        return switch (reads) {
+            case TEMPERATURE -> "temperature";
+            case HUMIDITY -> "humidity";
+            case BOTH -> "temperature and humidity";
+        };
+    }
+
+    private void giveSensorTool(Player player) {
+        ItemStack tool = new ItemStack(Material.STICK);
+        ItemMeta meta = tool.getItemMeta();
+        meta.displayName(Component.text("HVAC Sensor Link Tool", NamedTextColor.LIGHT_PURPLE));
+        meta.lore(List.of(
+                Component.text("Select a sensor hub, then sensors.", NamedTextColor.GRAY),
+                Component.text("Sneak-click a sensor to unlink it.", NamedTextColor.GRAY)));
+        // A glint, so it can't be mistaken for the duct tool at a glance.
+        meta.setEnchantmentGlintOverride(true);
+        meta.getPersistentDataContainer().set(sensorToolKey, PersistentDataType.BYTE, (byte) 1);
+        tool.setItemMeta(meta);
+        player.getInventory().addItem(tool);
+        player.sendMessage(green("Sensor link tool added to your inventory."));
+    }
+
+    public boolean isSensorTool(ItemStack item) {
+        return item != null && item.hasItemMeta()
+                && item.getItemMeta().getPersistentDataContainer().has(sensorToolKey, PersistentDataType.BYTE);
+    }
+
+    /** Either linking tool: clicks with one belong to the tool, not to the block clicked. */
+    public boolean isTool(ItemStack item) {
+        return isDuctTool(item) || isSensorTool(item);
+    }
+
+    public void handleSensorToolClick(Player player, Block block, ItemStack item, boolean unlink) {
+        if (!isSensorTool(item) || !player.hasPermission(ADMIN_PERMISSION)) return;
+        BlockKey position = BlockKey.of(block.getLocation());
+        SensorHub selected = registry.sensorHubAt(position);
+        if (selected != null) {
+            ItemMeta meta = item.getItemMeta();
+            meta.getPersistentDataContainer().set(sensorToolHubKey, PersistentDataType.STRING,
+                    position.worldId() + ";" + position.x() + ";" + position.y() + ";" + position.z());
+            meta.lore(List.of(Component.text("Selected: " + selected.label(), NamedTextColor.GRAY),
+                    Component.text("Click sensors to link them.", NamedTextColor.GRAY)));
+            item.setItemMeta(meta);
+            player.sendMessage(green("Selected sensor hub '" + selected.label() + "' (" + selected.sensors().size()
+                    + "/" + SensorHub.MAX_SENSORS + " sensors)."));
+            return;
+        }
+        Sensor sensor = registry.sensorAt(position);
+        if (sensor == null) {
+            player.sendMessage(yellow("Click a sensor hub, then sensors: stone, polished blackstone or mangrove"
+                    + " buttons registered with /hvac create sensor."));
+            return;
+        }
+        String stored = item.getItemMeta().getPersistentDataContainer().get(sensorToolHubKey, PersistentDataType.STRING);
+        SensorHub hub = stored == null ? null : registry.sensorHubAt(parseToolKey(stored));
+        if (hub == null) {
+            player.sendMessage(red(stored == null ? "Select a sensor hub with this tool first."
+                    : "The selected sensor hub no longer exists. Select another one."));
+            return;
+        }
+        if (unlink) {
+            player.sendMessage(hub.unlink(position) ? green("Sensor '" + sensor.label() + "' unlinked from '"
+                    + hub.label() + "'.") : yellow("That sensor isn't linked to '" + hub.label() + "'."));
+        } else {
+            player.sendMessage(switch (hub.link(position)) {
+                case LINKED -> green("Sensor '" + sensor.label() + "' linked to '" + hub.label() + "' ("
+                        + hub.sensors().size() + "/" + SensorHub.MAX_SENSORS + ").");
+                case ALREADY_LINKED -> yellow("That sensor is already on '" + hub.label() + "'.");
+                case FULL -> red("'" + hub.label() + "' already shows " + SensorHub.MAX_SENSORS
+                        + " sensors. Unlink one first (sneak-click it).");
+                case OTHER_WORLD -> red("Sensors and sensor hubs must be in the same world.");
+            });
+        }
+        registry.markDirty();
+        displays.refreshSensorHub(hub, true);
+    }
+
+    private static BlockKey parseToolKey(String stored) {
+        try {
+            String[] parts = stored.split(";");
+            return new BlockKey(UUID.fromString(parts[0]), Integer.parseInt(parts[1]),
+                    Integer.parseInt(parts[2]), Integer.parseInt(parts[3]));
+        } catch (RuntimeException invalid) {
+            return null;
+        }
     }
 
     public boolean isDuctTool(ItemStack item) {
@@ -684,18 +837,22 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac thermostat <id> set|enable|disable|group"), gray(" - control a thermostat")));
         sender.sendMessage(join(aqua("/hvac equipment <enable|disable|group|info>"), gray(" - edit targeted equipment")));
         sender.sendMessage(join(aqua("/hvac group <group> <enable|disable|info>"), gray(" - control a system")));
-        sender.sendMessage(join(aqua("/hvac tool | remove | stats | sync"), gray(" - link, remove, diagnose, reconcile")));
+        sender.sendMessage(join(aqua("/hvac create sensor [label]"), gray(" - a stone, polished blackstone or mangrove button")));
+        sender.sendMessage(join(aqua("/hvac create sensor-hub [label]"), gray(" - a sign showing up to 9 sensors")));
+        sender.sendMessage(join(aqua("/hvac duct-tool | sensor-tool"), gray(" - link vents, or link sensors to a hub")));
+        sender.sendMessage(join(aqua("/hvac remove | stats | sync"), gray(" - remove, diagnose, reconcile")));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(args[0], "help", "temperature", "hud", "list", "info",
-                "create", "thermostat", "equipment", "group", "tool", "remove", "stats", "sync");
+                "create", "thermostat", "equipment", "group", "duct-tool", "sensor-tool", "remove", "stats", "sync");
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
-                        "thermohygrometer", "rpmmonitor", "settingspanel", "dehumidifier", "humidifier");
+                        "thermohygrometer", "rpmmonitor", "settingspanel", "dehumidifier", "humidifier",
+                        "sensor", "sensor-hub");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
                 case "hud" -> filter(args[1], "on", "off");

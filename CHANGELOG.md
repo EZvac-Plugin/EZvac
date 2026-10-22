@@ -2,6 +2,32 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.0 Pilot 4
+
+Remote sensors and sensor hubs. Same save format as the earlier pilots
+(format 6): a drop-in upgrade. Sensors and hubs are saved in their own
+`sensors` and `sensorHubs` sections, which earlier pilots keep untouched.
+
+### Added
+
+- **Sensors.** A stone button (temperature), polished blackstone button
+  (humidity) or mangrove button (both), registered with
+  `/hvac create sensor [label]`; the button decides what it measures. It reads
+  exactly what a thermometer at that spot would. Pressing it shows its reading
+  in chat and never sends a redstone signal, even when shot with an arrow.
+- **Sensor hubs.** A sign that shows up to nine sensors, three to a page,
+  registered with `/hvac create sensor-hub [label]`. Click it to turn the
+  page; sneak-click to switch auto-flip (every 5 seconds, remembered across
+  restarts) on or off. One sensor can appear on several hubs.
+- **Sensor link tool.** `/hvac sensor-tool`: click a hub, then click sensors to
+  link them; sneak-click a sensor to unlink it.
+- `/hvac info` on a hub lists all its sensors with their readings.
+
+### Changed
+
+- **The duct tool is now `/hvac duct-tool`**, next to `/hvac sensor-tool`.
+  `/hvac tool` still works, and duct tools already handed out keep working.
+
 ## ALPHA 2.0 Pilot 3
 
 Humidifiers, a config.yml that keeps up with new settings, and cheaper signs.

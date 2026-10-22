@@ -197,6 +197,7 @@ public final class HvacPlugin extends JavaPlugin {
                 getLogger().info("Removed " + result.prunedDevices() + " missing HVAC device record(s).");
 
             if (elapsedTicks > 0) {
+                displays.advanceAutoFlip(elapsedTicks);
                 ticksSinceDisplay += elapsedTicks;
                 ticksSinceSave += elapsedTicks;
                 if (ticksSinceDisplay >= settings.displayPeriodTicks()) {

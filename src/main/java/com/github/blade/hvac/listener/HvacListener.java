@@ -59,7 +59,8 @@ public final class HvacListener implements Listener {
         Thermostat thermostat = registry.thermostatAt(key);
         if (thermostat == null) {
             if (registry.thermometerAt(key) != null || registry.rpmMonitorAt(key) != null
-                    || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null) {
+                    || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null
+                    || registry.sensorHubAt(key) != null) {
                 event.setCancelled(true);
                 event.getPlayer().sendMessage(Component.text(
                         "That HVAC display is read-only.", NamedTextColor.YELLOW));
@@ -103,7 +104,7 @@ public final class HvacListener implements Listener {
     public void onThermostatPower(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
                 || event.getHand() != EquipmentSlot.HAND || !event.getPlayer().isSneaking()
-                || command.isDuctTool(event.getItem())) return;
+                || command.isTool(event.getItem())) return;
         Thermostat thermostat = registry.thermostatAt(BlockKey.of(event.getClickedBlock().getLocation()));
         if (thermostat == null) return;
         event.setCancelled(true);
@@ -152,7 +153,7 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onClimateUnitSign(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
-                || event.getHand() != EquipmentSlot.HAND || command.isDuctTool(event.getItem())) return;
+                || event.getHand() != EquipmentSlot.HAND || command.isTool(event.getItem())) return;
         BlockKey key = BlockKey.of(event.getClickedBlock().getLocation());
         ClimateUnit unit = registry.climateUnitAt(key);
         if (unit == null || !unit.position().equals(key)) return;
@@ -200,6 +201,65 @@ public final class HvacListener implements Listener {
         event.setCancelled(true);
         command.handleDuctToolClick(event.getPlayer(), event.getClickedBlock(), event.getItem(),
                 event.getPlayer().isSneaking());
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSensorTool(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
+                || !command.isSensorTool(event.getItem())) return;
+        event.setCancelled(true);
+        command.handleSensorToolClick(event.getPlayer(), event.getClickedBlock(), event.getItem(),
+                event.getPlayer().isSneaking());
+    }
+
+    /**
+     * Clicking a sensor hub turns its page; sneak-clicking switches
+     * auto-flip on or off. The click is cancelled, so the sign editor never
+     * opens.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSensorHub(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
+                || event.getHand() != EquipmentSlot.HAND || command.isTool(event.getItem())) return;
+        SensorHub hub = registry.sensorHubAt(BlockKey.of(event.getClickedBlock().getLocation()));
+        if (hub == null) return;
+        event.setCancelled(true);
+        Player player = event.getPlayer();
+        if (!player.hasPermission("ezvac.use")) {
+            player.sendMessage(Component.text("You may not use this sensor hub.", NamedTextColor.RED));
+            return;
+        }
+        if (player.isSneaking()) {
+            hub.setAutoFlip(!hub.autoFlip());
+            registry.markDirty();
+            player.sendMessage(Component.text("Auto-flip " + (hub.autoFlip() ? "on." : "off."),
+                    hub.autoFlip() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+        } else {
+            hub.nextPage();
+        }
+        displays.refreshSensorHub(hub, true);
+    }
+
+    /**
+     * Pressing a sensor shows its reading instead. The press is cancelled,
+     * so the button never moves and never powers anything.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onSensorPress(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
+                || event.getHand() != EquipmentSlot.HAND || command.isTool(event.getItem())
+                || registry.sensors().isEmpty()) return;
+        Sensor sensor = registry.sensorAt(BlockKey.of(event.getClickedBlock().getLocation()));
+        if (sensor == null) return;
+        event.setCancelled(true);
+        if (event.getPlayer().hasPermission("ezvac.use")) event.getPlayer().sendMessage(command.describeSensor(sensor));
+    }
+
+    /** An arrow can still press a wooden (mangrove) sensor; it powers nothing. */
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onSensorPowered(BlockRedstoneEvent event) {
+        if (registry.sensors().isEmpty() || event.getNewCurrent() <= 0) return;
+        if (registry.sensorAt(BlockKey.of(event.getBlock().getLocation())) != null) event.setNewCurrent(0);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -417,6 +477,14 @@ public final class HvacListener implements Listener {
                     displays.invalidate(unit.position());
                     removed = true;
                     notice = unit.kind().displayName().toLowerCase(java.util.Locale.ROOT) + " '" + unit.label() + "'";
+                } else if (registry.sensorAt(key) != null) {
+                    Sensor sensor = registry.removeSensor(key);
+                    removed = true;
+                    notice = "sensor '" + sensor.label() + "'";
+                } else if (registry.sensorHubAt(key) != null) {
+                    SensorHub hub = registry.removeSensorHub(key);
+                    removed = true;
+                    notice = "sensor hub '" + hub.label() + "'";
                 } else {
                     removed = registry.removeThermometer(key); // deliberately silent
                 }
