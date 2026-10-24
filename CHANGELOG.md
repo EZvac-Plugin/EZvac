@@ -14,6 +14,10 @@ so going back means restoring that backup. 2.0 was tried out in five
 prereleases (ALPHA-2.0-P1 to P5, notes on GitHub); this entry covers
 everything since 1.9.
 
+Thanks to Cole ([@colebolebole](https://github.com/colebolebole)), who ran
+every pilot on his server, for his huge help hunting bugs and for the ideas
+that shaped 2.0.
+
 ### Added
 
 - **Weather.** Rain and thunder cool the outdoor air (by 6 °F and 9 °F by
