@@ -6,6 +6,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class HudFormatterTest {
@@ -17,6 +19,18 @@ class HudFormatterTest {
 
     private static ClimateSnapshot cooled(double localF) {
         return new ClimateSnapshot(localF, 88.0, 0.6, 21, "house", "main", "COOLING", 70.0, false, false);
+    }
+
+    @Test
+    void theSeasonLineShowsOnlyWhereThereAreSeasons() {
+        List<String> lines = HudSettings.defaults().sidebarLines();
+        String seasonLine = "<gray>Season: <white>{season} <gray>day {season_day}";
+        assertTrue(lines.contains(seasonLine));
+        assertFalse(format.shownLines(lines, cooled(72.0)).contains(seasonLine));
+        assertEquals(lines.size() - 1, format.shownLines(lines, cooled(72.0)).size());
+        ClimateSnapshot summer = cooled(72.0).inSeason("Summer", 3);
+        assertSame(lines, format.shownLines(lines, summer));
+        assertEquals("Season: Summer day 3", plain(format.render(seasonLine, summer)));
     }
 
     @Test

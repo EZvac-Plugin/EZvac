@@ -3,7 +3,9 @@ package com.github.blade.hvac.config;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -125,6 +127,28 @@ public record HudSettings(
                     "hud.comfort limits must rise: cold.below <= cool.below <= warm.above <= hot.above");
     }
 
+    /** The season line added to the sidebar in 2.1 Pilot 2, right after the outdoor line. */
+    public static final String SEASON_LINE = "<gray>Season: <white>{season} <gray>day {season_day}";
+    private static final String OUTSIDE_LINE = "<gray>Outside: <white>{outdoor} <gray>{weather}";
+
+    /**
+     * When the seasons first arrive in a server's config.yml, its HUD should
+     * show them too. The updater never changes a list a server already has,
+     * so a sidebar that is still the stock one gains the season line here; one
+     * the server has made its own is left exactly as it is.
+     */
+    public static void addSeasonLine(YamlConfiguration config, List<String> added) {
+        if (added.stream().noneMatch(path -> path.startsWith("seasons."))) return;
+        List<String> lines = config.getStringList("hud.sidebar.lines");
+        List<String> stock = new ArrayList<>(defaults().sidebarLines());
+        stock.remove(SEASON_LINE);
+        if (!lines.equals(stock)) return;
+        List<String> withSeason = new ArrayList<>(lines);
+        withSeason.add(withSeason.indexOf(OUTSIDE_LINE) + 1, SEASON_LINE);
+        config.set("hud.sidebar.lines", withSeason);
+        added.add("hud.sidebar.lines");
+    }
+
     public static HudSettings defaults() {
         return new HudSettings(true, Style.SIDEBAR, 10, false,
                 "<gradient:#3999fb:#f69500><bold>Climate</bold></gradient> <dark_gray>-</dark_gray> <gray>EZvac",
@@ -134,6 +158,7 @@ public record HudSettings(
                         "{bar} {comfort}",
                         "<gray>Humidity: <white>{humidity}",
                         "<gray>Outside: <white>{outdoor} <gray>{weather}",
+                        SEASON_LINE,
                         "",
                         "<gray>System: <white>{group}",
                         "<gray>Mode: <white>{mode}",

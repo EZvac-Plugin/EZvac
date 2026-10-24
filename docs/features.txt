@@ -106,18 +106,46 @@ instead of starting with an internally inconsistent controller.
 OUTDOOR CLIMATE
 ---------------
 
-Outdoor temperature follows Minecraft time and broad biome profiles:
+Outdoor temperature follows Minecraft time, the biome, the height and the
+season (2.1 Pilot 2; before it, seven name-matched classes from Snowy 25/5 to
+Hot 100/78):
 
-- Snowy: 25 F noon / 5 F midnight
-- Cold: 45 F noon / 28 F midnight
-- Temperate: 72 F noon / 52 F midnight
-- Warm: 85 F noon / 68 F midnight
-- Hot: 100 F noon / 78 F midnight
-- Nether: 112 F constant
-- End: 30 F constant
+- Every vanilla biome has its own climate in BiomeClimate: year-round average
+  noon and midnight at sea level, a seasonal swing, and rain, snow or none.
+  Examples: desert 98/64 +-14 (none), plains 72/50 +-18, jungle 88/74 +-2,
+  taiga 52/32 +-24, snowy plains 28/8 +-26 (snow), ocean 66/60 +-10, caves
+  steady (deep dark 52), Nether 96-120 steady, End 30 steady.
+- biomes: in config.yml overrides any of it per biome id; values left out
+  keep the built-in ones, and a broken entry warns and is skipped.
+- A data-pack biome (Biome.CUSTOM) is looked up by its key through Paper's
+  UnsafeValues#getBiomeKey for overrides, else estimated from vanilla's
+  biome temperature and downfall: the mean follows the temperature, the
+  day/night swing is 10 + 25 x (1 - downfall) F, the seasonal swing follows
+  the mean (26 F when cold down to 3 F in the tropics).
+- A rain biome snows where vanilla does: above sea level + 17, where the
+  height-adjusted biome temperature is below 0.15.
+- Altitude (altitude:): lapse-f-per-block (0.1) for every block above from-y
+  (64), applied at the exact height after blending.
+- Underground (underground:): depth = min(sea level, surface height) - y,
+  using the MOTION_BLOCKING_NO_LEAVES heightmap of a loaded chunk, in worlds
+  with a sun. A smoothstep from start-depth (4) to full-depth (20) fades the
+  day/night swing into the daily mean, and fades the seasonal swing and the
+  rain/snow shares to nothing.
+- Seasons (seasons:): shift = seasonal swing x strength x
+  sin(2 pi t / year - pi / 4), added to noon and midnight before the weather
+  effect; t runs from the first day of spring, so mid-summer is +1 and
+  mid-winter -1. Natural water uses 0.8 x the shift, water-lag-days (5) later.
+  Not applied to the cached profile, only when a temperature is read.
+- The calendar (SeasonService, seasons.yml): per world with a sun, a day count
+  that moves on when the world's day count (full time / 24000) does, by at
+  most one day per look; going back is ignored, so vanilla /time set day
+  never resets the year. Time of day is the world's. New calendars start on
+  spring day 1. /hvac season set|next|pause|resume changes it.
 
 Profiles are cached per thermostat, so an unloaded thermostat never causes a
-chunk load merely to sample its biome.
+chunk load merely to sample its biome. A thermostat saves outdoorSeasonalF
+once it has sampled since 2.1 Pilot 2; before that it estimates one from its
+daily mean.
 
 Biome transitions (biome-blend: in config.yml, 2.1):
 

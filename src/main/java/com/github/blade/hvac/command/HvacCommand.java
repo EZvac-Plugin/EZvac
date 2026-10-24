@@ -7,10 +7,12 @@ import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
 import com.github.blade.hvac.simulation.Psychrometrics;
+import com.github.blade.hvac.simulation.Seasons;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
@@ -82,6 +84,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             if (!requireAdmin(sender)) return true;
             plugin.requestImmediateSync();
             sender.sendMessage(green("HVAC reconciliation queued."));
+            return true;
+        }
+        if (subcommand.equals("season")) {
+            try {
+                season(sender, args);
+            } catch (IllegalArgumentException exception) {
+                sender.sendMessage(red(exception.getMessage()));
+            }
             return true;
         }
         if (!(sender instanceof Player player)) {
@@ -414,6 +424,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(join(gray("Feels like: "),
                     white(temp(reading.feelsLikeF())),
                     gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%")));
+        UUID world = player.getWorld().getUID();
+        if (plugin.seasons().settings().enabled() && plugin.seasons().tracks(world))
+            player.sendMessage(join(gray("Season: "), white(seasonText(world)),
+                    gray(" | Outside "), white(shift(outdoor.seasonShiftAt(player.getLocation())))));
         if (!reading.conditioned()) {
             player.sendMessage(gray(water ? "Natural water: no pool system reaches this block."
                     : "No completed linked-vent path reaches this block."));
@@ -423,6 +437,92 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(join(gray("Group: "), white(reading.group().label()), gray(" | Path: "),
                     white(reading.airflowDistance() + " blocks"), gray(" | Zone: "), white(zone)));
         }
+    }
+
+    /**
+     * {@code /hvac season [set <season> [day] | next | pause | resume] [world]}:
+     * anyone may look, admins may change the calendar. From the console the
+     * world can be named last; it defaults to the main world.
+     */
+    private void season(CommandSender sender, String[] args) {
+        SeasonService seasons = plugin.seasons();
+        List<String> rest = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
+        World world = sender instanceof Player player ? player.getWorld() : plugin.getServer().getWorlds().get(0);
+        if (!rest.isEmpty()) {
+            World named = plugin.getServer().getWorld(rest.get(rest.size() - 1));
+            if (named != null) {
+                world = named;
+                rest.remove(rest.size() - 1);
+            }
+        }
+        if (!seasons.settings().enabled()) {
+            sender.sendMessage(yellow("Seasons are turned off on this server (seasons.enabled in config.yml)."));
+            return;
+        }
+        if (world.getEnvironment() != World.Environment.NORMAL || !seasons.tracks(world.getUID())) {
+            sender.sendMessage(yellow("'" + world.getName() + "' has no seasons: only worlds with a sun do."));
+            return;
+        }
+        UUID id = world.getUID();
+        String action = rest.isEmpty() ? "info" : rest.get(0).toLowerCase(Locale.ROOT);
+        int days = seasons.settings().daysPerSeason();
+        switch (action) {
+            case "info" -> { }
+            case "set" -> {
+                if (!requireAdmin(sender)) return;
+                if (rest.size() < 2) throw new IllegalArgumentException("Usage: /hvac season set <spring|summer|autumn|winter> [day]");
+                Seasons.Season season = Seasons.Season.parse(rest.get(1));
+                if (season == null) throw new IllegalArgumentException("'" + rest.get(1) + "' is not a season: spring, summer, autumn or winter.");
+                int day = 1;
+                if (rest.size() >= 3) {
+                    try {
+                        day = Integer.parseInt(rest.get(2));
+                    } catch (NumberFormatException notNumber) {
+                        throw new IllegalArgumentException("The day must be a number from 1 to " + days + ".");
+                    }
+                    if (day < 1 || day > days) throw new IllegalArgumentException("The day must be 1 to " + days + ".");
+                }
+                seasons.set(id, season, day);
+            }
+            case "next" -> {
+                if (!requireAdmin(sender)) return;
+                seasons.next(id);
+            }
+            case "pause", "resume" -> {
+                if (!requireAdmin(sender)) return;
+                seasons.setPaused(id, action.equals("pause"));
+                seasons.save();
+                sender.sendMessage(action.equals("pause")
+                        ? yellow("The calendar in '" + world.getName() + "' is paused: the days pass, the season stays.")
+                        : green("The calendar in '" + world.getName() + "' runs again."));
+                return;
+            }
+            default -> throw new IllegalArgumentException("Usage: /hvac season [set <season> [day] | next | pause | resume]");
+        }
+        if (!action.equals("info")) {
+            seasons.save();
+            sender.sendMessage(green("It is now " + seasonText(id) + " in '" + world.getName()
+                    + "'. Outdoor temperatures follow at once; rooms drift there over time."));
+            return;
+        }
+        Component line = join(gold("Season"), gray(" | "), white(seasonText(id)));
+        if (sender instanceof Player player && player.getWorld().equals(world))
+            line = line.append(join(gray(" | Here: "), white(shift(outdoor.seasonShiftAt(player.getLocation())))));
+        if (seasons.paused(id)) line = line.append(yellow(" (paused)"));
+        sender.sendMessage(line);
+    }
+
+    /** "Summer, day 3 of 15". */
+    private String seasonText(UUID world) {
+        SeasonService seasons = plugin.seasons();
+        return seasons.season(world).displayName() + ", day " + seasons.dayOfSeason(world) + " of "
+                + seasons.settings().daysPerSeason();
+    }
+
+    /** A temperature change in the server's unit: "+12.4 F", "-3.1 C". */
+    private String shift(double fahrenheit) {
+        double value = settings.units() == TemperatureUnit.C ? fahrenheit * 5.0 / 9.0 : fahrenheit;
+        return String.format(Locale.US, "%+.1f %s", value, settings.units().name());
     }
 
     private void list(Player player) {
@@ -832,7 +932,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (sender.hasPermission(HUD_PERMISSION))
             sender.sendMessage(join(aqua("/hvac hud [on|off]"), gray(" - show or hide the on-screen climate HUD")));
         sender.sendMessage(join(aqua("/hvac list | info"), gray(" - inspect systems or the targeted device")));
+        sender.sendMessage(join(aqua("/hvac season"), gray(" - the season and how much it warms or cools outside")));
         if (!sender.hasPermission(ADMIN_PERMISSION)) return;
+        sender.sendMessage(join(aqua("/hvac season set <season> [day] | next | pause | resume"),
+                gray(" - change the season")));
         sender.sendMessage(join(aqua("/hvac create thermostat <id> <group> [target]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace <group>"), gray(" - register a dispenser")));
         sender.sendMessage(join(aqua("/hvac create boiler|poolheatpump <group>"), gray(" - register a pool source")));
@@ -854,7 +957,17 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(args[0], "help", "temperature", "hud", "list", "info",
-                "create", "thermostat", "equipment", "group", "duct-tool", "sensor-tool", "remove", "stats", "sync");
+                "create", "thermostat", "equipment", "group", "duct-tool", "sensor-tool", "remove", "stats", "sync",
+                "season");
+        if (args[0].equalsIgnoreCase("season")) {
+            if (args.length == 2) return sender.hasPermission(ADMIN_PERMISSION)
+                    ? filter(args[1], "set", "next", "pause", "resume") : List.of();
+            if (args.length == 3 && args[1].equalsIgnoreCase("set"))
+                return filter(args[2], "spring", "summer", "autumn", "winter");
+            return filter(args[args.length - 1], plugin.getServer().getWorlds().stream()
+                    .filter(world -> world.getEnvironment() == World.Environment.NORMAL)
+                    .map(World::getName).toArray(String[]::new));
+        }
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",

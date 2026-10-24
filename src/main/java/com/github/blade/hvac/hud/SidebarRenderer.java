@@ -104,7 +104,7 @@ public final class SidebarRenderer implements HudRenderer {
     }
 
     private void update(Board board, ClimateSnapshot snapshot) {
-        List<String> templates = format.medium(snapshot).sidebarLines();
+        List<String> templates = format.shownLines(format.medium(snapshot).sidebarLines(), snapshot);
         int count = Math.min(MAX_LINES, templates.size());
         // Air and water layouts may have different line counts: drop the extras.
         while (board.lines.size() > count) {

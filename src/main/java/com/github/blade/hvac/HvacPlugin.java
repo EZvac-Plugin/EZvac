@@ -13,6 +13,7 @@ import com.github.blade.hvac.listener.HvacListener;
 import com.github.blade.hvac.service.*;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
+import org.bukkit.World;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -36,6 +37,7 @@ public final class HvacPlugin extends JavaPlugin {
     private HvacSettings settings;
     private ClimateSettings climate;
     private WeatherService weather;
+    private SeasonService seasons;
     private HvacRegistry registry;
     private OutdoorTemperatureService outdoor;
     private AirflowService airflow;
@@ -65,13 +67,16 @@ public final class HvacPlugin extends JavaPlugin {
             registry = new HvacRegistry(this, settings);
             registry.load();
             weather = new WeatherService(climate.weather());
-            outdoor = new OutdoorTemperatureService(climate, weather);
+            seasons = new SeasonService(getDataFolder(), climate.seasons(), getLogger()::warning);
+            seasons.load();
+            advanceSeasons();
+            outdoor = new OutdoorTemperatureService(climate, weather, seasons);
             airflow = new AirflowService(registry, outdoor, settings);
             displays = new DisplayService(this, registry, airflow, outdoor, settings);
             units = new ClimateUnitService(registry, airflow, outdoor);
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
             audio = new HvacAudioService(settings, loadSounds(), registry);
-            hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()));
+            hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()), seasons);
 
             HvacCommand commandHandler = new HvacCommand(this, registry, controller,
                     outdoor, airflow, displays, settings, hud, units);
@@ -141,6 +146,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (added.isEmpty()) return;
         SoundSettings.carryOverHum(current, added);
         TemperatureUnit.carryOver(current, added);
+        HudSettings.addSeasonLine(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
@@ -202,6 +208,7 @@ public final class HvacPlugin extends JavaPlugin {
             registry.shutdownEquipment();
             registry.save(true); // shutdown must not hand work to the scheduler
         }
+        if (seasons != null) seasons.save();
         if (registry != null && !registry.isWritable())
             getLogger().warning("EZvac disabled without saving: hvac.yml could not be loaded, so it was left untouched.");
         else
@@ -211,6 +218,7 @@ public final class HvacPlugin extends JavaPlugin {
     private void runController(long elapsedTicks) {
         if (!isEnabled() || controller == null) return;
         try {
+            advanceSeasons();
             weather.advance(elapsedTicks);
             units.prepare();
             HvacController.CycleResult result = controller.cycle(elapsedTicks);
@@ -236,6 +244,7 @@ public final class HvacPlugin extends JavaPlugin {
                 if (ticksSinceSave >= settings.savePeriodTicks()) {
                     ticksSinceSave %= settings.savePeriodTicks();
                     registry.save();
+                    seasons.save();
                 }
             } else {
                 displays.refreshAll(false);
@@ -263,5 +272,13 @@ public final class HvacPlugin extends JavaPlugin {
     public HvacSettings settings() { return settings; }
     public ClimateSettings climate() { return climate; }
     public WeatherService weather() { return weather; }
+    public SeasonService seasons() { return seasons; }
     public OutdoorTemperatureService outdoor() { return outdoor; }
+
+    /** Each world with a sun looks at its clock, so its calendar moves on as the days pass. */
+    private void advanceSeasons() {
+        for (World world : getServer().getWorlds())
+            if (world.getEnvironment() == World.Environment.NORMAL)
+                seasons.advance(world.getUID(), world.getName(), world.getFullTime());
+    }
 }
