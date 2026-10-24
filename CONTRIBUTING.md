@@ -98,7 +98,9 @@ Two lessons worth repeating, both of which caught real bugs:
 - `simulation/` — pure, Bukkit-free thermal, motor, and ETA models.
 
 `docs/features.txt` describes the intended behaviour in detail and is the best
-starting point for understanding what the plugin is meant to do.
+starting point for understanding what the plugin is meant to do. The player and
+server-owner docs are the Markdown pages in `docs/` (start at
+`docs/README.md`), linked from the README.
 
 ## Performance
 
@@ -123,8 +125,10 @@ allocates), and boxed collections keyed by coordinates.
   methods, and comments that explain *why*.
 - Say what you tested. "Ran on Paper 1.21.1 with N thermostats" is worth more
   than a green checkmark.
-- If you change behaviour that players can observe, update `docs/features.txt`
-  and add a `CHANGELOG.md` entry.
+- If you change behaviour that players can observe, update `docs/features.txt`,
+  the `docs/` page that covers it (a new command also goes in
+  `docs/commands.md`, a new setting in `docs/configuration.md`), and add a
+  `CHANGELOG.md` entry.
 
 ## Reporting bugs
 

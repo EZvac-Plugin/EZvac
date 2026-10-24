@@ -380,4 +380,4 @@ PERMISSIONS
 - ezvac.hud (default true): show the on-screen climate HUD with /hvac hud.
 - ezvac.admin (default op): create, change, link, remove, sync, and stats.
 
-See commands.txt for the full command reference.
+See commands.md for the full command reference.

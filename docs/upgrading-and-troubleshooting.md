@@ -1,0 +1,101 @@
+# Upgrading and troubleshooting
+
+## Installing
+
+You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
+
+1. Put `EzVac-ALPHA-2.0.jar` in the server's `plugins` folder.
+2. Start the server and check the log for `EZvac enabled: ...` with no errors.
+3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
+
+## Upgrading
+
+Upgrading from any earlier EZvac release is supported:
+
+1. Stop the server and back up `plugins/EZvac/`.
+2. Replace the EZvac jar with the new one.
+3. Start the server.
+
+Your `plugins/EZvac/hvac.yml` is read as it is: every release's save file is
+covered by the test suite.
+
+- **From 1.x to 2.0,** the save moves to **format 6**, and your 1.x file is
+  kept as `hvac.yml.format5.bak`. Each room's humidity starts at the outdoor
+  level and settles from there.
+- **Your `config.yml`** gains every new setting with its comments. Nothing you
+  set is changed, and the previous file is kept as
+  `config.yml.before-<version>.bak`. See
+  [Configuration](configuration.md#your-configyml-stays-up-to-date).
+
+### Going back
+
+Downgrading isn't supported. From 1.7 on, EZvac refuses to start on a save
+written by a newer version and leaves the file untouched, instead of loading it
+and quietly dropping what it doesn't understand.
+
+To go back anyway: stop the server, restore `hvac.yml.format<N>.bak` as
+`hvac.yml`, and put the old jar back. Anything built since the upgrade is lost.
+
+## Your data
+
+- **Save file:** everything EZvac knows is in `plugins/EZvac/hvac.yml`. It's
+  saved every 30 seconds and on shutdown.
+- **Safe writes:** each save writes a temporary file, keeps the previous one
+  as `hvac.yml.bak`, then swaps the new one in. A crash mid-save leaves a good
+  file behind.
+- **Unreadable save:** if `hvac.yml` can't be read, the backup is restored. If
+  neither can, EZvac refuses to start and touches neither, so nothing is lost.
+- **Invalid records:** a single record EZvac can't read is set aside with a
+  warning and kept in the file, rather than deleted.
+- **Missing blocks:** devices whose blocks are gone are removed once their
+  chunk is loaded. Devices in unloaded chunks or worlds are kept.
+- **Player choices** (the HUD on or off) are stored with each player, not in
+  `hvac.yml`.
+
+## Troubleshooting
+
+**Equipment doesn't start.**
+- The cell in front of the dispenser must be **empty** (air): the unit puts its
+  water or lava there. Clear it, and make sure the dispenser faces into its
+  casing. See [Equipment](equipment.md#the-casing).
+- `/hvac info` on the dispenser shows whether it's enabled and in which group.
+- Air equipment needs a room thermostat, and pool equipment a pool thermostat.
+
+**A system stays `IDLE` or `OFF`.**
+- `OFF` means it was switched off: sneak-right-click the thermostat sign, or
+  `/hvac thermostat <id> enable`.
+- `IDLE` with the room far from the target usually means the group has no
+  equipment that can do the job, for example an air conditioner when it needs
+  heat. `/hvac group <group> info` lists what it has.
+- Each change also waits out the minimum run and off times (15 and 10 seconds).
+
+**A room doesn't change temperature.**
+- Check the vents are linked: `/hvac info` on an iron trapdoor.
+- Stand in the room and run `/hvac temperature`. It names the system reaching
+  you, or says none does: a closed door or a wall may be in the way.
+
+**Signs far away don't update.** That's by design: signs are only rewritten
+within about 64 blocks of a player, and catch up within a second of someone
+coming near. The systems themselves keep running.
+
+**A dehumidifier says `Air too cold`.** The air is already drier than it can
+dry (a dew point at or below 35 °F), as in snowy biomes. It's working as
+designed. See [Dehumidifiers and humidifiers](dehumidifiers-and-humidifiers.md#air-too-cold).
+
+**A weather sensor says `Covered`.** Something above it (a roof, glass, leaves)
+keeps the rain off. Move it under open sky.
+
+**A sensor shows `--`.** Its chunk isn't loaded.
+
+**The log warns about a setting.** A value is out of range. In a 2.0 section
+that section runs on its defaults until you fix it; elsewhere EZvac doesn't
+start. The warning names the setting.
+
+**The log says `hvac.yml is format 6, written by a newer version`.** The jar is
+older than your save. Put the newer jar back; see [Going back](#going-back).
+
+**Sounds are too loud, too quiet or unwanted.** Every sound is configurable, or
+can be silenced with `[]`; see [Configuration](configuration.md#sounds).
+
+Still stuck? `/hvac stats` and the server log are the best things to include
+when you report a problem on GitHub.

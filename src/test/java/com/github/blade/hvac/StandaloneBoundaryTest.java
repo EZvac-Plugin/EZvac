@@ -51,8 +51,13 @@ class StandaloneBoundaryTest {
                 () -> "Foreign product markers found in: " + violations);
     }
 
+    /** Screenshots in the docs are pictures, not text to scan. */
+    private static final List<String> IMAGE_EXTENSIONS = List.of(".png", ".jpg", ".jpeg", ".gif", ".webp");
+
     private static void inspect(Path file, List<String> forbidden, List<Path> violations)
             throws IOException {
+        String name = file.getFileName().toString().toLowerCase(Locale.ROOT);
+        if (IMAGE_EXTENSIONS.stream().anyMatch(name::endsWith)) return;
         String content = Files.readString(file, StandardCharsets.UTF_8).toLowerCase(Locale.ROOT);
         if (forbidden.stream().anyMatch(content::contains)) violations.add(file);
     }
