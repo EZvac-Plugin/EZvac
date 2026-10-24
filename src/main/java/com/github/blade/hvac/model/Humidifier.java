@@ -45,11 +45,6 @@ public final class Humidifier extends ClimateUnit {
     }
 
     @Override
-    public int nextPreset(ClimateSettings settings) {
-        return settings.humidifier().nextPreset(setpoint());
-    }
-
-    @Override
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         writeCommon(map, "slab");

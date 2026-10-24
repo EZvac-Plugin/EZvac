@@ -76,11 +76,6 @@ public final class Dehumidifier extends ClimateUnit {
         return changed;
     }
 
-    @Override
-    public int nextPreset(ClimateSettings settings) {
-        return settings.dehumidifier().nextPreset(setpoint());
-    }
-
     /**
      * Adds water to the tank. A full tank stops the unit and starts emptying.
      *

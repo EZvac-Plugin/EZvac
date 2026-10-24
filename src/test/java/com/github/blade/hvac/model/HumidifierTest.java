@@ -43,14 +43,6 @@ class HumidifierTest {
     }
 
     @Test
-    void presetsCycleWithinTheHumidifierRange() {
-        Humidifier humidifier = unit();
-        assertEquals(45, humidifier.nextPreset(settings));
-        humidifier.setSetpoint(50);
-        assertEquals(30, humidifier.nextPreset(settings), "wraps to the lowest");
-    }
-
-    @Test
     void itRoundTripsThroughTheSaveFile() {
         Humidifier humidifier = unit();
         humidifier.setSetpoint(45);

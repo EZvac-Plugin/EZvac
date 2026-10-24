@@ -42,8 +42,10 @@ Tank 40%
 Line 2 is the humidity of the space it works on and its setpoint. Line 3 is its
 state: `Running`, `Idle`, `OFF`, `Emptying...` or `Air too cold`.
 
-- **Right-click** the sign to step the setpoint: 35, 40, 45, 50, 55, 60%, then
-  back to 35.
+- **Right-click** the sign to open its control menu: the black pane raises the
+  setpoint by 5%, the white one lowers it, from 35% to 60% (the lowest and
+  highest of `dehumidifier.presets`; 30-50% for a humidifier). A lever in the
+  menu switches it on or off.
 - **Sneak-right-click** to switch it on or off. Off keeps the tank as it is.
 - It starts 2% above the setpoint and runs until the air is down to it.
 - The water it removes fills its **tank**. A full tank waterlogs the grate and

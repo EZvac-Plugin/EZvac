@@ -102,9 +102,6 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
      */
     public abstract boolean control(double humidity, ClimateSettings settings);
 
-    /** The setpoint a click on its sign moves to. */
-    public abstract int nextPreset(ClimateSettings settings);
-
     /** What its water block must be, so the registry can tell when it was broken. */
     public abstract Material partMaterial();
 

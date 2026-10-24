@@ -7,6 +7,7 @@ import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.SoundSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
+import com.github.blade.hvac.gui.ControlMenus;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.integration.placeholderapi.PlaceholderApiBridge;
 import com.github.blade.hvac.listener.HvacListener;
@@ -45,6 +46,7 @@ public final class HvacPlugin extends JavaPlugin {
     private HvacController controller;
     private HvacAudioService audio;
     private ClimateUnitService units;
+    private ControlMenus menus;
     /** Units running after the last cycle, for the humidifier bubbles between cycles. */
     private List<com.github.blade.hvac.model.ClimateUnit> runningUnits = List.of();
     private BukkitTask bubbleTask;
@@ -72,7 +74,8 @@ public final class HvacPlugin extends JavaPlugin {
             advanceSeasons();
             outdoor = new OutdoorTemperatureService(climate, weather, seasons);
             airflow = new AirflowService(registry, outdoor, settings);
-            displays = new DisplayService(this, registry, airflow, outdoor, settings);
+            displays = new DisplayService(this, registry, airflow, outdoor, settings,
+                    new ScreenService(this, getConfig().getBoolean("displays.screens", true)));
             units = new ClimateUnitService(registry, airflow, outdoor);
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
             audio = new HvacAudioService(settings, loadSounds(), registry);
@@ -87,6 +90,8 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(new HvacListener(
                     this, registry, airflow, displays, commandHandler, units), this);
             getServer().getPluginManager().registerEvents(hud, this);
+            menus = new ControlMenus(this, registry, displays, settings, climate);
+            getServer().getPluginManager().registerEvents(menus, this);
             hud.start();
             if (hud.sidebarYieldedTo() != null)
                 getLogger().info(hud.sidebarYieldedTo() + " draws its own scoreboard, so the /hvac hud overlay uses"
@@ -204,6 +209,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (controllerTask != null) controllerTask.cancel();
         if (airflowTask != null) airflowTask.cancel();
         if (bubbleTask != null) bubbleTask.cancel();
+        if (displays != null) displays.screens().removeAll();
         if (registry != null) {
             registry.shutdownEquipment();
             registry.save(true); // shutdown must not hand work to the scheduler
@@ -273,6 +279,7 @@ public final class HvacPlugin extends JavaPlugin {
     public ClimateSettings climate() { return climate; }
     public WeatherService weather() { return weather; }
     public SeasonService seasons() { return seasons; }
+    public ControlMenus menus() { return menus; }
     public OutdoorTemperatureService outdoor() { return outdoor; }
 
     /** Each world with a sun looks at its clock, so its calendar moves on as the days pass. */

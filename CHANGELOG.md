@@ -2,6 +2,41 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.1 Pilot 3
+
+The third pilot of **2.1, Realism: EXTENDED**: screens on every sign, and
+control menus in place of editing signs. Same save format as 2.0 (format 6):
+a drop-in upgrade.
+
+### Added
+
+- **Screens.** Every EZvac sign gets a floating screen in front of it: a dark,
+  lit panel with room for more than a sign's four lines. A thermostat's screen
+  shows the room temperature, what it's doing (`❄ Cooling to 70.0°F`), a
+  capacity bar, the ETA and humidity, and the outdoor temperature and season;
+  sensors, units, hubs, RPM monitors and settings panels have their own. All
+  screens are the same size and readable at night. The sign stays behind, so
+  clicking works as before and clients without screens (such as Bedrock
+  players through Geyser) still read it. Screens are never saved with the
+  world, and come back by themselves when their chunk loads. On by default;
+  `displays.screens: false` turns them off.
+- **Control menus.** Right-clicking a thermostat sign (room or pool) opens a
+  menu: black/white panes +5 / -5, green/red +1 / -1, lime/orange +0.1 / -0.1,
+  in the server's units, never past the allowed range, plus a lever for
+  on/off. Dehumidifiers and humidifiers get +5% / -5% and a lever.
+
+### Changed
+
+- **EZvac signs can no longer be edited.** A thermostat's target is set from
+  its menu instead of line 3 of the sign.
+- **Everyone with `ezvac.use` can change thermostat targets** from the menu,
+  like dehumidifier setpoints. Editing line 3 used to need `ezvac.admin`;
+  `/hvac thermostat <id> set` still does.
+- Clicking a dehumidifier or humidifier sign opens its menu instead of stepping
+  through the presets. `presets` now sets the range the menu reaches: from its
+  lowest to its highest, in steps of 5.
+- Sneak-right-click still switches a thermostat's system, or a unit, off or on.
+
 ## ALPHA 2.1 Pilot 2
 
 The second pilot of **2.1, Realism: EXTENDED**: a realistic climate for every

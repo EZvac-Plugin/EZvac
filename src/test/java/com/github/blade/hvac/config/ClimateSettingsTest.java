@@ -28,11 +28,13 @@ class ClimateSettingsTest {
     }
 
     @Test
-    void presetsCycleAndWrap() {
-        ClimateSettings.Dehumidifier settings = ClimateSettings.defaults().dehumidifier();
-        assertEquals(50, settings.nextPreset(45));
-        assertEquals(35, settings.nextPreset(60), "wraps to the lowest");
-        assertEquals(45, settings.nextPreset(42), "an odd value moves to the next preset up");
+    void presetsSetTheRangeTheMenuReaches() {
+        ClimateSettings.Dehumidifier dehumidifier = ClimateSettings.defaults().dehumidifier();
+        assertEquals(35, dehumidifier.minimumSetpoint());
+        assertEquals(60, dehumidifier.maximumSetpoint());
+        ClimateSettings.Humidifier humidifier = ClimateSettings.defaults().humidifier();
+        assertEquals(30, humidifier.minimumSetpoint());
+        assertEquals(50, humidifier.maximumSetpoint());
     }
 
     @Test

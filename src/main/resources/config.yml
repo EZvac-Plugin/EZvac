@@ -82,6 +82,14 @@ audio:
     # cluster of vents. Water vents stay quiet.
     vent-airflow: ["block.conduit.ambient 0.3 0.5"]
 
+# Floating screens in front of EZvac's signs (2.1 Pilot 3): a dark, lit panel
+# with more room than a sign's four lines. The sign stays behind it, so
+# clicking works as before and players whose client can't show screens (such
+# as Bedrock players through Geyser) still read the sign. Screens are never
+# saved with the world. false shows the plain signs only.
+displays:
+  screens: true
+
 # Transitions between biomes (2.1). The outdoor climate at a spot is the
 # average of the biomes within radius-blocks, nearer ones counting more, so
 # walking from plains into a desert ramps instead of jumping 28 F in a step.
@@ -198,7 +206,8 @@ dehumidifier:
   tank-fill-hours: 8.0
   empty-seconds: 30
   default-setpoint: 45
-  # Clicking the sign cycles these setpoints (% RH).
+  # The setpoints the menu reaches (% RH): from the lowest to the highest here,
+  # in steps of 5.
   presets: [35, 40, 45, 50, 55, 60]
   # It starts again once RH is this far above the setpoint.
   hysteresis: 2.0
@@ -215,7 +224,8 @@ humidifier:
   add-f-per-minecraft-hour: 3.0
   reference-cells: 1500
   default-setpoint: 40
-  # Clicking the sign cycles these setpoints (% RH).
+  # The setpoints the menu reaches (% RH): from the lowest to the highest here,
+  # in steps of 5.
   presets: [30, 35, 40, 45, 50]
   # It starts again once RH is this far below the setpoint.
   hysteresis: 2.0

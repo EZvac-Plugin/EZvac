@@ -221,7 +221,8 @@ DEHUMIDIFIERS
 - The water it removes fills a tank. Full, the grate is waterlogged and the
   unit empties for 30 seconds, then carries on. The grate's water is never
   allowed to flow.
-- Click: next setpoint preset. Sneak-click: power. Both need ezvac.use.
+- Click: its control menu, setpoint +5 / -5 within the presets' lowest and
+  highest, and power. Sneak-click: power. Both need ezvac.use.
 - When the dew point of the space it works on is at or below
   dehumidifier.dry-dew-point-f (35 F), there is nothing for its coil to
   condense: it keeps running, removes nothing, and its sign shows
@@ -330,7 +331,11 @@ DISPLAYS AND AUDIO
   and an approximate ETA while actively heating or cooling.
 - ETA is forward-simulated from the current equipment mix, actual RPM, future
   compressor modulation, outdoor load, and the same thermal rules as control.
-- The target can be changed by command or by editing line 3 of the sign.
+- The target can be changed by command or from the control menu a right-click
+  on the sign opens (2.1 Pilot 3; ezvac.use): +5/+1/+0.1 and -5/-1/-0.1 in the
+  server's units, rounded to a tenth in that unit and clamped to the room or
+  pool range, plus a power lever. No EZvac sign can be edited; line-3 target
+  editing was removed in 2.1 Pilot 3.
 - Sneak-right-clicking the sign switches the system off or on (ezvac.use).
 - Thermometers are independent point sensors with no stored group. Each reads
   its own sign block exactly like /hvac temperature: influenced vent temperature
@@ -341,6 +346,16 @@ DISPLAYS AND AUDIO
   right-click advances the profile; sneak-right-click moves backward. Removing
   the panel immediately restores the group to NORMAL.
 - Display writes are fingerprinted so unchanged signs are not rewritten.
+- Screens (displays.screens, default true, 2.1 Pilot 3): a non-persistent text
+  display entity in front of each device sign (ScreenService), placed by sign
+  kind (wall, standing, hanging) and facing, scale 0.4 (0.34 on hanging signs),
+  100 px lines, a dark translucent background, full brightness. Every screen is
+  6 lines (blank ones pad it) with its title padded by spaces to the full
+  width, because a text display sizes its panel to its text. Text is sent only
+  when it changed. A refresh puts back a screen that its chunk unloading took
+  away; removing a device (DisplayService.invalidate), a periodic sweep of
+  screens without a device, and plugin disable take them down. The sign stays
+  behind and is still written, for clicks and for clients without screens.
 - Sign lines are measured in pixels with the vanilla font's widths (90 px on
   standing and wall signs, 60 px on hanging signs) and cut to fit, so the
   game never wraps one. Headers drop "EZvac | " when the label needs the room,
@@ -426,8 +441,9 @@ previous file is kept as config.yml.before-<version>.bak.
 PERMISSIONS
 -----------
 
-- ezvac.use (default true): help, temperature, list, info, and settings-panel
-  and dehumidifier use.
+- ezvac.use (default true): help, temperature, list, info, season, and using
+  signs: thermostat targets and power (control menu), settings panels,
+  dehumidifiers and humidifiers, sensor hubs.
 - ezvac.hud (default true): show the on-screen climate HUD with /hvac hud.
 - ezvac.admin (default op): create, change, link, remove, sync, and stats.
 
