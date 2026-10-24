@@ -2,174 +2,17 @@
 
 All notable changes to EZvac are recorded here.
 
-## ALPHA 2.0 (in progress)
+## ALPHA 2.0
 
-Hardening after a review of everything changed since 1.9. Same save format
-(format 6).
-
-### Fixed
-
-- **One bad 2.0 setting no longer stops EZvac.** A value out of range under
-  `weather:`, `humidity:`, `dehumidifier:`, `humidifier:` or `variance:` used
-  to disable the whole plugin on startup. Now that section uses its defaults,
-  with a warning naming the setting, and everything else loads as written.
-- **Units destroyed without a break event** (an explosion, a piston, an
-  editing tool) now release their airflow zone. Before, it stayed in memory
-  until a restart.
-- **Labels with a digit in them** (a group called `basement2`) are cut on a
-  sign like any other label instead of disappearing, and a cut line never
-  ends in a dangling `|`. Readings are still never shown cut.
-- **Weather sensors report the sky even with `weather.enabled: false`**,
-  instead of always saying `Clear`.
-- **A thermometer outdoors** shows the same temperature on both lines: the
-  outdoor reading at a spot now varies with that spot.
-
-### Changed
-
-- `audio.hum-volume` and `audio.hum-pitch` are no longer read at all (Pilot 5
-  replaced them with `audio.sounds`), so an odd value left there no longer
-  stops startup.
-- Each controller cycle checks for heat pump and AC water outputs without
-  allocating, which matters in rooms next to large pools.
-
-## ALPHA 2.0 Pilot 5
-
-Spot-to-spot variance, weather sensors, shared humidity for standalone units,
-signs that always fit, a warning for dehumidifiers in cold air, and
-configurable sounds. Same save format as the earlier pilots (format 6): a
-drop-in upgrade.
-
-### Added
-
-- **Spot-to-spot variance.** Readings differ a little from place to place
-  instead of one value for a whole house: up to ±0.5 °F in a conditioned
-  room, ±1.5 °F outdoors, ±0.3 °F in pools and ±0.8 °F in natural water, with
-  humidity following (a warmer spot reads a little drier). It changes
-  gradually over a few blocks and drifts over in-game hours. Readings only:
-  thermostats and the simulation keep the room's value. Tuning under the new
-  `variance:` section, added to existing configs on startup.
-- **Weather sensors.** A birch button registered with `/hvac create sensor`
-  reports the weather on sensor hubs and in chat: Clear, Rain, Thunder or
-  Snow. Like a rain gauge it needs open sky above it, and shows `Covered`
-  under a roof, glass or leaves. Saved as `reads: WEATHER`, which Pilot 4
-  can't read; downgrading isn't supported.
-- **Configurable sounds.** Every sound EZvac plays is a `"sound volume pitch"`
-  line under `audio.sounds` in `config.yml`; `[]` silences an event, and
-  resource-pack sounds work. The defaults are the sounds EZvac already
-  played. Existing configs get the section on startup; a hum tuned with the
-  old `audio.hum-volume` / `audio.hum-pitch` carries over, and those two
-  settings are no longer read.
-- **Vent airflow sound.** Air vents of running systems near a player softly
-  play the conduit's ambient sound, one vent per cluster, every 4 seconds
-  (`audio.vent-airflow-refresh-ticks`). Pools and water vents stay silent.
-- **"Air too cold".** A dehumidifier whose air is already at or below its
-  coil's dew point (35 F, as in snowy biomes) shows `Air too cold` instead of
-  `Running`; it can't dry that air. `/hvac info` explains it.
-
-### Fixed
-
-- **Standalone units in one space disagreed.** A dehumidifier and a
-  humidifier side by side outside any system each kept their own humidity
-  (54% and 79% in one shed). Units whose zones share air now share one
-  humidity and work on it together.
-- **Long sign lines were cut by the game.** Lines are now measured in pixels,
-  as the client draws them, instead of characters, so nothing wraps:
-  `EZvac | Dehumidifier` showed as `EZvac |` and now shows `Dehumidifier`.
-  Hanging signs' narrower lines are respected too, and sensor hubs fit more
-  of narrow labels. A reading that doesn't fit is left off whole rather than
-  shown cut (`78%` never becomes `7`).
-
-## ALPHA 2.0 Pilot 4
-
-Remote sensors and sensor hubs. Same save format as the earlier pilots
-(format 6): a drop-in upgrade. Sensors and hubs are saved in their own
-`sensors` and `sensorHubs` sections, which earlier pilots keep untouched.
-
-### Added
-
-- **Sensors.** A stone button (temperature), polished blackstone button
-  (humidity) or mangrove button (both), registered with
-  `/hvac create sensor [label]`; the button decides what it measures. It reads
-  exactly what a thermometer at that spot would. Pressing it shows its reading
-  in chat and never sends a redstone signal, even when shot with an arrow.
-- **Sensor hubs.** A sign that shows up to nine sensors, three to a page,
-  registered with `/hvac create sensor-hub [label]`. Click it to turn the
-  page; sneak-click to switch auto-flip (every 5 seconds, remembered across
-  restarts) on or off. One sensor can appear on several hubs.
-- **Sensor link tool.** `/hvac sensor-tool`: click a hub, then click sensors to
-  link them; sneak-click a sensor to unlink it.
-- `/hvac info` on a hub lists all its sensors with their readings.
-
-### Changed
-
-- **The duct tool is now `/hvac duct-tool`**, next to `/hvac sensor-tool`.
-  `/hvac tool` still works, and duct tools already handed out keep working.
-
-## ALPHA 2.0 Pilot 3
-
-Humidifiers, a config.yml that keeps up with new settings, and cheaper signs.
-Same save format as Pilots 1 and 2 (format 6): a drop-in upgrade. Humidifiers
-are saved in their own `humidifiers` section, which Pilots 1 and 2 keep
-untouched if you go back.
-
-### Added
-
-- **Humidifiers.** An iron block with a waxed cut copper slab on top and a
-  sign on the iron block, registered with `/hvac create humidifier [label]`.
-  It adds moisture to the system room around it, or its own zone anywhere
-  else, starting 2% below its setpoint and running up to it. Click the sign to
-  step the setpoint (30-50%), sneak-click to switch it on or off. It is
-  plumbed and never runs dry. While it runs the slab fills with water and
-  bubbles, and the water never spills. Tuning under `humidifier:`.
-- **Thermostat power switch.** Sneak-right-click a thermostat sign to switch
-  its system off, and again to switch it back on, like `/hvac thermostat <id>
-  disable|enable` (needs `ezvac.use`). Units switched off on their own stay
-  off. A plain click still edits the target.
-- **config.yml keeps up.** Settings added since a server's `config.yml` was
-  written (for a server upgraded from 1.x: `hud:`, `weather:`, `humidity:`,
-  `dehumidifier:`, `humidifier:` and the pool target lines) are added to it on
-  startup, with their comments. Existing settings are never changed, even
-  where the default has since changed; the previous file is kept as
-  `config.yml.before-<version>.bak`, and a file that can't be read is left
-  alone.
-
-### Changed
-
-- **Signs are only rewritten near players.** Thermostats, thermometers,
-  RPM monitors, panels and units more than about 64 blocks from every player
-  keep their last text until someone comes near, then update within a second.
-  The simulation, equipment, saving and readings are unaffected. Rewriting
-  signs was EZvac's largest single cost on large servers.
-- `/hvac info` and `/hvac remove` cover humidifiers; dehumidifier messages and
-  signs are unchanged.
-
-### Fixed
-
-- A thermo-hygrometer created without a label showed `Thermohygromete` on its
-  sign, one letter too long for the line. It now shows `T. Hygrometer`,
-  including on existing signs.
-
-## ALPHA 2.0 Pilot 2
-
-The second 2.0 pilot. Same save format as Pilot 1 (format 6), so it is a
-drop-in upgrade from Pilot 1, and from 1.x the same way Pilot 1 was.
-
-### Changed
-
-- **Dehumidifiers reach 2.5 times as far:** 30 blocks of airflow by default
-  (was 12), the same as a vent, so one unit covers a whole house or hall. Its
-  zone's cell cap rose to 50,000 to match. Both are `dehumidifier.range` and
-  `dehumidifier.maximum-cells` in `config.yml`. A server upgrading from
-  Pilot 1 already has `range: 12` written in its `config.yml`; change it to 30
-  (and `maximum-cells` to 50000) to get the new reach.
-
-## ALPHA 2.0 Pilot 1
-
-A prerelease of the 2.0 realism update: weather, humidity, "feels like" and
-dehumidifiers. It moves `hvac.yml` to **format 6**. Upgrading from any 1.x
-release is supported and needs no conversion; the first save keeps your 1.x
-file as `hvac.yml.format5.bak`. Releases 1.7 to 1.9 refuse a format 6 file
-(they leave it untouched), so going back means restoring that backup.
+The realism update: weather, humidity and "feels like", dehumidifiers and
+humidifiers, remote sensors, readings that vary from spot to spot, and
+configurable sounds. It moves `hvac.yml` to **format 6**. Upgrading from any
+1.x release is supported and needs no conversion: the first save keeps your
+1.x file as `hvac.yml.format5.bak`, and `config.yml` gains the new settings on
+startup. Releases 1.7 to 1.9 refuse a format 6 file (they leave it untouched),
+so going back means restoring that backup. 2.0 was tried out in five
+prereleases (ALPHA-2.0-P1 to P5, notes on GitHub); this entry covers
+everything since 1.9.
 
 ### Added
 
@@ -186,31 +29,81 @@ file as `hvac.yml.format5.bak`. Releases 1.7 to 1.9 refuse a format 6 file
   lowers its RH, and water inside a room evaporates into it, faster when it is
   warm. Tuning under `humidity:`.
 - **Feels like.** The apparent temperature from temperature, humidity and
-  outdoor wind. Shown on the HUD and in `/hvac temperature`.
+  outdoor wind, on the HUD, in `/hvac temperature` and `/hvac info`.
 - **Dehumidifiers.** An iron block on a waxed copper grate with a sign,
   registered with `/hvac create dehumidifier [label]`. It needs no system: it
   dries the room of the system around it, or its own zone anywhere else (a
-  shed, a basement). Click the sign to step the setpoint (35-60%), sneak-click
-  to switch it on or off. A full tank waterlogs the grate while it empties.
-  Tuning under `dehumidifier:`.
-- Placeholders `%ezvac_feels_like%` (`_f`, `_c`), `%ezvac_humidity%` and
-  `%ezvac_weather%`; HUD tokens `{feels}`, `{humidity}` and `{weather}`.
+  shed, a basement), 30 blocks of airflow by default. Click the sign to step
+  the setpoint (35-60%), sneak-click to switch it on or off. The water it
+  removes fills a tank; a full tank waterlogs the grate while it empties. In
+  air already drier than its coil can dry (a dew point at or below 35 °F, as
+  in snowy biomes) its sign shows `Air too cold`. Tuning under
+  `dehumidifier:`.
+- **Humidifiers.** An iron block with a waxed cut copper slab (bottom half) on
+  top and a sign on the iron block, registered with
+  `/hvac create humidifier [label]`. It works like a dehumidifier the other
+  way round (setpoints 30-50%), is plumbed so it never runs dry, and its slab
+  fills with water and bubbles while it runs. Tuning under `humidifier:`.
+- **Units share a space.** Dehumidifiers and humidifiers outside any system
+  whose zones share air have one humidity and work on it together; inside a
+  system's room they share the room's.
 - **Hygrometers and thermo-hygrometers.** `/hvac create hygrometer [label]`
   and `/hvac create thermohygrometer [label]` register sign sensors that work
-  like thermometers: a hygrometer shows humidity inside and outside, a
-  thermo-hygrometer shows temperature, humidity and feels-like together.
-  Thermometers are unchanged.
-- `/hvac info` on a thermostat shows its room's humidity and feels-like.
+  like thermometers: humidity inside and outside, or temperature, humidity and
+  feels-like together.
+- **Sensors and sensor hubs.** A button is a sensor, and the button decides
+  what it measures: stone (temperature), polished blackstone (humidity),
+  mangrove (both) or birch (weather, which needs open sky and shows `Covered`
+  under a roof). Register one with `/hvac create sensor [label]`, a sign with
+  `/hvac create sensor-hub [label]`, and link them with `/hvac sensor-tool`. A
+  hub shows up to nine sensors, three to a page: click to turn the page,
+  sneak-click for auto-flip every 5 seconds. Pressing a sensor shows its
+  reading in chat and never sends redstone.
+- **Spot-to-spot variance.** Readings differ a little from place to place
+  instead of one value for a whole house: up to ±0.5 °F in a conditioned room,
+  ±1.5 °F outdoors, ±0.3 °F in pools and ±0.8 °F in natural water, with
+  humidity following. It changes gradually over a few blocks and drifts over
+  in-game hours. Readings only: thermostats and the simulation keep the room's
+  value. Tuning under `variance:`.
+- **Configurable sounds.** Every sound EZvac plays is a `"sound volume pitch"`
+  line under `audio.sounds`; `[]` silences an event, and resource-pack sounds
+  work. The defaults are the sounds 1.9 played, plus a new **vent airflow**
+  sound: air vents of running systems near a player softly play the conduit's
+  hum, one vent per cluster. Pools and water vents stay silent.
+- **Thermostat power switch.** Sneak-right-click a thermostat sign to switch
+  its system off, and again to switch it back on, like
+  `/hvac thermostat <id> disable|enable` (needs `ezvac.use`).
+- **config.yml keeps up.** Settings added since a server's `config.yml` was
+  written are added to it on startup, with their comments. Existing settings
+  are never changed; the previous file is kept as
+  `config.yml.before-<version>.bak`. A value out of range in one of the new
+  sections doesn't stop EZvac: that section uses its defaults and the log
+  names the setting.
+- Placeholders `%ezvac_feels_like%` (`_f`, `_c`), `%ezvac_humidity%` and
+  `%ezvac_weather%`; HUD tokens `{feels}`, `{humidity}` and `{weather}`.
 
 ### Changed
 
 - **The HUD's comfort word, bar and boss-bar colour follow "feels like"** in
   air, so a humid 84 °F room reads Hot and a windy storm reads colder. Water is
-  still judged by its temperature.
-- The default HUD gains `Feels like` and `Humidity` lines and shows the weather
-  next to `Outside`. Configs that set their own `hud.sidebar.lines` keep them.
+  still judged by its temperature. The default HUD gains `Feels like` and
+  `Humidity` lines and shows the weather next to `Outside`; configs that set
+  their own `hud.sidebar.lines` keep them.
+- **Signs are only rewritten near players** (within about 64 blocks). Farther
+  signs keep their last text and catch up within a second of someone coming
+  near; the simulation, saving and readings are unaffected. At 1,000 running
+  rooms this takes EZvac from about 5.5 ms to about 2 ms per tick.
+- **Sign lines always fit.** Lines are measured in pixels as the client draws
+  them (narrower on hanging signs), headers drop their `EZvac | ` prefix when
+  the label needs the room, and a reading is never shown cut.
+- **The duct tool is now `/hvac duct-tool`**, next to `/hvac sensor-tool`.
+  `/hvac tool` still works, and duct tools already handed out keep working.
+- `audio.hum-volume` and `audio.hum-pitch` are replaced by `audio.sounds`. A
+  hum tuned with them carries over when `config.yml` is updated; afterwards
+  they are no longer read.
 - `hvac.yml` format 6: thermostats store their room's moisture and their
-  biome's downfall and precipitation, and a new `dehumidifiers` section.
+  biome's downfall and precipitation, with new `dehumidifiers`,
+  `humidifiers`, `sensors` and `sensorHubs` sections.
 
 ## ALPHA 1.9
 

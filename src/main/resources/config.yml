@@ -49,7 +49,7 @@ audio:
   # How often running systems' air vents play their airflow sound. 80 ticks is
   # how often a conduit plays the same sound.
   vent-airflow-refresh-ticks: 80
-  # Every sound EZvac plays (2.0 Pilot 5). Each line is "sound volume pitch",
+  # Every sound EZvac plays (2.0). Each line is "sound volume pitch",
   # a sound key such as block.beacon.ambient (resource pack sounds work too).
   # Lines in one list play together; [] silences that event. Pick mono sounds:
   # stereo ones, such as item.elytra.flying, sound the same at any distance.
@@ -114,7 +114,7 @@ humidity:
   # water evaporates faster.
   evaporation-f-per-minecraft-hour: 30.0
 
-# Small differences from spot to spot (2.0 Pilot 5), so a house isn't one
+# Small differences from spot to spot (2.0), so a house isn't one
 # number from wall to wall. Readings only: thermometers, sensors, the HUD,
 # /hvac temperature and placeholders vary; thermostats, equipment and the
 # simulation keep the room's own value. Values are the most a spot strays,
@@ -152,7 +152,7 @@ dehumidifier:
   # It starts again once RH is this far above the setpoint.
   hysteresis: 2.0
 
-# Standalone humidifiers (2.0 Pilot 3): an iron block with a waxed cut copper
+# Standalone humidifiers (2.0): an iron block with a waxed cut copper
 # slab on top and a sign on the iron block, registered with
 # /hvac create humidifier. Plumbed: it never runs dry. While it runs the slab
 # fills with water and bubbles.

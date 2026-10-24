@@ -129,7 +129,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
     }
 
     /**
-     * How far readings may stray from spot to spot (2.0 Pilot 5), in F either
+     * How far readings may stray from spot to spot (2.0), in F either
      * way. Readings only; thermostats and the simulation never see it.
      *
      * @param indoorF        air a system conditions
