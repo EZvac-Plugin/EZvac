@@ -44,22 +44,24 @@ class RegistryCompatibilityTest {
      * (built for releases that have one, from 1.9 on), and whether it has the
      * 2.0 climate devices: a dehumidifier, a hygrometer and a thermo-hygrometer,
      * whether it also has a humidifier (from 2.0 Pilot 3 on), and whether it
-     * has one sensor of each kind linked to a sensor hub (from 2.0 Pilot 4 on).
+     * has one sensor of each kind linked to a sensor hub (from 2.0 Pilot 4 on), and whether that hub
+     * also shows a birch weather sensor (from 2.0 Pilot 5 on).
      */
     static Stream<Arguments> releases() {
         return Stream.of(
-                Arguments.of("ALPHA-1.0", false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.1-HOTFIX", false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.5", false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.6-P1", true, false, false, false, false, false),
-                Arguments.of("ALPHA-1.6", true, true, false, false, false, false),
-                Arguments.of("ALPHA-1.6-HOTFIX1", true, true, false, false, false, false),
-                Arguments.of("ALPHA-1.7", true, true, false, false, false, false),
-                Arguments.of("ALPHA-1.8", true, true, false, false, false, false),
-                Arguments.of("ALPHA-1.9", true, true, true, false, false, false),
-                Arguments.of("ALPHA-2.0-P1", true, true, true, true, false, false),
-                Arguments.of("ALPHA-2.0-P3", true, true, true, true, true, false),
-                Arguments.of("ALPHA-2.0-P4", true, true, true, true, true, true));
+                Arguments.of("ALPHA-1.0", false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.1-HOTFIX", false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.5", false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.6-P1", true, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.6", true, true, false, false, false, false, false),
+                Arguments.of("ALPHA-1.6-HOTFIX1", true, true, false, false, false, false, false),
+                Arguments.of("ALPHA-1.7", true, true, false, false, false, false, false),
+                Arguments.of("ALPHA-1.8", true, true, false, false, false, false, false),
+                Arguments.of("ALPHA-1.9", true, true, true, false, false, false, false),
+                Arguments.of("ALPHA-2.0-P1", true, true, true, true, false, false, false),
+                Arguments.of("ALPHA-2.0-P3", true, true, true, true, true, false, false),
+                Arguments.of("ALPHA-2.0-P4", true, true, true, true, true, true, false),
+                Arguments.of("ALPHA-2.0-P5", true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -67,12 +69,13 @@ class RegistryCompatibilityTest {
     @ParameterizedTest(name = "{0} clean shutdown")
     @MethodSource("releases")
     void cleanShutdownFileLoadsEveryDevice(String release, boolean water, boolean pool, boolean poolHeatPump,
-                                           boolean climate, boolean humidifier, boolean sensors)
+                                           boolean climate, boolean humidifier, boolean sensors,
+                                           boolean weatherSensor)
             throws IOException {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac.yml");
 
-        assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors);
+        assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor);
         // A clean shutdown stops every unit and retracts its output first.
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::running).count());
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::hasOwnedOutput).count());
@@ -84,12 +87,13 @@ class RegistryCompatibilityTest {
     @MethodSource("releases")
     void crashSnapshotKeepsRunningUnitsAndTheirOutputs(String release, boolean water, boolean pool,
                                                        boolean poolHeatPump, boolean climate,
-                                                       boolean humidifier, boolean sensors)
+                                                       boolean humidifier, boolean sensors,
+                                                       boolean weatherSensor)
             throws IOException {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac-running.yml");
 
-        assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors);
+        assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor);
         // Heat pump and AC cool their 60 F rooms; the boiler (and the pool heat
         // pump, where there is one) heats the pool. The furnace shares the
         // cooling house system, so it stays idle.
@@ -139,7 +143,7 @@ class RegistryCompatibilityTest {
 
     private static void assertCoreDevices(HvacRegistry registry, boolean water, boolean pool,
                                           boolean poolHeatPump, boolean climate, boolean humidifier,
-                                          boolean sensors) {
+                                          boolean sensors, boolean weatherSensor) {
         assertEquals(water ? 3 : 2, registry.thermostats().size());
         assertEquals((water ? 4 : 3) + (poolHeatPump ? 1 : 0), registry.equipment().size());
         assertEquals(water ? 4 : 3, registry.vents().size());
@@ -193,17 +197,23 @@ class RegistryCompatibilityTest {
             assertTrue(Double.isFinite(nursery.zoneDewPointF()), "it works on its own zone, outside every system");
         }
 
-        assertEquals(sensors ? 3 : 0, registry.sensors().size());
+        assertEquals(sensors ? (weatherSensor ? 4 : 3) : 0, registry.sensors().size());
         assertEquals(sensors ? 1 : 0, registry.sensorHubs().size());
         if (sensors) {
             SensorHub home = registry.sensorHubs().iterator().next();
             assertEquals("home", home.label());
             assertTrue(home.autoFlip(), "switched on with a sneak-click");
-            assertEquals(List.of("garden", "cellar", "kitchen"), home.sensors().stream()
+            List<String> labels = new java.util.ArrayList<>(List.of("garden", "cellar", "kitchen"));
+            List<Sensor.Kind> kinds = new java.util.ArrayList<>(
+                    List.of(Sensor.Kind.TEMPERATURE, Sensor.Kind.HUMIDITY, Sensor.Kind.BOTH));
+            if (weatherSensor) {
+                labels.add("sky");
+                kinds.add(Sensor.Kind.WEATHER);
+            }
+            assertEquals(labels, home.sensors().stream()
                     .map(key -> registry.sensorAt(key).label()).toList(), "in the order they were linked");
-            assertEquals(List.of(Sensor.Kind.TEMPERATURE, Sensor.Kind.HUMIDITY, Sensor.Kind.BOTH),
-                    home.sensors().stream().map(key -> registry.sensorAt(key).reads()).toList(),
-                    "stone, polished blackstone and mangrove buttons");
+            assertEquals(kinds, home.sensors().stream().map(key -> registry.sensorAt(key).reads()).toList(),
+                    "stone, polished blackstone, mangrove and birch buttons");
             assertEquals(List.of(home), registry.hubsShowing(home.sensors().get(0)));
         }
     }
