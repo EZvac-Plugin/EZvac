@@ -14,12 +14,14 @@ dehumidifiers, and persistent room temperatures. Systems condition either
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 2.0 Pilot 5 is a prerelease of the 2.0
-> realism update: **weather** changes the outdoor air, rooms have **humidity**,
-> the HUD shows how warm it **feels**, and **dehumidifiers** and
-> **humidifiers** dry or moisten a room or a shed. It moves `hvac.yml` to format 6 and keeps your 1.x save as
-> `hvac.yml.format5.bak`. See [Weather and humidity](#weather-and-humidity)
-> and [Dehumidifiers and humidifiers](#dehumidifiers-and-humidifiers).
+> **Release status:** EZvac ALPHA 2.0 is the realism update: **weather**
+> changes the outdoor air, rooms have **humidity** and a **feels-like**
+> temperature, **dehumidifiers** and **humidifiers** dry or moisten a room or a
+> shed, **sensors** report to **sensor hubs**, and readings vary a little from
+> spot to spot. Upgrading from 1.x moves `hvac.yml` to format 6 and keeps your
+> 1.x save as `hvac.yml.format5.bak`. See [Weather and humidity](#weather-and-humidity),
+> [Sensors and sensor hubs](#sensors-and-sensor-hubs) and
+> [Dehumidifiers and humidifiers](#dehumidifiers-and-humidifiers).
 
 ## Requirements
 
@@ -36,7 +38,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-2.0-P5.jar
+target/EzVac-ALPHA-2.0.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -46,7 +48,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-2.0-P5.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-2.0.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -62,7 +64,7 @@ of loading it and silently discarding what it doesn't understand. When a
 release changes the save format, it first keeps the original as
 `hvac.yml.format<N>.bak`; restore that file if you ever need to go back.
 
-**Your config.yml is brought up to date.** From ALPHA 2.0 Pilot 3, settings
+**Your config.yml is brought up to date.** From ALPHA 2.0, settings
 added since your `config.yml` was written are added to it on startup, with
 their comments, so you can see and tune them. Nothing you already have is
 changed, even where a default has since changed, and the previous file is kept
@@ -346,7 +348,7 @@ audio:
 - **Vent airflow** (new): air vents of running systems near a player softly
   play the conduit's hum, one vent per cluster, every 4 seconds. Pools and
   water vents stay quiet.
-- From Pilot 5, `audio.hum-volume` and `audio.hum-pitch` are no longer read.
+- From 2.0, `audio.hum-volume` and `audio.hum-pitch` are no longer read.
   A server that tuned them gets the same hum in the new `equipment-hum` and
   `dehumidifier-hum` lines when its `config.yml` is updated.
 

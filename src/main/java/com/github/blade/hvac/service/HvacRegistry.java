@@ -24,8 +24,8 @@ import java.util.logging.Logger;
 /** The sole owner of runtime device state and unified atomic persistence. */
 public final class HvacRegistry {
     /**
-     * Format 6 (2.0) adds thermostat humidity fields and a dehumidifiers
-     * section (and, from 2.0 Pilot 3, a humidifiers section). Both are additive, so format 5 files load without migration;
+     * Format 6 (2.0) adds thermostat humidity fields and the dehumidifiers,
+     * humidifiers, sensors and sensorHubs sections. All are additive, so format 5 files load without migration;
      * the bump means the first 2.0 save keeps the 1.x original as
      * hvac.yml.format5.bak, and 1.7-1.9 refuse a 2.0 file instead of
      * quietly dropping its humidity.
@@ -88,7 +88,7 @@ public final class HvacRegistry {
     private final Map<BlockKey, SettingsPanel> settingsPanels = new HashMap<>();
     /** Keyed by control sign. */
     private final Map<BlockKey, Dehumidifier> dehumidifiers = new HashMap<>();
-    /** Keyed by control sign; saved in their own section, which 2.0 Pilot 1 and 2 keep untouched. */
+    /** Keyed by control sign; saved in their own section. */
     private final Map<BlockKey, Humidifier> humidifiers = new HashMap<>();
     /** Keyed by button. */
     private final Map<BlockKey, Sensor> sensors = new HashMap<>();

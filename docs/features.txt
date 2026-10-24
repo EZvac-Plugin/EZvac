@@ -1,4 +1,4 @@
-EZVAC ALPHA 2.0 PILOT 4 FEATURES
+EZVAC ALPHA 2.0 FEATURES
 ================================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
@@ -149,7 +149,7 @@ HUMIDITY AND FEELS LIKE
 - The HUD's comfort word, bar and boss-bar colour follow feels like in air.
   Water is judged by its temperature alone.
 - The dew point never exceeds the air temperature; the excess condenses.
-- Microvariance (2.0 Pilot 5): point readings get a smooth, deterministic
+- Microvariance (2.0): point readings get a smooth, deterministic
   offset from value noise over a 6-block lattice that drifts over 3 in-game
   hours. At most 0.5 F in conditioned air, 1.5 F outdoors (blended by
   influence), 0.3 F in pool water, 0.8 F in natural water, and 0.3 F of dew
@@ -306,7 +306,7 @@ DISPLAYS AND AUDIO
 
 Startup and shutdown sounds remain equipment-specific. Running equipment emits
 finite, spatial beacon ambience from each dispenser on a configurable cadence.
-Every sound is a "sound volume pitch" line under audio.sounds (2.0 Pilot 5);
+Every sound is a "sound volume pitch" line under audio.sounds (2.0);
 [] silences an event. Running air systems' vents near a player play the
 conduit's ambient sound (one vent per 6-block cluster, every
 vent-airflow-refresh-ticks); pools and water vents stay silent.

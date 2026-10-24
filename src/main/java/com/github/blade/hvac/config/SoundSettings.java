@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 
 /**
  * Every sound EZvac plays, from config.yml's {@code audio.sounds} (2.0
- * Pilot 5). Each sound is one line, {@code "sound volume pitch"}; an event
+ * 2.0). Each sound is one line, {@code "sound volume pitch"}; an event
  * plays all of its lines together, and an empty list silences it. Sounds are
  * named by key, so a resource pack's own sounds work too.
  */
@@ -150,7 +150,7 @@ public record SoundSettings(Map<SoundSettings.Event, List<SoundSettings.Cue>> so
     }
 
     /**
-     * Before Pilot 5 the hum was tuned with {@code audio.hum-volume} and
+     * Before 2.0 the hum was tuned with {@code audio.hum-volume} and
      * {@code audio.hum-pitch}. When the updater has just added the new hum
      * settings to such a config, they take that tuning, so a server keeps
      * the hum it had. Nothing the admin wrote is changed.
@@ -163,7 +163,7 @@ public record SoundSettings(Map<SoundSettings.Event, List<SoundSettings.Cue>> so
         if (!added.contains(equipmentHum)) return;
         for (String old : List.of("audio.hum-volume", "audio.hum-pitch"))
             if (config.contains(old))
-                config.setComments(old, List.of("No longer read: replaced by audio.sounds in 2.0 Pilot 5."));
+                config.setComments(old, List.of("No longer read: replaced by audio.sounds in 2.0."));
         if (!config.contains("audio.hum-volume") && !config.contains("audio.hum-pitch")) return;
         float volume = (float) config.getDouble("audio.hum-volume", 1.6);
         float pitch = (float) config.getDouble("audio.hum-pitch", 0.55);

@@ -3,7 +3,7 @@ package com.github.blade.hvac.simulation;
 import com.github.blade.hvac.config.ClimateSettings;
 
 /**
- * Small, smooth differences between spots (2.0 Pilot 5), so a house isn't
+ * Small, smooth differences between spots (2.0), so a house isn't
  * one number from wall to wall. Readings only: what thermometers, sensors,
  * the HUD and placeholders show. Thermostats, equipment and the simulation
  * keep the room's own value, so no system ever chases the variance.
