@@ -201,7 +201,7 @@ class RegistryCompatibilityTest {
             assertTrue(home.autoFlip(), "switched on with a sneak-click");
             assertEquals(List.of("garden", "cellar", "kitchen"), home.sensors().stream()
                     .map(key -> registry.sensorAt(key).label()).toList(), "in the order they were linked");
-            assertEquals(List.of(Thermometer.Reads.TEMPERATURE, Thermometer.Reads.HUMIDITY, Thermometer.Reads.BOTH),
+            assertEquals(List.of(Sensor.Kind.TEMPERATURE, Sensor.Kind.HUMIDITY, Sensor.Kind.BOTH),
                     home.sensors().stream().map(key -> registry.sensorAt(key).reads()).toList(),
                     "stone, polished blackstone and mangrove buttons");
             assertEquals(List.of(home), registry.hubsShowing(home.sensors().get(0)));

@@ -238,8 +238,8 @@ class RegistryBehaviourTest {
     @Test
     void sensorsAndHubsSaveAndARemovedSensorLeavesEveryHub() throws IOException {
         HvacRegistry registry = new HvacRegistry(host, SETTINGS);
-        Sensor kitchen = new Sensor(at(5, 65, 5), "kitchen", Thermometer.Reads.BOTH);
-        Sensor cellar = new Sensor(at(5, 60, 9), "cellar", Thermometer.Reads.HUMIDITY);
+        Sensor kitchen = new Sensor(at(5, 65, 5), "kitchen", Sensor.Kind.BOTH);
+        Sensor cellar = new Sensor(at(5, 60, 9), "cellar", Sensor.Kind.HUMIDITY);
         registry.addSensor(kitchen);
         registry.addSensor(cellar);
         SensorHub hall = new SensorHub(at(0, 65, 0), "hall");
@@ -253,7 +253,7 @@ class RegistryBehaviourTest {
         assertEquals(HvacRegistry.DeviceKind.SENSOR, registry.deviceKind(at(5, 65, 5)));
         assertEquals(HvacRegistry.DeviceKind.SENSOR_HUB, registry.deviceKind(at(0, 65, 0)));
         assertThrows(IllegalArgumentException.class, () -> registry.addSensor(
-                new Sensor(at(0, 65, 0), "x", Thermometer.Reads.TEMPERATURE)), "a hub's block is taken");
+                new Sensor(at(0, 65, 0), "x", Sensor.Kind.TEMPERATURE)), "a hub's block is taken");
         assertEquals(List.of(hall, office), registry.hubsShowing(kitchen.position()), "one sensor, two hubs");
 
         saved(registry);

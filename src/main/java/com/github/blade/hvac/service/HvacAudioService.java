@@ -1,48 +1,71 @@
 package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.config.SoundSettings;
+import com.github.blade.hvac.config.SoundSettings.Event;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateUnit;
+import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.Dehumidifier;
+import com.github.blade.hvac.model.GroupId;
 import com.github.blade.hvac.model.Humidifier;
+import com.github.blade.hvac.model.Thermostat;
 import org.bukkit.Particle;
 import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.EquipmentUnit;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Sound;
 import org.bukkit.SoundCategory;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 
-/** Spatial finite sound events; it never issues category-wide stopSound calls. */
+/**
+ * Spatial finite sound events; it never issues category-wide stopSound calls.
+ * Every sound comes from {@link SoundSettings} and plays at its block, so the
+ * client fades it with distance as it does any block sound.
+ */
 public final class HvacAudioService {
-    private final HvacSettings settings;
-    private long ticksSinceHum;
+    /** Vents closer than this to one already playing stay quiet, so a duct run sounds like one stream of air. */
+    static final int VENT_CLUSTER_BLOCKS = 6;
 
-    public HvacAudioService(HvacSettings settings) {
+    private final HvacSettings settings;
+    private final SoundSettings sounds;
+    private final HvacRegistry registry;
+    private long ticksSinceHum;
+    private long ticksSinceVents;
+
+    public HvacAudioService(HvacSettings settings, SoundSettings sounds, HvacRegistry registry) {
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.sounds = Objects.requireNonNull(sounds, "sounds");
+        this.registry = Objects.requireNonNull(registry, "registry");
     }
 
     public void applyTransitions(HvacController.CycleResult result) {
         if (!settings.audioEnabled()) return;
-        for (EquipmentUnit unit : result.started()) playStartup(unit);
-        for (EquipmentUnit unit : result.stopped()) playShutdown(unit);
+        for (EquipmentUnit unit : result.started())
+            play(unit.position(), unit.type() == EquipmentType.FURNACE ? Event.FURNACE_START : Event.EQUIPMENT_START);
+        for (EquipmentUnit unit : result.stopped())
+            play(unit.position(), unit.type() == EquipmentType.FURNACE ? Event.FURNACE_STOP : Event.EQUIPMENT_STOP);
     }
 
     /** A unit clicks on and off; a dehumidifier gurgles as it starts emptying a full tank. */
     public void applyUnitTransitions(ClimateUnitService.Changes changes) {
         if (!settings.audioEnabled()) return;
         for (ClimateUnit unit : changes.started()) {
-            playNearby(unit.unit(), Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.4f, 1.6f);
-            if (unit instanceof Dehumidifier) playNearby(unit.unit(), Sound.BLOCK_BEACON_ACTIVATE, 0.2f, 1.2f);
+            play(unit.unit(), Event.UNIT_START);
+            if (unit instanceof Dehumidifier) play(unit.unit(), Event.DEHUMIDIFIER_START);
         }
-        for (ClimateUnit unit : changes.stopped())
-            playNearby(unit.unit(), Sound.BLOCK_WOODEN_BUTTON_CLICK_OFF, 0.4f, 1.4f);
-        for (Dehumidifier unit : changes.emptying())
-            playNearby(unit.grate(), Sound.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, 0.8f, 0.8f);
+        for (ClimateUnit unit : changes.stopped()) play(unit.unit(), Event.UNIT_STOP);
+        for (Dehumidifier unit : changes.emptying()) play(unit.grate(), Event.DEHUMIDIFIER_EMPTYING);
     }
 
     /** How often a running humidifier's slab bubbles. */
@@ -69,7 +92,7 @@ public final class HvacAudioService {
                 if (withinRadius(player.getLocation().distanceSquared(source), radiusSquared)) { watched = true; break; }
             if (!watched) continue;
             block.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, source, 4, 0.2, 0.05, 0.2, 0.02);
-            if (sound) playNearby(humidifier.slab(), Sound.BLOCK_BUBBLE_COLUMN_UPWARDS_AMBIENT, 0.35f, 1.0f);
+            if (sound) play(humidifier.slab(), Event.HUMIDIFIER_BUBBLES);
         }
     }
 
@@ -78,42 +101,90 @@ public final class HvacAudioService {
         ticksSinceHum += elapsedTicks;
         if (ticksSinceHum < settings.humRefreshTicks()) return;
         ticksSinceHum %= settings.humRefreshTicks();
-        for (EquipmentUnit unit : running) {
-            playNearby(unit, Sound.BLOCK_BEACON_AMBIENT, settings.humVolume(), settings.humPitch());
-        }
-        // Smaller and quieter than a heat pump: a higher, softer hum. Humidifiers bubble instead.
+        for (EquipmentUnit unit : running) play(unit.position(), Event.EQUIPMENT_HUM);
+        // Humidifiers bubble instead.
         for (ClimateUnit unit : units)
-            if (unit instanceof Dehumidifier)
-                playNearby(unit.unit(), Sound.BLOCK_BEACON_AMBIENT, settings.humVolume() * 0.4f, settings.humPitch() * 1.6f);
+            if (unit instanceof Dehumidifier) play(unit.unit(), Event.DEHUMIDIFIER_HUM);
     }
 
-    private void playStartup(EquipmentUnit unit) {
-        if (unit.type() == EquipmentType.FURNACE) {
-            playNearby(unit, Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.5f, 1.8f);
-            playNearby(unit, Sound.BLOCK_DISPENSER_FAIL, 0.4f, 1.5f);
-            playNearby(unit, Sound.ITEM_FIRECHARGE_USE, 0.6f, 0.5f);
-        } else {
-            playNearby(unit, Sound.BLOCK_WOODEN_BUTTON_CLICK_ON, 0.5f, 1.8f);
-            playNearby(unit, Sound.BLOCK_PISTON_EXTEND, 0.4f, 0.5f);
-            playNearby(unit, Sound.BLOCK_BEACON_ACTIVATE, 0.3f, 0.5f);
+    /**
+     * Air moving through the vents of running systems: only vents near a
+     * player, one per cluster. Pools are left out, and so are water vents.
+     */
+    public void tickVents(Collection<EquipmentUnit> running, long elapsedTicks) {
+        if (!settings.audioEnabled() || elapsedTicks <= 0 || sounds.get(Event.VENT_AIRFLOW).isEmpty()) return;
+        ticksSinceVents += elapsedTicks;
+        if (ticksSinceVents < sounds.ventRefreshTicks()) return;
+        ticksSinceVents %= sounds.ventRefreshTicks();
+        Set<GroupId> blowing = new HashSet<>();
+        for (EquipmentUnit unit : running) blowing.add(unit.group());
+        blowing.removeIf(group -> {
+            Thermostat thermostat = registry.thermostatFor(group);
+            return thermostat != null && thermostat.pool();
+        });
+        if (blowing.isEmpty()) return;
+        for (BlockKey vent : onePerCluster(ventsNearPlayers(blowing), VENT_CLUSTER_BLOCKS))
+            play(vent, Event.VENT_AIRFLOW);
+    }
+
+    /** Air vents of these systems within hearing of any player, in a fixed order; from the registry's vent grid. */
+    private TreeSet<BlockKey> ventsNearPlayers(Set<GroupId> blowing) {
+        TreeSet<BlockKey> near = new TreeSet<>();
+        int radius = (int) Math.ceil(settings.audioRadiusBlocks());
+        double radiusSquared = settings.audioRadiusBlocks() * settings.audioRadiusBlocks();
+        int shift = registry.ventCellShift();
+        for (World world : Bukkit.getWorlds()) {
+            Long2ObjectOpenHashMap<List<ClimateVent>> cells = registry.ventCells(world.getUID());
+            if (cells == null) continue;
+            for (Player player : world.getPlayers()) {
+                Location at = player.getLocation();
+                for (int cellX = (at.getBlockX() - radius) >> shift; cellX <= (at.getBlockX() + radius) >> shift; cellX++)
+                    for (int cellZ = (at.getBlockZ() - radius) >> shift; cellZ <= (at.getBlockZ() + radius) >> shift; cellZ++) {
+                        List<ClimateVent> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
+                        if (bucket == null) continue;
+                        for (ClimateVent vent : bucket) {
+                            BlockKey position = vent.position();
+                            if (!blowing.contains(vent.group()) || near.contains(position)) continue;
+                            double dx = position.x() + 0.5 - at.getX();
+                            double dy = position.y() + 0.5 - at.getY();
+                            double dz = position.z() + 0.5 - at.getZ();
+                            if (withinRadius(dx * dx + dy * dy + dz * dz, radiusSquared) && isAirVent(position))
+                                near.add(position);
+                        }
+                    }
+            }
         }
+        return near;
     }
 
-    private void playShutdown(EquipmentUnit unit) {
-        if (unit.type() == EquipmentType.FURNACE) {
-            playNearby(unit, Sound.BLOCK_FURNACE_FIRE_CRACKLE, 0.25f, 0.6f);
-        } else {
-            playNearby(unit, Sound.BLOCK_WOODEN_BUTTON_CLICK_OFF, 0.5f, 1.5f);
-            playNearby(unit, Sound.BLOCK_BEACON_DEACTIVATE, 0.3f, 0.5f);
+    private static boolean isAirVent(BlockKey position) {
+        if (!position.isChunkLoaded()) return false;
+        Location location = position.location();
+        return location != null && location.getBlock().getType() == ClimateVent.AIR_VENT;
+    }
+
+    /**
+     * Keeps the first of every group of nearby vents: walking them in order,
+     * a vent within {@code spacing} blocks of one already kept is skipped.
+     */
+    static List<BlockKey> onePerCluster(Collection<BlockKey> ordered, int spacing) {
+        List<BlockKey> kept = new ArrayList<>();
+        long spacingSquared = (long) spacing * spacing;
+        for (BlockKey vent : ordered) {
+            boolean near = false;
+            for (BlockKey other : kept) {
+                if (!other.worldId().equals(vent.worldId())) continue;
+                long dx = vent.x() - other.x(), dy = vent.y() - other.y(), dz = vent.z() - other.z();
+                if (dx * dx + dy * dy + dz * dz <= spacingSquared) { near = true; break; }
+            }
+            if (!near) kept.add(vent);
         }
+        return kept;
     }
 
-    private void playNearby(EquipmentUnit unit, Sound sound, float volume, float pitch) {
-        playNearby(unit.position(), sound, volume, pitch);
-    }
-
-    private void playNearby(BlockKey position, Sound sound, float volume, float pitch) {
-        if (!position.isChunkLoaded()) return;
+    private void play(BlockKey position, Event event) {
+        List<SoundSettings.Cue> cues = sounds.get(event);
+        if (cues.isEmpty() || !position.isChunkLoaded()) return;
         Location block = position.location();
         if (block == null) return;
         Location source = block.clone().add(0.5, 0.5, 0.5);
@@ -121,8 +192,9 @@ public final class HvacAudioService {
         if (world == null) return;
         double radiusSquared = settings.audioRadiusBlocks() * settings.audioRadiusBlocks();
         for (Player player : world.getPlayers()) {
-            if (withinRadius(player.getLocation().distanceSquared(source), radiusSquared))
-                player.playSound(source, sound, SoundCategory.BLOCKS, volume, pitch);
+            if (!withinRadius(player.getLocation().distanceSquared(source), radiusSquared)) continue;
+            for (SoundSettings.Cue cue : cues)
+                player.playSound(source, cue.sound(), SoundCategory.BLOCKS, cue.volume(), cue.pitch());
         }
     }
 

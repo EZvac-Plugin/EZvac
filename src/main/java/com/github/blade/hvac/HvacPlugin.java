@@ -5,10 +5,13 @@ import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.config.ConfigUpdater;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.config.SoundSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.integration.placeholderapi.PlaceholderApiBridge;
 import com.github.blade.hvac.listener.HvacListener;
 import com.github.blade.hvac.service.*;
+import org.bukkit.NamespacedKey;
+import org.bukkit.Registry;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -23,6 +26,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 
 /** Standalone EZvac bootstrap and lifecycle owner. */
@@ -64,7 +69,7 @@ public final class HvacPlugin extends JavaPlugin {
             displays = new DisplayService(this, registry, airflow, outdoor, settings);
             units = new ClimateUnitService(registry, airflow, outdoor);
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
-            audio = new HvacAudioService(settings);
+            audio = new HvacAudioService(settings, loadSounds(), registry);
             hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()));
 
             HvacCommand commandHandler = new HvacCommand(this, registry, controller,
@@ -133,6 +138,7 @@ public final class HvacPlugin extends JavaPlugin {
         }
         List<String> added = ConfigUpdater.addMissing(current, bundled);
         if (added.isEmpty()) return;
+        SoundSettings.carryOverHum(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
@@ -146,6 +152,24 @@ public final class HvacPlugin extends JavaPlugin {
         getLogger().info("Added " + added.size() + " new setting(s) to config.yml ("
                 + String.join(", ", ConfigUpdater.topLevel(added)) + "). Existing settings were not changed;"
                 + " the previous file was kept as " + backup.getName() + ".");
+    }
+
+    /**
+     * The sounds from config.yml. A key the server doesn't know is played
+     * anyway, since a resource pack may add it, but is pointed out once.
+     */
+    private SoundSettings loadSounds() {
+        SoundSettings sounds = SoundSettings.load(getConfig(), getLogger()::warning);
+        Set<String> unknown = new TreeSet<>();
+        for (SoundSettings.Event event : SoundSettings.Event.values())
+            for (SoundSettings.Cue cue : sounds.get(event)) {
+                NamespacedKey key = NamespacedKey.fromString(cue.sound());
+                if (key == null || Registry.SOUNDS.get(key) == null) unknown.add(cue.sound());
+            }
+        if (!unknown.isEmpty())
+            getLogger().warning("audio.sounds names sounds this server doesn't have: " + String.join(", ", unknown)
+                    + ". They are only heard if a resource pack adds them.");
+        return sounds;
     }
 
     /** Only reached when PlaceholderAPI is enabled, so its classes are never needed otherwise. */
@@ -193,6 +217,7 @@ public final class HvacPlugin extends JavaPlugin {
             audio.applyTransitions(result);
             audio.applyUnitTransitions(unitChanges);
             audio.tickHum(result.running(), unitChanges.running(), elapsedTicks);
+            audio.tickVents(result.running(), elapsedTicks);
             if (result.prunedDevices() > 0)
                 getLogger().info("Removed " + result.prunedDevices() + " missing HVAC device record(s).");
 

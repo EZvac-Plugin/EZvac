@@ -2,6 +2,53 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.0 Pilot 5
+
+Spot-to-spot variance, weather sensors, shared humidity for standalone units,
+signs that always fit, a warning for dehumidifiers in cold air, and
+configurable sounds. Same save format as the earlier pilots (format 6): a
+drop-in upgrade.
+
+### Added
+
+- **Spot-to-spot variance.** Readings differ a little from place to place
+  instead of one value for a whole house: up to ±0.5 °F in a conditioned
+  room, ±1.5 °F outdoors, ±0.3 °F in pools and ±0.8 °F in natural water, with
+  humidity following (a warmer spot reads a little drier). It changes
+  gradually over a few blocks and drifts over in-game hours. Readings only:
+  thermostats and the simulation keep the room's value. Tuning under the new
+  `variance:` section, added to existing configs on startup.
+- **Weather sensors.** A birch button registered with `/hvac create sensor`
+  reports the weather on sensor hubs and in chat: Clear, Rain, Thunder or
+  Snow. Like a rain gauge it needs open sky above it, and shows `Covered`
+  under a roof, glass or leaves. Saved as `reads: WEATHER`, which Pilot 4
+  can't read; downgrading isn't supported.
+- **Configurable sounds.** Every sound EZvac plays is a `"sound volume pitch"`
+  line under `audio.sounds` in `config.yml`; `[]` silences an event, and
+  resource-pack sounds work. The defaults are the sounds EZvac already
+  played. Existing configs get the section on startup; a hum tuned with the
+  old `audio.hum-volume` / `audio.hum-pitch` carries over, and those two
+  settings are no longer read.
+- **Vent airflow sound.** Air vents of running systems near a player softly
+  play the conduit's ambient sound, one vent per cluster, every 4 seconds
+  (`audio.vent-airflow-refresh-ticks`). Pools and water vents stay silent.
+- **"Air too cold".** A dehumidifier whose air is already at or below its
+  coil's dew point (35 F, as in snowy biomes) shows `Air too cold` instead of
+  `Running`; it can't dry that air. `/hvac info` explains it.
+
+### Fixed
+
+- **Standalone units in one space disagreed.** A dehumidifier and a
+  humidifier side by side outside any system each kept their own humidity
+  (54% and 79% in one shed). Units whose zones share air now share one
+  humidity and work on it together.
+- **Long sign lines were cut by the game.** Lines are now measured in pixels,
+  as the client draws them, instead of characters, so nothing wraps:
+  `EZvac | Dehumidifier` showed as `EZvac |` and now shows `Dehumidifier`.
+  Hanging signs' narrower lines are respected too, and sensor hubs fit more
+  of narrow labels. A reading that doesn't fit is left off whole rather than
+  shown cut (`78%` never becomes `7`).
+
 ## ALPHA 2.0 Pilot 4
 
 Remote sensors and sensor hubs. Same save format as the earlier pilots

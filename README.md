@@ -14,7 +14,7 @@ dehumidifiers, and persistent room temperatures. Systems condition either
 
 HVAC systems are identified by their world and group name.
 
-> **Release status:** EZvac ALPHA 2.0 Pilot 4 is a prerelease of the 2.0
+> **Release status:** EZvac ALPHA 2.0 Pilot 5 is a prerelease of the 2.0
 > realism update: **weather** changes the outdoor air, rooms have **humidity**,
 > the HUD shows how warm it **feels**, and **dehumidifiers** and
 > **humidifiers** dry or moisten a room or a shed. It moves `hvac.yml` to format 6 and keeps your 1.x save as
@@ -36,7 +36,7 @@ mvn clean package
 The production plugin will be written to:
 
 ```text
-target/EzVac-ALPHA-2.0-P4.jar
+target/EzVac-ALPHA-2.0-P5.jar
 ```
 
 Automated tests are included under `src/test/java` and run as part of
@@ -46,7 +46,7 @@ and pull request.
 ## Installation
 
 1. Build the project or obtain the release JAR.
-2. Put `EzVac-ALPHA-2.0-P4.jar` in the server's `plugins` directory.
+2. Put `EzVac-ALPHA-2.0-P5.jar` in the server's `plugins` directory.
 3. Start Paper (or Purpur) with Java 21.
 4. Use `/hvac help`, `/hvac list`, and `/hvac stats` to confirm operation.
 
@@ -138,6 +138,12 @@ capacity, and thermal simulation as the live controller.
 sign shows `System off`) and again to switch it back on. Units you switched
 off on their own stay off. A plain right-click still edits the target.
 
+Every EZvac sign fits its lines to what the sign can show: a line that is too
+wide is cut short instead of being wrapped by the game, and a header drops its
+`EZvac | ` prefix when the label alone needs the room. A reading that doesn't
+fit is left off whole, never shown cut. Hanging signs, whose lines are
+narrower, work too.
+
 ## Thermometers
 
 Create an independent point thermometer while looking at a sign:
@@ -187,6 +193,15 @@ out right on its own:
   room evaporates into it, faster when it is warm: a heated pool hall gets
   muggy.
 
+**Spot to spot**, readings vary a little, so a house isn't one number from
+wall to wall: up to ±0.5 °F in a conditioned room, ±1.5 °F outdoors, ±0.3 °F
+in a pool and ±0.8 °F in natural water. Moisture stays nearly even, so a
+warmer spot reads a little drier. The difference builds gradually over a few
+blocks and drifts over a few in-game hours. Only readings vary
+(thermometers, sensors, the HUD, `/hvac temperature`, placeholders): the
+thermostat and its sign keep the room's own value, so systems never chase it.
+Tuning under `variance:`.
+
 **Feels like** is the apparent temperature: humid heat feels hotter, dry air
 and outdoor wind feel cooler. The HUD's comfort word and bar follow it.
 
@@ -203,6 +218,7 @@ it measures:
 | Stone button | Temperature |
 | Polished blackstone button | Humidity |
 | Mangrove button | Temperature and humidity |
+| Birch button | Weather (Clear, Rain, Thunder or Snow) |
 
 ```text
 /hvac create sensor [label]        look at the button
@@ -214,7 +230,7 @@ it measures:
 Home 1/3
 Kitchen 72F 45%
 Cellar 58%
-Garden 64.2F
+Garden Rain
 ```
 
 - **Click** the hub to turn the page (three sensors per page, up to three
@@ -223,7 +239,10 @@ Garden 64.2F
 - **Pressing a sensor** shows its reading in chat. It never sends a redstone
   signal.
 - A sensor reads exactly what a thermometer at that spot would, so one outside
-  follows the weather. One sensor can appear on several hubs, and a sensor in
+  follows the weather.
+- A **weather sensor** (birch) works like a rain gauge: it needs **open sky**
+  above it. Under a roof, glass or leaves it shows `Covered`. Where weather
+  never reaches, such as a desert, it shows `Clear`. One sensor can appear on several hubs, and a sensor in
   an unloaded chunk shows `--`.
 - **Sneak-click** a sensor with the sensor tool to unlink it. Breaking a sensor
   (or the block it hangs on) takes it off every hub.
@@ -259,6 +278,11 @@ Tank 40%
 - The water it removes fills its **tank**. When the tank is full the grate
   fills with water and the sign shows `Emptying...` for 30 seconds, then it
   carries on. The water never leaves the grate.
+- **`Air too cold`** in place of `Running` means the air is already drier
+  than its coil can dry it: its dew point is at or below 35 F
+  (`dehumidifier.dry-dew-point-f`), as in snowy biomes. Like a real
+  refrigerant dehumidifier it keeps running but removes nothing, and the tank
+  doesn't fill. `/hvac info` on it says the same.
 
 Breaking the sign, the iron block or the grate removes it.
 
@@ -289,6 +313,40 @@ Humidifier
   of it.
 
 Breaking the sign, the iron block or the slab removes it.
+
+### Several units in one space
+
+Units outside a system's room that share air (one's reach covers the air
+around the other) are one space with **one humidity**. A dehumidifier and a
+humidifier in the same shed read the same value on both signs, the HUD and
+sensors, and work on it together: what they do adds up, and the water
+dehumidifiers remove is shared between their tanks. Inside a system's room
+they already share the room's humidity.
+
+## Sounds
+
+Every sound EZvac plays is set under `audio.sounds` in `config.yml`, one line
+per sound:
+
+```yaml
+audio:
+  sounds:
+    equipment-hum: ["block.beacon.ambient 1.6 0.55"]
+    vent-airflow: ["block.conduit.ambient 0.3 0.5"]
+```
+
+- Each line is `sound volume pitch`. Lines in one list play together; `[]`
+  silences that event. Resource-pack sounds work too.
+- Sounds play at their block and fade with distance like any block sound, and
+  only players within `audio.radius-blocks` get them. Pick **mono** sounds:
+  stereo ones (such as `item.elytra.flying`) sound the same at any distance.
+- The game only plays pitches from 0.5 to 2.0; others are brought into range.
+- **Vent airflow** (new): air vents of running systems near a player softly
+  play the conduit's hum, one vent per cluster, every 4 seconds. Pools and
+  water vents stay quiet.
+- From Pilot 5, `audio.hum-volume` and `audio.hum-pitch` are no longer read.
+  A server that tuned them gets the same hum in the new `equipment-hum` and
+  `dehumidifier-hum` lines when its `config.yml` is updated.
 
 ## Climate HUD and placeholders
 

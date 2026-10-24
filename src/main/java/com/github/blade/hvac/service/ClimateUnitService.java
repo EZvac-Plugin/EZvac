@@ -98,7 +98,7 @@ public final class ClimateUnitService {
         if (units == null || units.isEmpty() || dehumidifiedF <= 0.0) return;
         double share = dehumidifiedF / units.size();
         int cells = airflow.mapSize(group);
-        for (Dehumidifier dehumidifier : units) dehumidifier.fill(tankFill(share, cells), climate.dehumidifier());
+        for (Dehumidifier dehumidifier : units) dehumidifier.fill(tankFill(share, cells, climate), climate.dehumidifier());
     }
 
     /**
@@ -106,7 +106,7 @@ public final class ClimateUnitService {
      * holds scales with the size of the space it took it from, so a unit
      * filling at its rated rate fills in tank-fill-hours whatever the space.
      */
-    private double tankFill(double dewDropF, int cells) {
+    private static double tankFill(double dewDropF, int cells, ClimateSettings climate) {
         ClimateSettings.Dehumidifier settings = climate.dehumidifier();
         return dewDropF * (Math.max(1, cells) / (double) settings.referenceCells())
                 / (settings.dryFPerHour() * settings.tankFillHours());
@@ -120,16 +120,25 @@ public final class ClimateUnitService {
         List<ClimateUnit> running = new ArrayList<>();
         List<ClimateUnit> ordered = registry.climateUnits();
         Set<BlockKey> outputs = ordered.isEmpty() ? Set.of() : registry.ownedOutputs();
+        Map<ClimateUnit, Double> standalone = stepStandalone(ordered, elapsedTicks, outputs);
         for (ClimateUnit climateUnit : ordered) {
             boolean wasRunning = climateUnit.running();
             boolean wasEmptying = climateUnit instanceof Dehumidifier dehumidifier && dehumidifier.emptying();
             Location unit = climateUnit.unit().isChunkLoaded() ? climateUnit.unit().location() : null;
             double humidity = Double.NaN;
+            double dewPointF = Double.NaN;
             if (unit != null) {
-                humidity = climateUnit.servedGroup() == null ? stepZone(climateUnit, unit, elapsedTicks, outputs)
-                        : systemHumidity(climateUnit.servedGroup());
+                if (climateUnit.servedGroup() == null) {
+                    humidity = standalone.getOrDefault(climateUnit, Double.NaN);
+                    dewPointF = climateUnit.zoneDewPointF();
+                } else {
+                    humidity = systemHumidity(climateUnit.servedGroup());
+                    dewPointF = systemDewPoint(climateUnit.servedGroup());
+                }
                 if (climateUnit instanceof Dehumidifier dehumidifier) dehumidifier.advanceEmptying(elapsedTicks);
             }
+            if (climateUnit instanceof Dehumidifier dehumidifier)
+                dehumidifier.updateTooCold(dewPointF, climate.dehumidifier());
             climateUnit.setLastHumidity(humidity);
             // A unit whose chunk is unloaded sees NaN and stops, like equipment out of reach.
             climateUnit.control(humidity, climate);
@@ -158,29 +167,98 @@ public final class ClimateUnitService {
         return Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
     }
 
+    private double systemDewPoint(GroupId group) {
+        Thermostat thermostat = registry.thermostatFor(group);
+        return thermostat == null || !thermostat.hasRoomDewPoint() ? Double.NaN : thermostat.roomDewPointF();
+    }
+
     /**
-     * Steps the moisture of a unit's own zone. Nothing conditions its
-     * temperature, so the zone is at the outdoor air temperature, and its
-     * moisture drifts toward the outdoors like any room's.
+     * Steps every standalone space once. Units whose zones share air are one
+     * space, a shed with a dehumidifier and a humidifier in it, so they read
+     * and work on the same humidity instead of each keeping its own.
+     *
+     * @return the RH of each loaded standalone unit's space
      */
-    private double stepZone(ClimateUnit climateUnit, Location unit, long elapsedTicks, Set<BlockKey> outputs) {
-        OutdoorTemperatureService.Outdoor out = outdoor.climateAt(unit);
-        ZoneId zone = ZoneId.of(climateUnit);
+    private Map<ClimateUnit, Double> stepStandalone(List<ClimateUnit> units, long elapsedTicks,
+                                                    Set<BlockKey> outputs) {
+        Set<ClimateUnit> standalone = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (ClimateUnit unit : units)
+            if (unit.servedGroup() == null && unit.unit().isChunkLoaded() && unit.unit().location() != null)
+                standalone.add(unit);
+        Map<ClimateUnit, Double> humidity = new IdentityHashMap<>();
+        Set<ClimateUnit> grouped = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (ClimateUnit unit : units) {
+            if (!standalone.contains(unit) || !grouped.add(unit)) continue;
+            List<ClimateUnit> space = new ArrayList<>(List.of(unit));
+            for (int next = 0; next < space.size(); next++)
+                for (ClimateUnit other : airflow.unitsSharingAir(space.get(next)))
+                    if (standalone.contains(other) && grouped.add(other)) space.add(other);
+            space.sort(Comparator.comparing(ClimateUnit::position));
+            double rh = stepSpace(space, elapsedTicks, outputs);
+            for (ClimateUnit member : space) humidity.put(member, rh);
+        }
+        return humidity;
+    }
+
+    /**
+     * Steps the moisture of one standalone space. Its size and water are its
+     * largest zone's, and the outdoors is its first unit's.
+     */
+    private double stepSpace(List<ClimateUnit> space, long elapsedTicks, Set<BlockKey> outputs) {
+        ClimateUnit first = space.get(0);
+        OutdoorTemperatureService.Outdoor out = outdoor.climateAt(first.unit().location());
+        ClimateUnit largest = first;
+        for (ClimateUnit unit : space)
+            if (airflow.mapSize(ZoneId.of(unit)) > airflow.mapSize(ZoneId.of(largest))) largest = unit;
+        ZoneId zone = ZoneId.of(largest);
         int cells = airflow.mapSize(zone);
-        AirflowService.WaterExposure exposure = airflow.waterExposure(zone)
-                .excluding(climateUnit.unit().worldId(), outputs);
-        boolean working = climateUnit.running() && cells > 0;
-        double drying = working && climateUnit instanceof Dehumidifier
-                ? strength(cells, climate.dehumidifier().referenceCells()) : 0.0;
-        double adding = working && climateUnit instanceof Humidifier
-                ? strength(cells, climate.humidifier().referenceCells()) : 0.0;
-        HumidityModel.Result result = HumidityModel.step(climateUnit.zoneDewPointF(), out.airF(), out.dewPointF(),
-                new HumidityModel.Loads(0.0, exposure.wetFraction(), Double.NaN, drying, adding),
-                elapsedTicks, climate);
-        climateUnit.setZoneDewPointF(result.dewPointF());
-        if (climateUnit instanceof Dehumidifier dehumidifier && result.dehumidifiedF() > 0.0)
-            dehumidifier.fill(tankFill(result.dehumidifiedF(), cells), climate.dehumidifier());
-        return Psychrometrics.relativeHumidity(out.airF(), result.dewPointF());
+        double wetFraction = airflow.waterExposure(zone).excluding(largest.unit().worldId(), outputs).wetFraction();
+        return stepSharedSpace(space, cells, wetFraction, out.airF(), out.dewPointF(), elapsedTicks, climate);
+    }
+
+    /**
+     * One standalone space's moisture step, for every unit in it. Nothing
+     * conditions its temperature, so it is at the outdoor air temperature and
+     * its moisture drifts toward the outdoors like any room's. What its
+     * running units do adds up; the water its dehumidifiers pull out is shared
+     * between their tanks; and every unit keeps the space's new dew point.
+     * Pure apart from the units it updates.
+     *
+     * @param space the units that share the space
+     * @param cells the space's size in airflow cells; 0 while it is unmapped
+     * @return the space's RH
+     */
+    static double stepSharedSpace(List<ClimateUnit> space, int cells, double wetFraction, double outdoorF,
+                                  double outdoorDewPointF, long elapsedTicks, ClimateSettings climate) {
+        double drying = 0.0;
+        double adding = 0.0;
+        List<Dehumidifier> dehumidifiers = new ArrayList<>();
+        double dewSum = 0.0;
+        int dewCount = 0;
+        for (ClimateUnit unit : space) {
+            if (Double.isFinite(unit.zoneDewPointF())) {
+                dewSum += unit.zoneDewPointF();
+                dewCount++;
+            }
+            if (!unit.running() || cells <= 0) continue;
+            switch (unit) {
+                case Dehumidifier dehumidifier -> {
+                    drying += strength(cells, climate.dehumidifier().referenceCells());
+                    dehumidifiers.add(dehumidifier);
+                }
+                case Humidifier ignored -> adding += strength(cells, climate.humidifier().referenceCells());
+            }
+        }
+        double startF = dewCount == 0 ? Double.NaN : dewSum / dewCount;
+        HumidityModel.Result result = HumidityModel.step(startF, outdoorF, outdoorDewPointF,
+                new HumidityModel.Loads(0.0, wetFraction, Double.NaN, drying, adding), elapsedTicks, climate);
+        for (ClimateUnit unit : space) unit.setZoneDewPointF(result.dewPointF());
+        if (result.dehumidifiedF() > 0.0 && !dehumidifiers.isEmpty()) {
+            double share = result.dehumidifiedF() / dehumidifiers.size();
+            for (Dehumidifier dehumidifier : dehumidifiers)
+                dehumidifier.fill(tankFill(share, cells, climate), climate.dehumidifier());
+        }
+        return Psychrometrics.relativeHumidity(outdoorF, result.dewPointF());
     }
 
     /** Drops a removed unit's zone; the registry already dried its water block. */
