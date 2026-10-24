@@ -48,10 +48,11 @@ public final class SignText {
 
     /**
      * The longest start of the text that fits in the given pixels. A reading
-     * is never shown cut short: when the cut falls inside a word with a digit
-     * in it ({@code 78%}, {@code 61.2}) that whole word is left off instead,
-     * so {@code Out 61.2 F 78%} becomes {@code Out 61.2 F}, not
-     * {@code Out 61.2 F 7}. Labels are cut wherever the room ends.
+     * is never shown cut short: when the cut falls inside one ({@code 78%},
+     * {@code 61.2}, {@code -40F}, {@code 12:34}) the whole reading is left off
+     * instead, so {@code Out 61.2 F 78%} becomes {@code Out 61.2 F}, not
+     * {@code Out 61.2 F 7}. Labels are cut wherever the room ends, digits or
+     * not, and a separator left dangling at the end ({@code ETA 0:31 |}) goes too.
      */
     public static String fit(String text, int maxWidth) {
         int width = 0;
@@ -63,13 +64,22 @@ public final class SignText {
     }
 
     private static String cutAt(String text, int end) {
-        if (text.charAt(end) == ' ') return text.substring(0, end).stripTrailing();
         int start = text.lastIndexOf(' ', end - 1) + 1;
-        if (start == 0) return text.substring(0, end);
-        int stop = text.indexOf(' ', end);
-        String word = text.substring(start, stop < 0 ? text.length() : stop);
-        return (word.chars().anyMatch(Character::isDigit) ? text.substring(0, start)
-                : text.substring(0, end)).stripTrailing();
+        boolean insideReading = text.charAt(end) != ' ' && start > 0 && isReading(text, start);
+        return withoutDanglingSeparator(text.substring(0, insideReading ? start : end));
+    }
+
+    /** A word that is a number: it starts with a digit, or a sign and then a digit. */
+    private static boolean isReading(String text, int start) {
+        char first = text.charAt(start);
+        if (Character.isDigit(first)) return true;
+        return (first == '-' || first == '+') && start + 1 < text.length() && Character.isDigit(text.charAt(start + 1));
+    }
+
+    private static String withoutDanglingSeparator(String cut) {
+        String trimmed = cut.stripTrailing();
+        while (trimmed.endsWith("|")) trimmed = trimmed.substring(0, trimmed.length() - 1).stripTrailing();
+        return trimmed;
     }
 
     /** {@code EZvac | label} when that fits, otherwise the label alone, cut to fit. */

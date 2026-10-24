@@ -36,9 +36,7 @@ public record HvacSettings(
         int airflowMaximumCells,
         boolean audioEnabled,
         double audioRadiusBlocks,
-        long humRefreshTicks,
-        float humVolume,
-        float humPitch
+        long humRefreshTicks
 ) {
     public HvacSettings {
         requirePositive("controller.period-ticks", controllerPeriodTicks);
@@ -103,8 +101,6 @@ public record HvacSettings(
         }
         requirePositiveFinite("audio.radius-blocks", audioRadiusBlocks);
         requirePositive("audio.hum-refresh-ticks", humRefreshTicks);
-        requirePositiveFinite("audio.hum-volume", humVolume);
-        requirePositiveFinite("audio.hum-pitch", humPitch);
     }
 
     public static HvacSettings load(FileConfiguration config) {
@@ -146,9 +142,8 @@ public record HvacSettings(
                 config.getInt("airflow.maximum-cells-per-system", defaults.airflowMaximumCells),
                 config.getBoolean("audio.enabled", defaults.audioEnabled),
                 config.getDouble("audio.radius-blocks", defaults.audioRadiusBlocks),
-                config.getLong("audio.hum-refresh-ticks", defaults.humRefreshTicks),
-                (float) config.getDouble("audio.hum-volume", defaults.humVolume),
-                (float) config.getDouble("audio.hum-pitch", defaults.humPitch)
+                // audio.hum-volume and audio.hum-pitch are no longer read: the hum is a line in audio.sounds.
+                config.getLong("audio.hum-refresh-ticks", defaults.humRefreshTicks)
         );
     }
 
@@ -158,7 +153,7 @@ public record HvacSettings(
                 60.0, 85.0, 75.0, 104.0, 3.75, 5.0, 1.25, 0.50, 2.0,
                 3.0, 0.40, 1_200.0, 3_600.0, 2_400.0, 4_200.0, 900.0, 1_200.0,
                 15, 30, 4_000, 200_000,
-                true, 25.0, 60, 1.6f, 0.55f);
+                true, 25.0, 60);
     }
 
     /**

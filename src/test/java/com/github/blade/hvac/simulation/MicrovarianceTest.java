@@ -66,6 +66,17 @@ class MicrovarianceTest {
     }
 
     @Test
+    void oneSpotHasOnePatternWhateverTheSpread() {
+        // Readings scale a spot's spread-1 pattern, so outdoors the air and the
+        // "Outside" line of a thermometer at the same spot come out equal.
+        for (int x = 0; x < 30; x += 3) {
+            double pattern = at(1.0, x, 64, 3, 4.2);
+            assertEquals(1.5 * pattern, at(1.5, x, 64, 3, 4.2), 1e-12);
+            assertEquals(0.3 * pattern, at(0.3, x, 64, 3, 4.2), 1e-12);
+        }
+    }
+
+    @Test
     void switchedOffOrWithNoSpreadThereIsNone() {
         ClimateSettings.Variance off = new ClimateSettings.Variance(false, 0.5, 1.5, 0.3, 0.8, 0.3, 6.0, 3.0);
         assertEquals(0.0, Microvariance.offsetF(off, 0.5, SEED, Microvariance.TEMPERATURE, 3, 64, 3, 1.0));

@@ -4,6 +4,7 @@ import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.HumidityModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.bukkit.Location;
 
 import java.util.*;
@@ -119,7 +120,8 @@ public final class ClimateUnitService {
         List<Dehumidifier> emptying = new ArrayList<>();
         List<ClimateUnit> running = new ArrayList<>();
         List<ClimateUnit> ordered = registry.climateUnits();
-        Set<BlockKey> outputs = ordered.isEmpty() ? Set.of() : registry.ownedOutputs();
+        Map<UUID, LongOpenHashSet> outputs = ordered.isEmpty() ? Map.of()
+                : AirflowService.packByWorld(registry.ownedOutputs());
         Map<ClimateUnit, Double> standalone = stepStandalone(ordered, elapsedTicks, outputs);
         for (ClimateUnit climateUnit : ordered) {
             boolean wasRunning = climateUnit.running();
@@ -180,7 +182,7 @@ public final class ClimateUnitService {
      * @return the RH of each loaded standalone unit's space
      */
     private Map<ClimateUnit, Double> stepStandalone(List<ClimateUnit> units, long elapsedTicks,
-                                                    Set<BlockKey> outputs) {
+                                                    Map<UUID, LongOpenHashSet> outputs) {
         Set<ClimateUnit> standalone = Collections.newSetFromMap(new IdentityHashMap<>());
         for (ClimateUnit unit : units)
             if (unit.servedGroup() == null && unit.unit().isChunkLoaded() && unit.unit().location() != null)
@@ -204,7 +206,7 @@ public final class ClimateUnitService {
      * Steps the moisture of one standalone space. Its size and water are its
      * largest zone's, and the outdoors is its first unit's.
      */
-    private double stepSpace(List<ClimateUnit> space, long elapsedTicks, Set<BlockKey> outputs) {
+    private double stepSpace(List<ClimateUnit> space, long elapsedTicks, Map<UUID, LongOpenHashSet> outputs) {
         ClimateUnit first = space.get(0);
         OutdoorTemperatureService.Outdoor out = outdoor.climateAt(first.unit().location());
         ClimateUnit largest = first;
@@ -212,7 +214,7 @@ public final class ClimateUnitService {
             if (airflow.mapSize(ZoneId.of(unit)) > airflow.mapSize(ZoneId.of(largest))) largest = unit;
         ZoneId zone = ZoneId.of(largest);
         int cells = airflow.mapSize(zone);
-        double wetFraction = airflow.waterExposure(zone).excluding(largest.unit().worldId(), outputs).wetFraction();
+        double wetFraction = airflow.waterExposure(zone).excluding(outputs.get(largest.unit().worldId())).wetFraction();
         return stepSharedSpace(space, cells, wetFraction, out.airF(), out.dewPointF(), elapsedTicks, climate);
     }
 

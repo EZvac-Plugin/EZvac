@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -42,5 +43,24 @@ class ClimateSettingsTest {
         YamlConfiguration empty = new YamlConfiguration();
         empty.set("dehumidifier.presets", List.of());
         assertThrows(IllegalArgumentException.class, () -> ClimateSettings.load(empty));
+    }
+
+    @Test
+    void onStartupABadValueOnlyCostsItsOwnSection() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("variance.indoor-f", -0.5);
+        config.set("dehumidifier.presets", List.of());
+        config.set("humidifier.range", 12);
+        config.set("weather.ease-hours", 4.0);
+        List<String> warnings = new ArrayList<>();
+        ClimateSettings loaded = ClimateSettings.load(config, warnings::add);
+        assertEquals(ClimateSettings.defaults().variance(), loaded.variance(), "a bad section falls back");
+        assertEquals(ClimateSettings.defaults().dehumidifier(), loaded.dehumidifier());
+        assertEquals(12, loaded.humidifier().range(), "every other section loads as written");
+        assertEquals(4.0, loaded.weather().easeHours());
+        assertEquals(2, warnings.size(), String.valueOf(warnings));
+        assertTrue(warnings.get(0).contains("dehumidifier.presets") && warnings.get(0).contains("default"),
+                warnings.get(0));
+        assertTrue(warnings.get(1).contains("variance.indoor-f"), warnings.get(1));
     }
 }

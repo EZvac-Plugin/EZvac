@@ -7,6 +7,7 @@ import com.github.blade.hvac.simulation.HumidityModel;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.ThermalModel;
 import com.github.blade.hvac.simulation.ThermostatControl;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.bukkit.Tag;
 import org.bukkit.World;
 
@@ -52,6 +53,8 @@ public final class HvacController {
         simulatedTicks += elapsedTicks;
         HvacRegistry.PruneResult pruned = registry.pruneMissingLoadedDevices();
         for (GroupId group : pruned.invalidatedGroups()) airflow.invalidate(group);
+        // Units broken without a break event (an explosion, a piston) leave their zone behind otherwise.
+        for (ClimateUnit unit : pruned.removedUnits()) units.release(unit);
         registry.reconcilePendingCleanup();
 
         LinkedHashSet<EquipmentUnit> started = new LinkedHashSet<>();
@@ -64,9 +67,10 @@ public final class HvacController {
         // Nothing in the thermostat phase changes output ownership, so this
         // snapshot is invariant across the loop instead of rebuilt per device.
         Set<BlockKey> managedOutputs = managedOutputs();
+        Map<UUID, LongOpenHashSet> packedOutputs = AirflowService.packByWorld(managedOutputs);
         for (Thermostat thermostat : thermostats) {
             try {
-                updateThermostat(thermostat, deliveredEquivalent, elapsedTicks, managedOutputs);
+                updateThermostat(thermostat, deliveredEquivalent, elapsedTicks, managedOutputs, packedOutputs);
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.SEVERE, "Could not update thermostat '"
                         + thermostat.id() + "' at " + thermostat.position(), exception);
@@ -132,7 +136,8 @@ public final class HvacController {
     }
 
     private void updateThermostat(Thermostat thermostat, Map<GroupId, Double> delivered,
-                                  long elapsedTicks, Set<BlockKey> managedOutputs) {
+                                  long elapsedTicks, Set<BlockKey> managedOutputs,
+                                  Map<UUID, LongOpenHashSet> packedOutputs) {
         boolean authoritative = registry.thermostatFor(thermostat.group()) == thermostat;
         boolean controllerLoaded = authoritative && isControllerLoaded(thermostat);
         double outside = outdoor.driftBaselineFor(thermostat);
@@ -148,7 +153,7 @@ public final class HvacController {
         ThermalModel.Result thermal = ThermalModel.step(thermostat.roomF(), boundary, outside,
                 intervalMode, capacity, elapsedTicks, settings);
         thermostat.setRoomF(thermal.temperatureF());
-        if (!thermostat.pool()) updateHumidity(thermostat, intervalMode, capacity, elapsedTicks, managedOutputs);
+        if (!thermostat.pool()) updateHumidity(thermostat, intervalMode, capacity, elapsedTicks, packedOutputs);
 
         boolean coolingAvailable = controllerLoaded && hasAvailableEquipment(
                 thermostat.group(), OperatingMode.COOLING, managedOutputs);
@@ -165,10 +170,10 @@ public final class HvacController {
 
     /** Pools have no air of their own to hold moisture; every air system does. */
     private void updateHumidity(Thermostat thermostat, OperatingMode mode, double capacity, long elapsedTicks,
-                                Set<BlockKey> managedOutputs) {
+                                Map<UUID, LongOpenHashSet> packedOutputs) {
         OutdoorTemperatureService.Outdoor out = outdoor.cachedClimateFor(thermostat);
         AirflowService.WaterExposure exposure = airflow.waterExposure(thermostat.group())
-                .excluding(thermostat.group().worldId(), managedOutputs);
+                .excluding(packedOutputs.get(thermostat.group().worldId()));
         HumidityModel.Loads loads = new HumidityModel.Loads(
                 mode == OperatingMode.COOLING ? capacity : 0.0, exposure.wetFraction(),
                 exposure.waterCells().length == 0 ? Double.NaN : waterTemperature(thermostat, exposure),

@@ -100,6 +100,22 @@ public final class OutdoorTemperatureService {
         return WeatherModel.word(precipitation, conditions);
     }
 
+    /**
+     * What the sky is doing at a spot, for weather sensors: Clear, Rain,
+     * Thunder or Snow, from the world's own weather. Unlike the HUD's weather
+     * word it doesn't depend on EZvac's weather effects being switched on: a
+     * sensor reports the sky, whatever the temperatures do. Clear where it
+     * never rains, such as a desert.
+     */
+    public String skyAt(Location location) {
+        if (location == null || location.getWorld() == null) return "Clear";
+        World world = location.getWorld();
+        Precipitation precipitation = cachedProfile(location.getBlock().getBiome()).precipitation;
+        String word = WeatherModel.word(precipitation,
+                WeatherModel.Conditions.settled(world.hasStorm(), world.isThundering()));
+        return word.isEmpty() ? "Clear" : word;
+    }
+
     /** Refreshes a thermostat's cached biome profile when its chunk is loaded; never loads it. */
     private void sample(Thermostat thermostat) {
         BlockKey position = thermostat.position();
