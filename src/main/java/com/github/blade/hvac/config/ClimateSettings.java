@@ -97,11 +97,11 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
             requireNonNegative("dehumidifier.hysteresis", hysteresis);
         }
 
-        /** The preset after {@code current}, wrapping around; a value between presets moves to the next one up. */
-        public int nextPreset(int current) {
-            for (int preset : presets) if (preset > current) return preset;
-            return presets.get(0);
-        }
+        /** The lowest setpoint the control menu reaches: the lowest preset (2.1 Pilot 3). */
+        public int minimumSetpoint() { return presets.get(0); }
+
+        /** The highest setpoint the control menu reaches: the highest preset. */
+        public int maximumSetpoint() { return presets.get(presets.size() - 1); }
     }
 
     /**
@@ -128,11 +128,11 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
             requireNonNegative("humidifier.hysteresis", hysteresis);
         }
 
-        /** The preset after {@code current}, wrapping around. */
-        public int nextPreset(int current) {
-            for (int preset : presets) if (preset > current) return preset;
-            return presets.get(0);
-        }
+        /** The lowest setpoint the control menu reaches: the lowest preset (2.1 Pilot 3). */
+        public int minimumSetpoint() { return presets.get(0); }
+
+        /** The highest setpoint the control menu reaches: the highest preset. */
+        public int maximumSetpoint() { return presets.get(presets.size() - 1); }
     }
 
     /**

@@ -130,6 +130,14 @@ audio:
   read. A hum you tuned with them carried over into `equipment-hum` and
   `dehumidifier-hum` when your config was updated.
 
+## displays
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `screens` | true | A floating screen in front of every EZvac sign; false shows the plain signs only |
+
+See [Screens and control menus](screens-and-menus.md).
+
 ## biome-blend
 
 | Setting | Default | Meaning |
@@ -235,7 +243,7 @@ still report the sky. More in [Climate](climate.md#weather).
 | `tank-fill-hours` | 8.0 | | In-game hours of full drying that fill the tank |
 | `empty-seconds` | 30 | | How long a full tank takes to empty |
 | `default-setpoint` | 45 | 40 | Setpoint of a new unit, % RH |
-| `presets` | 35-60 | 30-50 | Setpoints a click on the sign steps through |
+| `presets` | 35-60 | 30-50 | The setpoint range the control menu reaches, from the lowest to the highest, in steps of 5 |
 | `hysteresis` | 2.0 | 2.0 | How far past the setpoint before it starts again, % RH |
 
 ## hud

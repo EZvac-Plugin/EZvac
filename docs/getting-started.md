@@ -96,8 +96,8 @@ airflow, fading out by 30.
   humidity and which system reaches you.
 - `/hvac hud` keeps the climate where you stand on screen. See
   [HUD and placeholders](hud-and-placeholders.md).
-- To change the target, right-click the thermostat sign and edit line 3, or run
-  `/hvac thermostat main set 70`.
+- To change the target, right-click the thermostat sign and use its menu, or
+  run `/hvac thermostat main set 70`.
 - To switch the whole system off, sneak-right-click the thermostat sign; do it
   again to switch it back on.
 

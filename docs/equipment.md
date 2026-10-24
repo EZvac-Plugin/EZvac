@@ -45,7 +45,8 @@ ETA 0:31 | house
 | 3 | The target, and the system's live capacity while it runs |
 | 4 | Time until the target is reached (`Ready` when idle), and the group |
 
-- **Change the target** by editing line 3 of the sign, or with
+- **Change the target** from the menu the sign opens on a right-click (+5, +1
+  and +0.1 on the left, the same down on the right), or with
   `/hvac thermostat <id> set <temperatureF>`.
 - **Sneak-right-click** the sign to switch the whole system off (the sign
   shows `System off`) and again to switch it back on. Units you switched off on

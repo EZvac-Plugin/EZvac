@@ -7,7 +7,7 @@ block use the block you're looking at, within six blocks.
 
 | Permission | Default | Allows |
 | --- | --- | --- |
-| `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat on/off, settings panels, dehumidifiers and humidifiers, sensor hubs, pressing sensors |
+| `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat targets and on/off, settings panels, dehumidifiers and humidifiers, sensor hubs, pressing sensors |
 | `ezvac.hud` | everyone | `/hvac hud` |
 | `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season, `stats` and `sync` |
 
@@ -24,11 +24,12 @@ block use the block you're looking at, within six blocks.
 
 ### Using signs and sensors
 
-- **Thermostat:** sneak-right-click switches its system off or on.
+- **Thermostat:** right-click opens its control menu to change the target;
+  sneak-right-click switches its system off or on.
 - **Settings panel:** right-click steps Normal → Turbo → Eco → Normal;
   sneak-right-click goes the other way.
-- **Dehumidifier / humidifier:** right-click steps the setpoint; sneak-right-click
-  switches it on or off.
+- **Dehumidifier / humidifier:** right-click opens its control menu (setpoint
+  +5% / -5%, and on/off); sneak-right-click switches it on or off.
 - **Sensor hub:** right-click turns the page; sneak-right-click switches
   auto-flip on or off.
 - **Sensor:** right-click shows its reading in chat.
@@ -88,9 +89,21 @@ A system is all air or all water, and the vents must match its equipment. See
 | `/hvac equipment enable` / `disable` / `group <group>` / `info` | The equipment you're looking at. Moving it stops it and cleans up its output first |
 | `/hvac group <group> enable` / `disable` / `info` | A whole system in your world |
 
-Thermostat signs can also be edited: put a temperature on line 3 to set the
-target, such as `22`, or `72F` in the other unit.
-Other EZvac signs can't be edited.
+The control menu a thermostat's sign opens:
+
+| | Raise | Lower |
+| --- | --- | --- |
+| Top row | Black pane: +5 | White pane: -5 |
+| Middle row | Green pane: +1 | Red pane: -1 |
+| Bottom row | Lime pane: +0.1 | Orange pane: -0.1 |
+
+Steps are in the server's `units`: degrees Fahrenheit, or Celsius with
+`units: C`. The target never goes past the allowed range (60-85 °F for a room,
+75-104 °F for a pool). The middle shows the target, the room's temperature and
+humidity, and a lever that switches the system on or off.
+
+EZvac signs can't be edited; before 2.1 Pilot 3, a thermostat's target was
+typed on line 3 of its sign.
 
 ## Seasons
 

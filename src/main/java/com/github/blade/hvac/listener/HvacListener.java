@@ -9,7 +9,6 @@ import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Openable;
@@ -53,50 +52,25 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSignChange(SignChangeEvent event) {
         BlockKey key = BlockKey.of(event.getBlock().getLocation());
-        Thermostat thermostat = registry.thermostatAt(key);
-        if (thermostat == null) {
-            if (registry.thermometerAt(key) != null || registry.rpmMonitorAt(key) != null
-                    || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null
-                    || registry.sensorHubAt(key) != null) {
-                event.setCancelled(true);
-                event.getPlayer().sendMessage(Component.text(
-                        "That HVAC display is read-only.", NamedTextColor.YELLOW));
-                refreshLater(key);
-            }
-            return;
-        }
-        event.setCancelled(true);
-        if (!event.getPlayer().hasPermission("ezvac.admin")) {
-            event.getPlayer().sendMessage(Component.text(
-                    "You may not edit this thermostat.", NamedTextColor.RED));
+        // Since 2.1 Pilot 3 no EZvac sign is edited: a thermostat's target is set from the menu its sign opens.
+        boolean thermostat = registry.thermostatAt(key) != null;
+        if (thermostat || registry.thermometerAt(key) != null || registry.rpmMonitorAt(key) != null
+                || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null
+                || registry.sensorHubAt(key) != null) {
+            event.setCancelled(true);
+            event.getPlayer().sendMessage(Component.text(thermostat
+                    ? "Right-click the sign to open its controls." : "That HVAC display is read-only.",
+                    NamedTextColor.YELLOW));
             refreshLater(key);
-            return;
         }
-        String line = event.line(2) == null ? ""
-                : PlainTextComponentSerializer.plainText().serialize(event.line(2));
-        // A plain number is in the server's units; 72F or 22C always means that unit.
-        java.util.OptionalDouble typed = plugin.settings().units().find(line);
-        if (typed.isPresent()) {
-            try {
-                thermostat.setTargetF(typed.getAsDouble(), plugin.settings());
-                registry.markDirty();
-                event.getPlayer().sendMessage(Component.text("Target set to "
-                        + plugin.settings().units().format(thermostat.targetF()) + ".", NamedTextColor.GREEN));
-                plugin.requestImmediateSync();
-            } catch (IllegalArgumentException exception) {
-                event.getPlayer().sendMessage(Component.text(
-                        "Line 3 must contain a finite target temperature.", NamedTextColor.RED));
-            }
-        }
-        refreshLater(key);
     }
 
     /**
      * Sneak-clicking a thermostat sign switches its system off or back on,
      * like /hvac thermostat disable|enable. Only the thermostat is toggled: a
      * disabled thermostat idles its whole group, and units switched off on
-     * their own stay off when it comes back. A plain click still opens the
-     * sign editor for the target.
+     * their own stay off when it comes back. A plain click opens the
+     * thermostat's control menu instead.
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onThermostatPower(PlayerInteractEvent event) {
@@ -117,6 +91,22 @@ public final class HvacListener implements Listener {
         plugin.requestImmediateSync();
         player.sendMessage(Component.text("System '" + thermostat.group().label() + "' switched "
                 + (thermostat.enabled() ? "on." : "off."), thermostat.enabled() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+    }
+
+    /** A plain click on a thermostat sign opens its control menu; the sign editor never opens. */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onThermostatMenu(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
+                || event.getHand() != EquipmentSlot.HAND || event.getPlayer().isSneaking()
+                || command.isTool(event.getItem())) return;
+        Thermostat thermostat = registry.thermostatAt(BlockKey.of(event.getClickedBlock().getLocation()));
+        if (thermostat == null) return;
+        event.setCancelled(true);
+        if (!event.getPlayer().hasPermission("ezvac.use")) {
+            event.getPlayer().sendMessage(Component.text("You may not control this HVAC system.", NamedTextColor.RED));
+            return;
+        }
+        plugin.menus().open(event.getPlayer(), thermostat);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -144,7 +134,7 @@ public final class HvacListener implements Listener {
     }
 
     /**
-     * Clicking a dehumidifier's or humidifier's sign steps its setpoint;
+     * Clicking a dehumidifier's or humidifier's sign opens its control menu;
      * sneak-clicking switches it on or off. The click is cancelled, so the
      * sign editor never opens.
      */
@@ -168,8 +158,8 @@ public final class HvacListener implements Listener {
             player.sendMessage(Component.text(name + " switched " + (unit.powered() ? "on." : "off."),
                     unit.powered() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
         } else {
-            unit.setSetpoint(unit.nextPreset(units.climate()));
-            player.sendMessage(Component.text(name + " set to " + unit.setpoint() + "%.", NamedTextColor.AQUA));
+            plugin.menus().open(player, unit);
+            return;
         }
         registry.markDirty();
         displays.refreshClimateUnit(unit, true);

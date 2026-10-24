@@ -9,6 +9,7 @@ New to EZvac? Start with **[Getting started](getting-started.md)**.
 - [Vents and airflow](airflow.md): linking vents, how far air reaches, pools
 - [Dehumidifiers and humidifiers](dehumidifiers-and-humidifiers.md): building and using them
 - [Sensors and readings](sensors.md): thermometers, hygrometers, sensors and sensor hubs
+- [Screens and control menus](screens-and-menus.md): the screens on every sign, and the menus for setpoints
 
 ## How it works
 

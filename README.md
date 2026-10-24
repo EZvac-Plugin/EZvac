@@ -20,6 +20,7 @@ biome and the weather.
 - **Dehumidifiers and humidifiers** that dry or moisten a room or a shed.
 - **Sensors:** thermometers, hygrometers, and button sensors that report to a
   sensor hub sign.
+- **Lit screens on every sign** and click-to-open control menus for setpoints.
 - **An on-screen HUD** and PlaceholderAPI placeholders.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
   power or items needed.
@@ -49,6 +50,7 @@ biome and the weather.
 | [Vents and airflow](docs/airflow.md) | Linking vents, how far air reaches, pools |
 | [Dehumidifiers and humidifiers](docs/dehumidifiers-and-humidifiers.md) | Building and using them, "Air too cold" |
 | [Sensors and readings](docs/sensors.md) | Thermometers, hygrometers, sensors and sensor hubs |
+| [Screens and control menus](docs/screens-and-menus.md) | The screens on every sign, and the setpoint menus |
 | [Climate](docs/climate.md) | Outdoor temperature, weather, humidity, feels-like, variance |
 | [HUD and placeholders](docs/hud-and-placeholders.md) | `/hvac hud` and every `%ezvac_*%` placeholder |
 | [Configuration](docs/configuration.md) | Every `config.yml` setting, sounds |
@@ -66,7 +68,7 @@ You need Java 21 and Maven 3.9 or newer.
 mvn clean package
 ```
 
-The plugin is written to `target/EzVac-ALPHA-2.1-P2.jar`. `mvn verify` also runs
+The plugin is written to `target/EzVac-ALPHA-2.1-P3.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
