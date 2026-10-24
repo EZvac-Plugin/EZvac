@@ -81,6 +81,21 @@ class SeasonServiceTest {
         assertTrue(warnings.isEmpty(), warnings::toString);
     }
 
+    /** The seasons.yml the released 2.1 Pilot 2 wrote, set to mid-summer, must load as it was. */
+    @Test
+    void aReleasedCalendarLoads() throws IOException {
+        try (var input = getClass().getResourceAsStream("/compat/ALPHA-2.1-P2/seasons.yml")) {
+            Files.copy(java.util.Objects.requireNonNull(input, "missing fixture"), folder.resolve("seasons.yml"));
+        }
+        UUID world = UUID.fromString("b9bff999-d8d4-4113-894b-9bd99c140665");
+        SeasonService seasons = service();
+        seasons.advance(world, "world", 6_000);
+        assertEquals(Seasons.Season.SUMMER, seasons.season(world));
+        assertEquals(8, seasons.dayOfSeason(world));
+        assertFalse(seasons.paused(world));
+        assertTrue(warnings.isEmpty(), warnings::toString);
+    }
+
     @Test
     void anUnreadableFileIsKeptAsideAndTheYearStartsAgain() throws IOException {
         Files.writeString(folder.resolve("seasons.yml"), "worlds: [unclosed");
