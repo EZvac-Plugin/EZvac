@@ -36,7 +36,8 @@ public record HvacSettings(
         int airflowMaximumCells,
         boolean audioEnabled,
         double audioRadiusBlocks,
-        long humRefreshTicks
+        long humRefreshTicks,
+        TemperatureUnit units
 ) {
     public HvacSettings {
         requirePositive("controller.period-ticks", controllerPeriodTicks);
@@ -101,9 +102,15 @@ public record HvacSettings(
         }
         requirePositiveFinite("audio.radius-blocks", audioRadiusBlocks);
         requirePositive("audio.hum-refresh-ticks", humRefreshTicks);
+        java.util.Objects.requireNonNull(units, "units");
     }
 
     public static HvacSettings load(FileConfiguration config) {
+        return load(config, warning -> { throw new IllegalArgumentException(warning); });
+    }
+
+    /** As {@link #load(FileConfiguration)}, except that an unknown {@code units} is a warning, not a failure. */
+    public static HvacSettings load(FileConfiguration config, java.util.function.Consumer<String> warn) {
         HvacSettings defaults = defaults();
         return new HvacSettings(
                 config.getLong("controller.period-ticks", defaults.controllerPeriodTicks),
@@ -143,7 +150,8 @@ public record HvacSettings(
                 config.getBoolean("audio.enabled", defaults.audioEnabled),
                 config.getDouble("audio.radius-blocks", defaults.audioRadiusBlocks),
                 // audio.hum-volume and audio.hum-pitch are no longer read: the hum is a line in audio.sounds.
-                config.getLong("audio.hum-refresh-ticks", defaults.humRefreshTicks)
+                config.getLong("audio.hum-refresh-ticks", defaults.humRefreshTicks),
+                TemperatureUnit.load(config, warn)
         );
     }
 
@@ -153,7 +161,7 @@ public record HvacSettings(
                 60.0, 85.0, 75.0, 104.0, 3.75, 5.0, 1.25, 0.50, 2.0,
                 3.0, 0.40, 1_200.0, 3_600.0, 2_400.0, 4_200.0, 900.0, 1_200.0,
                 15, 30, 4_000, 200_000,
-                true, 25.0, 60);
+                true, 25.0, 60, TemperatureUnit.F);
     }
 
     /**

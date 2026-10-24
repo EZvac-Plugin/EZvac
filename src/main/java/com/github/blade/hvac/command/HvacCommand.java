@@ -2,6 +2,7 @@ package com.github.blade.hvac.command;
 
 import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
@@ -153,7 +154,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     throw new IllegalArgumentException("System '" + target0.label() + "' is powered by "
                             + (pool ? "air-loop equipment; a pool thermostat needs a boiler or pool heat pump"
                                     : "water-loop equipment; use /hvac create poolthermostat") + ".");
-                double target = args.length >= 5 ? finiteDouble(args[4], "target temperature")
+                double target = args.length >= 5 ? settings.units().parse(args[4])
                         : (pool ? 82.0 : 72.0);
                 Thermostat thermostat = new Thermostat(position, args[2], args[3], target,
                         outdoor.temperatureAt(block.getLocation()), settings, pool);
@@ -161,8 +162,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 displays.refreshThermostat(thermostat, true);
                 player.sendMessage(green("Created " + (pool ? "pool thermostat" : "thermostat")
                         + " '" + thermostat.id() + "' for group '" + thermostat.group().label()
-                        + "'. Target range " + String.format(Locale.US, "%.0f-%.0f F",
-                        pool ? settings.poolMinimumTargetF() : settings.minimumTargetF(),
+                        + "'. Target range " + range(pool ? settings.poolMinimumTargetF() : settings.minimumTargetF(),
                         pool ? settings.poolMaximumTargetF() : settings.maximumTargetF()) + "."));
             }
             case "heatpump", "heat_pump" -> createEquipment(player, block, args, EquipmentType.HEAT_PUMP);
@@ -324,9 +324,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         switch (args[2].toLowerCase(Locale.ROOT)) {
             case "set", "settemp" -> {
                 if (args.length < 4) throw new IllegalArgumentException("Usage: /hvac thermostat <id> set <temperatureF>");
-                thermostat.setTargetF(finiteDouble(args[3], "target temperature"), settings);
+                thermostat.setTargetF(settings.units().parse(args[3]), settings);
                 registry.markDirty();
-                player.sendMessage(green(String.format(Locale.US, "Target set to %.1f F.", thermostat.targetF())));
+                player.sendMessage(green("Target set to " + temp(thermostat.targetF()) + "."));
             }
             case "enable" -> { thermostat.setEnabled(true); registry.markDirty(); player.sendMessage(green("Thermostat enabled.")); }
             case "disable" -> { thermostat.setEnabled(false); registry.markDirty(); player.sendMessage(yellow("Thermostat disabled.")); }
@@ -406,13 +406,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 airflow.temperatureForBody(player.getLocation(), player.getEyeLocation());
         boolean water = reading.water();
         player.sendMessage(join(gold("Temperature"), gray(water ? " | Water: " : " | Here: "),
-                white(String.format(Locale.US, "%.1f F", reading.localF())),
+                white(temp(reading.localF())),
                 gray(water ? " | Air: " : " | Outside: "),
-                white(String.format(Locale.US, "%.1f F", reading.outdoorF())
+                white(temp(reading.outdoorF())
                         + (reading.weather().isEmpty() ? "" : " " + reading.weather()))));
         if (!water)
             player.sendMessage(join(gray("Feels like: "),
-                    white(String.format(Locale.US, "%.1f F", reading.feelsLikeF())),
+                    white(temp(reading.feelsLikeF())),
                     gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%")));
         if (!reading.conditioned()) {
             player.sendMessage(gray(water ? "Natural water: no pool system reaches this block."
@@ -436,7 +436,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         for (GroupId group : groups) {
             HvacController.GroupStatus status = controller.status(group);
             String temperatures = Double.isFinite(status.roomF())
-                    ? String.format(Locale.US, "%.1f/%.1f F", status.roomF(), status.targetF()) : "no thermostat";
+                    ? temp(status.roomF()) + " / " + temp(status.targetF()) : "no thermostat";
             player.sendMessage(join(white(group.label()), gray(" | "), white(status.mode().name()),
                     gray(" | "), white(status.profile().name()), gray(" | "), white(temperatures),
                     gray(" | equipment "),
@@ -460,10 +460,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             String source = reading.conditioned() ? reading.group().label() : "outdoor";
             String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
             String local = switch (thermometer.reads()) {
-                case TEMPERATURE -> String.format(Locale.US, "%.1f F", reading.localF());
+                case TEMPERATURE -> temp(reading.localF());
                 case HUMIDITY -> humidity;
-                case BOTH -> String.format(Locale.US, "%.1f F, %s, feels %.1f F", reading.localF(), humidity,
-                        reading.feelsLikeF());
+                case BOTH -> temp(reading.localF()) + ", " + humidity + ", feels " + temp(reading.feelsLikeF());
             };
             player.sendMessage(join(gold(thermometer.reads().displayName()), gray(" | Local: "), white(local),
                     gray(" | Source: "), white(source)));
@@ -565,10 +564,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
         String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
         String values = switch (sensor.reads()) {
-            case TEMPERATURE -> String.format(Locale.US, "%.1f F", reading.localF());
+            case TEMPERATURE -> temp(reading.localF());
             case HUMIDITY -> humidity;
-            case BOTH -> String.format(Locale.US, "%.1f F | %s | feels %.1f F", reading.localF(), humidity,
-                    reading.feelsLikeF());
+            case BOTH -> temp(reading.localF()) + " | " + humidity + " | feels " + temp(reading.feelsLikeF());
             case WEATHER -> throw new AssertionError("handled above");
         };
         String where = reading.conditioned() ? "system '" + reading.group().label() + "'" : "no system";
@@ -734,14 +732,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void showThermostat(Player player, Thermostat thermostat) {
         player.sendMessage(join(gold("Thermostat "), white(thermostat.id()), gray(" | Group: "),
                 white(thermostat.group().label())));
-        player.sendMessage(join(gray("Room/target: "), white(String.format(Locale.US, "%.1f / %.1f F",
-                thermostat.roomF(), thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
+        player.sendMessage(join(gray("Room/target: "), white(temp(thermostat.roomF()) + " / "
+                + temp(thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
                 gray(" | Profile: "), white(registry.profileFor(thermostat.group()).name()),
                 gray(" | "), white(thermostat.enabled() ? "enabled" : "disabled")));
         if (!thermostat.pool() && thermostat.hasRoomDewPoint()) {
             double humidity = Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
             player.sendMessage(join(gray("Humidity: "), white(Math.round(humidity) + "%"),
-                    gray(" | Feels like: "), white(String.format(Locale.US, "%.1f F",
+                    gray(" | Feels like: "), white(temp(
                             Psychrometrics.apparentTemperatureF(thermostat.roomF(), humidity, 0.0)))));
         }
     }
@@ -761,10 +759,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (unit instanceof Dehumidifier dehumidifier && dehumidifier.tooCold()) {
             Thermostat thermostat = unit.servedGroup() == null ? null : registry.thermostatFor(unit.servedGroup());
             double dewPointF = thermostat == null ? unit.zoneDewPointF() : thermostat.roomDewPointF();
-            player.sendMessage(gold(String.format(Locale.US,
-                    "Air too cold: its dew point (%.0f F) is at or below what the coil can remove (%.0f F), "
-                            + "so it can't dry this air.", dewPointF,
-                    units.climate().dehumidifier().dryDewPointF())));
+            player.sendMessage(gold("Air too cold: its dew point (" + settings.units().format(dewPointF, 0)
+                    + ") is at or below what the coil can remove ("
+                    + settings.units().format(units.climate().dehumidifier().dryDewPointF(), 0)
+                    + "), so it can't dry this air."));
         }
     }
 
@@ -797,15 +795,6 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (!(block.getState() instanceof Sign)) throw new IllegalArgumentException("Look directly at a sign.");
     }
 
-    private static double finiteDouble(String text, String name) {
-        try {
-            double value = Double.parseDouble(text);
-            if (!Double.isFinite(value)) throw new NumberFormatException();
-            return value;
-        } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException(name + " must be a finite number");
-        }
-    }
 
     private static EquipmentType parseEquipmentType(String text) {
         return switch (text.toLowerCase(Locale.ROOT).replace('-', '_')) {
@@ -817,6 +806,18 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             default -> throw new IllegalArgumentException(
                     "equipment type must be heatpump, ac, furnace, boiler, or poolheatpump");
         };
+    }
+
+    /** A temperature as players read it: {@code 72.4 F}, or {@code 22.4 C} with units: C. */
+    private String temp(double fahrenheit) {
+        return settings.units().format(fahrenheit);
+    }
+
+    /** A target range: whole degrees in F, tenths in C, where whole degrees would round the limits away. */
+    private String range(double lowF, double highF) {
+        TemperatureUnit unit = settings.units();
+        int decimals = unit == TemperatureUnit.F ? 0 : 1;
+        return String.format(Locale.US, "%." + decimals + "f", unit.fromF(lowF)) + "-" + unit.format(highF, decimals);
     }
 
     private static boolean requireAdmin(CommandSender sender) {

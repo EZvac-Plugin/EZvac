@@ -71,8 +71,9 @@ reading stays on its hub.
 
 ## Customising
 
-Text, colours, the bar's length and range, comfort bands and units (°F or °C)
-are all under `hud:` (and `hud.water:` for water) in `config.yml`. HUD lines can
+Temperatures follow the server-wide `units` setting (°F or °C); see
+[Configuration](configuration.md#units). Text, colours, the bar's length and
+range, and comfort bands are all under `hud:` (and `hud.water:` for water) in `config.yml`. HUD lines can
 use [MiniMessage](https://docs.advntr.dev/minimessage/format.html) formatting
 and these tokens:
 

@@ -1,8 +1,8 @@
 package com.github.blade.hvac.service;
 
+import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.model.Sensor;
 
-import java.util.Locale;
 
 /**
  * One sensor's reading as a single sign line: {@code Kitchen 72.4F},
@@ -27,10 +27,16 @@ public final class SensorLine {
      */
     public static String format(String label, Sensor.Kind reads, boolean loaded,
                                 double temperatureF, double humidity, String weather, int width) {
+        return format(label, reads, loaded, temperatureF, humidity, weather, width, TemperatureUnit.F);
+    }
+
+    /** @param units the unit players read temperatures in */
+    public static String format(String label, Sensor.Kind reads, boolean loaded, double temperatureF,
+                                double humidity, String weather, int width, TemperatureUnit units) {
         String value = !loaded ? "--" : switch (reads) {
-            case TEMPERATURE -> String.format(Locale.US, "%.1fF", temperatureF);
+            case TEMPERATURE -> units.compact(temperatureF);
             case HUMIDITY -> percent(humidity);
-            case BOTH -> String.format(Locale.US, "%.0fF %s", temperatureF, percent(humidity));
+            case BOTH -> units.whole(temperatureF) + " " + percent(humidity);
             case WEATHER -> weather;
         };
         String fitted = fit(label, width - SignText.width(" " + value));

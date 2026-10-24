@@ -13,13 +13,15 @@ biome and the weather.
 - **Systems** for rooms (iron trapdoor vents) or pools (copper grate vents),
   with variable-speed equipment, operating profiles and an ETA on the
   thermostat sign.
-- **Climate:** weather, humidity, a "feels like" temperature, and readings that
-  vary a little from spot to spot.
+- **Climate:** weather, humidity, a "feels like" temperature, smooth
+  transitions between biomes, and readings that vary a little from spot to
+  spot.
 - **Dehumidifiers and humidifiers** that dry or moisten a room or a shed.
 - **Sensors:** thermometers, hygrometers, and button sensors that report to a
   sensor hub sign.
 - **An on-screen HUD** and PlaceholderAPI placeholders.
-- **Configurable sounds**, and no fuel, power or items needed.
+- **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
+  power or items needed.
 
 > **Release status:** EZvac ALPHA 2.0 is the realism update: weather,
 > humidity and feels-like, dehumidifiers and humidifiers, sensors and sensor
@@ -63,7 +65,7 @@ You need Java 21 and Maven 3.9 or newer.
 mvn clean package
 ```
 
-The plugin is written to `target/EzVac-ALPHA-2.0.jar`. `mvn verify` also runs
+The plugin is written to `target/EzVac-ALPHA-2.1-P1.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

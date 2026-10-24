@@ -62,8 +62,9 @@ Put a sign anywhere you like, look at it, and run:
 /hvac create thermostat main house 72
 ```
 
-`main` is the thermostat's name, `house` the group, and `72` the target in °F
-(72 °F if you leave it out). The sign shows the room temperature, what the
+`main` is the thermostat's name, `house` the group, and `72` the target (72 °F
+if you leave it out). Temperatures are in °F unless the server uses Celsius
+(`units: C`); `72F` or `22C` always works. The sign shows the room temperature, what the
 system is doing, the target and how long until it gets there:
 
 ```text

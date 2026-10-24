@@ -178,16 +178,16 @@ public record HudSettings(
     public static HudSettings load(FileConfiguration config) {
         HudSettings d = defaults();
         ConfigurationSection hud = config.getConfigurationSection("hud");
-        if (hud == null) return d;
-        String units = hud.getString("units", "F").trim().toUpperCase(Locale.ROOT);
-        if (!units.equals("F") && !units.equals("C"))
-            throw new IllegalArgumentException("hud.units must be F or C");
+        // A config without a hud section still follows the plugin-wide units.
+        if (hud == null) hud = new org.bukkit.configuration.MemoryConfiguration();
+        // hud.units is no longer read: the plugin-wide units setting (2.1) decides.
+        boolean celsius = TemperatureUnit.load(config, ignored -> { }) == TemperatureUnit.C;
         List<String> lines = hud.isList("sidebar.lines") ? hud.getStringList("sidebar.lines") : d.sidebarLines;
         return new HudSettings(
                 hud.getBoolean("enabled", d.enabled),
                 Style.parse(hud.getString("style"), d.style),
                 hud.getLong("update-ticks", d.updateTicks),
-                units.equals("C"),
+                celsius,
                 hud.getString("sidebar.title", d.title),
                 lines,
                 hud.isList("sidebar.yield-to-plugins") ? hud.getStringList("sidebar.yield-to-plugins")

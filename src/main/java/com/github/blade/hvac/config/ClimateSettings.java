@@ -12,7 +12,7 @@ import java.util.function.Supplier;
  * and every caller of it stay untouched.
  */
 public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
-                              Humidifier humidifier, Variance variance) {
+                              Humidifier humidifier, Variance variance, BiomeBlend biomeBlend) {
     /**
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
@@ -153,6 +153,18 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         }
     }
 
+    /**
+     * Transition zones between biomes (2.1): the outdoor climate at a spot is
+     * the average of the biomes within this many blocks, nearer ones counting
+     * more. 0 turns blending off, so each biome starts at its exact edge.
+     */
+    public record BiomeBlend(int radiusBlocks) {
+        public BiomeBlend {
+            if (radiusBlocks < 0 || radiusBlocks > 64)
+                throw new IllegalArgumentException("biome-blend.radius-blocks must be 0-64");
+        }
+    }
+
     /** The farthest either kind of standalone unit reaches, for spatial lookups. */
     public int unitRange() {
         return Math.max(dehumidifier.range(), humidifier.range());
@@ -165,7 +177,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Dehumidifier(30, 50_000, 3.0, 35.0, 1_500, 8.0, 30, 45,
                         List.of(35, 40, 45, 50, 55, 60), 2.0),
                 new Humidifier(30, 50_000, 3.0, 1_500, 40, List.of(30, 35, 40, 45, 50), 2.0),
-                new Variance(true, 0.5, 1.5, 0.3, 0.8, 0.3, 6.0, 3.0));
+                new Variance(true, 0.5, 1.5, 0.3, 0.8, 0.3, 6.0, 3.0),
+                new BiomeBlend(24));
     }
 
     /** Reads strictly: a value out of range throws. */
@@ -187,6 +200,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 ? config.getIntegerList("dehumidifier.presets") : d.presets();
         Humidifier m = defaults.humidifier;
         Variance v = defaults.variance;
+        BiomeBlend b = defaults.biomeBlend;
         return new ClimateSettings(
                 section("weather", w, warn, () -> new Weather(config.getBoolean("weather.enabled", w.enabled()),
                         config.getDouble("weather.ease-hours", w.easeHours()),
@@ -229,7 +243,9 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getDouble("variance.natural-water-f", v.naturalWaterF()),
                         config.getDouble("variance.dew-point-f", v.dewPointF()),
                         config.getDouble("variance.spacing-blocks", v.spacingBlocks()),
-                        config.getDouble("variance.drift-hours", v.driftHours()))));
+                        config.getDouble("variance.drift-hours", v.driftHours()))),
+                section("biome-blend", b, warn, () -> new BiomeBlend(
+                        config.getInt("biome-blend.radius-blocks", b.radiusBlocks()))));
     }
 
     private static <T> T section(String name, T fallback, Consumer<String> warn, Supplier<T> reader) {

@@ -1,4 +1,10 @@
 # EZvac defaults. Durations use server ticks (20 ticks is normally one second).
+
+# The unit players see and type temperatures in, everywhere: signs, chat, the
+# HUD and placeholders (2.1). F or C. Typing 72F or 22C always works whatever
+# this says. The temperatures in this file stay in F (their keys end in -f).
+units: F
+
 controller:
   period-ticks: 20
   save-period-ticks: 600
@@ -75,6 +81,13 @@ audio:
     # Air vents (iron trapdoors) of running systems near a player, one per
     # cluster of vents. Water vents stay quiet.
     vent-airflow: ["block.conduit.ambient 0.3 0.5"]
+
+# Transitions between biomes (2.1). The outdoor climate at a spot is the
+# average of the biomes within radius-blocks, nearer ones counting more, so
+# walking from plains into a desert ramps instead of jumping 28 F in a step.
+# Temperature, humidity, weather and natural water all blend. 0 turns it off.
+biome-blend:
+  radius-blocks: 24
 
 # Weather changes the outdoor air (2.0). Rain and thunder cool the day and
 # narrow the day/night swing; snow cools a little. Vanilla weather switches in
@@ -180,7 +193,6 @@ hud:
   # sidebar (scoreboard on the right), actionbar (above the hotbar) or bossbar (top)
   style: sidebar
   update-ticks: 10
-  units: F
   # Shown where no system conditions the air.
   none-text: none
   sidebar:

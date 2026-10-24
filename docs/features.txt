@@ -119,6 +119,29 @@ Outdoor temperature follows Minecraft time and broad biome profiles:
 Profiles are cached per thermostat, so an unloaded thermostat never causes a
 chunk load merely to sample its biome.
 
+Biome transitions (biome-blend: in config.yml, 2.1):
+
+- The climate at a spot is the weighted average of biome samples every 4
+  blocks within radius-blocks (default 24) at the spot's height. Weights fall
+  linearly from 1 at the spot to 0 at radius + 4, so the middle of a biome is
+  exactly that biome. Noon, midnight and downfall average; rain and snow
+  become shares of the surroundings.
+- Samples in unloaded chunks are skipped and the rest renormalised; with none
+  loaded, the block's own biome is used. Blending never loads a chunk.
+- Each 4x4x4 cell's blend is cached per world and forgotten when a chunk
+  within the radius loads or unloads. Readings interpolate bilinearly between
+  the four nearest cell centres, so there are no 4-block steps.
+- Weather effects mix by share: a half-rain spot gets half the rain cooling,
+  swing narrowing, wind and wetness. The HUD weather word follows the dominant
+  weather (none unless at least half the surroundings get weather). Weather
+  sensors report the real sky at their block.
+- Thermostats cache the blended climate; on a border they save
+  outdoorRainShare and outdoorSnowShare, otherwise nothing new.
+
+Units (units: in config.yml, 2.1): F or C for everything shown and typed.
+Typed temperatures accept an F or C suffix that overrides it. Internally, and
+in config.yml, temperatures are always Fahrenheit.
+
 Weather (weather: in config.yml):
 
 - Rain cools the daily mean by 6 F, thunder by 9 F, snow by 3 F, and full rain

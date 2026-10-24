@@ -2,6 +2,37 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.1 Pilot 1
+
+Smooth transitions between biomes, and a server-wide Fahrenheit/Celsius
+switch. Same save format as 2.0 (format 6): a drop-in upgrade.
+
+### Added
+
+- **Biome transitions.** The outdoor climate at a spot is the average of the
+  biomes around it (24 blocks by default, nearer ones counting more) instead
+  of the biome at that one block. Walking from plains into a desert at noon
+  now ramps from 72 °F to 100 °F over about 48 blocks instead of jumping 28 °F
+  in a step. Temperature, humidity, weather and natural water all blend; rain
+  at a desert's edge cools it partway. It feeds the simulation too, so a house
+  on a border lives in the in-between climate. Only loaded chunks count, and
+  each spot is worked out once and cached. Tuning: `biome-blend.radius-blocks`
+  (0 turns it off).
+- **Fahrenheit or Celsius, server wide.** The new `units: F|C` setting decides
+  how every temperature is shown (signs, chat, the HUD, placeholders) and
+  typed (thermostat sign line 3, `/hvac thermostat <id> set`, the target of
+  `/hvac create thermostat`). `72F` or `22C` always works whatever the setting.
+  `config.yml` itself stays in °F. A config with `hud.units: C` starts with
+  `units: C`, and `hud.units` is no longer read.
+
+### Changed
+
+- **Builds near a biome border** see a slightly milder or harsher outdoor
+  climate after the update, because it now blends with the neighbouring
+  biome. Thermostats inside one biome are exactly as before.
+- Thermostats on a border save their mix of rain and snow
+  (`outdoorRainShare`, `outdoorSnowShare`); others save exactly as before.
+
 ## ALPHA 2.0
 
 The realism update: weather, humidity and "feels like", dehumidifiers and

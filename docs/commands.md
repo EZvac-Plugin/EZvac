@@ -53,7 +53,8 @@ block use the block you're looking at, within six blocks.
 | `/hvac create sensor [label]` | a button | Stone, polished blackstone, mangrove or birch |
 | `/hvac create sensor-hub [label]` | a sign | Also `sensorhub` |
 
-IDs and group names are 1-32 letters, numbers, `_` or `-`. Build guides:
+IDs and group names are 1-32 letters, numbers, `_` or `-`. A typed temperature
+is in the server's `units`; add `F` or `C` (`72F`, `22C`) to use the other one. Build guides:
 [Equipment](equipment.md), [Dehumidifiers and humidifiers](dehumidifiers-and-humidifiers.md),
 [Sensors](sensors.md).
 
@@ -86,7 +87,8 @@ A system is all air or all water, and the vents must match its equipment. See
 | `/hvac equipment enable` / `disable` / `group <group>` / `info` | The equipment you're looking at. Moving it stops it and cleans up its output first |
 | `/hvac group <group> enable` / `disable` / `info` | A whole system in your world |
 
-Thermostat signs can also be edited: put a number on line 3 to set the target.
+Thermostat signs can also be edited: put a temperature on line 3 to set the
+target, such as `22`, or `72F` in the other unit.
 Other EZvac signs can't be edited.
 
 ## Removing and diagnostics (`ezvac.admin`)

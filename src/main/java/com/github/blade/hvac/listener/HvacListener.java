@@ -29,12 +29,9 @@ import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.inventory.EquipmentSlot;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /** World-event integration and invalidation boundary. */
 public final class HvacListener implements Listener {
-    private static final Pattern NUMBER = Pattern.compile("[-+]?\\d+(?:\\.\\d+)?");
 
     private final HvacPlugin plugin;
     private final HvacRegistry registry;
@@ -77,13 +74,14 @@ public final class HvacListener implements Listener {
         }
         String line = event.line(2) == null ? ""
                 : PlainTextComponentSerializer.plainText().serialize(event.line(2));
-        Matcher matcher = NUMBER.matcher(line);
-        if (matcher.find()) {
+        // A plain number is in the server's units; 72F or 22C always means that unit.
+        java.util.OptionalDouble typed = plugin.settings().units().find(line);
+        if (typed.isPresent()) {
             try {
-                thermostat.setTargetF(Double.parseDouble(matcher.group()), plugin.settings());
+                thermostat.setTargetF(typed.getAsDouble(), plugin.settings());
                 registry.markDirty();
-                event.getPlayer().sendMessage(Component.text(String.format(
-                        java.util.Locale.US, "Target set to %.1f F.", thermostat.targetF()), NamedTextColor.GREEN));
+                event.getPlayer().sendMessage(Component.text("Target set to "
+                        + plugin.settings().units().format(thermostat.targetF()) + ".", NamedTextColor.GREEN));
                 plugin.requestImmediateSync();
             } catch (IllegalArgumentException exception) {
                 event.getPlayer().sendMessage(Component.text(
@@ -395,11 +393,13 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkLoad(ChunkLoadEvent event) {
         airflow.invalidateChunk(event.getChunk());
+        plugin.outdoor().forgetBlendAround(event.getWorld(), event.getChunk().getX(), event.getChunk().getZ());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onChunkUnload(ChunkUnloadEvent event) {
         airflow.invalidateChunk(event.getChunk());
+        plugin.outdoor().forgetBlendAround(event.getWorld(), event.getChunk().getX(), event.getChunk().getZ());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -413,6 +413,7 @@ public final class HvacListener implements Listener {
         airflow.invalidateWorld(event.getWorld());
         // A world loaded again starts from its weather then, not from where it was eased to before.
         plugin.weather().forget(event.getWorld());
+        plugin.outdoor().forgetBlend(event.getWorld());
         plugin.requestImmediateSync();
     }
 
