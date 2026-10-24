@@ -10,7 +10,7 @@ import java.util.List;
  * and every caller of it stay untouched.
  */
 public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
-                              Humidifier humidifier) {
+                              Humidifier humidifier, Variance variance) {
     /**
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
@@ -127,6 +127,31 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
     }
 
     /** The farthest either kind of standalone unit reaches, for spatial lookups. */
+    /**
+     * How far readings may stray from spot to spot (2.0 Pilot 5), in F either
+     * way. Readings only; thermostats and the simulation never see it.
+     *
+     * @param indoorF        air a system conditions
+     * @param outdoorF       air no system reaches
+     * @param poolF          water a pool system conditions
+     * @param naturalWaterF  lakes, rivers and the sea
+     * @param dewPointF      moisture; RH also follows the temperature's variance
+     * @param spacingBlocks  how far apart, in blocks, the variance changes its mind
+     * @param driftHours     in-game hours over which a spot's variance drifts to a new value
+     */
+    public record Variance(boolean enabled, double indoorF, double outdoorF, double poolF, double naturalWaterF,
+                           double dewPointF, double spacingBlocks, double driftHours) {
+        public Variance {
+            requireNonNegative("variance.indoor-f", indoorF);
+            requireNonNegative("variance.outdoor-f", outdoorF);
+            requireNonNegative("variance.pool-f", poolF);
+            requireNonNegative("variance.natural-water-f", naturalWaterF);
+            requireNonNegative("variance.dew-point-f", dewPointF);
+            requirePositive("variance.spacing-blocks", spacingBlocks);
+            requirePositive("variance.drift-hours", driftHours);
+        }
+    }
+
     public int unitRange() {
         return Math.max(dehumidifier.range(), humidifier.range());
     }
@@ -137,7 +162,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Humidity(30.0, 90.0, 97.0, 0.15, 45.0, 4.0, 30.0),
                 new Dehumidifier(30, 50_000, 3.0, 35.0, 1_500, 8.0, 30, 45,
                         List.of(35, 40, 45, 50, 55, 60), 2.0),
-                new Humidifier(30, 50_000, 3.0, 1_500, 40, List.of(30, 35, 40, 45, 50), 2.0));
+                new Humidifier(30, 50_000, 3.0, 1_500, 40, List.of(30, 35, 40, 45, 50), 2.0),
+                new Variance(true, 0.5, 1.5, 0.3, 0.8, 0.3, 6.0, 3.0));
     }
 
     public static ClimateSettings load(FileConfiguration config) {
@@ -148,6 +174,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         List<Integer> presets = config.isList("dehumidifier.presets")
                 ? config.getIntegerList("dehumidifier.presets") : d.presets();
         Humidifier m = defaults.humidifier;
+        Variance v = defaults.variance;
         return new ClimateSettings(
                 new Weather(config.getBoolean("weather.enabled", w.enabled()),
                         config.getDouble("weather.ease-hours", w.easeHours()),
@@ -182,7 +209,15 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getInt("humidifier.reference-cells", m.referenceCells()),
                         config.getInt("humidifier.default-setpoint", m.defaultSetpoint()),
                         config.isList("humidifier.presets") ? config.getIntegerList("humidifier.presets") : m.presets(),
-                        config.getDouble("humidifier.hysteresis", m.hysteresis())));
+                        config.getDouble("humidifier.hysteresis", m.hysteresis())),
+                new Variance(config.getBoolean("variance.enabled", v.enabled()),
+                        config.getDouble("variance.indoor-f", v.indoorF()),
+                        config.getDouble("variance.outdoor-f", v.outdoorF()),
+                        config.getDouble("variance.pool-f", v.poolF()),
+                        config.getDouble("variance.natural-water-f", v.naturalWaterF()),
+                        config.getDouble("variance.dew-point-f", v.dewPointF()),
+                        config.getDouble("variance.spacing-blocks", v.spacingBlocks()),
+                        config.getDouble("variance.drift-hours", v.driftHours())));
     }
 
     private static void requireFinite(String name, double value) {

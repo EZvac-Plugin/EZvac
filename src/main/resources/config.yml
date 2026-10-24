@@ -46,8 +46,35 @@ audio:
   enabled: true
   radius-blocks: 25.0
   hum-refresh-ticks: 60
-  hum-volume: 1.6
-  hum-pitch: 0.55
+  # How often running systems' air vents play their airflow sound. 80 ticks is
+  # how often a conduit plays the same sound.
+  vent-airflow-refresh-ticks: 80
+  # Every sound EZvac plays (2.0 Pilot 5). Each line is "sound volume pitch",
+  # a sound key such as block.beacon.ambient (resource pack sounds work too).
+  # Lines in one list play together; [] silences that event. Pick mono sounds:
+  # stereo ones, such as item.elytra.flying, sound the same at any distance.
+  # The game plays pitch 0.5 to 2.0 only. Sounds fade with distance as in
+  # vanilla and are only sent to players within radius-blocks.
+  sounds:
+    # Running heat pumps, air conditioners and boilers, every hum-refresh-ticks.
+    equipment-hum: ["block.beacon.ambient 1.6 0.55"]
+    furnace-start: ["block.wooden_button.click_on 0.5 1.8", "block.dispenser.fail 0.4 1.5", "item.firecharge.use 0.6 0.5"]
+    furnace-stop: ["block.furnace.fire_crackle 0.25 0.6"]
+    # Heat pumps, air conditioners and boilers.
+    equipment-start: ["block.wooden_button.click_on 0.5 1.8", "block.piston.extend 0.4 0.5", "block.beacon.activate 0.3 0.5"]
+    equipment-stop: ["block.wooden_button.click_off 0.5 1.5", "block.beacon.deactivate 0.3 0.5"]
+    # Dehumidifiers and humidifiers switching on and off.
+    unit-start: ["block.wooden_button.click_on 0.4 1.6"]
+    unit-stop: ["block.wooden_button.click_off 0.4 1.4"]
+    dehumidifier-start: ["block.beacon.activate 0.2 1.2"]
+    dehumidifier-hum: ["block.beacon.ambient 0.64 0.88"]
+    # A full tank starting to empty.
+    dehumidifier-emptying: ["block.bubble_column.upwards_ambient 0.8 0.8"]
+    # A running humidifier's slab, now and then.
+    humidifier-bubbles: ["block.bubble_column.upwards_ambient 0.35 1.0"]
+    # Air vents (iron trapdoors) of running systems near a player, one per
+    # cluster of vents. Water vents stay quiet.
+    vent-airflow: ["block.conduit.ambient 0.3 0.5"]
 
 # Weather changes the outdoor air (2.0). Rain and thunder cool the day and
 # narrow the day/night swing; snow cools a little. Vanilla weather switches in
@@ -86,6 +113,24 @@ humidity:
   # Water inside a room (a pool, a fountain) evaporates into its air; warmer
   # water evaporates faster.
   evaporation-f-per-minecraft-hour: 30.0
+
+# Small differences from spot to spot (2.0 Pilot 5), so a house isn't one
+# number from wall to wall. Readings only: thermometers, sensors, the HUD,
+# /hvac temperature and placeholders vary; thermostats, equipment and the
+# simulation keep the room's own value. Values are the most a spot strays,
+# in F either way. The variance changes gradually over spacing-blocks and
+# drifts to new values over drift-hours (in-game hours). Between a room and
+# the outdoors, or a pool and a lake, the spread blends with how far the
+# system reaches. Humidity follows: a warmer spot reads a little drier.
+variance:
+  enabled: true
+  indoor-f: 0.5
+  outdoor-f: 1.5
+  pool-f: 0.3
+  natural-water-f: 0.8
+  dew-point-f: 0.3
+  spacing-blocks: 6.0
+  drift-hours: 3.0
 
 # Standalone dehumidifiers (2.0): an iron block on a waxed copper grate with a
 # sign on the iron block, registered with /hvac create dehumidifier.

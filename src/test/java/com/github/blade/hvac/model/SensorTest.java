@@ -15,22 +15,28 @@ class SensorTest {
 
     @Test
     void theButtonSaysWhatASensorMeasures() {
-        assertEquals(Thermometer.Reads.TEMPERATURE, Sensor.forButton(Material.STONE_BUTTON));
-        assertEquals(Thermometer.Reads.HUMIDITY, Sensor.forButton(Material.POLISHED_BLACKSTONE_BUTTON));
-        assertEquals(Thermometer.Reads.BOTH, Sensor.forButton(Material.MANGROVE_BUTTON));
-        assertNull(Sensor.forButton(Material.OAK_BUTTON), "only the three sensor buttons");
+        assertEquals(Sensor.Kind.TEMPERATURE, Sensor.forButton(Material.STONE_BUTTON));
+        assertEquals(Sensor.Kind.HUMIDITY, Sensor.forButton(Material.POLISHED_BLACKSTONE_BUTTON));
+        assertEquals(Sensor.Kind.BOTH, Sensor.forButton(Material.MANGROVE_BUTTON));
+        assertEquals(Sensor.Kind.WEATHER, Sensor.forButton(Material.BIRCH_BUTTON));
+        assertNull(Sensor.forButton(Material.OAK_BUTTON), "only the four sensor buttons");
         assertNull(Sensor.forButton(Material.STONE));
         assertNull(Sensor.forButton(null));
-        for (Thermometer.Reads reads : Thermometer.Reads.values())
+        for (Sensor.Kind reads : Sensor.Kind.values())
             assertEquals(reads, Sensor.forButton(Sensor.button(reads)), "button and type map both ways");
     }
 
     @Test
     void aSensorRoundTripsThroughTheSaveFile() {
-        Sensor sensor = new Sensor(at(1, 2), "kitchen", Thermometer.Reads.BOTH);
+        Sensor sensor = new Sensor(at(1, 2), "kitchen", Sensor.Kind.BOTH);
         Map<String, Object> saved = sensor.toMap();
         assertEquals(sensor, Sensor.fromMap(saved));
         assertEquals("BOTH", saved.get("reads"));
+        Sensor weather = new Sensor(at(3, 4), "garden", Sensor.Kind.WEATHER);
+        assertEquals(weather, Sensor.fromMap(weather.toMap()));
+        Map<String, Object> pilot4 = sensor.toMap();
+        pilot4.remove("reads");
+        assertEquals(Sensor.Kind.TEMPERATURE, Sensor.fromMap(pilot4).reads(), "no kind saved means temperature");
     }
 
     @Test

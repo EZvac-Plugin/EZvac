@@ -8,8 +8,11 @@ import com.github.blade.hvac.simulation.ThermalModel;
 import net.kyori.adventure.text.Component;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.HeightMap;
 import org.bukkit.Location;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.bukkit.block.HangingSign;
 import org.bukkit.block.Sign;
 import org.bukkit.block.sign.Side;
 import org.bukkit.block.sign.SignSide;
@@ -85,34 +88,64 @@ public final class DisplayService {
      * page's sensors, one to a line. A sensor in an unloaded chunk shows --.
      */
     public void refreshSensorHub(SensorHub hub, boolean force) {
-        List<String> lines = new ArrayList<>();
+        List<SensorReading> readings = new ArrayList<>();
         for (BlockKey key : hub.sensorsOnPage()) {
             Sensor sensor = registry.sensorAt(key);
-            if (sensor != null) lines.add(sensorLine(sensor));
+            if (sensor != null) readings.add(read(sensor));
         }
         String pageText = " " + (hub.page() + 1) + "/" + hub.pages();
-        String header = SensorLine.fit(hub.label(), SensorLine.WIDTH - pageText.length()) + pageText;
-        String fingerprint = header + "|" + String.join("|", lines);
-        render(hub.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(header, NamedTextColor.AQUA));
+        String fingerprint = hub.label() + pageText + "|" + String.join("|",
+                readings.stream().map(reading -> reading.line(SignText.SIGN_WIDTH)).toList());
+        render(hub.position(), fingerprint, force, lines -> {
+            lines.set(0, SensorLine.fit(hub.label(), lines.width() - SignText.width(pageText)) + pageText,
+                    NamedTextColor.AQUA);
             if (hub.sensors().isEmpty()) {
-                side.line(1, Component.text("No sensors", NamedTextColor.GRAY));
-                side.line(2, Component.text("Link with", NamedTextColor.GRAY));
-                side.line(3, Component.text("the sensor-tool", NamedTextColor.GRAY));
+                lines.set(1, "No sensors", NamedTextColor.GRAY);
+                lines.set(2, "Link with", NamedTextColor.GRAY);
+                lines.set(3, "the sensor-tool", NamedTextColor.GRAY);
                 return;
             }
             for (int line = 0; line < SensorHub.PER_PAGE; line++)
-                side.line(line + 1, Component.text(line < lines.size() ? lines.get(line) : "", NamedTextColor.WHITE));
+                lines.set(line + 1, line < readings.size() ? readings.get(line).line(lines.width()) : "",
+                        NamedTextColor.WHITE);
         });
     }
 
-    /** One sensor's reading as a sign line; never loads the sensor's chunk. */
-    public String sensorLine(Sensor sensor) {
+    /** What a sensor read, before it is fitted to a sign. */
+    private record SensorReading(Sensor sensor, boolean loaded, double temperatureF, double humidity,
+                                 String weather) {
+        String line(int width) {
+            return SensorLine.format(sensor.label(), sensor.reads(), loaded, temperatureF, humidity, weather, width);
+        }
+    }
+
+    /** Reads a sensor; never loads its chunk. */
+    private SensorReading read(Sensor sensor) {
         BlockKey position = sensor.position();
         var location = position.isChunkLoaded() ? position.location() : null;
-        if (location == null) return SensorLine.format(sensor.label(), sensor.reads(), false, Double.NaN, Double.NaN);
+        if (location == null) return new SensorReading(sensor, false, Double.NaN, Double.NaN, "");
+        if (sensor.reads() == Sensor.Kind.WEATHER)
+            return new SensorReading(sensor, true, Double.NaN, Double.NaN, weatherAt(location));
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
-        return SensorLine.format(sensor.label(), sensor.reads(), true, reading.localF(), reading.humidity());
+        return new SensorReading(sensor, true, reading.localF(), reading.humidity(), "");
+    }
+
+    /** What a weather sensor shows when something above it keeps the rain off. */
+    public static final String COVERED = "Covered";
+
+    /**
+     * What a weather sensor at this spot reports. Like a rain gauge it needs
+     * open sky: anything above it that would keep rain off (a roof, glass,
+     * leaves) makes it {@link #COVERED}. Otherwise the outdoor weather, or
+     * Clear where weather never reaches, such as a desert.
+     */
+    public String weatherAt(Location location) {
+        World world = location.getWorld();
+        if (world == null) return COVERED;
+        int top = world.getHighestBlockYAt(location.getBlockX(), location.getBlockZ(), HeightMap.MOTION_BLOCKING);
+        if (top > location.getBlockY()) return COVERED;
+        String weather = outdoor.climateAt(location).weather();
+        return weather == null || weather.isEmpty() ? "Clear" : weather;
     }
 
     /** The chunks near each online player, per world. */
@@ -167,18 +200,18 @@ public final class DisplayService {
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s|%s",
                 thermostat.roomF(), thermostat.targetF(), mode, percent, footer,
                 thermostat.group().label(), thermostat.id());
-        render(thermostat.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(shorten("EZvac | " + thermostat.id()), NamedTextColor.AQUA));
+        render(thermostat.position(), fingerprint, force, lines -> {
+            lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
             NamedTextColor color = thermostat.mode() == OperatingMode.COOLING ? NamedTextColor.AQUA
                     : thermostat.mode() == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.GRAY;
-            side.line(1, Component.text(shorten(String.format(Locale.US, "%.1f F | %s",
-                    thermostat.roomF(), mode)), color));
+            lines.set(1, String.format(Locale.US, "%.1f F | %s",
+                    thermostat.roomF(), mode), color);
             String setpoint = String.format(Locale.US, "Set %.1f F", thermostat.targetF());
             if (thermostat.mode() != OperatingMode.IDLE) setpoint += " | " + percent + "%";
-            side.line(2, Component.text(shorten(setpoint), NamedTextColor.WHITE));
-            side.line(3, Component.text(shorten(footer + " | " + thermostat.group().label()),
+            lines.set(2, setpoint, NamedTextColor.WHITE);
+            lines.set(3, footer + " | " + thermostat.group().label(),
                     eta.isPresent() && thermostat.mode() != OperatingMode.IDLE
-                            ? NamedTextColor.GREEN : NamedTextColor.GRAY));
+                            ? NamedTextColor.GREEN : NamedTextColor.GRAY);
         });
     }
 
@@ -206,28 +239,28 @@ public final class DisplayService {
                 : percent(outdoor.climateAt(location).humidity());
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s", reading.localF(),
                 reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label());
-        render(thermometer.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(shorten(signTitle(thermometer)), NamedTextColor.AQUA));
+        render(thermometer.position(), fingerprint, force, lines -> {
+            lines.set(0, signTitle(thermometer), NamedTextColor.AQUA);
             switch (thermometer.reads()) {
                 case TEMPERATURE -> {
-                    side.line(1, Component.text("Thermometer", NamedTextColor.WHITE));
-                    side.line(2, Component.text(String.format(Locale.US, "Inside: %.1f F", reading.localF()),
-                            NamedTextColor.YELLOW));
-                    side.line(3, Component.text(String.format(Locale.US, "Outside: %.1f F", reading.outdoorF()),
-                            NamedTextColor.GRAY));
+                    lines.set(1, "Thermometer", NamedTextColor.WHITE);
+                    lines.set(2, String.format(Locale.US, "Inside: %.1f F", reading.localF()),
+                            NamedTextColor.YELLOW);
+                    lines.set(3, String.format(Locale.US, "Outside: %.1f F", reading.outdoorF()),
+                            NamedTextColor.GRAY);
                 }
                 case HUMIDITY -> {
-                    side.line(1, Component.text("Hygrometer", NamedTextColor.WHITE));
-                    side.line(2, Component.text("Inside: " + inside, NamedTextColor.AQUA));
-                    side.line(3, Component.text("Outside: " + outside, NamedTextColor.GRAY));
+                    lines.set(1, "Hygrometer", NamedTextColor.WHITE);
+                    lines.set(2, "Inside: " + inside, NamedTextColor.AQUA);
+                    lines.set(3, "Outside: " + outside, NamedTextColor.GRAY);
                 }
                 case BOTH -> {
-                    side.line(1, Component.text(String.format(Locale.US, "In %.1f F %s", reading.localF(), inside),
-                            NamedTextColor.YELLOW));
-                    side.line(2, Component.text(String.format(Locale.US, "Feels %.1f F", reading.feelsLikeF()),
-                            NamedTextColor.WHITE));
-                    side.line(3, Component.text(String.format(Locale.US, "Out %.1f F %s", reading.outdoorF(), outside),
-                            NamedTextColor.GRAY));
+                    lines.set(1, String.format(Locale.US, "In %.1f F %s", reading.localF(), inside),
+                            NamedTextColor.YELLOW);
+                    lines.set(2, String.format(Locale.US, "Feels %.1f F", reading.feelsLikeF()),
+                            NamedTextColor.WHITE);
+                    lines.set(3, String.format(Locale.US, "Out %.1f F %s", reading.outdoorF(), outside),
+                            NamedTextColor.GRAY);
                 }
             }
         });
@@ -257,19 +290,19 @@ public final class DisplayService {
         int percent = (int) Math.round(capacity * 100.0);
         String fingerprint = String.format(Locale.US, "%.0f|%d|%d|%d|%s", rpm, percent,
                 running.size(), matching.size(), monitor.label());
-        render(monitor.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(shorten(monitor.label()), NamedTextColor.AQUA));
-            side.line(1, Component.text(shorten(monitor.equipmentType().displayName()), NamedTextColor.WHITE));
+        render(monitor.position(), fingerprint, force, lines -> {
+            lines.set(0, monitor.label(), NamedTextColor.AQUA);
+            lines.set(1, monitor.equipmentType().displayName(), NamedTextColor.WHITE);
             if (matching.isEmpty()) {
-                side.line(2, Component.text("No equipment", NamedTextColor.RED));
-                side.line(3, Component.text(shorten(monitor.group().label()), NamedTextColor.GRAY));
+                lines.set(2, "No equipment", NamedTextColor.RED);
+                lines.set(3, monitor.group().label(), NamedTextColor.GRAY);
             } else {
-                side.line(2, Component.text(String.format(Locale.US, "RPM: %,.0f", rpm), NamedTextColor.YELLOW));
+                lines.set(2, String.format(Locale.US, "RPM: %,.0f", rpm), NamedTextColor.YELLOW);
                 String state = monitor.equipmentType() == EquipmentType.FURNACE
                         ? running.size() + "/" + matching.size() + " running"
                         : percent + "% | " + running.size() + "/" + matching.size();
-                side.line(3, Component.text(shorten(state), running.isEmpty()
-                        ? NamedTextColor.GRAY : NamedTextColor.GREEN));
+                lines.set(3, state, running.isEmpty()
+                        ? NamedTextColor.GRAY : NamedTextColor.GREEN);
             }
         });
     }
@@ -281,11 +314,11 @@ public final class DisplayService {
             case NORMAL -> NamedTextColor.AQUA;
             case TURBO -> NamedTextColor.GOLD;
         };
-        render(panel.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(shorten("EZvac | " + panel.label()), NamedTextColor.AQUA));
-            side.line(1, Component.text(shorten("System: " + panel.group().label()), NamedTextColor.WHITE));
-            side.line(2, Component.text("[ " + panel.profile().name() + " ]", profileColor));
-            side.line(3, Component.text("Click > | Sneak <", NamedTextColor.GRAY));
+        render(panel.position(), fingerprint, force, lines -> {
+            lines.set(0, lines.titled(panel.label()), NamedTextColor.AQUA);
+            lines.set(1, "System: " + panel.group().label(), NamedTextColor.WHITE);
+            lines.set(2, "[ " + panel.profile().name() + " ]", profileColor);
+            lines.set(3, "Click > | Sneak <", NamedTextColor.GRAY);
         });
     }
 
@@ -295,13 +328,15 @@ public final class DisplayService {
         String reading = (Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
                 + " > " + unit.setpoint() + "%";
         ClimateUnit.State state = unit.state();
-        String stateText = switch (state) {
+        // Running in air it can't dry: say so rather than look like it works.
+        boolean tooCold = state == ClimateUnit.State.RUNNING && unit instanceof Dehumidifier dry && dry.tooCold();
+        String stateText = tooCold ? "Air too cold" : switch (state) {
             case OFF -> "OFF";
             case IDLE -> "Idle";
             case RUNNING -> "Running";
             case EMPTYING -> "Emptying...";
         };
-        NamedTextColor stateColor = switch (state) {
+        NamedTextColor stateColor = tooCold ? NamedTextColor.GOLD : switch (state) {
             case OFF -> NamedTextColor.RED;
             case IDLE -> NamedTextColor.GRAY;
             case RUNNING -> NamedTextColor.GREEN;
@@ -309,31 +344,40 @@ public final class DisplayService {
         };
         String footer = unit instanceof Dehumidifier dehumidifier
                 ? "Tank " + Math.round(dehumidifier.tank() * 100) + "%" : unit.kind().displayName();
-        String fingerprint = unit.label() + "|" + reading + "|" + state + "|" + footer;
-        render(unit.position(), fingerprint, force, side -> {
-            side.line(0, Component.text(shorten("EZvac | " + unit.label()), NamedTextColor.AQUA));
-            side.line(1, Component.text(reading, NamedTextColor.WHITE));
-            side.line(2, Component.text(stateText, stateColor));
-            side.line(3, Component.text(footer, NamedTextColor.GRAY));
+        String fingerprint = unit.label() + "|" + reading + "|" + stateText + "|" + footer;
+        render(unit.position(), fingerprint, force, lines -> {
+            lines.set(0, lines.titled(unit.label()), NamedTextColor.AQUA);
+            lines.set(1, reading, NamedTextColor.WHITE);
+            lines.set(2, stateText, stateColor);
+            lines.set(3, footer, NamedTextColor.GRAY);
         });
     }
 
+    /** A sign's front, written line by line; every line is cut to what the sign can show. */
+    record Lines(SignSide side, int width) {
+        void set(int line, String text, NamedTextColor color) {
+            side.line(line, Component.text(SignText.fit(text, width), color));
+        }
+
+        /** {@code EZvac | label}, or the label alone when both don't fit. */
+        String titled(String label) {
+            return SignText.titled(label, width);
+        }
+    }
+
     private void render(BlockKey position, String fingerprint, boolean force,
-                        java.util.function.Consumer<SignSide> writer) {
+                        java.util.function.Consumer<Lines> writer) {
         if (!position.isChunkLoaded() || (!force && fingerprint.equals(fingerprints.get(position)))) return;
         var location = position.location();
         if (location == null || !(location.getBlock().getState() instanceof Sign sign)) return;
         try {
-            writer.accept(sign.getSide(Side.FRONT));
+            writer.accept(new Lines(sign.getSide(Side.FRONT),
+                    sign instanceof HangingSign ? SignText.HANGING_SIGN_WIDTH : SignText.SIGN_WIDTH));
             sign.update(false, false);
             fingerprints.put(position, fingerprint);
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.WARNING, "Could not refresh HVAC display at " + position, exception);
         }
-    }
-
-    private static String shorten(String value) {
-        return value.length() <= 24 ? value : value.substring(0, 24);
     }
 
     private static String formatEta(OptionalLong eta) {

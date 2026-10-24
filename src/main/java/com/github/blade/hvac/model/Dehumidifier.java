@@ -16,6 +16,9 @@ public final class Dehumidifier extends ClimateUnit {
     private double tank;
     /** Ticks of emptying left; above 0 only while a full tank drains. */
     private long emptyingTicks;
+    /** The air it works on is too dry for its coil; worked out each cycle, never saved. */
+    private boolean tooCold;
+    private static final double TOO_COLD_HYSTERESIS_F = 1.0;
 
     public Dehumidifier(BlockKey position, BlockKey unit, BlockKey grate, String label, int setpoint) {
         this(position, unit, grate, label, setpoint, true, false, 0.0, 0L, Double.NaN);
@@ -35,6 +38,20 @@ public final class Dehumidifier extends ClimateUnit {
     public double tank() { return tank; }
     public long emptyingTicks() { return emptyingTicks; }
     public boolean emptying() { return emptyingTicks > 0; }
+    public boolean tooCold() { return tooCold; }
+
+    /**
+     * Follows the dew point of the space it works on. At or below its coil's
+     * dry dew point there is nothing for the coil to condense, so it can run
+     * but can't dry; 1 F of hysteresis keeps its sign from flickering.
+     */
+    public void updateTooCold(double dewPointF, ClimateSettings.Dehumidifier settings) {
+        if (!Double.isFinite(dewPointF)) {
+            tooCold = false;
+            return;
+        }
+        tooCold = dewPointF <= settings.dryDewPointF() + (tooCold ? TOO_COLD_HYSTERESIS_F : 0.0);
+    }
 
     @Override
     public State state() {

@@ -31,6 +31,24 @@ class DehumidifierTest {
     }
 
     @Test
+    void itKnowsWhenTheAirIsTooColdToDry() {
+        Dehumidifier dehumidifier = unit();
+        double coil = settings.dryDewPointF();
+        dehumidifier.updateTooCold(coil + 0.5, settings);
+        assertFalse(dehumidifier.tooCold(), "just above the coil it still dries a little");
+        dehumidifier.updateTooCold(coil, settings);
+        assertTrue(dehumidifier.tooCold(), "at the coil's dew point there is nothing to condense");
+        dehumidifier.updateTooCold(coil + 0.8, settings);
+        assertTrue(dehumidifier.tooCold(), "1 F of hysteresis so the sign doesn't flicker");
+        dehumidifier.updateTooCold(coil + 1.2, settings);
+        assertFalse(dehumidifier.tooCold());
+        dehumidifier.updateTooCold(coil - 10, settings);
+        dehumidifier.updateTooCold(Double.NaN, settings);
+        assertFalse(dehumidifier.tooCold(), "no reading, no warning");
+        assertFalse(Dehumidifier.fromMap(unit().toMap()).tooCold(), "never saved");
+    }
+
+    @Test
     void aFullTankEmptiesAndThenItCarriesOn() {
         Dehumidifier dehumidifier = unit();
         dehumidifier.control(60, settings);

@@ -215,14 +215,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
             case "humidifier", "hum" -> createHumidifier(player, block, position, args);
             case "sensor" -> {
-                Thermometer.Reads reads = Sensor.forButton(block.getType());
+                Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
                     throw new IllegalArgumentException("Look at a stone button (temperature), a polished blackstone"
-                            + " button (humidity) or a mangrove button (both).");
+                            + " button (humidity), a mangrove button (both) or a birch button (weather).");
                 Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : "Sensor", reads);
                 registry.addSensor(sensor);
-                player.sendMessage(green("Created " + sensorKind(reads) + " sensor '" + sensor.label()
-                        + "'. Link it to a sensor hub with /hvac sensor-tool."));
+                player.sendMessage(green("Created " + reads.description() + " sensor '" + sensor.label()
+                        + "'. Link it to a sensor hub with /hvac sensor-tool."
+                        + (reads == Sensor.Kind.WEATHER ? " It needs open sky above it, like a rain gauge." : "")));
             }
             case "sensor-hub", "sensorhub" -> {
                 requireSign(block);
@@ -556,6 +557,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         var location = position.isChunkLoaded() ? position.location() : null;
         if (location == null)
             return join(gold(sensor.label()), gray(" | not loaded right now"));
+        if (sensor.reads() == Sensor.Kind.WEATHER) {
+            String weather = displays.weatherAt(location);
+            return join(gold(sensor.label()), gray(" | "), white(weather), gray(weather.equals(DisplayService.COVERED)
+                    ? " | it needs open sky above it" : " | outside"));
+        }
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
         String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
         String values = switch (sensor.reads()) {
@@ -563,17 +569,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case HUMIDITY -> humidity;
             case BOTH -> String.format(Locale.US, "%.1f F | %s | feels %.1f F", reading.localF(), humidity,
                     reading.feelsLikeF());
+            case WEATHER -> throw new AssertionError("handled above");
         };
         String where = reading.conditioned() ? "system '" + reading.group().label() + "'" : "no system";
         return join(gold(sensor.label()), gray(" | "), white(values), gray(" | " + where));
-    }
-
-    private static String sensorKind(Thermometer.Reads reads) {
-        return switch (reads) {
-            case TEMPERATURE -> "temperature";
-            case HUMIDITY -> "humidity";
-            case BOTH -> "temperature and humidity";
-        };
     }
 
     private void giveSensorTool(Player player) {
@@ -618,8 +617,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         Sensor sensor = registry.sensorAt(position);
         if (sensor == null) {
-            player.sendMessage(yellow("Click a sensor hub, then sensors: stone, polished blackstone or mangrove"
-                    + " buttons registered with /hvac create sensor."));
+            player.sendMessage(yellow("Click a sensor hub, then sensors: stone, polished blackstone, mangrove or"
+                    + " birch buttons registered with /hvac create sensor."));
             return;
         }
         String stored = item.getItemMeta().getPersistentDataContainer().get(sensorToolHubKey, PersistentDataType.STRING);
@@ -759,6 +758,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 unit instanceof Dehumidifier dehumidifier
                         ? join(gray(" | Tank: "), white(Math.round(dehumidifier.tank() * 100) + "%"))
                         : gray(" | Plumbed")));
+        if (unit instanceof Dehumidifier dehumidifier && dehumidifier.tooCold()) {
+            Thermostat thermostat = unit.servedGroup() == null ? null : registry.thermostatFor(unit.servedGroup());
+            double dewPointF = thermostat == null ? unit.zoneDewPointF() : thermostat.roomDewPointF();
+            player.sendMessage(gold(String.format(Locale.US,
+                    "Air too cold: its dew point (%.0f F) is at or below what the coil can remove (%.0f F), "
+                            + "so it can't dry this air.", dewPointF,
+                    units.climate().dehumidifier().dryDewPointF())));
+        }
     }
 
     private void showEquipment(Player player, EquipmentUnit unit) {
@@ -837,7 +844,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac thermostat <id> set|enable|disable|group"), gray(" - control a thermostat")));
         sender.sendMessage(join(aqua("/hvac equipment <enable|disable|group|info>"), gray(" - edit targeted equipment")));
         sender.sendMessage(join(aqua("/hvac group <group> <enable|disable|info>"), gray(" - control a system")));
-        sender.sendMessage(join(aqua("/hvac create sensor [label]"), gray(" - a stone, polished blackstone or mangrove button")));
+        sender.sendMessage(join(aqua("/hvac create sensor [label]"), gray(" - a stone, polished blackstone, mangrove or birch button")));
         sender.sendMessage(join(aqua("/hvac create sensor-hub [label]"), gray(" - a sign showing up to 9 sensors")));
         sender.sendMessage(join(aqua("/hvac duct-tool | sensor-tool"), gray(" - link vents, or link sensors to a hub")));
         sender.sendMessage(join(aqua("/hvac remove | stats | sync"), gray(" - remove, diagnose, reconcile")));

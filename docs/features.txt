@@ -149,6 +149,12 @@ HUMIDITY AND FEELS LIKE
 - The HUD's comfort word, bar and boss-bar colour follow feels like in air.
   Water is judged by its temperature alone.
 - The dew point never exceeds the air temperature; the excess condenses.
+- Microvariance (2.0 Pilot 5): point readings get a smooth, deterministic
+  offset from value noise over a 6-block lattice that drifts over 3 in-game
+  hours. At most 0.5 F in conditioned air, 1.5 F outdoors (blended by
+  influence), 0.3 F in pool water, 0.8 F in natural water, and 0.3 F of dew
+  point, so RH mostly follows the temperature. Thermostats, equipment, ETAs,
+  evaporation and every other part of the simulation use the unvaried values.
 
 
 DEHUMIDIFIERS
@@ -165,6 +171,14 @@ DEHUMIDIFIERS
   unit empties for 30 seconds, then carries on. The grate's water is never
   allowed to flow.
 - Click: next setpoint preset. Sneak-click: power. Both need ezvac.use.
+- When the dew point of the space it works on is at or below
+  dehumidifier.dry-dew-point-f (35 F), there is nothing for its coil to
+  condense: it keeps running, removes nothing, and its sign shows
+  "Air too cold" instead of "Running" (cleared 1 F above). /hvac info says why.
+- Standalone units (outside a system's room) whose zones share air are one
+  space: one dew point, stepped once per cycle with their combined strength;
+  the water dehumidifiers remove is shared equally between their tanks. Its
+  size and water are its largest zone's.
 - Humidifiers are the counterpart: an iron block with a waxed cut copper slab
   on top and a sign on the iron block. Same zone rules and controls; they add
   3 F of dew point per in-game hour in a space up to 1,500 cells, ease off as
@@ -172,7 +186,9 @@ DEHUMIDIFIERS
   tank). While running the slab is waterlogged and bubbles; its water never
   flows.
 - Remote sensors are buttons: stone (temperature), polished blackstone
-  (humidity), mangrove (both). A sensor hub sign shows up to nine of them,
+  (humidity), mangrove (both), birch (weather: Clear, Rain, Thunder or Snow;
+  it needs open sky, judged by the MOTION_BLOCKING height map like vanilla
+  rain, and shows Covered otherwise). A sensor hub sign shows up to nine of them,
   three per page; a click turns the page and auto-flip turns it every 5
   seconds. Sensors read exactly as a thermometer at the same spot, never send
   redstone, and can appear on several hubs. Hub signs follow the same
@@ -274,6 +290,10 @@ DISPLAYS AND AUDIO
   right-click advances the profile; sneak-right-click moves backward. Removing
   the panel immediately restores the group to NORMAL.
 - Display writes are fingerprinted so unchanged signs are not rewritten.
+- Sign lines are measured in pixels with the vanilla font's widths (90 px on
+  standing and wall signs, 60 px on hanging signs) and cut to fit, so the
+  game never wraps one. Headers drop "EZvac | " when the label needs the room,
+  and a reading that doesn't fit is left off whole rather than cut.
 - Breaking a registered device tells the player what was removed and which
   system it left, so a stray pickaxe cannot quietly unregister a thermostat.
   Thermometers are silent: they belong to no system, so there is nothing to
@@ -286,6 +306,10 @@ DISPLAYS AND AUDIO
 
 Startup and shutdown sounds remain equipment-specific. Running equipment emits
 finite, spatial beacon ambience from each dispenser on a configurable cadence.
+Every sound is a "sound volume pitch" line under audio.sounds (2.0 Pilot 5);
+[] silences an event. Running air systems' vents near a player play the
+conduit's ambient sound (one vent per 6-block cluster, every
+vent-airflow-refresh-ticks); pools and water vents stay silent.
 EZvac never performs broad sound/category stops, so it cannot silence an
 unrelated beacon, furnace, or another plugin's audio.
 

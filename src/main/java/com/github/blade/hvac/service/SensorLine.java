@@ -1,39 +1,47 @@
 package com.github.blade.hvac.service;
 
-import com.github.blade.hvac.model.Thermometer;
+import com.github.blade.hvac.model.Sensor;
 
 import java.util.Locale;
 
 /**
  * One sensor's reading as a single sign line: {@code Kitchen 72.4F},
- * {@code Cellar 58%}, {@code Kitchen 72F 45%}, or {@code Kitchen --} when
- * it can't be read. The reading always fits; a long label is cut short to
- * make room for it. Pure.
+ * {@code Cellar 58%}, {@code Kitchen 72F 45%}, {@code Garden Rain}, or
+ * {@code Kitchen --} when it can't be read. The reading always fits; a long label is cut short to
+ * make room for it, measured in pixels like every sign line. Pure.
  */
 public final class SensorLine {
-    /** Characters a sign line shows in full. */
-    public static final int WIDTH = 15;
-
     private SensorLine() {}
+
+    /** The line for a standing or wall sign. */
+    public static String format(String label, Sensor.Kind reads, boolean loaded,
+                                double temperatureF, double humidity, String weather) {
+        return format(label, reads, loaded, temperatureF, humidity, weather, SignText.SIGN_WIDTH);
+    }
 
     /**
      * @param loaded   false when the sensor's chunk is unloaded
      * @param humidity RH in percent; NaN where there is none (a sensor in water)
+     * @param weather  what a weather sensor reports ({@code Rain}, {@code Covered}); unused by the others
+     * @param width    the sign's line width in pixels
      */
-    public static String format(String label, Thermometer.Reads reads, boolean loaded,
-                                double temperatureF, double humidity) {
+    public static String format(String label, Sensor.Kind reads, boolean loaded,
+                                double temperatureF, double humidity, String weather, int width) {
         String value = !loaded ? "--" : switch (reads) {
             case TEMPERATURE -> String.format(Locale.US, "%.1fF", temperatureF);
             case HUMIDITY -> percent(humidity);
             case BOTH -> String.format(Locale.US, "%.0fF %s", temperatureF, percent(humidity));
+            case WEATHER -> weather;
         };
-        return fit(label, WIDTH - 1 - value.length()) + " " + value;
+        String fitted = fit(label, width - SignText.width(" " + value));
+        // Only a hanging sign showing an extreme reading has no room left for even one letter.
+        return SignText.width(fitted + " " + value) <= width ? fitted + " " + value : value;
     }
 
-    /** A label cut to fit, never empty. */
+    /** A label cut to fit the given pixels, never empty. */
     public static String fit(String label, int width) {
-        int room = Math.max(1, width);
-        return label.length() <= room ? label : label.substring(0, room);
+        String fitted = SignText.fit(label, width);
+        return fitted.isEmpty() && !label.isEmpty() ? label.substring(0, 1) : fitted;
     }
 
     private static String percent(double humidity) {

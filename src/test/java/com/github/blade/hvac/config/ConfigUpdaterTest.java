@@ -36,7 +36,7 @@ class ConfigUpdaterTest {
 
         assertTrue(added.contains("temperature.pool-minimum-target-f"), "a missing setting in an existing section");
         assertTrue(added.contains("dehumidifier.range"));
-        assertEquals(List.of("temperature", "weather", "humidity", "dehumidifier", "hud"),
+        assertEquals(List.of("temperature", "audio", "weather", "humidity", "variance", "dehumidifier", "hud"),
                 ConfigUpdater.topLevel(added).stream().filter(s -> !s.equals("humidifier")).toList());
         for (Map.Entry<String, Object> entry : before.entrySet())
             if (!old.isConfigurationSection(entry.getKey()))
@@ -45,6 +45,7 @@ class ConfigUpdaterTest {
         for (String path : bundled.getKeys(true)) assertTrue(old.contains(path, true), path);
         assertEquals(ClimateSettings.defaults(), ClimateSettings.load(old));
         assertEquals(HudSettings.defaults(), HudSettings.load(old));
+        assertEquals(SoundSettings.defaults(), SoundSettings.load(old, warning -> fail(warning)));
 
         String written = old.saveToString();
         assertTrue(written.contains("# Weather changes the outdoor air"), "new sections bring their comments");
@@ -75,6 +76,33 @@ class ConfigUpdaterTest {
         List<String> added = ConfigUpdater.addMissing(odd, resource("/config.yml"));
         assertFalse(odd.getBoolean("weather", true));
         assertTrue(added.stream().noneMatch(path -> path.startsWith("weather.")));
+    }
+
+    @Test
+    void aTunedHumCarriesOverToTheNewSoundSettings() throws Exception {
+        YamlConfiguration tuned = parse("""
+                audio:
+                  enabled: true
+                  hum-volume: 0.8
+                  hum-pitch: 0.7
+                """);
+        List<String> added = ConfigUpdater.addMissing(tuned, resource("/config.yml"));
+        SoundSettings.carryOverHum(tuned, added);
+        assertEquals(List.of("block.beacon.ambient 0.8 0.7"), tuned.getStringList("audio.sounds.equipment-hum"));
+        assertEquals(List.of("block.beacon.ambient 0.32 1.12"), tuned.getStringList("audio.sounds.dehumidifier-hum"));
+        assertEquals(0.8, tuned.getDouble("audio.hum-volume"), "the old setting stays, it is just no longer read");
+        assertTrue(tuned.saveToString().contains("No longer read"));
+        assertEquals(List.of("block.conduit.ambient 0.3 0.5"), tuned.getStringList("audio.sounds.vent-airflow"));
+
+        YamlConfiguration custom = parse("""
+                audio:
+                  hum-volume: 0.8
+                  sounds:
+                    equipment-hum: ["minecraft:block.portal.ambient 0.5 0.6"]
+                """);
+        SoundSettings.carryOverHum(custom, ConfigUpdater.addMissing(custom, resource("/config.yml")));
+        assertEquals(List.of("minecraft:block.portal.ambient 0.5 0.6"), custom.getStringList("audio.sounds.equipment-hum"),
+                "a hum the admin already chose is kept");
     }
 
     @Test

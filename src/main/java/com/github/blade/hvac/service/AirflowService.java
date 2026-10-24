@@ -6,7 +6,10 @@ import it.unimi.dsi.fastutil.longs.Long2ByteMap;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import com.github.blade.hvac.config.ClimateSettings;
+import com.github.blade.hvac.simulation.Microvariance;
 import com.github.blade.hvac.simulation.Psychrometrics;
+import com.github.blade.hvac.simulation.ThermalModel;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.Location;
@@ -556,14 +559,26 @@ public final class AirflowService {
      * Completes a reading with humidity and feels-like. Moisture blends from
      * the outdoors toward the system's air by the same influence temperature
      * does; the RH then follows from the blended temperature. Wind only
-     * reaches the parts of a spot the system does not condition.
+     * reaches the parts of a spot the system does not condition. The spot's
+     * own small variance is added last, to the reading only.
      */
     private TemperatureReading reading(Location location, double localF, OutdoorTemperatureService.Outdoor out,
                                        double influence, int distance, GroupId group, Thermostat thermostat,
                                        boolean water) {
-        if (water)
+        ClimateSettings.Variance variance = outdoor.climate().variance();
+        boolean varies = location != null && location.getWorld() != null && variance.enabled();
+        double hours = varies ? location.getWorld().getGameTime() / ThermalModel.MINECRAFT_TICKS_PER_HOUR : 0.0;
+        long seed = varies ? location.getWorld().getUID().getMostSignificantBits()
+                ^ location.getWorld().getUID().getLeastSignificantBits() : 0L;
+        if (water) {
+            if (varies) {
+                double poolInfluence = thermostat != null && thermostat.pool() ? influence : 0.0;
+                localF += Microvariance.offsetF(variance, Microvariance.waterSpreadF(variance, poolInfluence), seed,
+                        Microvariance.TEMPERATURE, location.getBlockX(), location.getBlockY(), location.getBlockZ(), hours);
+            }
             return new TemperatureReading(localF, out.airF(), influence, distance, group, thermostat,
                     true, Double.NaN, localF, out.weather());
+        }
         double dew = out.dewPointF();
         if (thermostat != null && !thermostat.pool() && thermostat.hasRoomDewPoint() && influence > 0.0) {
             dew += (thermostat.roomDewPointF() - dew) * influence;
@@ -574,6 +589,14 @@ public final class AirflowService {
             if (zone != null && zone.unit().servedGroup() == null
                     && Double.isFinite(zone.unit().zoneDewPointF()))
                 dew += (zone.unit().zoneDewPointF() - dew) * zone.influence();
+        }
+        if (varies) {
+            double airInfluence = thermostat != null && !thermostat.pool() ? influence : 0.0;
+            int x = location.getBlockX(), y = location.getBlockY(), z = location.getBlockZ();
+            localF += Microvariance.offsetF(variance, Microvariance.airSpreadF(variance, airInfluence), seed,
+                    Microvariance.TEMPERATURE, x, y, z, hours);
+            dew = Math.min(localF, dew + Microvariance.offsetF(variance, variance.dewPointF(), seed,
+                    Microvariance.DEW_POINT, x, y, z, hours));
         }
         double humidity = Psychrometrics.relativeHumidity(localF, dew);
         double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, out.windMs() * (1.0 - influence));
@@ -647,6 +670,43 @@ public final class AirflowService {
         double core = range / 2.0;
         double influence = bestDistance <= core ? 1.0 : Math.max(0.0, (range - bestDistance) / (range - core));
         return new ZoneReading(best, bestDistance, influence);
+    }
+
+    /**
+     * The other units this unit shares air with: its zone reaches the air
+     * beside their iron block, or theirs reaches the air beside its own.
+     * From completed maps only.
+     */
+    public List<ClimateUnit> unitsSharingAir(ClimateUnit unit) {
+        BlockKey block = unit.unit();
+        Long2ObjectOpenHashMap<List<ClimateUnit>> cells = registry.climateUnitCells(block.worldId());
+        if (cells == null) return List.of();
+        Long2ByteMap own = completed.get(ZoneId.of(unit));
+        int shift = registry.ventCellShift();
+        int reach = zoneRange() + 2;
+        List<ClimateUnit> sharing = new ArrayList<>();
+        for (int cellX = (block.x() - reach) >> shift; cellX <= (block.x() + reach) >> shift; cellX++) {
+            for (int cellZ = (block.z() - reach) >> shift; cellZ <= (block.z() + reach) >> shift; cellZ++) {
+                List<ClimateUnit> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
+                if (bucket == null) continue;
+                for (ClimateUnit other : bucket) {
+                    if (other == unit) continue;
+                    if (reachesBeside(own, other.unit()) || reachesBeside(completed.get(ZoneId.of(other)), block))
+                        sharing.add(other);
+                }
+            }
+        }
+        return sharing;
+    }
+
+    private static boolean reachesBeside(Long2ByteMap map, BlockKey block) {
+        if (map == null) return false;
+        return map.containsKey(pack(block.x() + 1, block.y(), block.z()))
+                || map.containsKey(pack(block.x() - 1, block.y(), block.z()))
+                || map.containsKey(pack(block.x(), block.y() + 1, block.z()))
+                || map.containsKey(pack(block.x(), block.y() - 1, block.z()))
+                || map.containsKey(pack(block.x(), block.y(), block.z() + 1))
+                || map.containsKey(pack(block.x(), block.y(), block.z() - 1));
     }
 
     /** Unpacks a position packed by the airflow maps, for callers outside this class. */

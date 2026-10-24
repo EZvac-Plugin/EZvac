@@ -255,7 +255,7 @@ public final class HvacListener implements Listener {
         if (event.getPlayer().hasPermission("ezvac.use")) event.getPlayer().sendMessage(command.describeSensor(sensor));
     }
 
-    /** An arrow can still press a wooden (mangrove) sensor; it powers nothing. */
+    /** An arrow can still press a wooden (mangrove or birch) sensor; it powers nothing. */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onSensorPowered(BlockRedstoneEvent event) {
         if (registry.sensors().isEmpty() || event.getNewCurrent() <= 0) return;
