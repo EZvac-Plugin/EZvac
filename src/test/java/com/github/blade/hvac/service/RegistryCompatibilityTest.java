@@ -46,24 +46,26 @@ class RegistryCompatibilityTest {
      * whether it also has a humidifier (from 2.0 Pilot 3 on), and whether it
      * has one sensor of each kind linked to a sensor hub (from 2.0 Pilot 4 on), whether that hub
      * also shows a birch weather sensor (from 2.0 Pilot 5 on), and whether it has a lone thermostat on
-     * a plains/desert border, which saves its share of rain (from 2.1 Pilot 1 on).
+     * a plains/desert border, which saves its share of rain (from 2.1 Pilot 1 on), and whether every
+     * thermostat has saved its seasonal swing (from 2.1 Pilot 2 on).
      */
     static Stream<Arguments> releases() {
         return Stream.of(
-                Arguments.of("ALPHA-1.0", false, false, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.1-HOTFIX", false, false, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.5", false, false, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.6-P1", true, false, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.6", true, true, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.6-HOTFIX1", true, true, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.7", true, true, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.8", true, true, false, false, false, false, false, false),
-                Arguments.of("ALPHA-1.9", true, true, true, false, false, false, false, false),
-                Arguments.of("ALPHA-2.0-P1", true, true, true, true, false, false, false, false),
-                Arguments.of("ALPHA-2.0-P3", true, true, true, true, true, false, false, false),
-                Arguments.of("ALPHA-2.0-P4", true, true, true, true, true, true, false, false),
-                Arguments.of("ALPHA-2.0-P5", true, true, true, true, true, true, true, false),
-                Arguments.of("ALPHA-2.1-P1", true, true, true, true, true, true, true, true));
+                Arguments.of("ALPHA-1.0", false, false, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.1-HOTFIX", false, false, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.5", false, false, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.6-P1", true, false, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.6", true, true, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.6-HOTFIX1", true, true, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.7", true, true, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.8", true, true, false, false, false, false, false, false, false),
+                Arguments.of("ALPHA-1.9", true, true, true, false, false, false, false, false, false),
+                Arguments.of("ALPHA-2.0-P1", true, true, true, true, false, false, false, false, false),
+                Arguments.of("ALPHA-2.0-P3", true, true, true, true, true, false, false, false, false),
+                Arguments.of("ALPHA-2.0-P4", true, true, true, true, true, true, false, false, false),
+                Arguments.of("ALPHA-2.0-P5", true, true, true, true, true, true, true, false, false),
+                Arguments.of("ALPHA-2.1-P1", true, true, true, true, true, true, true, true, false),
+                Arguments.of("ALPHA-2.1-P2", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -72,12 +74,13 @@ class RegistryCompatibilityTest {
     @MethodSource("releases")
     void cleanShutdownFileLoadsEveryDevice(String release, boolean water, boolean pool, boolean poolHeatPump,
                                            boolean climate, boolean humidifier, boolean sensors,
-                                           boolean weatherSensor, boolean border)
+                                           boolean weatherSensor, boolean border, boolean seasonal)
             throws IOException {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac.yml");
 
         assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor, border);
+        assertSeasons(registry, seasonal);
         // A clean shutdown stops every unit and retracts its output first.
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::running).count());
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::hasOwnedOutput).count());
@@ -90,12 +93,13 @@ class RegistryCompatibilityTest {
     void crashSnapshotKeepsRunningUnitsAndTheirOutputs(String release, boolean water, boolean pool,
                                                        boolean poolHeatPump, boolean climate,
                                                        boolean humidifier, boolean sensors,
-                                                       boolean weatherSensor, boolean border)
+                                                       boolean weatherSensor, boolean border, boolean seasonal)
             throws IOException {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac-running.yml");
 
         assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor, border);
+        assertSeasons(registry, seasonal);
         // Heat pump and AC cool their 60 F rooms; the boiler (and the pool heat
         // pump, where there is one) heats the pool. The furnace shares the
         // cooling house system, so it stays idle.
@@ -141,6 +145,16 @@ class RegistryCompatibilityTest {
         assertEquals("outdoor_probe", thermometer.label(), "legacy group becomes the label");
         assertTrue(host.warnings().isEmpty(), () -> "unexpected warnings: " + host.warnings());
         assertSavesAsGolden(registry, "legacy", "expected-save.yml");
+    }
+
+    /** From 2.1 Pilot 2 every thermostat saves its seasons: plains has 18 F, the border a blend with the desert. */
+    private static void assertSeasons(HvacRegistry registry, boolean seasonal) {
+        for (Thermostat thermostat : registry.thermostats())
+            assertEquals(seasonal, thermostat.toMap().containsKey("outdoorSeasonalF"), thermostat.id());
+        if (!seasonal) return;
+        assertEquals(18.0, Objects.requireNonNull(registry.thermostatById("main")).outdoorClimate().seasonalF());
+        double edge = Objects.requireNonNull(registry.thermostatById("edge")).outdoorClimate().seasonalF();
+        assertTrue(edge > 14.0 && edge < 18.0, () -> "between desert and plains, was " + edge);
     }
 
     private static void assertCoreDevices(HvacRegistry registry, boolean water, boolean pool,
