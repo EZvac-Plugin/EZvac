@@ -4,12 +4,17 @@ import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.simulation.BiomeBlend;
+import com.github.blade.hvac.simulation.BiomeClimate;
 import com.github.blade.hvac.simulation.HumidityModel;
 import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.Psychrometrics;
+import com.github.blade.hvac.simulation.Seasons;
 import com.github.blade.hvac.simulation.ThermalModel;
 import com.github.blade.hvac.simulation.WeatherModel;
+import org.bukkit.Bukkit;
+import org.bukkit.HeightMap;
 import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
 import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
@@ -21,31 +26,20 @@ import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
- * Biome profile sampling that never force-loads chunks. From 2.1 the climate
+ * The outdoors at any spot, never force-loading chunks. From 2.1 the climate
  * at a spot is blended from the biomes around it (see {@link BiomeBlend}), so
- * walking from one biome into another ramps instead of jumping.
+ * walking from one biome into another ramps instead of jumping; from 2.1
+ * Pilot 2 each biome has its own climate ({@link BiomeClimate}), it gets
+ * colder with height, the ground holds deep spots steady, and the seasons move
+ * it all up and down through the year.
  */
 public final class OutdoorTemperatureService {
-    private enum Profile {
-        SNOWY(25, 5, Precipitation.SNOW), COLD(45, 28, Precipitation.RAIN),
-        TEMPERATE(72, 52, Precipitation.RAIN), WARM(85, 68, Precipitation.RAIN),
-        HOT(100, 78, Precipitation.NONE), NETHER(112, 112, Precipitation.NONE), END(30, 30, Precipitation.NONE);
-        final double noon;
-        final double midnight;
-        final Precipitation precipitation;
-        Profile(double noon, double midnight, Precipitation precipitation) {
-            this.noon = noon;
-            this.midnight = midnight;
-            this.precipitation = precipitation;
-        }
-    }
-
     /**
      * The outdoors at one spot, weather included.
      *
@@ -63,13 +57,14 @@ public final class OutdoorTemperatureService {
     private final ClimateSettings climate;
     /** Null outside a running server (tests): every world then reads as clear. */
     private final WeatherService weather;
+    /** Null outside a running server (tests): there are then no seasons. */
+    private final SeasonService seasons;
 
     /**
-     * Classification is pure string matching over a biome's name, and it ran
-     * per thermostat per cycle and per thermometer per refresh. Biome is an
-     * enum, so each one only ever needs classifying once.
+     * A biome's climate only ever needs looking up once. Data-pack biomes all
+     * share CUSTOM, so they are not cached.
      */
-    private final Map<Biome, Profile> profileCache = new EnumMap<>(Biome.class);
+    private final Map<Biome, BiomeClimate.Climate> climateCache = new EnumMap<>(Biome.class);
     private final Map<Biome, Double> downfallCache = new EnumMap<>(Biome.class);
     /**
      * Blended climate per 4x4 column of biome cells, per world, then per
@@ -81,24 +76,59 @@ public final class OutdoorTemperatureService {
     private int blendedCells;
     /** The cache is dropped past this many cells, and simply refills. */
     private static final int MAXIMUM_BLENDED_CELLS = 400_000;
+    /** Vanilla starts cooling biomes with height this far above sea level, which is where rain can turn to snow. */
+    private static final int VANILLA_COOLING_ABOVE_SEA_LEVEL = 17;
 
     public OutdoorTemperatureService() {
-        this(ClimateSettings.defaults(), null);
+        this(ClimateSettings.defaults(), null, null);
     }
 
     public OutdoorTemperatureService(ClimateSettings climate, WeatherService weather) {
+        this(climate, weather, null);
+    }
+
+    public OutdoorTemperatureService(ClimateSettings climate, WeatherService weather, SeasonService seasons) {
         this.climate = Objects.requireNonNull(climate, "climate");
         this.weather = weather;
+        this.seasons = seasons;
     }
 
     public ClimateSettings climate() { return climate; }
 
-    private Profile cachedProfile(Biome biome) {
-        Profile cached = profileCache.get(biome);
+    /** The biome's climate: the server's own from config.yml, else the built-in one, else an estimate. */
+    private BiomeClimate.Climate climateOf(Block block, Biome biome) {
+        if (biome == Biome.CUSTOM) {
+            BiomeClimate.Climate own = customKey(block)
+                    .map(key -> climate.biomes().climate(key.toString())).orElse(null);
+            return own != null ? own : BiomeClimate.estimate(block.getTemperature(), block.getHumidity());
+        }
+        BiomeClimate.Climate cached = climateCache.get(biome);
         if (cached != null) return cached;
-        Profile computed = profile(biome);
-        profileCache.put(biome, computed);
-        return computed;
+        BiomeClimate.Climate found = climate.biomes().climate(biome.getKey().toString());
+        if (found == null) found = BiomeClimate.estimate(block.getTemperature(), block.getHumidity());
+        climateCache.put(biome, found);
+        return found;
+    }
+
+    /** A data-pack biome's id, where Paper can tell it. */
+    private static Optional<NamespacedKey> customKey(Block block) {
+        try {
+            return Optional.ofNullable(Bukkit.getUnsafe().getBiomeKey(block.getWorld(),
+                    block.getX(), block.getY(), block.getZ()));
+        } catch (RuntimeException | LinkageError unavailable) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Rain or snow at a block, as Minecraft makes it: a rainy biome snows
+     * where vanilla cools it enough with height, high on a mountain.
+     */
+    private Precipitation precipitationAt(Block block, BiomeClimate.Climate biome) {
+        if (biome.precipitation() != Precipitation.RAIN) return biome.precipitation();
+        if (block.getY() <= block.getWorld().getSeaLevel() + VANILLA_COOLING_ABOVE_SEA_LEVEL)
+            return Precipitation.RAIN;
+        return block.getTemperature() < BiomeClimate.SNOW_BELOW ? Precipitation.SNOW : Precipitation.RAIN;
     }
 
     /** Vanilla's downfall, the biome value behind rain and grass colour. Data-pack biomes all share CUSTOM, so they are not cached. */
@@ -124,11 +154,20 @@ public final class OutdoorTemperatureService {
     }
 
     /**
-     * The outdoor climate at a block, blended from the biomes around it.
-     * Readings between sample cells are interpolated, so there are no 4-block
-     * steps either. Never loads a chunk.
+     * The outdoor climate at a block: blended from the biomes around it,
+     * colder with height, and held steady deep underground. Readings between
+     * sample cells are interpolated, so there are no 4-block steps either.
+     * Never loads a chunk. The seasons are not in it: they change through the
+     * year, so they are added when a temperature is read.
      */
     public BiomeBlend.Blended blendedAt(World world, int x, int y, int z) {
+        BiomeBlend.Blended local = surroundingsAt(world, x, y, z);
+        ClimateSettings.Altitude altitude = climate.altitude();
+        local = local.warmer(-BiomeClimate.lapseF(y, altitude.fromY(), altitude.lapseFPerBlock()));
+        return BiomeClimate.underground(local, groundFactor(world, x, y, z));
+    }
+
+    private BiomeBlend.Blended surroundingsAt(World world, int x, int y, int z) {
         int radius = climate.biomeBlend().radiusBlocks();
         if (radius <= 0) return exactAt(world, x, y, z);
         double u = (x - 1.5) / BiomeBlend.SAMPLE_SPACING;
@@ -142,12 +181,28 @@ public final class OutdoorTemperatureService {
         return BiomeBlend.lerp(near, far, tz);
     }
 
+    /**
+     * How much a spot takes on the ground's steady temperature: by how far it
+     * is below the surface, or below sea level where the surface is higher.
+     * Measuring from sea level keeps a tall house or a hill from counting as
+     * underground. Only where the sun shines, and only in loaded chunks.
+     */
+    private double groundFactor(World world, int x, int y, int z) {
+        ClimateSettings.Underground underground = climate.underground();
+        if (!underground.enabled() || world.getEnvironment() != World.Environment.NORMAL) return 0.0;
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) return 0.0;
+        int surface = world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+        double depth = Math.min(world.getSeaLevel(), surface) - y;
+        return BiomeClimate.groundFactor(depth, underground.startDepth(), underground.fullDepth());
+    }
+
     /** The biome at exactly this block, as before 2.1 (and with blending off). */
     private BiomeBlend.Blended exactAt(World world, int x, int y, int z) {
         Block block = world.getBlockAt(x, y, z);
         Biome biome = block.getBiome();
-        Profile profile = cachedProfile(biome);
-        return BiomeBlend.Blended.of(profile.noon, profile.midnight, downfall(block, biome), profile.precipitation);
+        BiomeClimate.Climate own = climateOf(block, biome);
+        return BiomeBlend.Blended.of(own.noonF(), own.midnightF(), downfall(block, biome),
+                precipitationAt(block, own), own.seasonalF());
     }
 
     private BiomeBlend.Blended cell(World world, int cellX, int cellY, int cellZ, int radius) {
@@ -187,9 +242,9 @@ public final class OutdoorTemperatureService {
                 if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
                 Block block = world.getBlockAt(x, y, z);
                 Biome biome = block.getBiome();
-                Profile profile = cachedProfile(biome);
-                samples.add(new BiomeBlend.Sample(profile.noon, profile.midnight, downfall(block, biome),
-                        profile.precipitation, BiomeBlend.weight(distance, radius)));
+                BiomeClimate.Climate own = climateOf(block, biome);
+                samples.add(new BiomeBlend.Sample(own.noonF(), own.midnightF(), downfall(block, biome),
+                        precipitationAt(block, own), BiomeBlend.weight(distance, radius), own.seasonalF()));
             }
         }
         BiomeBlend.Blended result = BiomeBlend.blend(samples);
@@ -232,10 +287,36 @@ public final class OutdoorTemperatureService {
     public String skyAt(Location location) {
         if (location == null || location.getWorld() == null) return "Clear";
         World world = location.getWorld();
-        Precipitation precipitation = cachedProfile(location.getBlock().getBiome()).precipitation;
+        Block block = location.getBlock();
+        Precipitation precipitation = precipitationAt(block, climateOf(block, block.getBiome()));
         String word = WeatherModel.word(precipitation,
                 WeatherModel.Conditions.settled(world.hasStorm(), world.isThundering()));
         return word.isEmpty() ? "Clear" : word;
+    }
+
+    /**
+     * How far the seasons move this climate right now: up to its seasonal
+     * swing, warmer in summer and colder in winter. Natural water lags the air
+     * and moves less.
+     */
+    private double seasonShiftF(World world, double seasonalF, boolean water) {
+        if (seasons == null || world == null || !(seasonalF > 0.0)) return 0.0;
+        double strength = climate.seasons().effectiveStrength();
+        if (strength <= 0.0) return 0.0;
+        UUID id = world.getUID();
+        double factor = water ? seasons.waterFactor(id) * Seasons.WATER_SHARE : seasons.airFactor(id);
+        return seasonalF * strength * factor;
+    }
+
+    /** The climate as it is at this point of the year. */
+    private BiomeBlend.Blended inSeason(World world, BiomeBlend.Blended local) {
+        return local.warmer(seasonShiftF(world, local.seasonalF(), false));
+    }
+
+    /** How far the seasons move this spot's outdoor air right now, for /hvac season. */
+    public double seasonShiftAt(Location location) {
+        if (location == null || location.getWorld() == null) return 0.0;
+        return seasonShiftF(location.getWorld(), blendedAt(location).seasonalF(), false);
     }
 
     /** Refreshes a thermostat's cached biome profile when its chunk is loaded; never loads it. */
@@ -263,8 +344,7 @@ public final class OutdoorTemperatureService {
         World world = thermostat.position().world();
         if (world == null) return thermostat.lastOutdoorF();
         if (resample) sample(thermostat);
-        WeatherModel.Effect effect = effect(world, thermostat.outdoorClimate());
-        double value = air(world, effect, thermostat.outdoorNoonF(), thermostat.outdoorMidnightF());
+        double value = air(world, thermostat.outdoorClimate());
         thermostat.setLastOutdoorF(value);
         return value;
     }
@@ -306,22 +386,22 @@ public final class OutdoorTemperatureService {
     public double naturalWaterFor(Thermostat thermostat) {
         temperatureFor(thermostat);
         World world = thermostat.position().world();
+        BiomeBlend.Blended local = thermostat.outdoorClimate();
         WeatherModel.Effect effect = world == null ? WeatherModel.Effect.calm(climate.weather())
-                : effect(world, thermostat.outdoorClimate());
-        return water(effect, thermostat.outdoorNoonF(), thermostat.outdoorMidnightF());
+                : effect(world, local);
+        return water(world, effect, local);
     }
 
     /** Natural water temperature at a location: steady, with no day/night swing. */
     public double naturalWaterAt(Location location) {
         if (location == null || location.getWorld() == null) return 60.0;
         BiomeBlend.Blended local = blendedAt(location);
-        return water(effect(location.getWorld(), local), local.noonF(), local.midnightF());
+        return water(location.getWorld(), effect(location.getWorld(), local), local);
     }
 
     public double temperatureAt(Location location) {
         if (location == null || location.getWorld() == null) return 70.0;
-        BiomeBlend.Blended local = blendedAt(location);
-        return air(location.getWorld(), effect(location.getWorld(), local), local.noonF(), local.midnightF());
+        return air(location.getWorld(), blendedAt(location));
     }
 
     private BiomeBlend.Blended blendedAt(Location location) {
@@ -335,43 +415,33 @@ public final class OutdoorTemperatureService {
         }
         World world = location.getWorld();
         BiomeBlend.Blended local = blendedAt(location);
-        double air = air(world, effect(world, local), local.noonF(), local.midnightF());
-        return outdoor(world, local, air);
+        return outdoor(world, local, air(world, local));
     }
 
     private Outdoor outdoor(World world, BiomeBlend.Blended local, double airF) {
         WeatherModel.Effect effect = effect(world, local);
-        double dew = HumidityModel.outdoorDewPointF(local.noonF(), local.midnightF(), local.downfall(), effect, airF,
+        BiomeBlend.Blended now = inSeason(world, local);
+        double dew = HumidityModel.outdoorDewPointF(now.noonF(), now.midnightF(), now.downfall(), effect, airF,
                 climate.humidity());
-        return new Outdoor(airF, water(effect, local.noonF(), local.midnightF()), dew, effect.windMs(),
-                weatherWord(world, local));
+        return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local));
     }
 
-    private static double air(World world, WeatherModel.Effect effect, double noonF, double midnightF) {
+    /** The outdoor air at this time of day and point of the year, weather included. */
+    private double air(World world, BiomeBlend.Blended local) {
+        WeatherModel.Effect effect = effect(world, local);
+        BiomeBlend.Blended now = inSeason(world, local);
         return ThermalModel.outdoorTemperature(world.getTime(),
-                effect.noonF(noonF, midnightF), effect.midnightF(noonF, midnightF));
+                effect.noonF(now.noonF(), now.midnightF()), effect.midnightF(now.noonF(), now.midnightF()));
     }
 
-    /** Water barely reacts to weather: it follows only a small share of the air's shift. */
-    private double water(WeatherModel.Effect effect, double noonF, double midnightF) {
-        double value = ThermalModel.naturalWaterTemperature(noonF, midnightF)
+    /**
+     * Natural water: it follows its own lagged share of the seasons, and only
+     * a small share of the weather.
+     */
+    private double water(World world, WeatherModel.Effect effect, BiomeBlend.Blended local) {
+        double season = seasonShiftF(world, local.seasonalF(), true);
+        double value = ThermalModel.naturalWaterTemperature(local.noonF() + season, local.midnightF() + season)
                 + effect.meanShiftF() * climate.weather().waterShare();
         return Math.max(ThermalModel.NATURAL_WATER_MINIMUM_F, Math.min(ThermalModel.NATURAL_WATER_MAXIMUM_F, value));
-    }
-
-    private static Profile profile(Biome biome) {
-        String name = biome.name().toUpperCase(Locale.ROOT);
-        if (name.contains("NETHER") || name.contains("BASALT") || name.contains("CRIMSON")
-                || name.contains("WARPED") || name.contains("SOUL_SAND")) return Profile.NETHER;
-        if (name.contains("END")) return Profile.END;
-        if (name.contains("FROZEN") || name.contains("SNOWY") || name.contains("ICE")
-                || name.contains("COLD_OCEAN")) return Profile.SNOWY;
-        if (name.contains("DESERT") || name.contains("BADLANDS") || name.contains("SAVANNA"))
-            return Profile.HOT;
-        if (name.contains("JUNGLE") || name.contains("WARM_OCEAN") || name.contains("BAMBOO"))
-            return Profile.WARM;
-        if (name.contains("TAIGA") || name.contains("WINDSWEPT") || name.contains("GROVE")
-                || name.contains("PEAKS") || name.contains("STONY_SHORE")) return Profile.COLD;
-        return Profile.TEMPERATE;
     }
 }

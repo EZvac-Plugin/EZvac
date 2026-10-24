@@ -16,19 +16,45 @@ public final class BiomeBlend {
     private BiomeBlend() {}
 
     /** One biome sample: its climate, and how much it counts. */
-    public record Sample(double noonF, double midnightF, double downfall, Precipitation precipitation, double weight) {}
+    public record Sample(double noonF, double midnightF, double downfall, Precipitation precipitation, double weight,
+                         double seasonalF) {
+        /** A sample with no seasons. */
+        public Sample(double noonF, double midnightF, double downfall, Precipitation precipitation, double weight) {
+            this(noonF, midnightF, downfall, precipitation, weight, 0.0);
+        }
+    }
 
     /**
      * The blended climate at a spot.
      *
      * @param rainShare share of the surroundings where rain falls
      * @param snowShare share where snow falls; the rest never gets weather
+     * @param seasonalF how far mid-summer and mid-winter move away from noonF and midnightF (2.1 Pilot 2)
      */
-    public record Blended(double noonF, double midnightF, double downfall, double rainShare, double snowShare) {
+    public record Blended(double noonF, double midnightF, double downfall, double rainShare, double snowShare,
+                          double seasonalF) {
+        /** A climate with no seasons. */
+        public Blended(double noonF, double midnightF, double downfall, double rainShare, double snowShare) {
+            this(noonF, midnightF, downfall, rainShare, snowShare, 0.0);
+        }
+
         /** A single biome's climate, unblended. */
         public static Blended of(double noonF, double midnightF, double downfall, Precipitation precipitation) {
+            return of(noonF, midnightF, downfall, precipitation, 0.0);
+        }
+
+        /** A single biome's climate, unblended, with its seasons. */
+        public static Blended of(double noonF, double midnightF, double downfall, Precipitation precipitation,
+                                 double seasonalF) {
             return new Blended(noonF, midnightF, downfall,
-                    precipitation == Precipitation.RAIN ? 1.0 : 0.0, precipitation == Precipitation.SNOW ? 1.0 : 0.0);
+                    precipitation == Precipitation.RAIN ? 1.0 : 0.0, precipitation == Precipitation.SNOW ? 1.0 : 0.0,
+                    seasonalF);
+        }
+
+        /** The same climate, this much warmer at noon and at midnight alike (negative: colder). */
+        public Blended warmer(double shiftF) {
+            if (shiftF == 0.0) return this;
+            return new Blended(noonF + shiftF, midnightF + shiftF, downfall, rainShare, snowShare, seasonalF);
         }
 
         /** Share of the surroundings that gets any weather. */
@@ -68,7 +94,7 @@ public final class BiomeBlend {
      * (every sample was in an unloaded chunk) so the caller can fall back.
      */
     public static Blended blend(List<Sample> samples) {
-        double total = 0.0, noon = 0.0, midnight = 0.0, downfall = 0.0, rain = 0.0, snow = 0.0;
+        double total = 0.0, noon = 0.0, midnight = 0.0, downfall = 0.0, rain = 0.0, snow = 0.0, seasonal = 0.0;
         Sample first = null;
         boolean uniform = true;
         for (Sample sample : samples) {
@@ -76,18 +102,22 @@ public final class BiomeBlend {
             if (!(w > 0.0)) continue;
             if (first == null) first = sample;
             else uniform &= sample.noonF() == first.noonF() && sample.midnightF() == first.midnightF()
-                    && sample.downfall() == first.downfall() && sample.precipitation() == first.precipitation();
+                    && sample.downfall() == first.downfall() && sample.precipitation() == first.precipitation()
+                    && sample.seasonalF() == first.seasonalF();
             total += w;
             noon += sample.noonF() * w;
             midnight += sample.midnightF() * w;
             downfall += sample.downfall() * w;
+            seasonal += sample.seasonalF() * w;
             if (sample.precipitation() == Precipitation.RAIN) rain += w;
             else if (sample.precipitation() == Precipitation.SNOW) snow += w;
         }
         if (total <= 0.0) return null;
         // Deep inside one biome the average is that biome, exactly, not to the last rounding bit.
-        if (uniform) return Blended.of(first.noonF(), first.midnightF(), first.downfall(), first.precipitation());
-        return new Blended(noon / total, midnight / total, downfall / total, share(rain, total), share(snow, total));
+        if (uniform) return Blended.of(first.noonF(), first.midnightF(), first.downfall(), first.precipitation(),
+                first.seasonalF());
+        return new Blended(noon / total, midnight / total, downfall / total, share(rain, total), share(snow, total),
+                seasonal / total);
     }
 
     /** Between two blended climates, for smooth readings between sample cells. */
@@ -96,7 +126,7 @@ public final class BiomeBlend {
         if (t >= 1.0) return b;
         return new Blended(lerp(a.noonF(), b.noonF(), t), lerp(a.midnightF(), b.midnightF(), t),
                 lerp(a.downfall(), b.downfall(), t), lerp(a.rainShare(), b.rainShare(), t),
-                lerp(a.snowShare(), b.snowShare(), t));
+                lerp(a.snowShare(), b.snowShare(), t), lerp(a.seasonalF(), b.seasonalF(), t));
     }
 
     private static double lerp(double a, double b, double t) {

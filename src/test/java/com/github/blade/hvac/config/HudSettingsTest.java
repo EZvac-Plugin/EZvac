@@ -15,7 +15,7 @@ class HudSettingsTest {
         assertEquals(HudSettings.Style.SIDEBAR, value.style());
         assertEquals(10, value.updateTicks());
         assertFalse(value.celsius());
-        assertEquals(10, value.sidebarLines().size());
+        assertEquals(11, value.sidebarLines().size());
     }
 
     @Test
@@ -91,5 +91,26 @@ class HudSettingsTest {
         config.set(key, value);
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () -> HudSettings.load(config));
         assertTrue(error.getMessage().contains(messagePart), () -> key + ": " + error.getMessage());
+    }
+    @Test
+    void aStockSidebarGainsTheSeasonLineWhenSeasonsArrive() {
+        List<String> stock = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
+        stock.remove(HudSettings.SEASON_LINE);
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.sidebar.lines", stock);
+        List<String> added = new java.util.ArrayList<>(List.of("seasons.enabled"));
+        HudSettings.addSeasonLine(config, added);
+        assertEquals(HudSettings.defaults().sidebarLines(), config.getStringList("hud.sidebar.lines"));
+        assertTrue(added.contains("hud.sidebar.lines"));
+
+        // A sidebar the server made its own is left alone, and so is one that already has seasons.
+        YamlConfiguration own = new YamlConfiguration();
+        own.set("hud.sidebar.lines", List.of("<gray>Here: <white>{temp}"));
+        HudSettings.addSeasonLine(own, new java.util.ArrayList<>(List.of("seasons.enabled")));
+        assertEquals(List.of("<gray>Here: <white>{temp}"), own.getStringList("hud.sidebar.lines"));
+        YamlConfiguration later = new YamlConfiguration();
+        later.set("hud.sidebar.lines", stock);
+        HudSettings.addSeasonLine(later, new java.util.ArrayList<>(List.of("biomes")));
+        assertEquals(stock, later.getStringList("hud.sidebar.lines"), "only when the seasons are new");
     }
 }

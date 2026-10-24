@@ -1,8 +1,14 @@
 package com.github.blade.hvac.config;
 
+import com.github.blade.hvac.simulation.BiomeClimate;
+import com.github.blade.hvac.simulation.Precipitation;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
@@ -12,7 +18,8 @@ import java.util.function.Supplier;
  * and every caller of it stay untouched.
  */
 public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
-                              Humidifier humidifier, Variance variance, BiomeBlend biomeBlend) {
+                              Humidifier humidifier, Variance variance, BiomeBlend biomeBlend,
+                              Seasons seasons, Altitude altitude, Underground underground, Biomes biomes) {
     /**
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
@@ -165,6 +172,66 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         }
     }
 
+    /**
+     * The yearly cycle (2.1 Pilot 2).
+     *
+     * @param daysPerSeason Minecraft days in each season; four make a year
+     * @param strength      how much of each biome's seasonal swing applies: 1 is realistic, 0.5 mild, 0 none
+     * @param waterLagDays  how many days natural water lags the air's seasons
+     */
+    public record Seasons(boolean enabled, int daysPerSeason, double strength, double waterLagDays) {
+        public Seasons {
+            if (daysPerSeason < 1 || daysPerSeason > 365)
+                throw new IllegalArgumentException("seasons.days-per-season must be 1-365");
+            if (!Double.isFinite(strength) || strength < 0.0 || strength > 3.0)
+                throw new IllegalArgumentException("seasons.strength must be 0-3");
+            if (!Double.isFinite(waterLagDays) || waterLagDays < 0.0 || waterLagDays > daysPerSeason * 2.0)
+                throw new IllegalArgumentException("seasons.water-lag-days must be 0 to half a year");
+        }
+
+        /** The share of a biome's seasonal swing that applies, 0 when seasons are off. */
+        public double effectiveStrength() { return enabled ? strength : 0.0; }
+    }
+
+    /**
+     * Colder with height (2.1 Pilot 2). Real air cools about 0.012 F per
+     * metre; Minecraft's mountains are short, so the default is stronger.
+     */
+    public record Altitude(double lapseFPerBlock, int fromY) {
+        public Altitude {
+            if (!Double.isFinite(lapseFPerBlock) || lapseFPerBlock < 0.0 || lapseFPerBlock > 1.0)
+                throw new IllegalArgumentException("altitude.lapse-f-per-block must be 0-1");
+        }
+    }
+
+    /**
+     * Deep underground the air holds the ground's steady temperature (2.1
+     * Pilot 2). It sets in from {@code startDepth} blocks below the surface,
+     * or below sea level where the surface is higher, and is complete from
+     * {@code fullDepth}.
+     */
+    public record Underground(boolean enabled, int startDepth, int fullDepth) {
+        public Underground {
+            if (startDepth < 0) throw new IllegalArgumentException("underground.start-depth must not be negative");
+            if (fullDepth <= startDepth)
+                throw new IllegalArgumentException("underground.full-depth must be deeper than start-depth");
+        }
+    }
+
+    /** Per-biome climates that replace the built-in ones, keyed by biome id ({@code minecraft:plains}). */
+    public record Biomes(Map<String, BiomeClimate.Climate> overrides) {
+        public Biomes {
+            overrides = Map.copyOf(overrides == null ? Map.of() : overrides);
+        }
+
+        /** This biome's climate: the server's own, else the built-in one, else null. */
+        public BiomeClimate.Climate climate(String key) {
+            String normalized = BiomeClimate.normalize(key);
+            BiomeClimate.Climate own = overrides.get(normalized);
+            return own != null ? own : BiomeClimate.builtIn(normalized);
+        }
+    }
+
     /** The farthest either kind of standalone unit reaches, for spatial lookups. */
     public int unitRange() {
         return Math.max(dehumidifier.range(), humidifier.range());
@@ -178,7 +245,11 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         List.of(35, 40, 45, 50, 55, 60), 2.0),
                 new Humidifier(30, 50_000, 3.0, 1_500, 40, List.of(30, 35, 40, 45, 50), 2.0),
                 new Variance(true, 0.5, 1.5, 0.3, 0.8, 0.3, 6.0, 3.0),
-                new BiomeBlend(24));
+                new BiomeBlend(24),
+                new Seasons(true, 15, 1.0, 5.0),
+                new Altitude(0.1, 64),
+                new Underground(true, 4, 20),
+                new Biomes(Map.of()));
     }
 
     /** Reads strictly: a value out of range throws. */
@@ -201,6 +272,9 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         Humidifier m = defaults.humidifier;
         Variance v = defaults.variance;
         BiomeBlend b = defaults.biomeBlend;
+        Seasons s = defaults.seasons;
+        Altitude a = defaults.altitude;
+        Underground u = defaults.underground;
         return new ClimateSettings(
                 section("weather", w, warn, () -> new Weather(config.getBoolean("weather.enabled", w.enabled()),
                         config.getDouble("weather.ease-hours", w.easeHours()),
@@ -245,7 +319,62 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getDouble("variance.spacing-blocks", v.spacingBlocks()),
                         config.getDouble("variance.drift-hours", v.driftHours()))),
                 section("biome-blend", b, warn, () -> new BiomeBlend(
-                        config.getInt("biome-blend.radius-blocks", b.radiusBlocks()))));
+                        config.getInt("biome-blend.radius-blocks", b.radiusBlocks()))),
+                section("seasons", s, warn, () -> new Seasons(config.getBoolean("seasons.enabled", s.enabled()),
+                        config.getInt("seasons.days-per-season", s.daysPerSeason()),
+                        config.getDouble("seasons.strength", s.strength()),
+                        config.getDouble("seasons.water-lag-days", s.waterLagDays()))),
+                section("altitude", a, warn, () -> new Altitude(
+                        config.getDouble("altitude.lapse-f-per-block", a.lapseFPerBlock()),
+                        config.getInt("altitude.from-y", a.fromY()))),
+                section("underground", u, warn, () -> new Underground(
+                        config.getBoolean("underground.enabled", u.enabled()),
+                        config.getInt("underground.start-depth", u.startDepth()),
+                        config.getInt("underground.full-depth", u.fullDepth()))),
+                biomes(config.getConfigurationSection("biomes"), warn));
+    }
+
+    /**
+     * The server's own biome climates. Each one stands alone: a broken entry
+     * is skipped with a warning and that biome keeps its built-in climate.
+     * A value left out comes from the built-in climate, so
+     * {@code minecraft:plains: { seasonal-f: 10 }} only softens its seasons.
+     */
+    private static Biomes biomes(ConfigurationSection section, Consumer<String> warn) {
+        if (section == null) return new Biomes(Map.of());
+        Map<String, BiomeClimate.Climate> overrides = new LinkedHashMap<>();
+        for (String name : section.getKeys(false)) {
+            ConfigurationSection entry = section.getConfigurationSection(name);
+            if (entry == null) {
+                warn.accept("biomes." + name + " must be a section such as { noon-f: 72, midnight-f: 50 }, so it"
+                        + " keeps its built-in climate until config.yml is fixed.");
+                continue;
+            }
+            String key = BiomeClimate.normalize(name);
+            BiomeClimate.Climate base = BiomeClimate.builtIn(key);
+            try {
+                if (base == null && !(entry.contains("noon-f") && entry.contains("midnight-f")))
+                    throw new IllegalArgumentException("a biome EZvac doesn't know needs noon-f and midnight-f");
+                double noon = entry.getDouble("noon-f", base == null ? 0.0 : base.noonF());
+                double midnight = entry.getDouble("midnight-f", base == null ? 0.0 : base.midnightF());
+                double seasonal = entry.getDouble("seasonal-f", base == null
+                        ? BiomeClimate.estimateSeasonalF((noon + midnight) / 2.0) : base.seasonalF());
+                Precipitation precipitation = base == null ? Precipitation.RAIN : base.precipitation();
+                if (entry.contains("precipitation")) {
+                    String text = String.valueOf(entry.get("precipitation")).trim().toUpperCase(Locale.ROOT);
+                    try {
+                        precipitation = Precipitation.valueOf(text);
+                    } catch (IllegalArgumentException unknown) {
+                        throw new IllegalArgumentException("precipitation must be rain, snow or none");
+                    }
+                }
+                overrides.put(key, new BiomeClimate.Climate(noon, midnight, seasonal, precipitation));
+            } catch (IllegalArgumentException invalid) {
+                warn.accept("biomes." + name + ": " + invalid.getMessage() + ", so it keeps its built-in climate"
+                        + " until config.yml is fixed.");
+            }
+        }
+        return new Biomes(overrides);
     }
 
     private static <T> T section(String name, T fallback, Consumer<String> warn, Supplier<T> reader) {

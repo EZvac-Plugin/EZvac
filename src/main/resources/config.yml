@@ -89,6 +89,44 @@ audio:
 biome-blend:
   radius-blocks: 24
 
+# The seasons (2.1). Each world with a sun keeps its own calendar in
+# seasons.yml, starting on the first day of spring; /hvac season shows it and
+# admins can change it (set, next, pause, resume). It counts the world's days,
+# so sleeping moves it on, but setting the clock back never resets the year.
+# Seasons only move temperatures: biomes, rain and snow stay as they are.
+# How far each biome moves is its own (plains: 90 F at noon in mid-summer,
+# 54 F in mid-winter; a jungle barely changes); strength scales them all,
+# 0.5 for mild seasons. Natural water follows water-lag-days behind the air.
+seasons:
+  enabled: true
+  days-per-season: 15
+  strength: 1.0
+  water-lag-days: 5.0
+
+# Colder with height (2.1): the air cools lapse-f-per-block for every block
+# above from-y. Real air cools about 0.012 F per metre, but Minecraft's
+# mountains are short, so 0.1 makes a peak at y=200 about 14 F colder.
+altitude:
+  lapse-f-per-block: 0.1
+  from-y: 64
+
+# Deep underground the air holds the ground's steady temperature (2.1): no
+# day/night swing, no seasons, no weather. It sets in start-depth blocks below
+# the surface (or below sea level, where the surface is higher, so a hill or a
+# tall house never counts) and is complete at full-depth.
+underground:
+  enabled: true
+  start-depth: 4
+  full-depth: 20
+
+# Each biome's own climate (2.1). Every vanilla biome has a built-in one; to
+# change it, or to give a data pack's biome its own, add it by its id. Values
+# are year-round averages at sea level (altitude, the ground and the seasons
+# come on top). Anything left out keeps the built-in value. For example:
+#   minecraft:plains: { noon-f: 72, midnight-f: 50, seasonal-f: 18 }
+#   mypack:volcano: { noon-f: 120, midnight-f: 100, seasonal-f: 0, precipitation: none }
+biomes: {}
+
 # Weather changes the outdoor air (2.0). Rain and thunder cool the day and
 # narrow the day/night swing; snow cools a little. Vanilla weather switches in
 # an instant, so the effect eases in and out over ease-hours (in-game hours).
@@ -185,8 +223,8 @@ humidifier:
 # On-screen climate HUD and PlaceholderAPI placeholders (ALPHA 1.8).
 # Players turn the HUD on or off for themselves with /hvac hud. Text uses
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:
-# {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {group} {thermostat}
-# {mode} {target} {zone} {version}
+# {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {season} {season_day}
+# {group} {thermostat} {mode} {target} {zone} {version}
 # In air, {bar} and {comfort} follow {feels}: humid heat reads hotter, wind colder.
 hud:
   enabled: true
@@ -205,6 +243,7 @@ hud:
       - "{bar} {comfort}"
       - "<gray>Humidity: <white>{humidity}"
       - "<gray>Outside: <white>{outdoor} <gray>{weather}"
+      - "<gray>Season: <white>{season} <gray>day {season_day}"
       - ""
       - "<gray>System: <white>{group}"
       - "<gray>Mode: <white>{mode}"

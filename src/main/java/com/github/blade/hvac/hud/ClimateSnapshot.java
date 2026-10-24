@@ -18,14 +18,33 @@ package com.github.blade.hvac.hud;
  * @param humidity     relative humidity of the air (%), NaN in water or when unknown
  * @param feelsLikeF   apparent temperature; the water temperature in water
  * @param weather      outdoor weather word (Clear, Rain, Thunder, Snow), empty where there is none
+ * @param season       the season (Spring, Summer, Autumn, Winter), empty where there are none (2.1 Pilot 2)
+ * @param seasonDay    the day of that season from 1, or 0 where there are no seasons
  */
 public record ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
                               String group, String thermostat, String mode, double targetF,
                               boolean core, boolean water, double humidity, double feelsLikeF,
-                              String weather) {
+                              String weather, String season, int seasonDay) {
     public ClimateSnapshot {
         if (!Double.isFinite(feelsLikeF)) feelsLikeF = localF;
         if (weather == null) weather = "";
+        if (season == null) season = "";
+        if (season.isEmpty()) seasonDay = 0;
+    }
+
+    /** A snapshot where there are no seasons. */
+    public ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
+                           String group, String thermostat, String mode, double targetF,
+                           boolean core, boolean water, double humidity, double feelsLikeF,
+                           String weather) {
+        this(localF, outdoorF, influence, distance, group, thermostat, mode, targetF, core, water,
+                humidity, feelsLikeF, weather, "", 0);
+    }
+
+    /** The same snapshot, in this season. */
+    public ClimateSnapshot inSeason(String season, int day) {
+        return new ClimateSnapshot(localF, outdoorF, influence, distance, group, thermostat, mode, targetF, core,
+                water, humidity, feelsLikeF, weather, season, day);
     }
 
     /** A snapshot without humidity: it feels like its temperature. */

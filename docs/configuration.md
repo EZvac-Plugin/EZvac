@@ -138,6 +138,55 @@ audio:
 
 See [Climate](climate.md#biome-transitions).
 
+## seasons
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `enabled` | true | false turns the seasons off everywhere |
+| `days-per-season` | 15 | Minecraft days in each season; four make a year |
+| `strength` | 1.0 | How much of each biome's seasonal swing applies: 1 is realistic, 0.5 mild, 0 none (0-3) |
+| `water-lag-days` | 5.0 | How many days lakes and the sea follow behind the air |
+
+The calendar itself is kept in `seasons.yml`, not here; change it with
+[`/hvac season`](commands.md#seasons). See [Climate](climate.md#seasons).
+
+## altitude
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `lapse-f-per-block` | 0.1 | How much colder the air is for every block above `from-y` (0-1); 0 turns it off |
+| `from-y` | 64 | The height it starts from |
+
+## underground
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `enabled` | true | false keeps the outdoor swing, seasons and weather all the way down |
+| `start-depth` | 4 | Blocks below the surface (or sea level, if lower) where the ground's steady temperature starts to take over |
+| `full-depth` | 20 | Where it has taken over completely; must be deeper than `start-depth` |
+
+## biomes
+
+Every vanilla biome has a built-in climate (see the table in
+[Climate](climate.md#outdoor-temperature)). To change one, or to give a data
+pack's biome its own, add it by its id. Values are year-round averages at sea
+level; anything left out keeps the built-in value:
+
+```yaml
+biomes:
+  minecraft:plains: { seasonal-f: 10 }
+  mypack:volcano: { noon-f: 120, midnight-f: 100, seasonal-f: 0, precipitation: none }
+```
+
+| Key | Meaning |
+| --- | --- |
+| `noon-f`, `midnight-f` | Average noon and midnight temperature. A biome EZvac doesn't know needs both |
+| `seasonal-f` | How far mid-summer and mid-winter move from those averages |
+| `precipitation` | `rain`, `snow` or `none` (a desert); EZvac's weather effects follow it |
+
+A broken entry is skipped with a warning, and that biome keeps its built-in
+climate.
+
 ## weather
 
 | Setting | Default | Meaning |

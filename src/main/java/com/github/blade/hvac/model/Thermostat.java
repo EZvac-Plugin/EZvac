@@ -2,6 +2,7 @@ package com.github.blade.hvac.model;
 
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.simulation.BiomeBlend;
+import com.github.blade.hvac.simulation.BiomeClimate;
 import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.ThermalModel;
 
@@ -31,6 +32,11 @@ public final class Thermostat {
      */
     private double outdoorRainShare = 1.0;
     private double outdoorSnowShare = 0.0;
+    /**
+     * How far the seasons move its outdoor climate (2.1 Pilot 2). NaN in a
+     * save from before then, until it samples its surroundings again.
+     */
+    private double outdoorSeasonalF = Double.NaN;
     /** World game time of the last biome sample; never saved, so a restart samples at once. */
     private long outdoorSampledAt = Long.MIN_VALUE;
     /** The air's moisture as a dew point; NaN until first simulated (2.0). */
@@ -87,9 +93,16 @@ public final class Thermostat {
     public boolean pool() { return pool; }
     public double outdoorDownfall() { return outdoorDownfall; }
     public Precipitation outdoorPrecipitation() { return outdoorPrecipitation; }
-    /** The outdoor climate it last sampled, transitions between biomes included. */
+    /**
+     * The outdoor climate it last sampled, transitions between biomes and its
+     * seasons included; a thermostat that hasn't sampled since 2.1 Pilot 2
+     * expects the seasons its climate usually has.
+     */
     public BiomeBlend.Blended outdoorClimate() {
-        return new BiomeBlend.Blended(outdoorNoonF, outdoorMidnightF, outdoorDownfall, outdoorRainShare, outdoorSnowShare);
+        double seasonal = Double.isFinite(outdoorSeasonalF) ? outdoorSeasonalF
+                : BiomeClimate.estimateSeasonalF((outdoorNoonF + outdoorMidnightF) / 2.0);
+        return new BiomeBlend.Blended(outdoorNoonF, outdoorMidnightF, outdoorDownfall, outdoorRainShare,
+                outdoorSnowShare, seasonal);
     }
     public double roomDewPointF() { return roomDewPointF; }
     public boolean hasRoomDewPoint() { return Double.isFinite(roomDewPointF); }
@@ -128,6 +141,7 @@ public final class Thermostat {
         setOutdoorProfile(climate.noonF(), climate.midnightF());
         setOutdoorHumidityProfile(climate.downfall(), climate.dominant());
         setOutdoorWeatherShares(climate.rainShare(), climate.snowShare());
+        if (Double.isFinite(climate.seasonalF())) this.outdoorSeasonalF = Math.max(0.0, climate.seasonalF());
     }
     private void setOutdoorWeatherShares(double rain, double snow) {
         if (!Double.isFinite(rain) || !Double.isFinite(snow)) return;
@@ -161,6 +175,8 @@ public final class Thermostat {
             map.put("outdoorRainShare", outdoorRainShare);
             map.put("outdoorSnowShare", outdoorSnowShare);
         }
+        // Saved once it has sampled since 2.1 Pilot 2; an older save loads and saves back unchanged until then.
+        if (Double.isFinite(outdoorSeasonalF)) map.put("outdoorSeasonalF", outdoorSeasonalF);
         if (hasRoomDewPoint()) map.put("roomDewPointF", roomDewPointF);
         return map;
     }
@@ -186,6 +202,8 @@ public final class Thermostat {
                 Precipitation.parse(map.get("outdoorPrecipitation")));
         if (map.containsKey("outdoorRainShare"))
             thermostat.setOutdoorWeatherShares(number(map, "outdoorRainShare", 1.0), number(map, "outdoorSnowShare", 0.0));
+        double seasonal = number(map, "outdoorSeasonalF", Double.NaN);
+        if (Double.isFinite(seasonal)) thermostat.outdoorSeasonalF = Math.max(0.0, seasonal);
         thermostat.setRoomDewPointF(number(map, "roomDewPointF", Double.NaN));
         return thermostat;
     }

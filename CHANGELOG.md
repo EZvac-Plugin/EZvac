@@ -2,10 +2,65 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.1 Pilot 2
+
+The second pilot of **2.1, Realism: EXTENDED**: a realistic climate for every
+biome, seasons, altitude and the ground. Same save format as 2.0 (format 6):
+a drop-in upgrade.
+
+### Added
+
+- **A climate for every biome.** The seven broad classes (Snowy, Cold,
+  Temperate, Warm, Hot, Nether, End) are replaced by each vanilla biome's own
+  climate, modelled on real places. Clear desert skies let the day heat and
+  the night cool hard (98 °F noon, 64 °F midnight); a jungle (88/74) or the
+  sea (66/60) barely moves. A data pack's biome gets a climate worked out from
+  its Minecraft temperature and rainfall, and any biome can be given its own
+  under the new `biomes:` section.
+- **Seasons.** Each world with a sun has a year of four seasons, 15 days each
+  by default. Temperatures follow a smooth curve, warmest in mid-summer and
+  coldest in mid-winter, by each biome's own amount: plains noon goes from
+  90 °F in mid-summer to 54 °F in mid-winter, a taiga from 76 °F to 28 °F, a
+  jungle hardly changes. Lakes and the sea follow a few days behind. Only
+  temperatures change: biomes, rain and snow stay as Minecraft makes them.
+  Tuning: `seasons:` (`days-per-season`, `strength`, `water-lag-days`).
+- **EZvac's own calendar**, per world, in the new `seasons.yml`. It counts the
+  world's days (sleeping moves it on), but setting the clock back never sends
+  the year back to spring.
+- **`/hvac season`** shows the season, its day and how much it warms or cools
+  the outdoors where you stand. Admins can change it any time:
+  `/hvac season set <season> [day]`, `next`, `pause` and `resume`. It also
+  works from the console, with a world name at the end.
+- **Altitude.** The air is 0.1 °F colder for every block above y=64 (about
+  14 °F colder at y=200), and high on mountains rain turns to snow where
+  Minecraft itself snows. Tuning: `altitude:`.
+- **Underground.** Deep down the air holds the ground's steady temperature: no
+  day/night swing, no seasons, no weather. It sets in 4 blocks below the
+  surface (or sea level, if lower) and is complete at 20. Tuning:
+  `underground:`.
+- **The HUD shows the season**, on a new sidebar line left out where there are
+  none, with the `{season}` and `{season_day}` tokens and the
+  `%ezvac_season%` and `%ezvac_season_day%` placeholders. `/hvac temperature`
+  shows it too.
+
+### Changed
+
+- **Every outdoor climate changes** after the update: biomes have their own
+  numbers, mountains are colder higher up, deep spots are steady, and the
+  seasons begin on the first day of spring the first time the server starts
+  with this version. Rooms drift to the new climate gradually.
+- Thermostats save their seasonal swing (`outdoorSeasonalF`) once they sample
+  their surroundings; until then they use the usual swing for their climate.
+- A HUD sidebar that still has the stock lines gains the season line when the
+  update adds the seasons to `config.yml`. A sidebar you changed is left as
+  it is; add `"<gray>Season: <white>{season} <gray>day {season_day}"` to it
+  to show the season.
+
 ## ALPHA 2.1 Pilot 1
 
-Smooth transitions between biomes, and a server-wide Fahrenheit/Celsius
-switch. Same save format as 2.0 (format 6): a drop-in upgrade.
+The first pilot of **2.1, Realism: EXTENDED**: smooth transitions between
+biomes, and a server-wide Fahrenheit/Celsius switch. Same save format as 2.0
+(format 6): a drop-in upgrade.
 
 ### Added
 

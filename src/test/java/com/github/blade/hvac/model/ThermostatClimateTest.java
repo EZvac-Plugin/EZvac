@@ -2,6 +2,7 @@ package com.github.blade.hvac.model;
 
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.simulation.BiomeBlend;
+import com.github.blade.hvac.simulation.BiomeClimate;
 import com.github.blade.hvac.simulation.Precipitation;
 import org.junit.jupiter.api.Test;
 
@@ -48,5 +49,19 @@ class ThermostatClimateTest {
         assertEquals(0.0, loaded.outdoorClimate().rainShare());
         assertEquals(1.0, loaded.outdoorClimate().snowShare());
         assertEquals(saved, loaded.toMap(), "and saves back unchanged");
+    }
+
+    @Test
+    void itsSeasonsAreSavedOnceItHasSampledThem() {
+        Thermostat thermostat = thermostat();
+        assertFalse(thermostat.toMap().containsKey("outdoorSeasonalF"), "nothing new before it samples");
+        assertEquals(BiomeClimate.estimateSeasonalF(62.0), thermostat.outdoorClimate().seasonalF(),
+                "until then it expects the seasons its climate usually has");
+        thermostat.setOutdoorClimate(BiomeBlend.Blended.of(72, 50, 0.4, Precipitation.RAIN, 18));
+        Map<String, Object> saved = thermostat.toMap();
+        assertEquals(18.0, saved.get("outdoorSeasonalF"));
+        Thermostat loaded = Thermostat.fromMap(saved, settings);
+        assertEquals(18.0, loaded.outdoorClimate().seasonalF());
+        assertEquals(saved, loaded.toMap());
     }
 }

@@ -9,7 +9,7 @@ block use the block you're looking at, within six blocks.
 | --- | --- | --- |
 | `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat on/off, settings panels, dehumidifiers and humidifiers, sensor hubs, pressing sensors |
 | `ezvac.hud` | everyone | `/hvac hud` |
-| `ezvac.admin` | operators | creating, changing, linking and removing devices, `stats` and `sync` |
+| `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season, `stats` and `sync` |
 
 ## For everyone (`ezvac.use`)
 
@@ -19,6 +19,7 @@ block use the block you're looking at, within six blocks.
 | `/hvac temperature` (`temp`) | The temperature where you stand, the outdoor temperature and weather, the humidity and "feels like" in air, and which system reaches you (core or edge, and how far along its airflow). In water: the water temperature and the air above |
 | `/hvac hud [on\|off]` | Shows or hides the on-screen HUD for yourself (`ezvac.hud`). With no argument it toggles; your choice is remembered |
 | `/hvac list` | The systems in your world, with mode, room and target temperature, and how many units are running |
+| `/hvac season` | The season and its day ("Summer, day 3 of 15"), and how much it warms or cools the outdoors where you stand |
 | `/hvac info` | Details of the device you're looking at: a thermostat (with its room's humidity and feels-like), equipment, a vent, a thermometer, an RPM monitor, a settings panel, a dehumidifier or humidifier, a sensor or a sensor hub |
 
 ### Using signs and sensors
@@ -90,6 +91,21 @@ A system is all air or all water, and the vents must match its equipment. See
 Thermostat signs can also be edited: put a temperature on line 3 to set the
 target, such as `22`, or `72F` in the other unit.
 Other EZvac signs can't be edited.
+
+## Seasons
+
+Anyone can look with `/hvac season`; changing it needs `ezvac.admin`. Each
+world with a sun has its own calendar (see [Climate](climate.md#seasons)).
+
+| Command | Does |
+| --- | --- |
+| `/hvac season set <spring\|summer\|autumn\|winter> [day]` | Jumps to that season, on day 1 or the day given. `fall` works too |
+| `/hvac season next` | Jumps to the first day of the next season |
+| `/hvac season pause` / `resume` | Stops the calendar, or starts it again. While paused the days pass but the season stays |
+
+Outdoor temperatures take on the new season at once; rooms drift there over
+time, as they do when the weather changes. The commands act on your own world;
+from the console, add a world's name at the end (it defaults to the main world).
 
 ## Removing and diagnostics (`ezvac.admin`)
 

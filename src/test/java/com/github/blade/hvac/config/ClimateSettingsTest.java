@@ -63,4 +63,24 @@ class ClimateSettingsTest {
                 warnings.get(0));
         assertTrue(warnings.get(1).contains("variance.indoor-f"), warnings.get(1));
     }
+
+    @Test
+    void theClimateModelSectionsLoadLeniently() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("seasons.days-per-season", 8);
+        config.set("seasons.strength", 0.5);
+        config.set("altitude.lapse-f-per-block", 5.0);          // too steep
+        config.set("underground.start-depth", 10);
+        config.set("underground.full-depth", 6);                 // shallower than where it starts
+        List<String> warnings = new ArrayList<>();
+        ClimateSettings loaded = ClimateSettings.load(config, warnings::add);
+        assertEquals(8, loaded.seasons().daysPerSeason());
+        assertEquals(0.5, loaded.seasons().effectiveStrength());
+        assertEquals(ClimateSettings.defaults().altitude(), loaded.altitude());
+        assertEquals(ClimateSettings.defaults().underground(), loaded.underground());
+        assertEquals(2, warnings.size(), String.valueOf(warnings));
+        assertEquals(0.0, new ClimateSettings.Seasons(false, 15, 1.0, 5.0).effectiveStrength());
+        assertThrows(IllegalArgumentException.class, () -> new ClimateSettings.Seasons(true, 0, 1.0, 0.0));
+        assertThrows(IllegalArgumentException.class, () -> new ClimateSettings.Seasons(true, 4, 1.0, 9.0));
+    }
 }

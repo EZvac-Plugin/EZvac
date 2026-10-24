@@ -15,7 +15,7 @@ public final class PlaceholderResolver {
             "temp", "temp_f", "temp_c", "outdoor", "outdoor_f", "outdoor_c",
             "bar", "bar_plain", "comfort", "group", "thermostat", "mode", "target",
             "influence", "zone", "conditioned", "medium",
-            "feels_like", "feels_like_f", "feels_like_c", "humidity", "weather");
+            "feels_like", "feels_like_f", "feels_like_c", "humidity", "weather", "season", "season_day");
 
     private final HudFormatter format;
 
@@ -55,6 +55,8 @@ public final class PlaceholderResolver {
             case "feels_like_c" -> HudFormatter.celsius(snapshot.feelsLikeF());
             case "humidity" -> format.humidity(snapshot);
             case "weather" -> snapshot.weather();
+            case "season" -> snapshot.season();
+            case "season_day" -> snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "";
             default -> null;
         };
     }

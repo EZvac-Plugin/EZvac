@@ -8,7 +8,7 @@
 
 Keeps the climate where you stand on screen: the temperature, how warm it
 feels, a cold-to-hot bar with a comfort word (cold, cool, comfortable, warm,
-hot), the humidity, the outdoor temperature and weather, and the system
+hot), the humidity, the outdoor temperature and weather, the season, and the system
 conditioning that spot with its mode, its target and whether you're in its
 core or its edge.
 
@@ -53,6 +53,8 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_feels_like%` (`_feels_like_f`, `_feels_like_c`) | `74.1°F` |
 | `%ezvac_humidity%` | `48%` |
 | `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`; empty in dry biomes) |
+| `%ezvac_season%` | `Summer` (`Spring`, `Autumn`, `Winter`; empty where there are no seasons) |
+| `%ezvac_season_day%` | `3`, the day of that season |
 | `%ezvac_outdoor%` (`_outdoor_f`, `_outdoor_c`) | `88.0°F` |
 | `%ezvac_bar%` / `%ezvac_bar_plain%` | `▮▮▮▮▮▯▯▯▯▯` (coloured / plain) |
 | `%ezvac_comfort%` | `Comfortable` |
@@ -78,7 +80,14 @@ use [MiniMessage](https://docs.advntr.dev/minimessage/format.html) formatting
 and these tokens:
 
 `{temp}` `{feels}` `{humidity}` `{bar}` `{comfort}` `{outdoor}` `{weather}`
-`{group}` `{thermostat}` `{mode}` `{target}` `{zone}` `{version}`
+`{season}` `{season_day}` `{group}` `{thermostat}` `{mode}` `{target}` `{zone}`
+`{version}`
+
+A sidebar line with `{season}` or `{season_day}` is left out where there are
+no seasons, such as in the Nether or with `seasons.enabled: false`. The season
+line is new in 2.1 Pilot 2. When the update adds the seasons to your
+`config.yml`, a sidebar that still has the stock lines gains it too; a sidebar
+you changed is left as it is, so add the line yourself there.
 
 `{version}` is the short EZvac version, such as `A2.0`. See
 [Configuration](configuration.md#hud).

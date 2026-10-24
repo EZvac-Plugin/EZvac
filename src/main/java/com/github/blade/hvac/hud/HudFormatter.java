@@ -7,6 +7,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.regex.Matcher;
@@ -178,6 +179,12 @@ public final class HudFormatter {
 
     // ---- templates ----
 
+    /** The sidebar lines worth showing: a season line is left out where there are no seasons. */
+    public List<String> shownLines(List<String> templates, ClimateSnapshot snapshot) {
+        if (!snapshot.season().isEmpty()) return templates;
+        return templates.stream().filter(template -> !template.contains("{season")).toList();
+    }
+
     /** Replaces the tokens in a MiniMessage template. Plain values are escaped. */
     public String fill(String template, ClimateSnapshot snapshot) {
         HudSettings.Medium medium = medium(snapshot);
@@ -186,6 +193,8 @@ public final class HudFormatter {
                 .replace("{feels}", escape(feelsLike(snapshot)))
                 .replace("{humidity}", escape(humidity(snapshot)))
                 .replace("{weather}", escape(snapshot.weather()))
+                .replace("{season_day}", snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "")
+                .replace("{season}", escape(snapshot.season()))
                 .replace("{bar}", barMini(snapshot.comfortF(), medium))
                 .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))

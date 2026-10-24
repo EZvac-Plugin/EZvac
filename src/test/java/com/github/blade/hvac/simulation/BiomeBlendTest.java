@@ -99,4 +99,20 @@ class BiomeBlendTest {
         assertSame(a, BiomeBlend.lerp(a, b, 0.0));
         assertSame(b, BiomeBlend.lerp(a, b, 1.0));
     }
+
+    @Test
+    void theSeasonsBlendToo() {
+        List<BiomeBlend.Sample> samples = List.of(
+                new BiomeBlend.Sample(72, 50, 0.4, Precipitation.RAIN, 1.0, 18),
+                new BiomeBlend.Sample(88, 74, 0.9, Precipitation.RAIN, 1.0, 2));
+        assertEquals(10.0, BiomeBlend.blend(samples).seasonalF(), 1e-9);
+        BiomeBlend.Blended plains = BiomeBlend.blend(List.of(samples.get(0), samples.get(0)));
+        assertEquals(18.0, plains.seasonalF(), "inside one biome, exactly its own");
+        assertEquals(8.0, BiomeBlend.lerp(plains, BiomeBlend.Blended.of(0, 0, 0, Precipitation.NONE, 2), 0.625)
+                .seasonalF(), 1e-9);
+        BiomeBlend.Blended summer = plains.warmer(18);
+        assertEquals(90.0, summer.noonF());
+        assertEquals(68.0, summer.midnightF());
+        assertSame(plains, plains.warmer(0));
+    }
 }
