@@ -53,16 +53,29 @@ public final class AirflowService {
          * Without the given blocks. Every heat pump and AC puts out a water
          * block at the edge of the room it serves; that is equipment, not a
          * pool, and counting it made every such room humidify itself.
+         *
+         * @param blocks this space's world's blocks, packed by {@link #packByWorld}; null for none
          */
-        public WaterExposure excluding(UUID worldId, Set<BlockKey> blocks) {
-            if (waterCells.length == 0 || blocks.isEmpty()) return this;
+        public WaterExposure excluding(LongOpenHashSet blocks) {
+            if (waterCells.length == 0 || blocks == null || blocks.isEmpty()) return this;
             long[] kept = new long[waterCells.length];
             int count = 0;
             for (long cell : waterCells)
-                if (!blocks.contains(new BlockKey(worldId, unpackX(cell), unpackY(cell), unpackZ(cell))))
-                    kept[count++] = cell;
+                if (!blocks.contains(cell)) kept[count++] = cell;
             return count == waterCells.length ? this : new WaterExposure(airCells, Arrays.copyOf(kept, count));
         }
+    }
+
+    /**
+     * Blocks packed the way the airflow maps pack them, per world, so a
+     * cycle's owned outputs are packed once and looked up without allocating.
+     */
+    public static Map<UUID, LongOpenHashSet> packByWorld(Collection<BlockKey> blocks) {
+        Map<UUID, LongOpenHashSet> packed = new HashMap<>();
+        for (BlockKey block : blocks)
+            packed.computeIfAbsent(block.worldId(), ignored -> new LongOpenHashSet())
+                    .add(pack(block.x(), block.y(), block.z()));
+        return packed;
     }
 
     /** Bordering water blocks a single map records; beyond this a space is simply "very wet". */
@@ -560,7 +573,9 @@ public final class AirflowService {
      * the outdoors toward the system's air by the same influence temperature
      * does; the RH then follows from the blended temperature. Wind only
      * reaches the parts of a spot the system does not condition. The spot's
-     * own small variance is added last, to the reading only.
+     * own small variance is added last, to the reading only. The outdoor air
+     * at the spot varies with the same pattern, at the outdoor spread, so a
+     * thermometer standing outside shows one temperature on both lines.
      */
     private TemperatureReading reading(Location location, double localF, OutdoorTemperatureService.Outdoor out,
                                        double influence, int distance, GroupId group, Thermostat thermostat,
@@ -570,13 +585,14 @@ public final class AirflowService {
         double hours = varies ? location.getWorld().getGameTime() / ThermalModel.MINECRAFT_TICKS_PER_HOUR : 0.0;
         long seed = varies ? location.getWorld().getUID().getMostSignificantBits()
                 ^ location.getWorld().getUID().getLeastSignificantBits() : 0L;
+        // The spot's temperature pattern at a spread of 1 F, scaled to each medium's spread below.
+        double pattern = varies ? Microvariance.offsetF(variance, 1.0, seed, Microvariance.TEMPERATURE,
+                location.getBlockX(), location.getBlockY(), location.getBlockZ(), hours) : 0.0;
+        double outdoorF = out.airF() + variance.outdoorF() * pattern;
         if (water) {
-            if (varies) {
-                double poolInfluence = thermostat != null && thermostat.pool() ? influence : 0.0;
-                localF += Microvariance.offsetF(variance, Microvariance.waterSpreadF(variance, poolInfluence), seed,
-                        Microvariance.TEMPERATURE, location.getBlockX(), location.getBlockY(), location.getBlockZ(), hours);
-            }
-            return new TemperatureReading(localF, out.airF(), influence, distance, group, thermostat,
+            double poolInfluence = thermostat != null && thermostat.pool() ? influence : 0.0;
+            localF += Microvariance.waterSpreadF(variance, poolInfluence) * pattern;
+            return new TemperatureReading(localF, outdoorF, influence, distance, group, thermostat,
                     true, Double.NaN, localF, out.weather());
         }
         double dew = out.dewPointF();
@@ -592,15 +608,13 @@ public final class AirflowService {
         }
         if (varies) {
             double airInfluence = thermostat != null && !thermostat.pool() ? influence : 0.0;
-            int x = location.getBlockX(), y = location.getBlockY(), z = location.getBlockZ();
-            localF += Microvariance.offsetF(variance, Microvariance.airSpreadF(variance, airInfluence), seed,
-                    Microvariance.TEMPERATURE, x, y, z, hours);
+            localF += Microvariance.airSpreadF(variance, airInfluence) * pattern;
             dew = Math.min(localF, dew + Microvariance.offsetF(variance, variance.dewPointF(), seed,
-                    Microvariance.DEW_POINT, x, y, z, hours));
+                    Microvariance.DEW_POINT, location.getBlockX(), location.getBlockY(), location.getBlockZ(), hours));
         }
         double humidity = Psychrometrics.relativeHumidity(localF, dew);
         double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, out.windMs() * (1.0 - influence));
-        return new TemperatureReading(localF, out.airF(), influence, distance, group, thermostat,
+        return new TemperatureReading(localF, outdoorF, influence, distance, group, thermostat,
                 false, humidity, feelsLike, out.weather());
     }
 

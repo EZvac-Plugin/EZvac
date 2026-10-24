@@ -67,7 +67,9 @@ added since your `config.yml` was written are added to it on startup, with
 their comments, so you can see and tune them. Nothing you already have is
 changed, even where a default has since changed, and the previous file is kept
 as `config.yml.before-<version>.bak`. A `config.yml` that can't be read is
-left alone.
+left alone. A value out of range in one of the 2.0 sections (`weather:`,
+`humidity:`, `dehumidifier:`, `humidifier:`, `variance:`) doesn't stop EZvac:
+that section uses its defaults and the log names the setting to fix.
 
 ## Core devices
 

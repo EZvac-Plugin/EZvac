@@ -60,7 +60,7 @@ public final class HvacPlugin extends JavaPlugin {
             saveDefaultConfig();
             addNewSettingsToConfig();
             settings = HvacSettings.load(getConfig());
-            climate = ClimateSettings.load(getConfig());
+            climate = ClimateSettings.load(getConfig(), getLogger()::warning);
             registry = new HvacRegistry(this, settings);
             registry.load();
             weather = new WeatherService(climate.weather());
@@ -260,4 +260,5 @@ public final class HvacPlugin extends JavaPlugin {
 
     public HvacSettings settings() { return settings; }
     public ClimateSettings climate() { return climate; }
+    public WeatherService weather() { return weather; }
 }

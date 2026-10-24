@@ -37,7 +37,11 @@ public final class HvacRegistry {
         SENSOR, SENSOR_HUB, NONE
     }
 
-    public record PruneResult(Set<GroupId> invalidatedGroups, int removedDevices) {}
+    /**
+     * @param removedUnits dehumidifiers and humidifiers whose blocks were gone,
+     *                     so their airflow zones can be dropped as well
+     */
+    public record PruneResult(Set<GroupId> invalidatedGroups, int removedDevices, List<ClimateUnit> removedUnits) {}
 
     /**
      * The few server services persistence needs. The plugin supplies the real
@@ -901,8 +905,10 @@ public final class HvacRegistry {
         removed += pruneSigns(thermometers.values().iterator(), Thermometer::position);
         removed += pruneSigns(rpmMonitors.values().iterator(), RpmMonitor::position);
         removed += pruneSigns(settingsPanels.values().iterator(), SettingsPanel::position);
-        removed += pruneUnits(dehumidifiers.values().iterator());
-        removed += pruneUnits(humidifiers.values().iterator());
+        List<ClimateUnit> removedUnits = new ArrayList<>();
+        pruneUnits(dehumidifiers.values().iterator(), removedUnits);
+        pruneUnits(humidifiers.values().iterator(), removedUnits);
+        removed += removedUnits.size();
         removed += pruneSigns(sensorHubs.values().iterator(), SensorHub::position);
         // A button pops off when its wall is broken, without any break event of its own.
         Iterator<Sensor> sensorIterator = sensors.values().iterator();
@@ -914,7 +920,7 @@ public final class HvacRegistry {
         }
         if (removed > 0) rebuildIndexes();
         dirty |= removed > 0;
-        return new PruneResult(Set.copyOf(invalidated), removed);
+        return new PruneResult(Set.copyOf(invalidated), removed, List.copyOf(removedUnits));
     }
 
     private static <T> int pruneSigns(Iterator<T> iterator, Function<T, BlockKey> positionOf) {
@@ -929,15 +935,14 @@ public final class HvacRegistry {
         return removed;
     }
 
-    private static int pruneUnits(Iterator<? extends ClimateUnit> iterator) {
-        int removed = 0;
+    private static void pruneUnits(Iterator<? extends ClimateUnit> iterator, List<ClimateUnit> removed) {
         while (iterator.hasNext()) {
             ClimateUnit value = iterator.next();
             if (unitIntact(value)) continue;
             value.setPartWater(false);
-            iterator.remove(); removed++;
+            iterator.remove();
+            removed.add(value);
         }
-        return removed;
     }
 
     /** Each of its three blocks is either unloaded or still what it should be. */

@@ -411,6 +411,8 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onWorldUnload(WorldUnloadEvent event) {
         airflow.invalidateWorld(event.getWorld());
+        // A world loaded again starts from its weather then, not from where it was eased to before.
+        plugin.weather().forget(event.getWorld());
         plugin.requestImmediateSync();
     }
 

@@ -67,4 +67,13 @@ class WeatherModelTest {
         assertEquals("Clear", WeatherModel.word(Precipitation.RAIN, WeatherModel.Conditions.CLEAR));
         assertEquals("", WeatherModel.word(Precipitation.NONE, rain), "deserts never show weather");
     }
+
+    @Test
+    void theSkysWordDoesNotDependOnTheWeatherEffects() {
+        ClimateSettings.Weather off = new ClimateSettings.Weather(false, 2.0, 6.0, 9.0, 3.0, 0.6, 0.1, 1.5, 3.0, 5.0);
+        WeatherModel.Conditions rain = WeatherModel.Conditions.settled(true, false);
+        assertEquals(WeatherModel.Effect.calm(off), WeatherModel.effect(Precipitation.RAIN, rain, off),
+                "with the effects off, rain changes no temperature");
+        assertEquals("Rain", WeatherModel.word(Precipitation.RAIN, rain), "but a weather sensor still sees it");
+    }
 }

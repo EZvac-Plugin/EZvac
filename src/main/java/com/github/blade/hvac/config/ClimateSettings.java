@@ -3,6 +3,8 @@ package com.github.blade.hvac.config;
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * Immutable, validated tuning for weather, humidity and dehumidifiers (2.0).
@@ -126,7 +128,6 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         }
     }
 
-    /** The farthest either kind of standalone unit reaches, for spatial lookups. */
     /**
      * How far readings may stray from spot to spot (2.0 Pilot 5), in F either
      * way. Readings only; thermostats and the simulation never see it.
@@ -152,6 +153,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         }
     }
 
+    /** The farthest either kind of standalone unit reaches, for spatial lookups. */
     public int unitRange() {
         return Math.max(dehumidifier.range(), humidifier.range());
     }
@@ -166,7 +168,17 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Variance(true, 0.5, 1.5, 0.3, 0.8, 0.3, 6.0, 3.0));
     }
 
+    /** Reads strictly: a value out of range throws. */
     public static ClimateSettings load(FileConfiguration config) {
+        return load(config, warning -> { throw new IllegalArgumentException(warning); });
+    }
+
+    /**
+     * Reads the 2.0 settings. A value out of range is not worth stopping
+     * EZvac over: its section falls back to the defaults, with a warning that
+     * names the setting, and every other section still loads as written.
+     */
+    public static ClimateSettings load(FileConfiguration config, Consumer<String> warn) {
         ClimateSettings defaults = defaults();
         Weather w = defaults.weather;
         Humidity h = defaults.humidity;
@@ -176,7 +188,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         Humidifier m = defaults.humidifier;
         Variance v = defaults.variance;
         return new ClimateSettings(
-                new Weather(config.getBoolean("weather.enabled", w.enabled()),
+                section("weather", w, warn, () -> new Weather(config.getBoolean("weather.enabled", w.enabled()),
                         config.getDouble("weather.ease-hours", w.easeHours()),
                         config.getDouble("weather.rain-cooling-f", w.rainCoolingF()),
                         config.getDouble("weather.thunder-cooling-f", w.thunderCoolingF()),
@@ -185,15 +197,15 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getDouble("weather.water-share", w.waterShare()),
                         config.getDouble("weather.wind-clear-ms", w.windClearMs()),
                         config.getDouble("weather.wind-rain-ms", w.windRainMs()),
-                        config.getDouble("weather.wind-thunder-ms", w.windThunderMs())),
-                new Humidity(config.getDouble("humidity.outdoor-rh-dry", h.outdoorRhDry()),
+                        config.getDouble("weather.wind-thunder-ms", w.windThunderMs()))),
+                section("humidity", h, warn, () -> new Humidity(config.getDouble("humidity.outdoor-rh-dry", h.outdoorRhDry()),
                         config.getDouble("humidity.outdoor-rh-wet", h.outdoorRhWet()),
                         config.getDouble("humidity.rain-rh", h.rainRh()),
                         config.getDouble("humidity.infiltration-per-hour", h.infiltrationPerHour()),
                         config.getDouble("humidity.coil-dew-point-f", h.coilDewPointF()),
                         config.getDouble("humidity.cooling-dry-f-per-minecraft-hour", h.coolingDryFPerHour()),
-                        config.getDouble("humidity.evaporation-f-per-minecraft-hour", h.evaporationFPerHour())),
-                new Dehumidifier(config.getInt("dehumidifier.range", d.range()),
+                        config.getDouble("humidity.evaporation-f-per-minecraft-hour", h.evaporationFPerHour()))),
+                section("dehumidifier", d, warn, () -> new Dehumidifier(config.getInt("dehumidifier.range", d.range()),
                         config.getInt("dehumidifier.maximum-cells", d.maximumCells()),
                         config.getDouble("dehumidifier.dry-f-per-minecraft-hour", d.dryFPerHour()),
                         config.getDouble("dehumidifier.dry-dew-point-f", d.dryDewPointF()),
@@ -202,22 +214,32 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getInt("dehumidifier.empty-seconds", d.emptySeconds()),
                         config.getInt("dehumidifier.default-setpoint", d.defaultSetpoint()),
                         presets,
-                        config.getDouble("dehumidifier.hysteresis", d.hysteresis())),
-                new Humidifier(config.getInt("humidifier.range", m.range()),
+                        config.getDouble("dehumidifier.hysteresis", d.hysteresis()))),
+                section("humidifier", m, warn, () -> new Humidifier(config.getInt("humidifier.range", m.range()),
                         config.getInt("humidifier.maximum-cells", m.maximumCells()),
                         config.getDouble("humidifier.add-f-per-minecraft-hour", m.addFPerHour()),
                         config.getInt("humidifier.reference-cells", m.referenceCells()),
                         config.getInt("humidifier.default-setpoint", m.defaultSetpoint()),
                         config.isList("humidifier.presets") ? config.getIntegerList("humidifier.presets") : m.presets(),
-                        config.getDouble("humidifier.hysteresis", m.hysteresis())),
-                new Variance(config.getBoolean("variance.enabled", v.enabled()),
+                        config.getDouble("humidifier.hysteresis", m.hysteresis()))),
+                section("variance", v, warn, () -> new Variance(config.getBoolean("variance.enabled", v.enabled()),
                         config.getDouble("variance.indoor-f", v.indoorF()),
                         config.getDouble("variance.outdoor-f", v.outdoorF()),
                         config.getDouble("variance.pool-f", v.poolF()),
                         config.getDouble("variance.natural-water-f", v.naturalWaterF()),
                         config.getDouble("variance.dew-point-f", v.dewPointF()),
                         config.getDouble("variance.spacing-blocks", v.spacingBlocks()),
-                        config.getDouble("variance.drift-hours", v.driftHours())));
+                        config.getDouble("variance.drift-hours", v.driftHours()))));
+    }
+
+    private static <T> T section(String name, T fallback, Consumer<String> warn, Supplier<T> reader) {
+        try {
+            return reader.get();
+        } catch (IllegalArgumentException invalid) {
+            warn.accept(invalid.getMessage() + ", so every " + name + " setting uses its default"
+                    + " until config.yml is fixed.");
+            return fallback;
+        }
     }
 
     private static void requireFinite(String name, double value) {

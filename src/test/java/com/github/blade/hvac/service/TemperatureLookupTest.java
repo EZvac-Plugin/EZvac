@@ -98,10 +98,12 @@ class TemperatureLookupTest {
         long output = AirflowService.pack(10, 64, 5);
         long pool = AirflowService.pack(3, 63, 3);
         AirflowService.WaterExposure exposure = new AirflowService.WaterExposure(400, new long[]{output, pool});
-        AirflowService.WaterExposure real = exposure.excluding(WORLD, Set.of(new BlockKey(WORLD, 10, 64, 5)));
+        var outputs = AirflowService.packByWorld(Set.of(new BlockKey(WORLD, 10, 64, 5)));
+        AirflowService.WaterExposure real = exposure.excluding(outputs.get(WORLD));
         assertArrayEquals(new long[]{pool}, real.waterCells());
-        assertSame(exposure, exposure.excluding(WORLD, Set.of()), "nothing to exclude, nothing copied");
-        assertSame(exposure, exposure.excluding(WORLD, Set.of(new BlockKey(OTHER, 10, 64, 5))), "an output in another world is not this one");
+        assertSame(exposure, exposure.excluding(null), "nothing to exclude, nothing copied");
+        var elsewhere = AirflowService.packByWorld(Set.of(new BlockKey(OTHER, 10, 64, 5)));
+        assertSame(exposure, exposure.excluding(elsewhere.get(WORLD)), "an output in another world is not this one");
     }
 
     @Test

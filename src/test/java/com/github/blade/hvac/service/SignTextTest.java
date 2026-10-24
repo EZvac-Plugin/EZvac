@@ -41,6 +41,10 @@ class SignTextTest {
         assertEquals("Feels 57.5", SignText.fit("Feels 57.5 F", 60), "no trailing space");
         assertEquals("T. Hygromet", SignText.fit("T. Hygrometer", 60), "a label is cut where the room ends");
         assertEquals("ETA 1:05 | baseme", SignText.fit("ETA 1:05 | basement", 90));
+        assertEquals("ETA 12:34 | basem", SignText.fit("ETA 12:34 | basement2north", 90),
+                "a label with a digit in it is a label, cut like any other");
+        assertEquals("Set 72.0 F", SignText.fit("Set 72.0 F | 100%", 60), "no separator left dangling");
+        assertEquals("Garden", SignText.fit("Garden -40F", 50), "a negative reading is a reading too");
         assertEquals(45, SignText.fit("i".repeat(60), 90).length(), "fifty-ish thin letters");
     }
 }

@@ -2,6 +2,36 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.0 (in progress)
+
+Hardening after a review of everything changed since 1.9. Same save format
+(format 6).
+
+### Fixed
+
+- **One bad 2.0 setting no longer stops EZvac.** A value out of range under
+  `weather:`, `humidity:`, `dehumidifier:`, `humidifier:` or `variance:` used
+  to disable the whole plugin on startup. Now that section uses its defaults,
+  with a warning naming the setting, and everything else loads as written.
+- **Units destroyed without a break event** (an explosion, a piston, an
+  editing tool) now release their airflow zone. Before, it stayed in memory
+  until a restart.
+- **Labels with a digit in them** (a group called `basement2`) are cut on a
+  sign like any other label instead of disappearing, and a cut line never
+  ends in a dangling `|`. Readings are still never shown cut.
+- **Weather sensors report the sky even with `weather.enabled: false`**,
+  instead of always saying `Clear`.
+- **A thermometer outdoors** shows the same temperature on both lines: the
+  outdoor reading at a spot now varies with that spot.
+
+### Changed
+
+- `audio.hum-volume` and `audio.hum-pitch` are no longer read at all (Pilot 5
+  replaced them with `audio.sounds`), so an odd value left there no longer
+  stops startup.
+- Each controller cycle checks for heat pump and AC water outputs without
+  allocating, which matters in rooms next to large pools.
+
 ## ALPHA 2.0 Pilot 5
 
 Spot-to-spot variance, weather sensors, shared humidity for standalone units,

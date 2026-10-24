@@ -136,16 +136,15 @@ public final class DisplayService {
     /**
      * What a weather sensor at this spot reports. Like a rain gauge it needs
      * open sky: anything above it that would keep rain off (a roof, glass,
-     * leaves) makes it {@link #COVERED}. Otherwise the outdoor weather, or
-     * Clear where weather never reaches, such as a desert.
+     * leaves) makes it {@link #COVERED}. Otherwise the sky's weather, even
+     * with EZvac's weather effects switched off.
      */
     public String weatherAt(Location location) {
         World world = location.getWorld();
         if (world == null) return COVERED;
         int top = world.getHighestBlockYAt(location.getBlockX(), location.getBlockZ(), HeightMap.MOTION_BLOCKING);
         if (top > location.getBlockY()) return COVERED;
-        String weather = outdoor.climateAt(location).weather();
-        return weather == null || weather.isEmpty() ? "Clear" : weather;
+        return outdoor.skyAt(location);
     }
 
     /** The chunks near each online player, per world. */
