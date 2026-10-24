@@ -2,6 +2,7 @@ package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.EtaEstimator;
 import com.github.blade.hvac.simulation.ThermalModel;
@@ -113,9 +114,10 @@ public final class DisplayService {
 
     /** What a sensor read, before it is fitted to a sign. */
     private record SensorReading(Sensor sensor, boolean loaded, double temperatureF, double humidity,
-                                 String weather) {
+                                 String weather, TemperatureUnit units) {
         String line(int width) {
-            return SensorLine.format(sensor.label(), sensor.reads(), loaded, temperatureF, humidity, weather, width);
+            return SensorLine.format(sensor.label(), sensor.reads(), loaded, temperatureF, humidity, weather, width,
+                    units);
         }
     }
 
@@ -123,11 +125,12 @@ public final class DisplayService {
     private SensorReading read(Sensor sensor) {
         BlockKey position = sensor.position();
         var location = position.isChunkLoaded() ? position.location() : null;
-        if (location == null) return new SensorReading(sensor, false, Double.NaN, Double.NaN, "");
+        TemperatureUnit units = settings.units();
+        if (location == null) return new SensorReading(sensor, false, Double.NaN, Double.NaN, "", units);
         if (sensor.reads() == Sensor.Kind.WEATHER)
-            return new SensorReading(sensor, true, Double.NaN, Double.NaN, weatherAt(location));
+            return new SensorReading(sensor, true, Double.NaN, Double.NaN, weatherAt(location), units);
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
-        return new SensorReading(sensor, true, reading.localF(), reading.humidity(), "");
+        return new SensorReading(sensor, true, reading.localF(), reading.humidity(), "", units);
     }
 
     /** What a weather sensor shows when something above it keeps the rain off. */
@@ -203,9 +206,8 @@ public final class DisplayService {
             lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
             NamedTextColor color = thermostat.mode() == OperatingMode.COOLING ? NamedTextColor.AQUA
                     : thermostat.mode() == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.GRAY;
-            lines.set(1, String.format(Locale.US, "%.1f F | %s",
-                    thermostat.roomF(), mode), color);
-            String setpoint = String.format(Locale.US, "Set %.1f F", thermostat.targetF());
+            lines.set(1, temp(thermostat.roomF()) + " | " + mode, color);
+            String setpoint = "Set " + temp(thermostat.targetF());
             if (thermostat.mode() != OperatingMode.IDLE) setpoint += " | " + percent + "%";
             lines.set(2, setpoint, NamedTextColor.WHITE);
             lines.set(3, footer + " | " + thermostat.group().label(),
@@ -243,9 +245,9 @@ public final class DisplayService {
             switch (thermometer.reads()) {
                 case TEMPERATURE -> {
                     lines.set(1, "Thermometer", NamedTextColor.WHITE);
-                    lines.set(2, String.format(Locale.US, "Inside: %.1f F", reading.localF()),
+                    lines.set(2, "Inside: " + temp(reading.localF()),
                             NamedTextColor.YELLOW);
-                    lines.set(3, String.format(Locale.US, "Outside: %.1f F", reading.outdoorF()),
+                    lines.set(3, "Outside: " + temp(reading.outdoorF()),
                             NamedTextColor.GRAY);
                 }
                 case HUMIDITY -> {
@@ -254,11 +256,11 @@ public final class DisplayService {
                     lines.set(3, "Outside: " + outside, NamedTextColor.GRAY);
                 }
                 case BOTH -> {
-                    lines.set(1, String.format(Locale.US, "In %.1f F %s", reading.localF(), inside),
+                    lines.set(1, "In " + temp(reading.localF()) + " " + inside,
                             NamedTextColor.YELLOW);
-                    lines.set(2, String.format(Locale.US, "Feels %.1f F", reading.feelsLikeF()),
+                    lines.set(2, "Feels " + temp(reading.feelsLikeF()),
                             NamedTextColor.WHITE);
-                    lines.set(3, String.format(Locale.US, "Out %.1f F %s", reading.outdoorF(), outside),
+                    lines.set(3, "Out " + temp(reading.outdoorF()) + " " + outside,
                             NamedTextColor.GRAY);
                 }
             }
@@ -350,6 +352,11 @@ public final class DisplayService {
             lines.set(2, stateText, stateColor);
             lines.set(3, footer, NamedTextColor.GRAY);
         });
+    }
+
+    /** A temperature as a sign shows it: {@code 72.4 F}, or {@code 22.4 C} with units: C. */
+    private String temp(double fahrenheit) {
+        return settings.units().format(fahrenheit);
     }
 
     /** A sign's front, written line by line; every line is cut to what the sign can show. */

@@ -40,7 +40,7 @@ class HudSettingsTest {
     void customValuesLoad() {
         YamlConfiguration config = new YamlConfiguration();
         config.set("hud.style", "boss-bar");
-        config.set("hud.units", "c");
+        config.set("units", "c");
         config.set("hud.update-ticks", 20);
         config.set("hud.sidebar.lines", List.of("{temp}", "{group}"));
         config.set("hud.comfort.hot.above-f", 90.0);
@@ -75,7 +75,6 @@ class HudSettingsTest {
     @Test
     void invalidValuesAreRejectedWithTheirKey() {
         assertRejected("hud.style", "sideways", "hud.style");
-        assertRejected("hud.units", "K", "hud.units");
         assertRejected("hud.update-ticks", 0, "hud.update-ticks");
         assertRejected("hud.bar.length", 0, "hud.bar.length");
         assertRejected("hud.bar.hot-f", 40.0, "hud.bar.cold-f");

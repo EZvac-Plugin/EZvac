@@ -21,6 +21,26 @@ The outdoors follows the time of day and the biome:
 A room with nothing running drifts toward the outdoor temperature, so a house
 in a desert warms up on its own and one in the snow cools down.
 
+## Biome transitions
+
+Walking from one biome into another doesn't change the climate in a single
+step. The outdoors at a spot is the average of the biomes around it, within
+24 blocks by default, with nearer ones counting more, the way Minecraft's
+*Biome Blend* setting fades grass colours.
+
+- Deep inside a biome nothing changes: every biome around is the same one.
+- Near a border the climate ramps over about 48 blocks. Walking from plains
+  into a desert at noon goes from 72 °F to 100 °F over about 11 seconds
+  instead of in one step.
+- Everything that comes from the biome blends: temperature, humidity, weather
+  and natural water. At a desert's edge, rain cools the air partway.
+- It is the real outdoors, not just a reading: a house built on a border lives
+  in the in-between climate, and its thermostat, idle drift and ETA follow it.
+- Weather sensors still report the real sky above them.
+- Only loaded chunks count, so blending never loads the world around you.
+
+`biome-blend.radius-blocks` sets the width; 0 turns blending off.
+
 ## Weather
 
 - Rain and thunder cool the outdoor air, by 6 °F and 9 °F by default, and
@@ -88,7 +108,7 @@ wall to wall:
 
 ## Tuning
 
-Everything here is adjustable under `weather:`, `humidity:` and `variance:` in
-`config.yml`; see [Configuration](configuration.md). The exact formulas are in
+Everything here is adjustable under `biome-blend:`, `weather:`, `humidity:`
+and `variance:` in `config.yml`; see [Configuration](configuration.md). The exact formulas are in
 the *Outdoor climate* and *Humidity and feels like* sections of
 [features.txt](features.txt).

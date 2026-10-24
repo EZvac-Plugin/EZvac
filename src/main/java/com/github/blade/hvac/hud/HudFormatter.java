@@ -1,6 +1,7 @@
 package com.github.blade.hvac.hud;
 
 import com.github.blade.hvac.config.HudSettings;
+import com.github.blade.hvac.config.TemperatureUnit;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -54,15 +55,15 @@ public final class HudFormatter {
 
     /** A temperature in the configured units, such as "72.4°F". */
     public String temperature(double fahrenheit) {
-        return settings.celsius() ? celsius(fahrenheit) : fahrenheit(fahrenheit);
+        return (settings.celsius() ? TemperatureUnit.C : TemperatureUnit.F).degrees(fahrenheit);
     }
 
     public static String fahrenheit(double fahrenheit) {
-        return String.format(Locale.US, "%.1f°F", fahrenheit);
+        return TemperatureUnit.F.degrees(fahrenheit);
     }
 
     public static String celsius(double fahrenheit) {
-        return String.format(Locale.US, "%.1f°C", (fahrenheit - 32.0) * 5.0 / 9.0);
+        return TemperatureUnit.C.degrees(fahrenheit);
     }
 
     /** The settings for the snapshot's medium: water readings use the water scale and wording. */

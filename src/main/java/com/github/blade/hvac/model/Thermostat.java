@@ -1,6 +1,7 @@
 package com.github.blade.hvac.model;
 
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.simulation.BiomeBlend;
 import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.ThermalModel;
 
@@ -24,6 +25,14 @@ public final class Thermostat {
     /** The biome's vanilla downfall (0 desert .. 1 jungle), cached like the noon/midnight profile. */
     private double outdoorDownfall = DEFAULT_DOWNFALL;
     private Precipitation outdoorPrecipitation = Precipitation.RAIN;
+    /**
+     * Shares of its surroundings where rain and snow fall (2.1). Whole for a
+     * thermostat inside one biome; in between on a biome border.
+     */
+    private double outdoorRainShare = 1.0;
+    private double outdoorSnowShare = 0.0;
+    /** World game time of the last biome sample; never saved, so a restart samples at once. */
+    private long outdoorSampledAt = Long.MIN_VALUE;
     /** The air's moisture as a dew point; NaN until first simulated (2.0). */
     private double roomDewPointF = Double.NaN;
     /** Pool thermostats clamp to the water range and pair only with boilers. */
@@ -78,6 +87,10 @@ public final class Thermostat {
     public boolean pool() { return pool; }
     public double outdoorDownfall() { return outdoorDownfall; }
     public Precipitation outdoorPrecipitation() { return outdoorPrecipitation; }
+    /** The outdoor climate it last sampled, transitions between biomes included. */
+    public BiomeBlend.Blended outdoorClimate() {
+        return new BiomeBlend.Blended(outdoorNoonF, outdoorMidnightF, outdoorDownfall, outdoorRainShare, outdoorSnowShare);
+    }
     public double roomDewPointF() { return roomDewPointF; }
     public boolean hasRoomDewPoint() { return Double.isFinite(roomDewPointF); }
 
@@ -100,6 +113,26 @@ public final class Thermostat {
     public void setOutdoorHumidityProfile(double downfall, Precipitation precipitation) {
         this.outdoorDownfall = Double.isFinite(downfall) ? Math.max(0.0, Math.min(1.0, downfall)) : DEFAULT_DOWNFALL;
         this.outdoorPrecipitation = Objects.requireNonNull(precipitation, "precipitation");
+        BiomeBlend.Blended pure = BiomeBlend.Blended.of(0.0, 0.0, 0.0, precipitation);
+        this.outdoorRainShare = pure.rainShare();
+        this.outdoorSnowShare = pure.snowShare();
+    }
+    /** True when the biome around it was last sampled at least this many ticks ago. */
+    public boolean outdoorSampleDue(long gameTime, long intervalTicks) {
+        return outdoorSampledAt == Long.MIN_VALUE || gameTime - outdoorSampledAt >= intervalTicks
+                || gameTime < outdoorSampledAt;
+    }
+    public void markOutdoorSampled(long gameTime) { this.outdoorSampledAt = gameTime; }
+    /** Caches a sampled outdoor climate: temperatures, moisture and weather shares together. */
+    public void setOutdoorClimate(BiomeBlend.Blended climate) {
+        setOutdoorProfile(climate.noonF(), climate.midnightF());
+        setOutdoorHumidityProfile(climate.downfall(), climate.dominant());
+        setOutdoorWeatherShares(climate.rainShare(), climate.snowShare());
+    }
+    private void setOutdoorWeatherShares(double rain, double snow) {
+        if (!Double.isFinite(rain) || !Double.isFinite(snow)) return;
+        this.outdoorRainShare = Math.max(0.0, Math.min(1.0, rain));
+        this.outdoorSnowShare = Math.max(0.0, Math.min(1.0 - outdoorRainShare, snow));
     }
     /** The dew point never exceeds the air temperature: that would be more than 100% RH. */
     public void setRoomDewPointF(double dewPointF) {
@@ -123,6 +156,11 @@ public final class Thermostat {
         map.put("pool", pool);
         map.put("outdoorDownfall", outdoorDownfall);
         map.put("outdoorPrecipitation", outdoorPrecipitation.name());
+        // Only a thermostat on a biome border has shares worth saving; inside a biome they follow from the above.
+        if (!outdoorClimate().pure()) {
+            map.put("outdoorRainShare", outdoorRainShare);
+            map.put("outdoorSnowShare", outdoorSnowShare);
+        }
         if (hasRoomDewPoint()) map.put("roomDewPointF", roomDewPointF);
         return map;
     }
@@ -146,6 +184,8 @@ public final class Thermostat {
         // biome is sampled, and the room's moisture starts at the outdoor level.
         thermostat.setOutdoorHumidityProfile(number(map, "outdoorDownfall", DEFAULT_DOWNFALL),
                 Precipitation.parse(map.get("outdoorPrecipitation")));
+        if (map.containsKey("outdoorRainShare"))
+            thermostat.setOutdoorWeatherShares(number(map, "outdoorRainShare", 1.0), number(map, "outdoorSnowShare", 0.0));
         thermostat.setRoomDewPointF(number(map, "roomDewPointF", Double.NaN));
         return thermostat;
     }

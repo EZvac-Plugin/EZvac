@@ -72,6 +72,29 @@ public final class WeatherModel {
         return new Effect(-cooling, 1.0 - settings.swingReduction() * wet, Math.max(0.0, wind), wet);
     }
 
+    /**
+     * The effect on a spot whose surroundings are partly rain, partly snow and
+     * partly dry, as at a biome border (2.1): each kind's effect, mixed by its
+     * share. Rain at a desert's edge cools it partway. A single biome gets
+     * exactly its own effect.
+     */
+    public static Effect effect(BiomeBlend.Blended climate, Conditions conditions, ClimateSettings.Weather settings) {
+        double rain = clamp(climate.rainShare());
+        double snow = Math.min(clamp(climate.snowShare()), 1.0 - rain);
+        double dry = 1.0 - rain - snow;
+        if (rain == 1.0) return effect(Precipitation.RAIN, conditions, settings);
+        if (snow == 1.0) return effect(Precipitation.SNOW, conditions, settings);
+        Effect calm = Effect.calm(settings);
+        if (dry >= 1.0) return calm;
+        Effect wet = effect(Precipitation.RAIN, conditions, settings);
+        Effect cold = effect(Precipitation.SNOW, conditions, settings);
+        return new Effect(
+                wet.meanShiftF() * rain + cold.meanShiftF() * snow + calm.meanShiftF() * dry,
+                wet.swingFactor() * rain + cold.swingFactor() * snow + calm.swingFactor() * dry,
+                wet.windMs() * rain + cold.windMs() * snow + calm.windMs() * dry,
+                wet.wetness() * rain + cold.wetness() * snow + calm.wetness() * dry);
+    }
+
     /** A short word for the HUD: Clear, Rain, Thunder or Snow, or empty where weather never reaches. */
     public static String word(Precipitation precipitation, Conditions conditions) {
         if (precipitation == Precipitation.NONE || conditions == null) return "";

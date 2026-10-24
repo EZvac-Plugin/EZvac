@@ -24,7 +24,7 @@ class HudFormatterTest {
         assertEquals("72.4°F", format.temperature(72.4));
         assertEquals("22.0°C", HudFormatter.celsius(71.6));
         YamlConfiguration config = new YamlConfiguration();
-        config.set("hud.units", "C");
+        config.set("units", "C");
         assertEquals("0.0°C", new HudFormatter(HudSettings.load(config)).temperature(32.0));
     }
 

@@ -3,6 +3,7 @@ package com.github.blade.hvac.service;
 import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.Thermostat;
+import com.github.blade.hvac.simulation.BiomeBlend;
 import com.github.blade.hvac.simulation.HumidityModel;
 import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.Psychrometrics;
@@ -13,12 +14,23 @@ import org.bukkit.World;
 import org.bukkit.block.Biome;
 import org.bukkit.block.Block;
 
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
 
-/** Biome profile sampling that never force-loads thermostat chunks. */
+/**
+ * Biome profile sampling that never force-loads chunks. From 2.1 the climate
+ * at a spot is blended from the biomes around it (see {@link BiomeBlend}), so
+ * walking from one biome into another ramps instead of jumping.
+ */
 public final class OutdoorTemperatureService {
     private enum Profile {
         SNOWY(25, 5, Precipitation.SNOW), COLD(45, 28, Precipitation.RAIN),
@@ -59,6 +71,16 @@ public final class OutdoorTemperatureService {
      */
     private final Map<Biome, Profile> profileCache = new EnumMap<>(Biome.class);
     private final Map<Biome, Double> downfallCache = new EnumMap<>(Biome.class);
+    /**
+     * Blended climate per 4x4 column of biome cells, per world, then per
+     * 4-block height cell. Biomes almost never change, so each cell is worked
+     * out once; a chunk loading or unloading near it forgets it, because the
+     * blend skips chunks that aren't loaded.
+     */
+    private final Map<UUID, Long2ObjectOpenHashMap<Int2ObjectOpenHashMap<BiomeBlend.Blended>>> blended = new HashMap<>();
+    private int blendedCells;
+    /** The cache is dropped past this many cells, and simply refills. */
+    private static final int MAXIMUM_BLENDED_CELLS = 400_000;
 
     public OutdoorTemperatureService() {
         this(ClimateSettings.defaults(), null);
@@ -89,15 +111,115 @@ public final class OutdoorTemperatureService {
         return value;
     }
 
-    private WeatherModel.Effect effect(World world, Precipitation precipitation) {
+    private WeatherModel.Effect effect(World world, BiomeBlend.Blended local) {
         WeatherModel.Conditions conditions = weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
-        return WeatherModel.effect(precipitation, conditions, climate.weather());
+        return WeatherModel.effect(local, conditions, climate.weather());
     }
 
-    private String weatherWord(World world, Precipitation precipitation) {
+    /** The weather word for a spot: the kind of weather its surroundings mostly get. */
+    private String weatherWord(World world, BiomeBlend.Blended local) {
         if (!climate.weather().enabled()) return "";
         WeatherModel.Conditions conditions = weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
-        return WeatherModel.word(precipitation, conditions);
+        return WeatherModel.word(local.dominant(), conditions);
+    }
+
+    /**
+     * The outdoor climate at a block, blended from the biomes around it.
+     * Readings between sample cells are interpolated, so there are no 4-block
+     * steps either. Never loads a chunk.
+     */
+    public BiomeBlend.Blended blendedAt(World world, int x, int y, int z) {
+        int radius = climate.biomeBlend().radiusBlocks();
+        if (radius <= 0) return exactAt(world, x, y, z);
+        double u = (x - 1.5) / BiomeBlend.SAMPLE_SPACING;
+        double v = (z - 1.5) / BiomeBlend.SAMPLE_SPACING;
+        int cellX = (int) Math.floor(u), cellZ = (int) Math.floor(v), cellY = y >> 2;
+        double tx = u - cellX, tz = v - cellZ;
+        BiomeBlend.Blended near = BiomeBlend.lerp(cell(world, cellX, cellY, cellZ, radius),
+                cell(world, cellX + 1, cellY, cellZ, radius), tx);
+        BiomeBlend.Blended far = BiomeBlend.lerp(cell(world, cellX, cellY, cellZ + 1, radius),
+                cell(world, cellX + 1, cellY, cellZ + 1, radius), tx);
+        return BiomeBlend.lerp(near, far, tz);
+    }
+
+    /** The biome at exactly this block, as before 2.1 (and with blending off). */
+    private BiomeBlend.Blended exactAt(World world, int x, int y, int z) {
+        Block block = world.getBlockAt(x, y, z);
+        Biome biome = block.getBiome();
+        Profile profile = cachedProfile(biome);
+        return BiomeBlend.Blended.of(profile.noon, profile.midnight, downfall(block, biome), profile.precipitation);
+    }
+
+    private BiomeBlend.Blended cell(World world, int cellX, int cellY, int cellZ, int radius) {
+        Long2ObjectOpenHashMap<Int2ObjectOpenHashMap<BiomeBlend.Blended>> columns =
+                blended.computeIfAbsent(world.getUID(), ignored -> new Long2ObjectOpenHashMap<>());
+        long column = HvacRegistry.cellKey(cellX, cellZ);
+        Int2ObjectOpenHashMap<BiomeBlend.Blended> heights = columns.get(column);
+        BiomeBlend.Blended cached = heights == null ? null : heights.get(cellY);
+        if (cached != null) return cached;
+        BiomeBlend.Blended computed = blendCell(world, cellX, cellY, cellZ, radius);
+        if (blendedCells >= MAXIMUM_BLENDED_CELLS) {
+            blended.clear();
+            blendedCells = 0;
+            columns = blended.computeIfAbsent(world.getUID(), ignored -> new Long2ObjectOpenHashMap<>());
+            heights = null;
+        }
+        if (heights == null) {
+            heights = new Int2ObjectOpenHashMap<>();
+            columns.put(column, heights);
+        }
+        heights.put(cellY, computed);
+        blendedCells++;
+        return computed;
+    }
+
+    /** Samples every biome cell within the radius of this cell's centre, at its height. */
+    private BiomeBlend.Blended blendCell(World world, int cellX, int cellY, int cellZ, int radius) {
+        int centreX = cellX * BiomeBlend.SAMPLE_SPACING + 2;
+        int centreZ = cellZ * BiomeBlend.SAMPLE_SPACING + 2;
+        int y = Math.max(world.getMinHeight(), Math.min(world.getMaxHeight() - 1, cellY * BiomeBlend.SAMPLE_SPACING + 2));
+        List<BiomeBlend.Sample> samples = new ArrayList<>();
+        for (int dx = -radius; dx <= radius; dx += BiomeBlend.SAMPLE_SPACING) {
+            for (int dz = -radius; dz <= radius; dz += BiomeBlend.SAMPLE_SPACING) {
+                double distance = Math.sqrt(dx * dx + dz * dz);
+                if (distance > radius) continue;
+                int x = centreX + dx, z = centreZ + dz;
+                if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
+                Block block = world.getBlockAt(x, y, z);
+                Biome biome = block.getBiome();
+                Profile profile = cachedProfile(biome);
+                samples.add(new BiomeBlend.Sample(profile.noon, profile.midnight, downfall(block, biome),
+                        profile.precipitation, BiomeBlend.weight(distance, radius)));
+            }
+        }
+        BiomeBlend.Blended result = BiomeBlend.blend(samples);
+        return result != null ? result : exactAt(world, centreX, y, centreZ);
+    }
+
+    /**
+     * Forgets blended cells a chunk could have taken part in, when it loads or
+     * unloads: a cell blended while it was unloaded left it out.
+     */
+    public void forgetBlendAround(World world, int chunkX, int chunkZ) {
+        Long2ObjectOpenHashMap<Int2ObjectOpenHashMap<BiomeBlend.Blended>> columns = blended.get(world.getUID());
+        if (columns == null || columns.isEmpty()) return;
+        int reach = climate.biomeBlend().radiusBlocks() + BiomeBlend.SAMPLE_SPACING;
+        int fromX = Math.floorDiv(chunkX * 16 - reach, BiomeBlend.SAMPLE_SPACING);
+        int toX = Math.floorDiv(chunkX * 16 + 15 + reach, BiomeBlend.SAMPLE_SPACING);
+        int fromZ = Math.floorDiv(chunkZ * 16 - reach, BiomeBlend.SAMPLE_SPACING);
+        int toZ = Math.floorDiv(chunkZ * 16 + 15 + reach, BiomeBlend.SAMPLE_SPACING);
+        for (int cellX = fromX; cellX <= toX; cellX++)
+            for (int cellZ = fromZ; cellZ <= toZ; cellZ++) {
+                Int2ObjectOpenHashMap<BiomeBlend.Blended> removed = columns.remove(HvacRegistry.cellKey(cellX, cellZ));
+                if (removed != null) blendedCells -= removed.size();
+            }
+    }
+
+    /** Drops a world's blended cells, when it unloads. */
+    public void forgetBlend(World world) {
+        Long2ObjectOpenHashMap<Int2ObjectOpenHashMap<BiomeBlend.Blended>> columns = blended.remove(world.getUID());
+        if (columns != null) for (Int2ObjectOpenHashMap<BiomeBlend.Blended> heights : columns.values())
+            blendedCells -= heights.size();
     }
 
     /**
@@ -120,14 +242,18 @@ public final class OutdoorTemperatureService {
     private void sample(Thermostat thermostat) {
         BlockKey position = thermostat.position();
         if (!position.isChunkLoaded()) return;
-        Location location = position.location();
-        if (location == null) return;
-        Block block = location.getBlock();
-        Biome biome = block.getBiome();
-        Profile profile = cachedProfile(biome);
-        thermostat.setOutdoorProfile(profile.noon, profile.midnight);
-        thermostat.setOutdoorHumidityProfile(downfall(block, biome), profile.precipitation);
+        World world = position.world();
+        if (world == null) return;
+        // Biomes don't change, so a thermostat's blend is refreshed every few seconds rather than every cycle;
+        // that still picks up neighbouring chunks that weren't loaded the first time.
+        long now = world.getGameTime();
+        if (!thermostat.outdoorSampleDue(now, RESAMPLE_TICKS)) return;
+        thermostat.setOutdoorClimate(blendedAt(world, position.x(), position.y(), position.z()));
+        thermostat.markOutdoorSampled(now);
     }
+
+    /** How often a thermostat's surroundings are sampled again. */
+    private static final long RESAMPLE_TICKS = 200L;
 
     public double temperatureFor(Thermostat thermostat) {
         return temperatureFor(thermostat, true);
@@ -137,7 +263,7 @@ public final class OutdoorTemperatureService {
         World world = thermostat.position().world();
         if (world == null) return thermostat.lastOutdoorF();
         if (resample) sample(thermostat);
-        WeatherModel.Effect effect = effect(world, thermostat.outdoorPrecipitation());
+        WeatherModel.Effect effect = effect(world, thermostat.outdoorClimate());
         double value = air(world, effect, thermostat.outdoorNoonF(), thermostat.outdoorMidnightF());
         thermostat.setLastOutdoorF(value);
         return value;
@@ -164,9 +290,7 @@ public final class OutdoorTemperatureService {
             return new Outdoor(air, ThermalModel.naturalWaterTemperature(thermostat.outdoorNoonF(),
                     thermostat.outdoorMidnightF()), dew, climate.weather().windClearMs(), "");
         }
-        WeatherModel.Effect effect = effect(world, thermostat.outdoorPrecipitation());
-        return outdoor(world, effect, thermostat.outdoorNoonF(), thermostat.outdoorMidnightF(),
-                thermostat.outdoorDownfall(), thermostat.outdoorPrecipitation(), air);
+        return outdoor(world, thermostat.outdoorClimate(), air);
     }
 
     /**
@@ -183,21 +307,25 @@ public final class OutdoorTemperatureService {
         temperatureFor(thermostat);
         World world = thermostat.position().world();
         WeatherModel.Effect effect = world == null ? WeatherModel.Effect.calm(climate.weather())
-                : effect(world, thermostat.outdoorPrecipitation());
+                : effect(world, thermostat.outdoorClimate());
         return water(effect, thermostat.outdoorNoonF(), thermostat.outdoorMidnightF());
     }
 
     /** Natural water temperature at a location: steady, with no day/night swing. */
     public double naturalWaterAt(Location location) {
         if (location == null || location.getWorld() == null) return 60.0;
-        Profile profile = cachedProfile(location.getBlock().getBiome());
-        return water(effect(location.getWorld(), profile.precipitation), profile.noon, profile.midnight);
+        BiomeBlend.Blended local = blendedAt(location);
+        return water(effect(location.getWorld(), local), local.noonF(), local.midnightF());
     }
 
     public double temperatureAt(Location location) {
         if (location == null || location.getWorld() == null) return 70.0;
-        Profile profile = cachedProfile(location.getBlock().getBiome());
-        return air(location.getWorld(), effect(location.getWorld(), profile.precipitation), profile.noon, profile.midnight);
+        BiomeBlend.Blended local = blendedAt(location);
+        return air(location.getWorld(), effect(location.getWorld(), local), local.noonF(), local.midnightF());
+    }
+
+    private BiomeBlend.Blended blendedAt(Location location) {
+        return blendedAt(location.getWorld(), location.getBlockX(), location.getBlockY(), location.getBlockZ());
     }
 
     /** The full outdoor picture at a location. */
@@ -206,18 +334,17 @@ public final class OutdoorTemperatureService {
             return new Outdoor(70.0, 60.0, Psychrometrics.dewPointF(70.0, 50.0), climate.weather().windClearMs(), "");
         }
         World world = location.getWorld();
-        Block block = location.getBlock();
-        Biome biome = block.getBiome();
-        Profile profile = cachedProfile(biome);
-        WeatherModel.Effect effect = effect(world, profile.precipitation);
-        double air = air(world, effect, profile.noon, profile.midnight);
-        return outdoor(world, effect, profile.noon, profile.midnight, downfall(block, biome), profile.precipitation, air);
+        BiomeBlend.Blended local = blendedAt(location);
+        double air = air(world, effect(world, local), local.noonF(), local.midnightF());
+        return outdoor(world, local, air);
     }
 
-    private Outdoor outdoor(World world, WeatherModel.Effect effect, double noonF, double midnightF,
-                            double downfall, Precipitation precipitation, double airF) {
-        double dew = HumidityModel.outdoorDewPointF(noonF, midnightF, downfall, effect, airF, climate.humidity());
-        return new Outdoor(airF, water(effect, noonF, midnightF), dew, effect.windMs(), weatherWord(world, precipitation));
+    private Outdoor outdoor(World world, BiomeBlend.Blended local, double airF) {
+        WeatherModel.Effect effect = effect(world, local);
+        double dew = HumidityModel.outdoorDewPointF(local.noonF(), local.midnightF(), local.downfall(), effect, airF,
+                climate.humidity());
+        return new Outdoor(airF, water(effect, local.noonF(), local.midnightF()), dew, effect.windMs(),
+                weatherWord(world, local));
     }
 
     private static double air(World world, WeatherModel.Effect effect, double noonF, double midnightF) {

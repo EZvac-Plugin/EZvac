@@ -1,8 +1,9 @@
 # Configuration
 
 Everything is in `plugins/EZvac/config.yml`. Each setting has a comment there
-too; this page explains them in plain words. Temperatures are in °F, and
-durations in server ticks (20 ticks is normally one second; an in-game hour is
+too; this page explains them in plain words. Temperatures in `config.yml` are
+always in °F, whatever `units` says (their keys end in `-f`), and durations are
+in server ticks (20 ticks is normally one second; an in-game hour is
 1,000 ticks).
 
 ## Your config.yml stays up to date
@@ -20,6 +21,21 @@ durations in server ticks (20 ticks is normally one second; an in-game hour is
   contradict each other. The log says which one.
 
 Restart the server after editing `config.yml`.
+
+## units
+
+```yaml
+units: F
+```
+
+`F` or `C`: the unit everyone sees and types temperatures in, on signs, in chat,
+on the HUD and in placeholders. Typing `72F` or `22C` always works whatever
+this says, so nobody sets 72 °C by habit. `%ezvac_temp_f%` and `%ezvac_temp_c%`
+stay in their own unit.
+
+Before 2.1 only the HUD could show Celsius, through `hud.units`. A config that
+had `hud.units: C` starts with `units: C` when it's updated, and `hud.units` is
+no longer read.
 
 ## controller
 
@@ -114,6 +130,14 @@ audio:
   read. A hum you tuned with them carried over into `equipment-hum` and
   `dehumidifier-hum` when your config was updated.
 
+## biome-blend
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `radius-blocks` | 24 | How far around a spot biomes are averaged, 0-64; 0 turns transitions off |
+
+See [Climate](climate.md#biome-transitions).
+
 ## weather
 
 | Setting | Default | Meaning |
@@ -172,7 +196,6 @@ still report the sky. More in [Climate](climate.md#weather).
 | `enabled` | true | The `/hvac hud` command works at all |
 | `style` | sidebar | `sidebar`, `actionbar` or `bossbar` |
 | `update-ticks` | 10 | How often each player's HUD is refreshed |
-| `units` | F | `F` or `C` |
 | `none-text` | none | Shown where no system conditions the air |
 | `sidebar.title`, `sidebar.lines` | | The sidebar's title and lines |
 | `sidebar.yield-to-plugins` | TAB, … | Scoreboard plugins the sidebar steps aside for |

@@ -6,6 +6,7 @@ import com.github.blade.hvac.config.ConfigUpdater;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.SoundSettings;
+import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.integration.placeholderapi.PlaceholderApiBridge;
 import com.github.blade.hvac.listener.HvacListener;
@@ -59,7 +60,7 @@ public final class HvacPlugin extends JavaPlugin {
         try {
             saveDefaultConfig();
             addNewSettingsToConfig();
-            settings = HvacSettings.load(getConfig());
+            settings = HvacSettings.load(getConfig(), getLogger()::warning);
             climate = ClimateSettings.load(getConfig(), getLogger()::warning);
             registry = new HvacRegistry(this, settings);
             registry.load();
@@ -139,6 +140,7 @@ public final class HvacPlugin extends JavaPlugin {
         List<String> added = ConfigUpdater.addMissing(current, bundled);
         if (added.isEmpty()) return;
         SoundSettings.carryOverHum(current, added);
+        TemperatureUnit.carryOver(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
@@ -261,4 +263,5 @@ public final class HvacPlugin extends JavaPlugin {
     public HvacSettings settings() { return settings; }
     public ClimateSettings climate() { return climate; }
     public WeatherService weather() { return weather; }
+    public OutdoorTemperatureService outdoor() { return outdoor; }
 }
