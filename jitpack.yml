@@ -1,0 +1,6 @@
+# JitPack builds EZvac from a GitHub tag so addon developers can depend on
+# the API: com.github.EZvac-Plugin.EZvac:ezvac-api:<tag> (see docs/api.md).
+jdk:
+  - openjdk21
+install:
+  - mvn -B -DskipTests install

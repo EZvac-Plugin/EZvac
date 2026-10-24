@@ -438,6 +438,28 @@ previous file is kept as config.yml.before-<version>.bak.
 - Loaded missing blocks are pruned; unloaded blocks are retained.
 
 
+PUBLIC API
+----------
+
+- Since 2.1 Pilot 4 the build is two modules: ezvac-api (the public API) and
+  ezvac-plugin, whose jar shades the API's classes in unrelocated. JitPack
+  publishes com.github.EZvac-Plugin.EZvac:ezvac-api:<tag>.
+- EzvacApi (version 1.0, read-only) is registered with Paper's services
+  manager while EZvac is enabled (EzvacApiImpl in integration.api). Readings
+  reuse AirflowService.temperatureAt / temperatureForBody, so they are the
+  HUD's and /hvac temperature's numbers, variance included; outdoorAt reuses
+  OutdoorTemperatureService.climateAt and seasonShiftAt; thermostat views take
+  their unit counts from HvacController.status. Every value is an immutable
+  record (ApiViews maps internals to them); temperatures are Fahrenheit.
+- Events, main thread, built only while their HandlerList has listeners
+  (ApiEvents): PlayerClimateUpdateEvent from the HUD's update loop, which then
+  reads every online player (ClimateHudService.ReadingObserver) and keeps the
+  latest reading per player for latestFor (any thread); ThermostatModeChange
+  from the controller's thermostat loop (mode before vs after);
+  ThermostatTargetChange from the control menu and /hvac thermostat set;
+  EquipmentStateChange from each cycle's started/stopped lists;
+  SeasonChange from SeasonService (season before vs after any calendar change).
+
 PERMISSIONS
 -----------
 

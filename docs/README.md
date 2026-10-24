@@ -22,6 +22,10 @@ New to EZvac? Start with **[Getting started](getting-started.md)**.
 - [Commands and permissions](commands.md): every command
 - [Upgrading and troubleshooting](upgrading-and-troubleshooting.md): upgrading, backups, common problems
 
+## Extending EZvac
+
+- [The EZvac API](api.md): building addons on EZvac's climate, with an example
+
 ## Reference
 
 - [features.txt](features.txt): the full technical behaviour, for contributors

@@ -30,7 +30,9 @@ ALPHA 1.5 and everything after it is MIT.
 mvn clean package
 ```
 
-This compiles, runs the test suite, and writes `target/EzVac-ALPHA-2.1-P3.jar`.
+This compiles, runs the test suite, and writes the plugin to
+`ezvac-plugin/target/EzVac-ALPHA-2.1-P4.jar` (and the API on its own to
+`ezvac-api/target/`).
 To run only the tests:
 
 ```shell
@@ -41,7 +43,18 @@ Every push and pull request is built and tested automatically by GitHub
 Actions, and the resulting jar is attached to the run so you can download and
 try a change without building it yourself.
 
-Tests live under `src/test/java`. The simulation classes (`simulation/`,
+## Layout
+
+Since 2.1 Pilot 4 the build has two modules, released together under one
+version:
+
+- `ezvac-api/`: the public API addons build against (see
+  [docs/api.md](docs/api.md)). Everything in it is a promise to addon
+  developers: add to it freely, but never break it without a new major API
+  version.
+- `ezvac-plugin/`: the plugin. Its jar carries the API's classes, unrelocated.
+
+Tests live under `ezvac-plugin/src/test/java`. The simulation classes (`simulation/`,
 `config/`, and the `model/` records) have no Bukkit dependencies and are
 directly unit-testable — please add coverage there when you change them.
 
@@ -49,7 +62,7 @@ directly unit-testable — please add coverage there when you change them.
 
 EZvac supports upgrading from any earlier release; downgrades are not
 supported. `RegistryCompatibilityTest` enforces the upgrade side using real
-`hvac.yml` files under `src/test/resources/compat/<release>/`:
+`hvac.yml` files under `ezvac-plugin/src/test/resources/compat/<release>/`:
 
 - `hvac.yml` is what that release left after a clean shutdown, and
   `hvac-running.yml` is its last periodic save while equipment ran (what a
