@@ -2,6 +2,35 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 2.1 Pilot 4
+
+The fourth pilot of **2.1, Realism: EXTENDED**: EZvac can now be extended.
+Same save format as 2.0 (format 6): a drop-in upgrade, with nothing new for
+servers to set up.
+
+### Added
+
+- **A public API for addons (API 1.0).** Other plugins can read what EZvac
+  knows: the climate at any spot and around every player (temperature, feels
+  like, humidity, the outdoors, weather, season, and which system conditions
+  it), the outdoor climate, thermostats and their systems, dehumidifiers and
+  humidifiers, and the seasons. Addons are ordinary Paper plugins that
+  `depend: [EZvac]` and call `EzvacApi.get()`. Everything handed out is an
+  immutable snapshot, and 1.0 reads only.
+- **Events:** a player's climate updating (on the HUD's cadence), a system
+  changing mode, a target changing, equipment starting or stopping, and a
+  season turning. EZvac only builds them while something listens, so servers
+  without addons see no difference.
+- **The API on JitPack:** `com.github.EZvac-Plugin.EZvac:ezvac-api`, built
+  from each release's tag. A guide with a complete example addon is in
+  [docs/api.md](docs/api.md).
+
+### Changed
+
+- **For contributors:** the build is now two Maven modules, `ezvac-api` and
+  `ezvac-plugin`; the plugin jar is built to `ezvac-plugin/target/` and carries
+  the API's classes.
+
 ## ALPHA 2.1 Pilot 3
 
 The third pilot of **2.1, Realism: EXTENDED**: screens on every sign, and

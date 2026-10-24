@@ -1,0 +1,56 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.github.blade</groupId>
+        <artifactId>ezvac-parent</artifactId>
+        <version>ALPHA-2.1-P4</version>
+    </parent>
+
+    <!--
+        The public API addons build against (see docs/api.md). Only what is
+        in here is a promise; everything in the plugin module may change.
+        Addons depend on it with "provided" scope: EZvac carries these
+        classes at runtime.
+    -->
+    <artifactId>ezvac-api</artifactId>
+    <packaging>jar</packaging>
+    <name>EZvac API</name>
+
+    <dependencies>
+        <dependency>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>ezvac-api-${project.version}</finalName>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/..</directory>
+                <targetPath>META-INF</targetPath>
+                <includes>
+                    <include>LICENSE</include>
+                </includes>
+            </resource>
+        </resources>
+        <plugins>
+            <!-- Sources go up with the jar, so addon developers' IDEs show the API's Javadoc. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

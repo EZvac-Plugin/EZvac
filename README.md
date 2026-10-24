@@ -56,9 +56,17 @@ biome and the weather.
 | [Configuration](docs/configuration.md) | Every `config.yml` setting, sounds |
 | [Commands and permissions](docs/commands.md) | Every command |
 | [Upgrading and troubleshooting](docs/upgrading-and-troubleshooting.md) | Upgrading, backups, common problems |
+| [The EZvac API](docs/api.md) | Extending EZvac: building addons on its climate |
 
 The full technical behaviour is in [docs/features.txt](docs/features.txt), and
 every release's changes in the [changelog](CHANGELOG.md).
+
+## Extending EZvac
+
+Addons are ordinary Paper plugins that use EZvac's public API: climate
+readings for any spot or player, thermostats, the seasons, and events. Add
+`com.github.EZvac-Plugin.EZvac:ezvac-api` from [JitPack](https://jitpack.io/#EZvac-Plugin/EZvac)
+and see [The EZvac API](docs/api.md).
 
 ## Building from source
 
@@ -68,7 +76,7 @@ You need Java 21 and Maven 3.9 or newer.
 mvn clean package
 ```
 
-The plugin is written to `target/EzVac-ALPHA-2.1-P3.jar`. `mvn verify` also runs
+The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-2.1-P4.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

@@ -30,7 +30,8 @@ jobs:
           cache: maven
 
       # -B is "batch mode": no interactive prompts, cleaner logs.
-      # "verify" runs the full lifecycle including the test suite.
+      # "verify" runs the full lifecycle including the test suite, for both
+      # modules: ezvac-api and ezvac-plugin.
       - name: Build and run tests
         run: mvn -B clean verify
 
@@ -41,6 +42,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: EzVac-jar
-          path: target/EzVac-*.jar
+          path: ezvac-plugin/target/EzVac-*.jar
           if-no-files-found: error
           retention-days: 30
