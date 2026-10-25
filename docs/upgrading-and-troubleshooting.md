@@ -49,6 +49,10 @@ and quietly dropping what it doesn't understand.
 To go back anyway: stop the server, restore `hvac.yml.format<N>.bak` as
 `hvac.yml`, and put the old jar back. Anything built since the upgrade is lost.
 
+2.0 and 2.1 share format 6, so 2.0 loads a 2.1 save as it is. It drops the few
+details only 2.1 knows (each thermostat's seasonal swing and its rain/snow mix
+on a biome border), and 2.1 samples them again if you come back.
+
 ## Your data
 
 - **Save file:** everything EZvac knows is in `plugins/EZvac/hvac.yml`. It's
