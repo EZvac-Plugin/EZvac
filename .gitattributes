@@ -2,3 +2,5 @@
 * text=auto eol=lf
 *.png binary
 *.jar binary
+# Windows runs mvnw.cmd, which needs CRLF.
+*.cmd text eol=crlf
