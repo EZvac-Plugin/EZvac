@@ -2,6 +2,27 @@
 
 All notable changes to EZvac are recorded here.
 
+## Unreleased
+
+### Added
+
+- **API 1.2: every device and where it is.** Addons can list
+  `equipment()`, `vents()` and `instruments()` (thermometers and hygrometers,
+  sensors, sensor hubs, RPM monitors, settings panels), each for the whole
+  server or one world, plus `thermostats(world)`, `climateUnits(world)` and
+  `devices(world)` for everything in a world. Every view is an `HvacDevice`
+  with its position:
+  - equipment shows its kind, system, whether it's on and running, its mode
+    and motor RPM;
+  - a vent shows its system and whether it blows air or water;
+  - a hub lists the sensors it shows.
+
+  Sensor readings aren't part of the views.
+- **Device events:** `DeviceAddedEvent` and `DeviceRemovedEvent` (broken,
+  removed by command, or found missing), so a map addon stays in step
+  without re-reading the lists. Like the other events, they cost nothing
+  without a listener.
+
 ## ALPHA 2.1
 
 **Realism: EXTENDED.** Every biome has its own climate, with smooth

@@ -460,6 +460,17 @@ PUBLIC API
   ThermostatTargetChange from the control menu and /hvac thermostat set;
   EquipmentStateChange from each cycle's started/stopped lists;
   SeasonChange from SeasonService (season before vs after any calendar change).
+- Devices (API 1.2): equipment(), vents(), instruments(), each also by world,
+  plus thermostats(world), climateUnits(world) and devices(world). Views are
+  the sealed HvacDevice (ThermostatView, EquipmentView, VentView,
+  ClimateUnitView, InstrumentView), built in ApiViews from registry objects.
+  A vent's medium follows its system: a pool thermostat, or else water-loop
+  equipment, means WATER; no block lookups. HvacRegistry.DeviceObserver
+  (EzvacApiImpl) hears runtime add*/remove* calls and pruning (MISSING),
+  never load*; /hvac remove and duct-tool unlinks run inside
+  removingByCommand (COMMAND); a relinked vent is removed (COMMAND) and
+  added again. ApiEvents fires DeviceAdded/DeviceRemovedEvent only while
+  listened to.
 - HUD sections (API 1.1, EzvacApi.hud()): HudSections in integration.api is
   the registry (id = plugin name, lowercased with spaces as underscores, ":" +
   key; registering again replaces; a plugin's sections go with its

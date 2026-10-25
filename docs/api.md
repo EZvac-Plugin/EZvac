@@ -7,7 +7,7 @@ seasons, and events when things change. Addons can also add their own
 sections to EZvac's climate HUD. An addon is an ordinary Paper plugin that
 depends on EZvac.
 
-API version **1.1** reads only: nothing an addon does through it changes
+API version **1.2** reads only: nothing an addon does through it changes
 EZvac's climate or systems. Ways to change things (targets, power) will come
 in a later API version.
 
@@ -73,8 +73,12 @@ server runs.
 | `readingFor(player)` | The climate a player is in, as their HUD reads it (head first, the water when in water) |
 | `latestFor(playerId)` | The reading the last player update gave; safe from any thread |
 | `outdoorAt(location)` | The outdoors there: air, natural water, humidity, dew point, feels-like, weather, and how much the season shifts it |
-| `thermostats()`, `thermostat(world, id)` | Thermostats: room and target temperature, mode, on/off, pool or room, humidity, running and total equipment |
-| `climateUnits()` | Dehumidifiers and humidifiers: humidity, setpoint, state, power, a dehumidifier's tank |
+| `thermostats()`, `thermostats(world)`, `thermostat(world, id)` | Thermostats: room and target temperature, mode, on/off, pool or room, humidity, running and total equipment |
+| `climateUnits()`, `climateUnits(world)` | Dehumidifiers and humidifiers: humidity, setpoint, state, power, a dehumidifier's tank |
+| `equipment()`, `equipment(world)` | Heat pumps, air conditioners, furnaces, boilers and pool heat pumps: kind, system, on/off, running, mode, motor RPM (1.2) |
+| `vents()`, `vents(world)` | Vents: system, and whether they blow air or water (1.2) |
+| `instruments()`, `instruments(world)` | Thermometers and hygrometers, sensors, sensor hubs (with the sensors they show), RPM monitors and settings panels (1.2) |
+| `devices(world)` | Every device in a world, of every kind (1.2) |
 | `season(world)` | The season and its day, or empty where there are no seasons |
 | `units()` | Whether the server shows players °F or °C |
 
@@ -97,9 +101,46 @@ cancelled.
 | `ThermostatTargetChangeEvent` | A target changes, from the control menu (`MENU`) or `/hvac thermostat set` (`COMMAND`) |
 | `EquipmentStateChangeEvent` | A heat pump, air conditioner, furnace, boiler or pool heat pump starts or stops |
 | `SeasonChangeEvent` | A world's season turns, as the days pass or when an admin sets it |
+| `DeviceAddedEvent` | A device is created: with `/hvac create`, or a vent with the duct tool (1.2) |
+| `DeviceRemovedEvent` | A device is gone: broken (`BROKEN`), removed with `/hvac remove` or unlinked with the duct tool (`COMMAND`), or found missing (`MISSING`) (1.2) |
 
 EZvac only builds an event while some plugin listens to it, so it costs
 nothing on servers without addons.
+
+## Devices
+
+Since API 1.2 every device is in the API with its position, filterable by
+world: thermostats, equipment, vents, dehumidifiers and humidifiers, and the
+instruments (thermometers, sensors, hubs, RPM monitors, settings panels).
+Each view is an `HvacDevice`, a sealed type, so one `switch` covers them all:
+
+```java
+for (HvacDevice device : ezvac.devices(world)) {
+    String label = switch (device) {
+        case ThermostatView thermostat -> "Thermostat " + thermostat.id();
+        case EquipmentView equipment -> equipment.kind() + (equipment.running() ? " (running)" : "");
+        case VentView vent -> vent.medium() + " vent of " + vent.system();
+        case ClimateUnitView unit -> unit.kind() + " " + unit.label();
+        case InstrumentView instrument -> instrument.kind() + " " + instrument.label();
+    };
+    addMarker(device.position(), label);   // your map's own call
+}
+```
+
+- **Staying in sync:** a map addon reads `devices(world)` once, then follows
+  `DeviceAddedEvent` and `DeviceRemovedEvent`. The removed event carries the
+  device as it was, so you know which marker to take down. Devices hvac.yml
+  brings back at startup fire no event; read the lists when your plugin
+  enables.
+- **What changes without an event:** a running state, a mode or a hub's
+  links. `EquipmentStateChangeEvent` covers equipment starting and
+  stopping; for anything else, read the lists again.
+- **Readings aren't in the views.** A sensor's view says where it is and what
+  it reads, not its value. To show a value, read the spot with
+  `readingAt(device.position().toLocation())`.
+- **Mind what you publish.** These are every player's builds. A public web map
+  of everyone's systems is the server's choice to make, so let admins switch
+  it off.
 
 ## HUD sections
 

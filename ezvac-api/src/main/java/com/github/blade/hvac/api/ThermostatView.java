@@ -19,7 +19,8 @@ import java.util.Objects;
  * @since 1.0
  */
 public record ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
-                             boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits) {
+                             boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits)
+        implements HvacDevice {
     public ThermostatView {
         Objects.requireNonNull(id, "id");
         Objects.requireNonNull(system, "system");

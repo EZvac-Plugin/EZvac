@@ -2,21 +2,32 @@ package com.github.blade.hvac.integration.api;
 
 import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.ClimateUnitView;
+import com.github.blade.hvac.api.EquipmentView;
+import com.github.blade.hvac.api.InstrumentView;
 import com.github.blade.hvac.api.Position;
 import com.github.blade.hvac.api.SeasonView;
 import com.github.blade.hvac.api.ThermostatView;
+import com.github.blade.hvac.api.VentView;
 import com.github.blade.hvac.api.event.EquipmentStateChangeEvent;
 import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.Dehumidifier;
 import com.github.blade.hvac.model.EquipmentType;
+import com.github.blade.hvac.model.EquipmentUnit;
 import com.github.blade.hvac.model.OperatingMode;
+import com.github.blade.hvac.model.RpmMonitor;
+import com.github.blade.hvac.model.Sensor;
+import com.github.blade.hvac.model.SensorHub;
+import com.github.blade.hvac.model.SettingsPanel;
+import com.github.blade.hvac.model.Thermometer;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.HvacController;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -89,5 +100,54 @@ public final class ApiViews {
                 conditioned ? Optional.of(reading.thermostat().id()) : Optional.empty(),
                 conditioned ? Optional.of(reading.group().label()) : Optional.empty(),
                 conditioned ? reading.influence() : 0.0);
+    }
+
+    /** A piece of equipment as the API shows it (API 1.2). */
+    public static EquipmentView equipment(EquipmentUnit unit) {
+        ThermostatView.Mode mode = unit.running() && unit.operatingMode() != null
+                ? mode(unit.operatingMode()) : ThermostatView.Mode.IDLE;
+        return new EquipmentView(equipment(unit.type()), unit.group().label(), position(unit.position()),
+                unit.enabled(), unit.running(), mode, unit.running() ? unit.motorRpm() : 0.0);
+    }
+
+    /** A vent; {@code water} when its system is a pool system. */
+    public static VentView vent(ClimateVent vent, boolean water) {
+        return new VentView(vent.group().label(), position(vent.position()),
+                water ? VentView.Medium.WATER : VentView.Medium.AIR);
+    }
+
+    public static InstrumentView thermometer(Thermometer thermometer) {
+        InstrumentView.Kind kind = switch (thermometer.reads()) {
+            case TEMPERATURE -> InstrumentView.Kind.THERMOMETER;
+            case HUMIDITY -> InstrumentView.Kind.HYGROMETER;
+            case BOTH -> InstrumentView.Kind.THERMO_HYGROMETER;
+        };
+        return new InstrumentView(kind, thermometer.label(), position(thermometer.position()), Optional.empty(),
+                List.of());
+    }
+
+    public static InstrumentView sensor(Sensor sensor) {
+        InstrumentView.Kind kind = switch (sensor.reads()) {
+            case TEMPERATURE -> InstrumentView.Kind.TEMPERATURE_SENSOR;
+            case HUMIDITY -> InstrumentView.Kind.HUMIDITY_SENSOR;
+            case BOTH -> InstrumentView.Kind.TEMPERATURE_HUMIDITY_SENSOR;
+            case WEATHER -> InstrumentView.Kind.WEATHER_SENSOR;
+        };
+        return new InstrumentView(kind, sensor.label(), position(sensor.position()), Optional.empty(), List.of());
+    }
+
+    public static InstrumentView sensorHub(SensorHub hub) {
+        return new InstrumentView(InstrumentView.Kind.SENSOR_HUB, hub.label(), position(hub.position()),
+                Optional.empty(), hub.sensors().stream().map(ApiViews::position).toList());
+    }
+
+    public static InstrumentView rpmMonitor(RpmMonitor monitor) {
+        return new InstrumentView(InstrumentView.Kind.RPM_MONITOR, monitor.label(), position(monitor.position()),
+                Optional.of(monitor.group().label()), List.of());
+    }
+
+    public static InstrumentView settingsPanel(SettingsPanel panel) {
+        return new InstrumentView(InstrumentView.Kind.SETTINGS_PANEL, panel.label(), position(panel.position()),
+                Optional.of(panel.group().label()), List.of());
     }
 }

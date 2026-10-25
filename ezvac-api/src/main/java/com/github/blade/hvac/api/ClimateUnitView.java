@@ -16,7 +16,7 @@ import java.util.Objects;
  * @since 1.0
  */
 public record ClimateUnitView(String label, Kind kind, Position position, double humidity, int setpoint,
-                              boolean powered, State state, double tank) {
+                              boolean powered, State state, double tank) implements HvacDevice {
     public ClimateUnitView {
         Objects.requireNonNull(label, "label");
         Objects.requireNonNull(kind, "kind");
