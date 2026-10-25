@@ -63,7 +63,7 @@ public final class HudSections implements EzvacHud, SectionSource, Listener {
 
     /** The id a section gets: {@code <plugin name>:<key>}, lowercase. */
     static String id(Plugin owner, String key) {
-        return owner.getName().toLowerCase(Locale.ROOT).replace(' ', '_') + ":" + key;
+        return HudFormatter.sectionId(owner.getName()) + ":" + key;
     }
 
     @Override
@@ -154,12 +154,14 @@ public final class HudSections implements EzvacHud, SectionSource, Listener {
             Entry entry = sections.get(id);
             if (entry == null) return none;
             try {
-                return drawing.apply(entry);
+                T drawn = drawing.apply(entry);
+                failed.remove(id);
+                return drawn;
             } catch (RuntimeException | LinkageError exception) {
-                // An addon's mistake must never take the HUD down with it.
+                // An addon's mistake must never take the HUD down with it. Logged once while it keeps failing.
                 if (failed.add(id))
                     logger.log(Level.WARNING, "The HUD section " + id + " from " + entry.owner().getName()
-                            + " failed and is left out until it works again", exception);
+                            + " failed; it is left out for as long as it keeps failing", exception);
                 return none;
             }
         }

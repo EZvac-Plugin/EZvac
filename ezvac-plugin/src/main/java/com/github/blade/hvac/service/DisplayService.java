@@ -477,8 +477,9 @@ public final class DisplayService {
 
     /**
      * Writes a sign, and its screen where screens are on. The screen is
-     * checked even when the sign is unchanged: a chunk unloading takes screens
-     * away, and this puts them back. Its text is only sent when it changed.
+     * redrawn with the sign, on every forced refresh (for what only the screen
+     * shows), and whenever it is missing: a chunk unloading takes screens away,
+     * and this puts them back. Its text is only sent when it changed.
      */
     private void render(BlockKey position, String fingerprint, boolean force,
                         java.util.function.Consumer<Lines> writer, java.util.function.Supplier<ScreenText> screen) {
@@ -486,8 +487,10 @@ public final class DisplayService {
         if (screens.enabled()) {
             var block = position.location() == null ? null : position.location().getBlock();
             if (block != null && org.bukkit.Tag.ALL_SIGNS.isTagged(block.getType())) {
-                ScreenText text = screen.get();
-                screens.show(position, block, text.text(), text.lines());
+                if (force || !fingerprint.equals(fingerprints.get(position)) || !screens.showing(position, block)) {
+                    ScreenText text = screen.get();
+                    screens.show(position, block, text.text(), text.lines());
+                }
             } else {
                 screens.remove(position);
             }

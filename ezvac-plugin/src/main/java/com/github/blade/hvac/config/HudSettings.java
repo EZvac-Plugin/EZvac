@@ -109,7 +109,7 @@ public record HudSettings(
         Objects.requireNonNull(noneText, "none text");
         Objects.requireNonNull(water, "water medium");
         hiddenSections = Objects.requireNonNull(hiddenSections, "hidden sections").stream()
-                .map(id -> id.trim().toLowerCase(Locale.ROOT)).filter(id -> !id.isEmpty()).toList();
+                .map(id -> id.trim().toLowerCase(Locale.ROOT).replace(' ', '_')).filter(id -> !id.isEmpty()).toList();
         sidebarLines = List.copyOf(Objects.requireNonNull(sidebarLines, "sidebar lines"));
         sidebarYieldTo = List.copyOf(Objects.requireNonNull(sidebarYieldTo, "sidebar yield-to plugins"));
         if (updateTicks < 1) throw new IllegalArgumentException("hud.update-ticks must be at least 1");

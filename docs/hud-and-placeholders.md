@@ -98,8 +98,9 @@ can add their own lines to the HUD.
   sidebar that still has the stock lines gains `{addons}` under the season
   line (and under the `Air:` line in water). A sidebar you changed is left as
   it is, so add the line yourself there.
-- **The limit:** the sidebar shows at most 15 lines; anything past that is
-  left off the bottom.
+- **The limit:** the sidebar shows at most 15 lines. Your own lines always
+  fit; an addon section that would go past 15 is left out whole, so the first
+  sections registered win.
 
 A sidebar line with `{season}` or `{season_day}` is left out where there are
 no seasons, such as in the Nether or with `seasons.enabled: false`. The season

@@ -94,6 +94,13 @@ public final class ScreenService {
         screens.put(position, new Shown(display.getUniqueId(), lines, text));
     }
 
+    /** True while this sign's screen is up. */
+    public boolean showing(BlockKey position, Block sign) {
+        Shown shown = screens.get(position);
+        return shown != null && sign.getWorld().getEntity(shown.entity()) instanceof TextDisplay display
+                && display.isValid();
+    }
+
     /** Takes a sign's screen down, when its device is removed or its sign changes. */
     public void remove(BlockKey position) {
         Shown shown = screens.remove(position);

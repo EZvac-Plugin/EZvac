@@ -56,7 +56,8 @@ pane raises the setpoint by 5% and the white one lowers it, from the lowest to
 the highest of its `presets` (35-60% for a dehumidifier, 30-50% for a
 humidifier). The lever switches it off or on.
 
-- Anyone with `ezvac.use` (everyone, by default) can use the menus.
+- Anyone with `ezvac.use` (everyone, by default) can use the menus. A menu
+  works only within a few blocks of its sign: walk away and it closes.
 - Sneak-right-click still switches a thermostat's system, or a unit, off or on
   without opening anything.
 - EZvac signs can't be edited. Before 2.1 Pilot 3 a thermostat's target was

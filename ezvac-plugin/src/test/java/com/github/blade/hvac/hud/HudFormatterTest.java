@@ -253,4 +253,36 @@ class HudFormatterTest {
         assertEquals("▮▮▮▮▮▮▮▮▮▮", plain(format.bar(7, red)));
         assertEquals("▯▯▯▯▯▯▯▯▯▯", plain(format.bar(Double.NaN, red)));
     }
+
+    @Test
+    void aSystemNamedLikeATokenStaysAName() {
+        FakeSections one = new FakeSections().with("a:one", "Body");
+        ClimateSnapshot named = new ClimateSnapshot(72.0, 88.0, 0.6, 21, "{section:a:one}", "main", "COOLING", 70.0,
+                false, false);
+        assertEquals("{section:a:one} | Body", plain(format.render("{group} | {section:a:one}", named, one)));
+    }
+
+    @Test
+    void addonSectionsGiveWayWhenTheSidebarIsFull() {
+        List<String> templates = new java.util.ArrayList<>();
+        for (int line = 1; line <= 12; line++) templates.add("own " + line);
+        templates.add(5, "{addons}");
+        FakeSections three = new FakeSections().with("a:one", "A1", "A2").with("b:two", "B1", "B2")
+                .with("c:three", "C1");
+        List<String> lines = plainLines(format.lines(templates, cooled(72.0), three));
+        assertEquals(15, lines.size(), "never past the sidebar's 15 lines");
+        assertTrue(lines.contains("own 12"), "the server's own lines all stay");
+        assertTrue(lines.containsAll(List.of("A1", "A2", "C1")), "first come first served, whole sections only");
+        assertFalse(lines.contains("B1"), "a section that doesn't fit is left out whole");
+    }
+
+    @Test
+    void sectionIdsAreNormalisedTheSameEverywhere() {
+        assertEquals("body_temp:main", HudFormatter.sectionId(" Body Temp:Main "));
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.sections.hidden", List.of("Body Temp:main"));
+        HudFormatter hiding = new HudFormatter(HudSettings.load(config));
+        FakeSections one = new FakeSections().with("body_temp:main", "B");
+        assertEquals(List.of(), plainLines(hiding.lines(List.of("{addons}"), cooled(72.0), one)));
+    }
 }
