@@ -682,6 +682,48 @@ public final class HvacRegistry {
         return DeviceKind.NONE;
     }
 
+    /**
+     * Told about every device added or removed while the server runs (the
+     * public API's device events): never about the devices hvac.yml brings
+     * back at startup. Main thread.
+     */
+    public interface DeviceObserver {
+        /** How a device went. */
+        enum Cause { BROKEN, COMMAND, MISSING }
+
+        void added(Object device);
+
+        void removed(Object device, Cause cause);
+    }
+
+    private DeviceObserver observer;
+    /** What removals are reported as: a break unless a command says otherwise. */
+    private DeviceObserver.Cause removalCause = DeviceObserver.Cause.BROKEN;
+
+    public void setObserver(DeviceObserver observer) { this.observer = observer; }
+
+    /** Runs removals a command makes, so they are reported as such. */
+    public void removingByCommand(Runnable removals) {
+        removalCause = DeviceObserver.Cause.COMMAND;
+        try {
+            removals.run();
+        } finally {
+            removalCause = DeviceObserver.Cause.BROKEN;
+        }
+    }
+
+    private void added(Object device) {
+        if (observer != null) observer.added(device);
+    }
+
+    private void removed(Object device) {
+        removed(device, removalCause);
+    }
+
+    private void removed(Object device, DeviceObserver.Cause cause) {
+        if (observer != null && device != null) observer.removed(device, cause);
+    }
+
     public void addThermostat(Thermostat thermostat) {
         requireFree(thermostat.position());
         if (thermostatById(thermostat.id()) != null)
@@ -691,6 +733,7 @@ public final class HvacRegistry {
         thermostats.put(thermostat.position(), thermostat);
         indexThermostat(thermostat);
         dirty = true;
+        added(thermostat);
     }
 
     public void addEquipment(EquipmentUnit unit) {
@@ -698,6 +741,7 @@ public final class HvacRegistry {
         equipment.put(unit.position(), unit);
         indexEquipment(unit);
         dirty = true;
+        added(unit);
     }
 
     /** Registers a vent, replacing (relinking) any vent already at that block. */
@@ -709,18 +753,23 @@ public final class HvacRegistry {
         if (previous != null) unindexVent(previous);
         indexVent(vent);
         dirty = true;
+        // Relinking moves a vent to another system: it leaves the old one.
+        if (previous != null) removed(previous, DeviceObserver.Cause.COMMAND);
+        added(vent);
     }
 
     public void addThermometer(Thermometer thermometer) {
         requireFree(thermometer.position());
         thermometers.put(thermometer.position(), thermometer);
         dirty = true;
+        added(thermometer);
     }
 
     public void addRpmMonitor(RpmMonitor monitor) {
         requireFree(monitor.position());
         rpmMonitors.put(monitor.position(), monitor);
         dirty = true;
+        added(monitor);
     }
 
     public void addSettingsPanel(SettingsPanel panel) {
@@ -730,18 +779,21 @@ public final class HvacRegistry {
         settingsPanels.put(panel.position(), panel);
         indexPanel(panel);
         dirty = true;
+        added(panel);
     }
 
     public void addSensor(Sensor sensor) {
         requireFree(sensor.position());
         sensors.put(sensor.position(), sensor);
         dirty = true;
+        added(sensor);
     }
 
     public void addSensorHub(SensorHub hub) {
         requireFree(hub.position());
         sensorHubs.put(hub.position(), hub);
         dirty = true;
+        added(hub);
     }
 
     /** Removes a sensor and takes it off every hub that showed it. */
@@ -750,12 +802,14 @@ public final class HvacRegistry {
         if (value == null) return null;
         for (SensorHub hub : sensorHubs.values()) hub.unlink(key);
         dirty = true;
+        removed(value);
         return value;
     }
 
     public SensorHub removeSensorHub(BlockKey key) {
         SensorHub value = sensorHubs.remove(key);
         dirty |= value != null;
+        removed(value);
         return value;
     }
 
@@ -769,6 +823,7 @@ public final class HvacRegistry {
         }
         indexUnit(unit);
         dirty = true;
+        added(unit);
     }
 
     /** Removes the unit any of whose three blocks is at this key. */
@@ -780,6 +835,7 @@ public final class HvacRegistry {
         unindexUnit(value);
         value.setPartWater(false);   // a removed unit never leaves water behind
         dirty = true;
+        removed(value);
         return value;
     }
 
@@ -788,6 +844,7 @@ public final class HvacRegistry {
         if (value == null) return false;
         unindexThermostat(value);
         dirty = true;
+        removed(value);
         return true;
     }
 
@@ -799,21 +856,38 @@ public final class HvacRegistry {
         if (unit.hasOwnedOutput()) pendingCleanup.add(unit);
         else untrackOutput(unit);
         dirty = true;
+        removed(unit);
         return unit;
     }
 
     public ClimateVent removeVent(BlockKey key) {
         ClimateVent value = vents.remove(key);
-        if (value != null) { unindexVent(value); dirty = true; }
+        if (value != null) { unindexVent(value); dirty = true; removed(value); }
         return value;
     }
-    public boolean removeThermometer(BlockKey key) { boolean value = thermometers.remove(key) != null; dirty |= value; return value; }
-    public boolean removeRpmMonitor(BlockKey key) { boolean value = rpmMonitors.remove(key) != null; dirty |= value; return value; }
+
+    public boolean removeThermometer(BlockKey key) {
+        Thermometer value = thermometers.remove(key);
+        if (value == null) return false;
+        dirty = true;
+        removed(value);
+        return true;
+    }
+
+    public boolean removeRpmMonitor(BlockKey key) {
+        RpmMonitor value = rpmMonitors.remove(key);
+        if (value == null) return false;
+        dirty = true;
+        removed(value);
+        return true;
+    }
+
     public boolean removeSettingsPanel(BlockKey key) {
         SettingsPanel value = settingsPanels.remove(key);
         if (value == null) return false;
         unindex(panelsByGroup, value.group(), value.position(), value);
         dirty = true;
+        removed(value);
         return true;
     }
 
@@ -884,6 +958,7 @@ public final class HvacRegistry {
             var location = value.position().location();
             if (location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType())) continue;
             thermostatIterator.remove(); removed++;
+            removed(value, DeviceObserver.Cause.MISSING);
         }
         Iterator<EquipmentUnit> equipmentIterator = equipment.values().iterator();
         while (equipmentIterator.hasNext()) {
@@ -893,6 +968,7 @@ public final class HvacRegistry {
             if (value.hasOwnedOutput()) pendingCleanup.add(value);
             else untrackOutput(value);
             equipmentIterator.remove(); removed++;
+            removed(value, DeviceObserver.Cause.MISSING);
         }
         Iterator<ClimateVent> ventIterator = vents.values().iterator();
         while (ventIterator.hasNext()) {
@@ -901,6 +977,7 @@ public final class HvacRegistry {
             var location = value.position().location();
             if (location != null && ClimateVent.isVentBlock(location.getBlock().getType())) continue;
             invalidated.add(value.group()); ventIterator.remove(); removed++;
+            removed(value, DeviceObserver.Cause.MISSING);
         }
         removed += pruneSigns(thermometers.values().iterator(), Thermometer::position);
         removed += pruneSigns(rpmMonitors.values().iterator(), RpmMonitor::position);
@@ -909,6 +986,7 @@ public final class HvacRegistry {
         pruneUnits(dehumidifiers.values().iterator(), removedUnits);
         pruneUnits(humidifiers.values().iterator(), removedUnits);
         removed += removedUnits.size();
+        removedUnits.forEach(unit -> removed(unit, DeviceObserver.Cause.MISSING));
         removed += pruneSigns(sensorHubs.values().iterator(), SensorHub::position);
         // A button pops off when its wall is broken, without any break event of its own.
         Iterator<Sensor> sensorIterator = sensors.values().iterator();
@@ -917,20 +995,23 @@ public final class HvacRegistry {
             if (blockIs(value.position(), type -> type == Sensor.button(value.reads()))) continue;
             sensorIterator.remove(); removed++;
             for (SensorHub hub : sensorHubs.values()) hub.unlink(value.position());
+            removed(value, DeviceObserver.Cause.MISSING);
         }
         if (removed > 0) rebuildIndexes();
         dirty |= removed > 0;
         return new PruneResult(Set.copyOf(invalidated), removed, List.copyOf(removedUnits));
     }
 
-    private static <T> int pruneSigns(Iterator<T> iterator, Function<T, BlockKey> positionOf) {
+    private <T> int pruneSigns(Iterator<T> iterator, Function<T, BlockKey> positionOf) {
         int removed = 0;
         while (iterator.hasNext()) {
-            BlockKey position = positionOf.apply(iterator.next());
+            T value = iterator.next();
+            BlockKey position = positionOf.apply(value);
             if (!position.isChunkLoaded()) continue;
             var location = position.location();
             if (location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType())) continue;
             iterator.remove(); removed++;
+            removed(value, DeviceObserver.Cause.MISSING);
         }
         return removed;
     }

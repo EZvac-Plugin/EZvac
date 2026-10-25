@@ -309,6 +309,7 @@ public final class HvacPlugin extends JavaPlugin {
         getServer().getPluginManager().registerEvents(api.sections(), this);
         hud.setObserver(api);
         hud.setSections(api.sections());
+        registry.setObserver(api);
         seasons.setListener((worldId, from) -> {
             World world = getServer().getWorld(worldId);
             if (world != null) api.season(world).ifPresent(now ->

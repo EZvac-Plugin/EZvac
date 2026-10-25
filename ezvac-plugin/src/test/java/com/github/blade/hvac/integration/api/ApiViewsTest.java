@@ -2,22 +2,36 @@ package com.github.blade.hvac.integration.api;
 
 import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.ClimateUnitView;
+import com.github.blade.hvac.api.EquipmentView;
+import com.github.blade.hvac.api.HvacDevice;
+import com.github.blade.hvac.api.InstrumentView;
 import com.github.blade.hvac.api.Position;
 import com.github.blade.hvac.api.SeasonView;
 import com.github.blade.hvac.api.TemperatureUnit;
 import com.github.blade.hvac.api.Temperatures;
 import com.github.blade.hvac.api.ThermostatView;
+import com.github.blade.hvac.api.VentView;
+import com.github.blade.hvac.api.event.EquipmentStateChangeEvent;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.ClimateVent;
+import com.github.blade.hvac.model.EquipmentType;
+import com.github.blade.hvac.model.EquipmentUnit;
 import com.github.blade.hvac.model.GroupId;
 import com.github.blade.hvac.model.Humidifier;
 import com.github.blade.hvac.model.OperatingMode;
+import com.github.blade.hvac.model.RpmMonitor;
+import com.github.blade.hvac.model.Sensor;
+import com.github.blade.hvac.model.SensorHub;
+import com.github.blade.hvac.model.SettingsPanel;
+import com.github.blade.hvac.model.Thermometer;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.HvacController;
 import com.github.blade.hvac.model.OperatingProfile;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -124,5 +138,84 @@ class ApiViewsTest {
         assertDoesNotThrow(() -> ApiEvents.modeChanged(thermostat, OperatingMode.IDLE, null));
         assertDoesNotThrow(() -> ApiEvents.targetChanged(thermostat, 65.0,
                 com.github.blade.hvac.api.event.ThermostatTargetChangeEvent.Cause.MENU, null));
+    }
+
+    private static BlockKey at(int x, int y, int z) {
+        return new BlockKey(WORLD, x, y, z);
+    }
+
+    @Test
+    void equipmentShowsItsKindSystemAndState() {
+        EquipmentView view = ApiViews.equipment(new EquipmentUnit(at(1, 64, 1), "house", EquipmentType.FURNACE));
+        assertEquals(EquipmentStateChangeEvent.Kind.FURNACE, view.kind());
+        assertEquals("house", view.system());
+        assertEquals(new Position(WORLD, 1, 64, 1), view.position());
+        assertTrue(view.enabled());
+        assertFalse(view.running());
+        assertEquals(ThermostatView.Mode.IDLE, view.mode(), "a stopped unit does nothing");
+        assertEquals(0.0, view.rpm());
+    }
+
+    @Test
+    void ventsBlowAirOrWater() {
+        ClimateVent vent = new ClimateVent(at(2, 64, 2), GroupId.of(at(2, 64, 2), "spa"));
+        assertEquals(VentView.Medium.WATER, ApiViews.vent(vent, true).medium());
+        assertEquals(VentView.Medium.AIR, ApiViews.vent(vent, false).medium());
+        assertEquals("spa", ApiViews.vent(vent, true).system());
+    }
+
+    @Test
+    void instrumentsSayWhatTheyAre() {
+        assertEquals(InstrumentView.Kind.THERMOMETER,
+                ApiViews.thermometer(new Thermometer(at(0, 64, 0), "Hall", Thermometer.Reads.TEMPERATURE)).kind());
+        assertEquals(InstrumentView.Kind.HYGROMETER,
+                ApiViews.thermometer(new Thermometer(at(0, 64, 0), "Hall", Thermometer.Reads.HUMIDITY)).kind());
+        assertEquals(InstrumentView.Kind.THERMO_HYGROMETER,
+                ApiViews.thermometer(new Thermometer(at(0, 64, 0), "Hall", Thermometer.Reads.BOTH)).kind());
+        for (Sensor.Kind kind : Sensor.Kind.values()) {
+            InstrumentView view = ApiViews.sensor(new Sensor(at(0, 64, 1), "Porch", kind));
+            assertTrue(view.kind().sensor(), kind + " is a sensor");
+            assertEquals(Optional.empty(), view.system());
+        }
+        assertEquals(InstrumentView.Kind.WEATHER_SENSOR,
+                ApiViews.sensor(new Sensor(at(0, 64, 1), "Sky", Sensor.Kind.WEATHER)).kind());
+
+        RpmMonitor monitor = new RpmMonitor(at(0, 64, 2), GroupId.of(at(0, 64, 2), "house"), "Fan", EquipmentType.FURNACE);
+        assertEquals(Optional.of("house"), ApiViews.rpmMonitor(monitor).system());
+        InstrumentView panel = ApiViews.settingsPanel(new SettingsPanel(at(0, 64, 3), "house", "Panel"));
+        assertEquals(InstrumentView.Kind.SETTINGS_PANEL, panel.kind());
+        assertEquals(Optional.of("house"), panel.system());
+        assertFalse(panel.kind().sensor());
+    }
+
+    @Test
+    void aHubListsTheSensorsItShows() {
+        SensorHub hub = new SensorHub(at(5, 64, 5), "Hub");
+        hub.link(at(6, 64, 5));
+        hub.link(at(7, 64, 5));
+        InstrumentView view = ApiViews.sensorHub(hub);
+        assertEquals(InstrumentView.Kind.SENSOR_HUB, view.kind());
+        assertEquals(List.of(new Position(WORLD, 6, 64, 5), new Position(WORLD, 7, 64, 5)), view.links());
+        assertThrows(UnsupportedOperationException.class, () -> view.links().add(new Position(WORLD, 0, 0, 0)),
+                "a snapshot");
+    }
+
+    @Test
+    void everyViewIsADeviceWithAPosition() {
+        HvacDevice device = ApiViews.equipment(new EquipmentUnit(at(1, 64, 1), "house", EquipmentType.BOILER));
+        assertEquals(new Position(WORLD, 1, 64, 1), device.position());
+        String described = switch (device) {
+            case ThermostatView thermostat -> "thermostat";
+            case EquipmentView equipment -> "equipment " + equipment.kind();
+            case VentView vent -> "vent";
+            case ClimateUnitView unit -> "unit";
+            case InstrumentView instrument -> "instrument";
+        };
+        assertEquals("equipment BOILER", described, "a sealed type addons can switch on");
+        assertThrows(NullPointerException.class, () -> new VentView("house", null, VentView.Medium.AIR));
+        assertThrows(NullPointerException.class, () -> new EquipmentView(null, "house",
+                new Position(WORLD, 0, 0, 0), true, false, ThermostatView.Mode.IDLE, 0));
+        assertEquals(List.of(), new InstrumentView(InstrumentView.Kind.THERMOMETER, "x", new Position(WORLD, 0, 0, 0),
+                null, null).links(), "never null");
     }
 }

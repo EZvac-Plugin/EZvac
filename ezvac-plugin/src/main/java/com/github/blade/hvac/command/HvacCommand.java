@@ -625,7 +625,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void remove(Player player) {
         Block block = target(player);
         if (block == null) return;
-        BlockKey key = BlockKey.of(block.getLocation());
+        registry.removingByCommand(() -> remove(player, BlockKey.of(block.getLocation())));
+    }
+
+    private void remove(Player player, BlockKey key) {
         Thermostat thermostat = registry.thermostatAt(key);
         if (thermostat != null) {
             registry.removeThermostat(key);
@@ -808,7 +811,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (unlink) {
-            ClimateVent removed = registry.removeVent(position);
+            ClimateVent[] unlinked = new ClimateVent[1];
+            registry.removingByCommand(() -> unlinked[0] = registry.removeVent(position));
+            ClimateVent removed = unlinked[0];
             if (removed == null) player.sendMessage(yellow("That block is not a registered vent."));
             else { airflow.invalidate(removed.group()); player.sendMessage(green("Vent unlinked.")); }
             return;

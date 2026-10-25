@@ -1,6 +1,9 @@
 package com.github.blade.hvac.integration.api;
 
+import com.github.blade.hvac.api.HvacDevice;
 import com.github.blade.hvac.api.SeasonView;
+import com.github.blade.hvac.api.event.DeviceAddedEvent;
+import com.github.blade.hvac.api.event.DeviceRemovedEvent;
 import com.github.blade.hvac.api.event.EquipmentStateChangeEvent;
 import com.github.blade.hvac.api.event.SeasonChangeEvent;
 import com.github.blade.hvac.api.event.ThermostatModeChangeEvent;
@@ -52,5 +55,13 @@ public final class ApiEvents {
 
     public static void seasonChanged(World world, SeasonView.Season from, SeasonView now) {
         fire(SeasonChangeEvent.getHandlerList(), () -> new SeasonChangeEvent(world, from, now));
+    }
+
+    public static void deviceAdded(Supplier<HvacDevice> device) {
+        fire(DeviceAddedEvent.getHandlerList(), () -> new DeviceAddedEvent(device.get()));
+    }
+
+    public static void deviceRemoved(Supplier<HvacDevice> device, DeviceRemovedEvent.Cause cause) {
+        fire(DeviceRemovedEvent.getHandlerList(), () -> new DeviceRemovedEvent(device.get(), cause));
     }
 }

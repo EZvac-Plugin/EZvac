@@ -2,16 +2,31 @@ package com.github.blade.hvac.integration.api;
 
 import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.ClimateUnitView;
+import com.github.blade.hvac.api.EquipmentView;
 import com.github.blade.hvac.api.EzvacApi;
+import com.github.blade.hvac.api.HvacDevice;
+import com.github.blade.hvac.api.InstrumentView;
 import com.github.blade.hvac.api.OutdoorClimate;
 import com.github.blade.hvac.api.Position;
 import com.github.blade.hvac.api.SeasonView;
 import com.github.blade.hvac.api.TemperatureUnit;
 import com.github.blade.hvac.api.ThermostatView;
+import com.github.blade.hvac.api.VentView;
+import com.github.blade.hvac.api.event.DeviceRemovedEvent;
 import com.github.blade.hvac.api.event.PlayerClimateUpdateEvent;
 import com.github.blade.hvac.api.hud.EzvacHud;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
+import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.ClimateUnit;
+import com.github.blade.hvac.model.ClimateVent;
+import com.github.blade.hvac.model.EquipmentUnit;
+import com.github.blade.hvac.model.GroupId;
+import com.github.blade.hvac.model.RpmMonitor;
+import com.github.blade.hvac.model.Sensor;
+import com.github.blade.hvac.model.SensorHub;
+import com.github.blade.hvac.model.SettingsPanel;
+import com.github.blade.hvac.model.Thermometer;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.HvacController;
@@ -27,7 +42,9 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerQuitEvent;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -36,11 +53,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
 
 /**
- * EZvac's public API, read-only (and addon HUD sections since 1.1): it adapts what EZvac already
+ * EZvac's public API, read-only (and addon HUD sections since 1.1, every device since 1.2): it adapts what EZvac already
  * works out for the HUD, signs and commands, and hands out immutable views.
  * Registered with Paper's services manager while EZvac is enabled.
  */
-public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService.ReadingObserver {
+public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService.ReadingObserver,
+        HvacRegistry.DeviceObserver {
     private final String pluginVersion;
     private final HvacSettings settings;
     private final HvacRegistry registry;
@@ -122,6 +140,132 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     @Override
     public Collection<ClimateUnitView> climateUnits() {
         return registry.climateUnits().stream().map(ApiViews::climateUnit).toList();
+    }
+
+    @Override
+    public Collection<ThermostatView> thermostats(World world) {
+        UUID id = worldId(world);
+        return registry.thermostats().stream().filter(device -> device.position().worldId().equals(id))
+                .map(this::view).toList();
+    }
+
+    @Override
+    public Collection<ClimateUnitView> climateUnits(World world) {
+        UUID id = worldId(world);
+        return registry.climateUnits().stream().filter(device -> device.position().worldId().equals(id))
+                .map(ApiViews::climateUnit).toList();
+    }
+
+    @Override
+    public Collection<EquipmentView> equipment() {
+        return registry.equipment().stream().map(ApiViews::equipment).toList();
+    }
+
+    @Override
+    public Collection<EquipmentView> equipment(World world) {
+        UUID id = worldId(world);
+        return registry.equipment().stream().filter(device -> device.position().worldId().equals(id))
+                .map(ApiViews::equipment).toList();
+    }
+
+    @Override
+    public Collection<VentView> vents() {
+        return registry.vents().stream().map(this::vent).toList();
+    }
+
+    @Override
+    public Collection<VentView> vents(World world) {
+        UUID id = worldId(world);
+        return registry.vents().stream().filter(device -> device.position().worldId().equals(id))
+                .map(this::vent).toList();
+    }
+
+    @Override
+    public Collection<InstrumentView> instruments() {
+        return instrumentsIn(null);
+    }
+
+    @Override
+    public Collection<InstrumentView> instruments(World world) {
+        return instrumentsIn(worldId(world));
+    }
+
+    /** Thermometers, sensors, hubs, RPM monitors and panels in a world, or everywhere for null. */
+    private List<InstrumentView> instrumentsIn(UUID world) {
+        List<InstrumentView> out = new ArrayList<>();
+        for (Thermometer device : registry.thermometers())
+            if (in(world, device.position())) out.add(ApiViews.thermometer(device));
+        for (Sensor device : registry.sensors())
+            if (in(world, device.position())) out.add(ApiViews.sensor(device));
+        for (SensorHub device : registry.sensorHubs())
+            if (in(world, device.position())) out.add(ApiViews.sensorHub(device));
+        for (RpmMonitor device : registry.rpmMonitors())
+            if (in(world, device.position())) out.add(ApiViews.rpmMonitor(device));
+        for (SettingsPanel device : registry.settingsPanels())
+            if (in(world, device.position())) out.add(ApiViews.settingsPanel(device));
+        return List.copyOf(out);
+    }
+
+    @Override
+    public Collection<HvacDevice> devices(World world) {
+        List<HvacDevice> out = new ArrayList<>();
+        out.addAll(thermostats(world));
+        out.addAll(equipment(world));
+        out.addAll(vents(world));
+        out.addAll(climateUnits(world));
+        out.addAll(instruments(world));
+        return List.copyOf(out);
+    }
+
+    private static UUID worldId(World world) {
+        return Objects.requireNonNull(world, "world").getUID();
+    }
+
+    private static boolean in(UUID world, BlockKey position) {
+        return world == null || position.worldId().equals(world);
+    }
+
+    /** A vent blows water when its system is a pool system: a pool thermostat, or water-loop equipment. */
+    private VentView vent(ClimateVent vent) {
+        return ApiViews.vent(vent, poolSystem(vent.group()));
+    }
+
+    private boolean poolSystem(GroupId group) {
+        Thermostat thermostat = registry.thermostatFor(group);
+        if (thermostat != null) return thermostat.pool();
+        return registry.equipmentFor(group).stream().anyMatch(unit -> unit.type().waterLoop());
+    }
+
+    /** Any of EZvac's devices as the API shows it. */
+    HvacDevice device(Object device) {
+        return switch (device) {
+            case Thermostat thermostat -> view(thermostat);
+            case EquipmentUnit unit -> ApiViews.equipment(unit);
+            case ClimateVent vent -> vent(vent);
+            case ClimateUnit unit -> ApiViews.climateUnit(unit);
+            case Thermometer thermometer -> ApiViews.thermometer(thermometer);
+            case Sensor sensor -> ApiViews.sensor(sensor);
+            case SensorHub hub -> ApiViews.sensorHub(hub);
+            case RpmMonitor monitor -> ApiViews.rpmMonitor(monitor);
+            case SettingsPanel panel -> ApiViews.settingsPanel(panel);
+            default -> throw new IllegalArgumentException("not an EZvac device: " + device);
+        };
+    }
+
+    // ---- devices added and removed (API 1.2) ----
+
+    @Override
+    public void added(Object device) {
+        ApiEvents.deviceAdded(() -> device(device));
+    }
+
+    @Override
+    public void removed(Object device, HvacRegistry.DeviceObserver.Cause cause) {
+        ApiEvents.deviceRemoved(() -> device(device), switch (cause) {
+            case BROKEN -> DeviceRemovedEvent.Cause.BROKEN;
+            case COMMAND -> DeviceRemovedEvent.Cause.COMMAND;
+            case MISSING -> DeviceRemovedEvent.Cause.MISSING;
+        });
     }
 
     @Override
