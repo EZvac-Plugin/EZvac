@@ -1,6 +1,8 @@
 # JitPack builds EZvac from a GitHub tag so addon developers can depend on
 # the API: com.github.EZvac-Plugin.EZvac:ezvac-api:<tag> (see docs/api.md).
+# The Maven Wrapper brings its own Maven (3.9.9): JitPack's build images
+# don't all have a Maven new enough for this build.
 jdk:
   - openjdk21
 install:
-  - mvn -B -DskipTests install
+  - ./mvnw -B -DskipTests install

@@ -31,8 +31,10 @@ mvn clean package
 ```
 
 This compiles, runs the test suite, and writes the plugin to
-`ezvac-plugin/target/EzVac-ALPHA-2.1-P4.jar` (and the API on its own to
-`ezvac-api/target/`).
+`ezvac-plugin/target/EzVac-ALPHA-2.1.jar` (and the API on its own to
+`ezvac-api/target/`). Without Maven installed, `./mvnw` (or `mvnw.cmd` on
+Windows) downloads Maven 3.9.9 and runs it the same way.
+
 To run only the tests:
 
 ```shell
