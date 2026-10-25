@@ -31,7 +31,7 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Floating screens in front of device signs (2.1 Pilot 3): text displays with
+ * Floating screens in front of device signs (2.1): text displays with
  * a dark background, lit at night, that show more than a sign's four lines.
  * They have no hitbox, so clicks reach the sign behind. They are never saved
  * with the world: a chunk unloading or the server stopping takes them away,

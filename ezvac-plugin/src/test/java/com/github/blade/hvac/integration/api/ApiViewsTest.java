@@ -23,7 +23,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** The public API's views of EZvac's own objects (2.1 Pilot 4). */
+/** The public API's views of EZvac's own objects (2.1). */
 class ApiViewsTest {
     private static final UUID WORLD = UUID.fromString("0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10");
     private final HvacSettings settings = HvacSettings.defaults();

@@ -37,7 +37,7 @@ import java.util.Objects;
 
 /**
  * The control menu a thermostat's or a dehumidifier's/humidifier's sign opens
- * (2.1 Pilot 3), in place of editing the sign: coloured panes raise and lower
+ * (2.1), in place of editing the sign: coloured panes raise and lower
  * the setpoint, a lever switches it on or off. Raising is on the left, lowering
  * on the right, the biggest steps on top. Main thread only.
  */

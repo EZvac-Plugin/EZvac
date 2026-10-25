@@ -3,7 +3,7 @@ package com.github.blade.hvac.model;
 import com.github.blade.hvac.simulation.Seasons;
 
 /**
- * One world's own calendar (2.1 Pilot 2). It counts the world's days as they
+ * One world's own calendar (2.1). It counts the world's days as they
  * pass, so sleeping through the night or {@code /time add} moves it on, but
  * setting the clock back (vanilla {@code /time set day} restarts the day count)
  * never sends the year back to spring. Its days start with the world's, and

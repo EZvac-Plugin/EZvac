@@ -20,7 +20,7 @@ import com.github.blade.hvac.simulation.Seasons;
 import java.util.Optional;
 
 /**
- * Turns EZvac's own objects into the public API's views (2.1 Pilot 4). The
+ * Turns EZvac's own objects into the public API's views (2.1). The
  * API never sees an internal type, so the internals can keep changing.
  */
 public final class ApiViews {

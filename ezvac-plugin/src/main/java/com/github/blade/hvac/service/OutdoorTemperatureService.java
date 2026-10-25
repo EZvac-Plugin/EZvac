@@ -34,8 +34,8 @@ import java.util.UUID;
 /**
  * The outdoors at any spot, never force-loading chunks. From 2.1 the climate
  * at a spot is blended from the biomes around it (see {@link BiomeBlend}), so
- * walking from one biome into another ramps instead of jumping; from 2.1
- * Pilot 2 each biome has its own climate ({@link BiomeClimate}), it gets
+ * walking from one biome into another ramps instead of jumping, each biome
+ * has its own climate ({@link BiomeClimate}), it gets
  * colder with height, the ground holds deep spots steady, and the seasons move
  * it all up and down through the year.
  */

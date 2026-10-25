@@ -10,7 +10,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Each biome's own climate, altitude and the ground (2.1 Pilot 2). */
+/** Each biome's own climate, altitude and the ground (2.1). */
 class BiomeClimateTest {
     private static BiomeClimate.Climate of(String id) {
         return BiomeClimate.builtIn("minecraft:" + id);

@@ -1,7 +1,7 @@
 package com.github.blade.hvac.service;
 
 /**
- * Where a screen goes so it sits on the face of its sign (2.1 Pilot 3): just
+ * Where a screen goes so it sits on the face of its sign (2.1): just
  * in front of the board, centred on it, turned the way the sign faces. Pure:
  * positions are relative to the sign block's corner.
  */

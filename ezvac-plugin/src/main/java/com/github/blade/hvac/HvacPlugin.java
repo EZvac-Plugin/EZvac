@@ -297,7 +297,7 @@ public final class HvacPlugin extends JavaPlugin {
     public HvacController controller() { return controller; }
 
     /**
-     * Offers EZvac's public API to other plugins (2.1 Pilot 4) and connects
+     * Offers EZvac's public API to other plugins (2.1) and connects
      * its events: per-player readings ride on the HUD's updates, and a turning
      * season is reported by the calendar.
      */

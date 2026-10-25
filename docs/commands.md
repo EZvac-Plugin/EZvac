@@ -102,7 +102,7 @@ Steps are in the server's `units`: degrees Fahrenheit, or Celsius with
 75-104 °F for a pool). The middle shows the target, the room's temperature and
 humidity, and a lever that switches the system on or off.
 
-EZvac signs can't be edited; before 2.1 Pilot 3, a thermostat's target was
+EZvac signs can't be edited; before 2.1, a thermostat's target was
 typed on line 3 of its sign.
 
 ## Seasons

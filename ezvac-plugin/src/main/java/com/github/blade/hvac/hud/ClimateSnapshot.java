@@ -18,7 +18,7 @@ package com.github.blade.hvac.hud;
  * @param humidity     relative humidity of the air (%), NaN in water or when unknown
  * @param feelsLikeF   apparent temperature; the water temperature in water
  * @param weather      outdoor weather word (Clear, Rain, Thunder, Snow), empty where there is none
- * @param season       the season (Spring, Summer, Autumn, Winter), empty where there are none (2.1 Pilot 2)
+ * @param season       the season (Spring, Summer, Autumn, Winter), empty where there are none (2.1)
  * @param seasonDay    the day of that season from 1, or 0 where there are no seasons
  */
 public record ClimateSnapshot(double localF, double outdoorF, double influence, int distance,

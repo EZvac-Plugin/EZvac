@@ -20,7 +20,7 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 /**
- * Each world's own calendar (2.1 Pilot 2), kept in {@code seasons.yml} next
+ * Each world's own calendar (2.1), kept in {@code seasons.yml} next
  * to hvac.yml so the device save never changes because of it. Only worlds
  * with a sun get one: the Nether and the End have no seasons. Main thread only.
  */
@@ -45,7 +45,7 @@ public final class SeasonService {
     private final Map<UUID, World> worlds = new LinkedHashMap<>();
     private boolean dirty;
 
-    /** Told when a world's season turns (2.1 Pilot 4: the API's SeasonChangeEvent). */
+    /** Told when a world's season turns (2.1: the API's SeasonChangeEvent). */
     public interface SeasonListener {
         void seasonChanged(UUID world, Seasons.Season from);
     }

@@ -127,7 +127,7 @@ public final class ClimateHudService implements Listener {
 
     /**
      * Something outside the HUD that wants each player's reading on the HUD's
-     * cadence: the public API (2.1 Pilot 4), while an addon listens.
+     * cadence: the public API (2.1), while an addon listens.
      */
     public interface ReadingObserver {
         /** Whether to read every player this time, HUD or not. */

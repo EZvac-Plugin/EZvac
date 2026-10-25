@@ -1,6 +1,6 @@
 # Screens and control menus
 
-From 2.1 Pilot 3, EZvac's signs get a floating **screen**, and thermostats,
+From 2.1, EZvac's signs get a floating **screen**, and thermostats,
 dehumidifiers and humidifiers open a **control menu** when clicked.
 
 ## Screens
@@ -57,9 +57,10 @@ the highest of its `presets` (35-60% for a dehumidifier, 30-50% for a
 humidifier). The lever switches it off or on.
 
 - Anyone with `ezvac.use` (everyone, by default) can use the menus. A menu
-  works only within a few blocks of its sign: walk away and it closes.
+  works only within a few blocks of its sign: clicked from further away, it
+  closes.
 - Sneak-right-click still switches a thermostat's system, or a unit, off or on
   without opening anything.
-- EZvac signs can't be edited. Before 2.1 Pilot 3 a thermostat's target was
+- EZvac signs can't be edited. Before 2.1 a thermostat's target was
   typed on line 3 of its sign; the menu replaces that.
 - Nothing can be taken out of or put into a menu.

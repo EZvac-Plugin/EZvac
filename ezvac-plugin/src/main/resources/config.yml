@@ -82,7 +82,7 @@ audio:
     # cluster of vents. Water vents stay quiet.
     vent-airflow: ["block.conduit.ambient 0.3 0.5"]
 
-# Floating screens in front of EZvac's signs (2.1 Pilot 3): a dark, lit panel
+# Floating screens in front of EZvac's signs (2.1): a dark, lit panel
 # with more room than a sign's four lines. The sign stays behind it, so
 # clicking works as before and players whose client can't show screens (such
 # as Bedrock players through Geyser) still read the sign. Screens are never

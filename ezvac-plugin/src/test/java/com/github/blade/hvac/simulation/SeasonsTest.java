@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import static com.github.blade.hvac.simulation.Seasons.Season.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-/** The yearly curve and the calendar maths (2.1 Pilot 2). */
+/** The yearly curve and the calendar maths (2.1). */
 class SeasonsTest {
     private static final int DAYS = 15;
     private static final long DAY = Seasons.TICKS_PER_DAY;

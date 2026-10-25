@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Where screens go on their signs, and what they say (2.1 Pilot 3). */
+/** Where screens go on their signs, and what they say (2.1). */
 class ScreenTest {
     private static String plain(ScreenText screen) {
         return screen.plain();

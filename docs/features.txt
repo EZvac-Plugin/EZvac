@@ -107,7 +107,7 @@ OUTDOOR CLIMATE
 ---------------
 
 Outdoor temperature follows Minecraft time, the biome, the height and the
-season (2.1 Pilot 2; before it, seven name-matched classes from Snowy 25/5 to
+season (2.1; before it, seven name-matched classes from Snowy 25/5 to
 Hot 100/78):
 
 - Every vanilla biome has its own climate in BiomeClimate: year-round average
@@ -144,7 +144,7 @@ Hot 100/78):
 
 Profiles are cached per thermostat, so an unloaded thermostat never causes a
 chunk load merely to sample its biome. A thermostat saves outdoorSeasonalF
-once it has sampled since 2.1 Pilot 2; before that it estimates one from its
+once it has sampled since 2.1; before that it estimates one from its
 daily mean.
 
 Biome transitions (biome-blend: in config.yml, 2.1):
@@ -332,10 +332,10 @@ DISPLAYS AND AUDIO
 - ETA is forward-simulated from the current equipment mix, actual RPM, future
   compressor modulation, outdoor load, and the same thermal rules as control.
 - The target can be changed by command or from the control menu a right-click
-  on the sign opens (2.1 Pilot 3; ezvac.use): +5/+1/+0.1 and -5/-1/-0.1 in the
+  on the sign opens (2.1; ezvac.use): +5/+1/+0.1 and -5/-1/-0.1 in the
   server's units, rounded to a tenth in that unit and clamped to the room or
   pool range, plus a power lever. No EZvac sign can be edited; line-3 target
-  editing was removed in 2.1 Pilot 3.
+  editing was removed in 2.1.
 - Sneak-right-clicking the sign switches the system off or on (ezvac.use).
 - Thermometers are independent point sensors with no stored group. Each reads
   its own sign block exactly like /hvac temperature: influenced vent temperature
@@ -346,7 +346,7 @@ DISPLAYS AND AUDIO
   right-click advances the profile; sneak-right-click moves backward. Removing
   the panel immediately restores the group to NORMAL.
 - Display writes are fingerprinted so unchanged signs are not rewritten.
-- Screens (displays.screens, default true, 2.1 Pilot 3): a non-persistent text
+- Screens (displays.screens, default true, 2.1): a non-persistent text
   display entity in front of each device sign (ScreenService), placed by sign
   kind (wall, standing, hanging) and facing, scale 0.4 (0.34 on hanging signs),
   100 px lines, a dark translucent background, full brightness. Every screen is
@@ -441,12 +441,13 @@ previous file is kept as config.yml.before-<version>.bak.
 PUBLIC API
 ----------
 
-- Since 2.1 Pilot 4 the build is two modules: ezvac-api (the public API) and
+- Since 2.1 the build is two modules: ezvac-api (the public API) and
   ezvac-plugin, whose jar shades the API's classes in unrelocated. JitPack
   publishes com.github.EZvac-Plugin.EZvac:ezvac-api:<tag>.
-- EzvacApi (version 1.0, read-only) is registered with Paper's services
-  manager while EZvac is enabled (EzvacApiImpl in integration.api). Readings
-  reuse AirflowService.temperatureAt / temperatureForBody, so they are the
+- EzvacApi (version 1.1, read-only apart from HUD sections) is registered
+  with Paper's services manager while EZvac is enabled (EzvacApiImpl in
+  integration.api). Readings reuse AirflowService.temperatureAt /
+  temperatureForBody, so they are the
   HUD's and /hvac temperature's numbers, variance included; outdoorAt reuses
   OutdoorTemperatureService.climateAt and seasonShiftAt; thermostat views take
   their unit counts from HvacController.status. Every value is an immutable
@@ -459,6 +460,19 @@ PUBLIC API
   ThermostatTargetChange from the control menu and /hvac thermostat set;
   EquipmentStateChange from each cycle's started/stopped lists;
   SeasonChange from SeasonService (season before vs after any calendar change).
+- HUD sections (API 1.1, EzvacApi.hud()): HudSections in integration.api is
+  the registry (id = plugin name, lowercased with spaces as underscores, ":" +
+  key; registering again replaces; a plugin's sections go with its
+  PluginDisableEvent). ClimateHudService asks it for a lazy SectionFrame per
+  shown player per update; each section is drawn at most once per frame and
+  only where the layout asks. HudFormatter.lines expands sidebar lines that
+  are just {addons} (every section not placed elsewhere, in registration
+  order) or {section:<id>}; the server's own lines always fit and a section
+  that would pass 15 lines is left out whole. One-line formats replace
+  {section:<id>} from the template with the section's inline(). A section
+  that throws is logged once while it keeps failing and is left out.
+  hud.sections.hidden switches sections off; /hvac hud sections lists them.
+  HudSettings.addAddonsLine adds {addons} to stock sidebars on upgrade.
 
 PERMISSIONS
 -----------

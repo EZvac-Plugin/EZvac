@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The text of a screen (2.1 Pilot 3): a title, one big reading, then a few
+ * The text of a screen (2.1): a title, one big reading, then a few
  * smaller lines, in the colours the signs already use. Every screen is the
  * same size: a text display sizes its panel to its text, so each screen is
  * padded to {@link #LINES} lines and its title to the full width. Pure.

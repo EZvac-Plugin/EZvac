@@ -130,7 +130,7 @@ public record HudSettings(
                     "hud.comfort limits must rise: cold.below <= cool.below <= warm.above <= hot.above");
     }
 
-    /** The season line added to the sidebar in 2.1 Pilot 2, right after the outdoor line. */
+    /** The season line added to the sidebar in 2.1, right after the outdoor line. */
     public static final String SEASON_LINE = "<gray>Season: <white>{season} <gray>day {season_day}";
     private static final String OUTSIDE_LINE = "<gray>Outside: <white>{outdoor} <gray>{weather}";
 

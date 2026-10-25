@@ -4,7 +4,7 @@
 
 You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
 
-1. Put `EzVac-ALPHA-2.0.jar` in the server's `plugins` folder.
+1. Put `EzVac-ALPHA-2.1.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 
@@ -22,6 +22,19 @@ covered by the test suite.
 - **From 1.x to 2.0,** the save moves to **format 6**, and your 1.x file is
   kept as `hvac.yml.format5.bak`. Each room's humidity starts at the outdoor
   level and settles from there.
+- **From 2.0 to 2.1,** the save stays format 6 and loads as it is. What
+  changes when you start it:
+  - each world gets a calendar in the new `seasons.yml`, starting on the
+    first day of spring;
+  - outdoor temperatures follow each biome's own climate, the height and the
+    season, so rooms drift to new outdoor levels over the first in-game hours;
+  - a sidebar with the stock lines gains the season line and the `{addons}`
+    line for addon sections;
+  - signs show a screen, and right-clicking a thermostat or (de)humidifier
+    sign opens its control menu. Signs can no longer be edited to change a
+    target;
+  - `units: F` or `C` now applies everywhere. A server that had `hud.units: C`
+    starts with `units: C`.
 - **Your `config.yml`** gains every new setting with its comments. Nothing you
   set is changed, and the previous file is kept as
   `config.yml.before-<version>.bak`. See

@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** The control menu's buttons (2.1 Pilot 3). */
+/** The control menu's buttons (2.1). */
 class SetpointsTest {
     private static final double MIN = 60.0, MAX = 85.0;
 
