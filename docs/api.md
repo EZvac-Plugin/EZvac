@@ -11,9 +11,11 @@ API version **1.2** reads only: nothing an addon does through it changes
 EZvac's climate or systems. Ways to change things (targets, power) will come
 in a later API version.
 
-[LiveExposure](https://github.com/EZvac-Plugin/LiveExposure), the first
-addon, is a complete open-source example: body temperature for survival
-players, with a section on the HUD.
+The official addons are complete open-source examples:
+[LiveExposure](https://github.com/EZvac-Plugin/LiveExposure) (body
+temperature for survival players, with a section on the HUD) and
+[EZdebug+](https://github.com/EZvac-Plugin/EZdebugPlus) (every device near a
+player, drawn from `devices(world)` and the device events).
 
 ## Adding the dependency
 
@@ -36,7 +38,7 @@ never shade them into your jar.
     <dependency>
         <groupId>com.github.EZvac-Plugin.EZvac</groupId>
         <artifactId>ezvac-api</artifactId>
-        <version>ALPHA-2.1</version>
+        <version>ALPHA-2.2</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -46,7 +48,7 @@ never shade them into your jar.
 
 ```kotlin
 repositories { maven("https://jitpack.io") }
-dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-2.1") }
+dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-2.2") }
 ```
 
 In your `plugin.yml`, depend on EZvac so it loads first:
@@ -238,3 +240,6 @@ depend: [EZvac]
   changelog first.
 - The API's version is separate from EZvac's: check `apiVersion()`, or the
   `@since` tags in the Javadoc.
+- **Which EZvac has which API:** 1.0 came with ALPHA 2.1 Pilot 4, 1.1 with
+  ALPHA 2.1 (HUD sections), and 1.2 with ALPHA 2.2 (every device, and the
+  device events). Depend on the oldest EZvac whose API has what you use.

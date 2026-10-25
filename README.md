@@ -25,17 +25,18 @@ biome and the weather.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
   power or items needed.
 
-> **Release status:** EZvac ALPHA 2.1, *Realism: EXTENDED*, gives every
-> biome its own climate, with smooth transitions between them, seasons on
-> EZvac's own calendar, colder air up high and steady air underground. It
-> also adds lit screens and control menus on every sign, Fahrenheit or
-> Celsius server wide, and a public API for addons such as
-> [LiveExposure](https://github.com/EZvac-Plugin/LiveExposure). Upgrading
-> from 2.0 keeps your save as it is. See the [changelog](CHANGELOG.md).
+> **Release status:** EZvac ALPHA 2.2 is an API release: addons can now see
+> every device and where it is, which [EZdebug+](https://github.com/EZvac-Plugin/EZdebugPlus)
+> builds on. Nothing changes for players, and it's a drop-in upgrade from 2.1.
+> ALPHA 2.1, *Realism: EXTENDED*, gave every biome its own climate, with
+> smooth transitions between them, seasons on EZvac's own calendar, colder
+> air up high and steady air underground, lit screens and control menus on
+> every sign, and Fahrenheit or Celsius server wide. See the
+> [changelog](CHANGELOG.md).
 
 ## Quick install
 
-1. Download `EzVac-ALPHA-2.1.jar` from the
+1. Download `EzVac-ALPHA-2.2.jar` from the
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
 2. Put it in your server's `plugins` folder. You need Paper 1.21.1 or a fork
@@ -78,7 +79,7 @@ You need Java 21 and Maven 3.9 or newer.
 mvn clean package
 ```
 
-The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-2.1.jar`. `mvn verify` also runs
+The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-2.2.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
