@@ -2,7 +2,13 @@
 
 All notable changes to EZvac are recorded here.
 
-## Unreleased
+## ALPHA 2.2
+
+An API release: addons can now see every EZvac device and where it is.
+Nothing changes for players or servers. The save, the config and gameplay
+are the same as ALPHA 2.1, so upgrading is a jar swap.
+[EZdebug+](https://github.com/EZvac-Plugin/EZdebugPlus), a new official
+addon, is built on it.
 
 ### Added
 
