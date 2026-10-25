@@ -4,7 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** EZvac's own calendar counts the world's days but never goes back (2.1 Pilot 2). */
+/** EZvac's own calendar counts the world's days but never goes back (2.1). */
 class SeasonCalendarTest {
     private static final long DAY = 24_000L;
 

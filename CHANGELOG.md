@@ -2,155 +2,154 @@
 
 All notable changes to EZvac are recorded here.
 
-## ALPHA 2.1 Pilot 4
+## ALPHA 2.1
 
-The fourth pilot of **2.1, Realism: EXTENDED**: EZvac can now be extended.
-Same save format as 2.0 (format 6): a drop-in upgrade, with nothing new for
-servers to set up.
-
-### Added
-
-- **A public API for addons (API 1.0).** Other plugins can read what EZvac
-  knows: the climate at any spot and around every player (temperature, feels
-  like, humidity, the outdoors, weather, season, and which system conditions
-  it), the outdoor climate, thermostats and their systems, dehumidifiers and
-  humidifiers, and the seasons. Addons are ordinary Paper plugins that
-  `depend: [EZvac]` and call `EzvacApi.get()`. Everything handed out is an
-  immutable snapshot, and 1.0 reads only.
-- **Events:** a player's climate updating (on the HUD's cadence), a system
-  changing mode, a target changing, equipment starting or stopping, and a
-  season turning. EZvac only builds them while something listens, so servers
-  without addons see no difference.
-- **The API on JitPack:** `com.github.EZvac-Plugin.EZvac:ezvac-api`, built
-  from each release's tag. A guide with a complete example addon is in
-  [docs/api.md](docs/api.md).
-
-### Changed
-
-- **For contributors:** the build is now two Maven modules, `ezvac-api` and
-  `ezvac-plugin`; the plugin jar is built to `ezvac-plugin/target/` and carries
-  the API's classes.
-
-## ALPHA 2.1 Pilot 3
-
-The third pilot of **2.1, Realism: EXTENDED**: screens on every sign, and
-control menus in place of editing signs. Same save format as 2.0 (format 6):
-a drop-in upgrade.
-
-### Added
-
-- **Screens.** Every EZvac sign gets a floating screen in front of it: a dark,
-  lit panel with room for more than a sign's four lines. A thermostat's screen
-  shows the room temperature, what it's doing (`❄ Cooling to 70.0°F`), a
-  capacity bar, the ETA and humidity, and the outdoor temperature and season;
-  sensors, units, hubs, RPM monitors and settings panels have their own. All
-  screens are the same size and readable at night. The sign stays behind, so
-  clicking works as before and clients without screens (such as Bedrock
-  players through Geyser) still read it. Screens are never saved with the
-  world, and come back by themselves when their chunk loads. On by default;
-  `displays.screens: false` turns them off.
-- **Control menus.** Right-clicking a thermostat sign (room or pool) opens a
-  menu: black/white panes +5 / -5, green/red +1 / -1, lime/orange +0.1 / -0.1,
-  in the server's units, never past the allowed range, plus a lever for
-  on/off. Dehumidifiers and humidifiers get +5% / -5% and a lever.
-
-### Changed
-
-- **EZvac signs can no longer be edited.** A thermostat's target is set from
-  its menu instead of line 3 of the sign.
-- **Everyone with `ezvac.use` can change thermostat targets** from the menu,
-  like dehumidifier setpoints. Editing line 3 used to need `ezvac.admin`;
-  `/hvac thermostat <id> set` still does.
-- Clicking a dehumidifier or humidifier sign opens its menu instead of stepping
-  through the presets. `presets` now sets the range the menu reaches: from its
-  lowest to its highest, in steps of 5.
-- Sneak-right-click still switches a thermostat's system, or a unit, off or on.
-
-## ALPHA 2.1 Pilot 2
-
-The second pilot of **2.1, Realism: EXTENDED**: a realistic climate for every
-biome, seasons, altitude and the ground. Same save format as 2.0 (format 6):
-a drop-in upgrade.
+**Realism: EXTENDED.** Every biome has its own climate, with smooth
+transitions between them; there are seasons on EZvac's own calendar, colder
+air up high and steady air underground. Every sign gets a lit screen and a
+control menu, temperatures can be shown in °F or °C server wide, and other
+plugins can build on EZvac through its new public API. The save format stays
+the same as 2.0 (format 6), so upgrading from 2.0 is a drop-in. 2.1 was tried
+out in four prereleases (ALPHA-2.1-P1 to P4, notes on GitHub); this entry
+covers everything since 2.0.
 
 ### Added
 
 - **A climate for every biome.** The seven broad classes (Snowy, Cold,
   Temperate, Warm, Hot, Nether, End) are replaced by each vanilla biome's own
-  climate, modelled on real places. Clear desert skies let the day heat and
-  the night cool hard (98 °F noon, 64 °F midnight); a jungle (88/74) or the
-  sea (66/60) barely moves. A data pack's biome gets a climate worked out from
-  its Minecraft temperature and rainfall, and any biome can be given its own
-  under the new `biomes:` section.
+  climate, modelled on real places:
+  - clear desert skies let the day heat up and the night cool hard (98 °F
+    noon, 64 °F midnight);
+  - a jungle (88/74) or the sea (66/60) barely moves;
+  - a data pack's biome gets a climate worked out from its Minecraft
+    temperature and rainfall;
+  - any biome can be given its own under the new `biomes:` section.
+- **Biome transitions.** The outdoor climate at a spot is the average of the
+  biomes around it, instead of the biome at that one block:
+  - 24 blocks by default, nearer ones counting more;
+  - walking from plains into a desert at noon ramps up over about 48 blocks
+    instead of jumping in a step;
+  - temperature, humidity, weather and natural water all blend, and rain at a
+    desert's edge cools it partway;
+  - it feeds the simulation, so a house on a border lives in the in-between
+    climate;
+  - only loaded chunks count, and each spot is worked out once and cached.
+    Tuning: `biome-blend.radius-blocks` (0 turns it off).
 - **Seasons.** Each world with a sun has a year of four seasons, 15 days each
-  by default. Temperatures follow a smooth curve, warmest in mid-summer and
-  coldest in mid-winter, by each biome's own amount: plains noon goes from
-  90 °F in mid-summer to 54 °F in mid-winter, a taiga from 76 °F to 28 °F, a
-  jungle hardly changes. Lakes and the sea follow a few days behind. Only
-  temperatures change: biomes, rain and snow stay as Minecraft makes them.
-  Tuning: `seasons:` (`days-per-season`, `strength`, `water-lag-days`).
-- **EZvac's own calendar**, per world, in the new `seasons.yml`. It counts the
+  by default:
+  - temperatures follow a smooth curve, warmest in mid-summer and coldest in
+    mid-winter, by each biome's own amount: plains noon goes from 90 °F in
+    mid-summer to 54 °F in mid-winter, a taiga from 76 °F to 28 °F, and a
+    jungle hardly changes;
+  - lakes and the sea follow a few days behind;
+  - only temperatures change: biomes, rain and snow stay as Minecraft makes
+    them. Tuning: `seasons:` (`days-per-season`, `strength`,
+    `water-lag-days`).
+- **EZvac's own calendar,** per world, in the new `seasons.yml`. It counts the
   world's days (sleeping moves it on), but setting the clock back never sends
   the year back to spring.
-- **`/hvac season`** shows the season, its day and how much it warms or cools
-  the outdoors where you stand. Admins can change it any time:
-  `/hvac season set <season> [day]`, `next`, `pause` and `resume`. It also
-  works from the console, with a world name at the end.
-- **Altitude.** The air is 0.1 °F colder for every block above y=64 (about
-  14 °F colder at y=200), and high on mountains rain turns to snow where
-  Minecraft itself snows. Tuning: `altitude:`.
-- **Underground.** Deep down the air holds the ground's steady temperature: no
-  day/night swing, no seasons, no weather. It sets in 4 blocks below the
-  surface (or sea level, if lower) and is complete at 20. Tuning:
+- **`/hvac season`** shows the season, its day, and how much it warms or cools
+  the outdoors where you stand. Admins can change it at any time with
+  `/hvac season set <season> [day]`, `next`, `pause` and `resume`, also from
+  the console with a world name at the end.
+- **Altitude.** The air is 0.1 °F colder for every block above y=64, about
+  14 °F colder at y=200. High on mountains rain turns to snow where Minecraft
+  itself snows. Tuning: `altitude:`.
+- **Underground.** Deep down, the air holds the ground's steady temperature,
+  with no day/night swing, no seasons and no weather. It sets in 4 blocks
+  below the surface (or sea level, if lower) and is complete at 20. Tuning:
   `underground:`.
-- **The HUD shows the season**, on a new sidebar line left out where there are
-  none, with the `{season}` and `{season_day}` tokens and the
-  `%ezvac_season%` and `%ezvac_season_day%` placeholders. `/hvac temperature`
-  shows it too.
-
-### Changed
-
-- **Every outdoor climate changes** after the update: biomes have their own
-  numbers, mountains are colder higher up, deep spots are steady, and the
-  seasons begin on the first day of spring the first time the server starts
-  with this version. Rooms drift to the new climate gradually.
-- Thermostats save their seasonal swing (`outdoorSeasonalF`) once they sample
-  their surroundings; until then they use the usual swing for their climate.
-- A HUD sidebar that still has the stock lines gains the season line when the
-  update adds the seasons to `config.yml`. A sidebar you changed is left as
-  it is; add `"<gray>Season: <white>{season} <gray>day {season_day}"` to it
-  to show the season.
-
-## ALPHA 2.1 Pilot 1
-
-The first pilot of **2.1, Realism: EXTENDED**: smooth transitions between
-biomes, and a server-wide Fahrenheit/Celsius switch. Same save format as 2.0
-(format 6): a drop-in upgrade.
-
-### Added
-
-- **Biome transitions.** The outdoor climate at a spot is the average of the
-  biomes around it (24 blocks by default, nearer ones counting more) instead
-  of the biome at that one block. Walking from plains into a desert at noon
-  now ramps from 72 °F to 100 °F over about 48 blocks instead of jumping 28 °F
-  in a step. Temperature, humidity, weather and natural water all blend; rain
-  at a desert's edge cools it partway. It feeds the simulation too, so a house
-  on a border lives in the in-between climate. Only loaded chunks count, and
-  each spot is worked out once and cached. Tuning: `biome-blend.radius-blocks`
-  (0 turns it off).
+- **Screens.** Every EZvac sign gets a floating screen in front of it, a dark,
+  lit panel with room for more than a sign's four lines:
+  - a thermostat's shows the room temperature, what it's doing (`❄ Cooling to
+    70.0°F`), a capacity bar, the ETA and humidity, and the outdoor
+    temperature and season;
+  - sensors, units, hubs, RPM monitors and settings panels have their own;
+  - all screens are the same size and readable at night;
+  - the sign stays behind it, so clicking works as before, and clients
+    without screens (such as Bedrock players through Geyser) still read it;
+  - screens are never saved with the world, and come back by themselves when
+    their chunk loads. On by default; `displays.screens: false` turns them
+    off.
+- **Control menus.** Right-clicking a thermostat sign, room or pool, opens a
+  menu:
+  - black/white panes +5 / -5, green/red +1 / -1 and lime/orange +0.1 / -0.1,
+    in the server's units, never past the allowed range;
+  - a lever for on/off;
+  - dehumidifiers and humidifiers get +5% / -5% and a lever;
+  - a menu works only within a few blocks of its sign.
 - **Fahrenheit or Celsius, server wide.** The new `units: F|C` setting decides
-  how every temperature is shown (signs, chat, the HUD, placeholders) and
-  typed (thermostat sign line 3, `/hvac thermostat <id> set`, the target of
-  `/hvac create thermostat`). `72F` or `22C` always works whatever the setting.
-  `config.yml` itself stays in °F. A config with `hud.units: C` starts with
-  `units: C`, and `hud.units` is no longer read.
+  how every temperature is shown (signs, screens, chat, the HUD, placeholders)
+  and typed (`/hvac thermostat <id> set`, the target of
+  `/hvac create thermostat`). `72F` or `22C` always works, whatever the
+  setting. `config.yml` itself stays in °F.
+- **The HUD shows the season,** on a new sidebar line that is left out where
+  there are none. It comes with the `{season}` and `{season_day}` tokens and
+  the `%ezvac_season%` and `%ezvac_season_day%` placeholders. `/hvac
+  temperature` shows it too.
+- **A public API for addons (API 1.1).** Addons are ordinary Paper plugins
+  that `depend: [EZvac]` and call `EzvacApi.get()`:
+  - **reading:** the climate at any spot and around every player
+    (temperature, feels like, humidity, the outdoors, weather, season, and
+    which system conditions it), thermostats and their systems, dehumidifiers
+    and humidifiers, and the seasons. Everything handed out is an immutable
+    snapshot, and the API changes nothing;
+  - **events:** a player's climate updating (on the HUD's cadence), a system
+    changing mode, a target changing, equipment starting or stopping, and a
+    season turning. EZvac only builds them while something listens, so
+    servers without addons see no difference;
+  - **HUD sections:** an addon can add its own lines to the climate HUD,
+    drawn with EZvac's own bar and units.
+    [LiveExposure](https://github.com/EZvac-Plugin/LiveExposure) uses this to
+    show players' body temperature under the season line;
+  - **on JitPack:** `com.github.EZvac-Plugin.EZvac:ezvac-api`, built from each
+    release's tag. The guide, with a complete example addon, is in
+    [docs/api.md](docs/api.md).
+- **Addon sections on the HUD, for servers:**
+  - a sidebar line that is just `{addons}` shows every addon's section;
+    `{section:<id>}` places one on its own, in the sidebar or in the action
+    bar and boss bar formats;
+  - `hud.sections.hidden` switches sections off;
+  - `/hvac hud sections` (admins) lists them;
+  - the server's own lines always fit, and a section that would go past the
+    sidebar's 15 lines is left out.
 
 ### Changed
 
-- **Builds near a biome border** see a slightly milder or harsher outdoor
-  climate after the update, because it now blends with the neighbouring
-  biome. Thermostats inside one biome are exactly as before.
-- Thermostats on a border save their mix of rain and snow
-  (`outdoorRainShare`, `outdoorSnowShare`); others save exactly as before.
+- **Every outdoor climate changes** after the update:
+  - biomes have their own numbers, and builds near a border blend with the
+    neighbouring biome;
+  - mountains are colder higher up, and deep spots are steady;
+  - the seasons begin on the first day of spring the first time the server
+    starts with 2.1.
+
+  Rooms drift to the new climate gradually.
+- **EZvac signs can no longer be edited.** A thermostat's target is set from
+  its menu instead of line 3 of the sign.
+- **Everyone with `ezvac.use` can change thermostat targets** from the menu,
+  like dehumidifier setpoints. Editing line 3 used to need `ezvac.admin`;
+  `/hvac thermostat <id> set` still does.
+- **Dehumidifier and humidifier signs open their menu** instead of stepping
+  through the presets. `presets` now sets the range the menu reaches, from
+  the lowest preset to the highest, in steps of 5.
+- Sneak-right-click still switches a thermostat's system, or a unit, off or
+  on.
+- **The HUD's units:** a config with `hud.units: C` starts with `units: C`, and
+  `hud.units` is no longer read.
+- **A stock HUD sidebar** gains the season line and the `{addons}` line when
+  the update adds the new settings to `config.yml`. A sidebar you changed is
+  left as it is: add `"<gray>Season: <white>{season} <gray>day {season_day}"`
+  and `"{addons}"` to it yourself.
+- **What thermostats save:**
+  - their seasonal swing (`outdoorSeasonalF`), once they sample their
+    surroundings;
+  - on a biome border, their mix of rain and snow (`outdoorRainShare`,
+    `outdoorSnowShare`).
+
+  Everything else saves exactly as before.
+- **For contributors:** the build is now two Maven modules, `ezvac-api` and
+  `ezvac-plugin`. The plugin jar is built to `ezvac-plugin/target/` and
+  carries the API's classes.
 
 ## ALPHA 2.0
 

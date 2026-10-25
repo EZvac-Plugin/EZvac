@@ -14,7 +14,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** Each world's calendar, and seasons.yml (2.1 Pilot 2). */
+/** Each world's calendar, and seasons.yml (2.1). */
 class SeasonServiceTest {
     private static final UUID WORLD = UUID.fromString("0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10");
     private static final UUID NETHER = UUID.fromString("7d1e2f3a-4b5c-4d6e-8f70-112233445566");

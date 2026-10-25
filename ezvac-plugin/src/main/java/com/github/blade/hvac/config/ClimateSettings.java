@@ -97,7 +97,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
             requireNonNegative("dehumidifier.hysteresis", hysteresis);
         }
 
-        /** The lowest setpoint the control menu reaches: the lowest preset (2.1 Pilot 3). */
+        /** The lowest setpoint the control menu reaches: the lowest preset (2.1). */
         public int minimumSetpoint() { return presets.get(0); }
 
         /** The highest setpoint the control menu reaches: the highest preset. */
@@ -128,7 +128,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
             requireNonNegative("humidifier.hysteresis", hysteresis);
         }
 
-        /** The lowest setpoint the control menu reaches: the lowest preset (2.1 Pilot 3). */
+        /** The lowest setpoint the control menu reaches: the lowest preset (2.1). */
         public int minimumSetpoint() { return presets.get(0); }
 
         /** The highest setpoint the control menu reaches: the highest preset. */
@@ -173,7 +173,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
     }
 
     /**
-     * The yearly cycle (2.1 Pilot 2).
+     * The yearly cycle (2.1).
      *
      * @param daysPerSeason Minecraft days in each season; four make a year
      * @param strength      how much of each biome's seasonal swing applies: 1 is realistic, 0.5 mild, 0 none
@@ -194,7 +194,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
     }
 
     /**
-     * Colder with height (2.1 Pilot 2). Real air cools about 0.012 F per
+     * Colder with height (2.1). Real air cools about 0.012 F per
      * metre; Minecraft's mountains are short, so the default is stronger.
      */
     public record Altitude(double lapseFPerBlock, int fromY) {
@@ -205,8 +205,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
     }
 
     /**
-     * Deep underground the air holds the ground's steady temperature (2.1
-     * Pilot 2). It sets in from {@code startDepth} blocks below the surface,
+     * Deep underground the air holds the ground's steady temperature (2.1). It sets in from {@code startDepth} blocks below the surface,
      * or below sea level where the surface is higher, and is complete from
      * {@code fullDepth}.
      */

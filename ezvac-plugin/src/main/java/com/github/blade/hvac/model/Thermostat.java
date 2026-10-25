@@ -33,7 +33,7 @@ public final class Thermostat {
     private double outdoorRainShare = 1.0;
     private double outdoorSnowShare = 0.0;
     /**
-     * How far the seasons move its outdoor climate (2.1 Pilot 2). NaN in a
+     * How far the seasons move its outdoor climate (2.1). NaN in a
      * save from before then, until it samples its surroundings again.
      */
     private double outdoorSeasonalF = Double.NaN;
@@ -95,7 +95,7 @@ public final class Thermostat {
     public Precipitation outdoorPrecipitation() { return outdoorPrecipitation; }
     /**
      * The outdoor climate it last sampled, transitions between biomes and its
-     * seasons included; a thermostat that hasn't sampled since 2.1 Pilot 2
+     * seasons included; a thermostat that hasn't sampled since 2.1
      * expects the seasons its climate usually has.
      */
     public BiomeBlend.Blended outdoorClimate() {
@@ -175,7 +175,7 @@ public final class Thermostat {
             map.put("outdoorRainShare", outdoorRainShare);
             map.put("outdoorSnowShare", outdoorSnowShare);
         }
-        // Saved once it has sampled since 2.1 Pilot 2; an older save loads and saves back unchanged until then.
+        // Saved once it has sampled since 2.1; an older save loads and saves back unchanged until then.
         if (Double.isFinite(outdoorSeasonalF)) map.put("outdoorSeasonalF", outdoorSeasonalF);
         if (hasRoomDewPoint()) map.put("roomDewPointF", roomDewPointF);
         return map;

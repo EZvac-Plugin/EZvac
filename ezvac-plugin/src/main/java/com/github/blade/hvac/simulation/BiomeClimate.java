@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Each biome's own climate (2.1 Pilot 2), replacing the seven name-matched
+ * Each biome's own climate (2.1), replacing the seven name-matched
  * classes of earlier releases. Values are year-round averages at sea level:
  * altitude, the ground and the seasons are applied on top. Modelled on real
  * places: a desert swings widely between day and night, a jungle or the sea
@@ -153,7 +153,7 @@ public final class BiomeClimate {
     /**
      * The seasonal swing to expect for a daily mean, when nothing better is
      * known: strong in the cold north, weak in the tropics. Also used for
-     * thermostats saved before 2.1 Pilot 2, until they sample their biome again.
+     * thermostats saved before 2.1, until they sample their biome again.
      */
     public static double estimateSeasonalF(double meanF) {
         if (!Double.isFinite(meanF)) return 0.0;

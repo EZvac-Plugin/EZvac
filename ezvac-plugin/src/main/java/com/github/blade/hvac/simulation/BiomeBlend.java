@@ -29,7 +29,7 @@ public final class BiomeBlend {
      *
      * @param rainShare share of the surroundings where rain falls
      * @param snowShare share where snow falls; the rest never gets weather
-     * @param seasonalF how far mid-summer and mid-winter move away from noonF and midnightF (2.1 Pilot 2)
+     * @param seasonalF how far mid-summer and mid-winter move away from noonF and midnightF (2.1)
      */
     public record Blended(double noonF, double midnightF, double downfall, double rainShare, double snowShare,
                           double seasonalF) {

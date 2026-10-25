@@ -3,7 +3,7 @@ package com.github.blade.hvac.simulation;
 import java.util.Locale;
 
 /**
- * The yearly cycle (2.1 Pilot 2). Seasons only move the temperature
+ * The yearly cycle (2.1). Seasons only move the temperature
  * baseline up and down along a smooth curve: coldest in mid-winter, warmest
  * in mid-summer, average in mid-spring and mid-autumn. Biomes, rain and snow
  * stay as Minecraft makes them. Pure.

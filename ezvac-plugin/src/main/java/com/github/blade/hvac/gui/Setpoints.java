@@ -3,7 +3,7 @@ package com.github.blade.hvac.gui;
 import com.github.blade.hvac.config.TemperatureUnit;
 
 /**
- * The arithmetic behind the control menu's buttons (2.1 Pilot 3). Pure.
+ * The arithmetic behind the control menu's buttons (2.1). Pure.
  */
 public final class Setpoints {
     private Setpoints() {}

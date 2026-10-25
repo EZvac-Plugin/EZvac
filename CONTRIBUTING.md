@@ -45,7 +45,7 @@ try a change without building it yourself.
 
 ## Layout
 
-Since 2.1 Pilot 4 the build has two modules, released together under one
+Since 2.1 the build has two modules, released together under one
 version:
 
 - `ezvac-api/`: the public API addons build against (see

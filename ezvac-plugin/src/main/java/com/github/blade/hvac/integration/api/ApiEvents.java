@@ -17,7 +17,7 @@ import org.bukkit.event.HandlerList;
 import java.util.function.Supplier;
 
 /**
- * Fires the public API's events (2.1 Pilot 4). An event is only built when
+ * Fires the public API's events (2.1). An event is only built when
  * some plugin listens to it, so EZvac costs nothing extra without addons.
  * Main thread.
  */

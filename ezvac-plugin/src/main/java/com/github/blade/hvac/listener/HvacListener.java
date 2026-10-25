@@ -52,7 +52,7 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSignChange(SignChangeEvent event) {
         BlockKey key = BlockKey.of(event.getBlock().getLocation());
-        // Since 2.1 Pilot 3 no EZvac sign is edited: a thermostat's target is set from the menu its sign opens.
+        // Since 2.1 no EZvac sign is edited: a thermostat's target is set from the menu its sign opens.
         boolean thermostat = registry.thermostatAt(key) != null;
         if (thermostat || registry.thermometerAt(key) != null || registry.rpmMonitorAt(key) != null
                 || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null

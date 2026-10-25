@@ -71,7 +71,7 @@ mid-spring and mid-autumn.
   world's days, so sleeping through the night moves it on, but setting the
   clock back (`/time set day`) never sends the year back to spring. With
   `doDaylightCycle` off, the season stands still.
-- The first time a world runs 2.1 Pilot 2, its calendar starts on the first
+- The first time a world runs 2.1, its calendar starts on the first
   day of spring.
 - `/hvac season` shows the season and how much it warms or cools outside
   here; admins can change it any time (see [Commands](commands.md#seasons)).
