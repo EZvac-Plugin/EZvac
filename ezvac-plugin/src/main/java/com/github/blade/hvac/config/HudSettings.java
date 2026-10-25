@@ -38,7 +38,8 @@ public record HudSettings(
         Band warm,
         Band hot,
         String noneText,
-        Medium water
+        Medium water,
+        List<String> hiddenSections
 ) {
     /** Where the built-in overlay is drawn. */
     public enum Style {
@@ -107,6 +108,8 @@ public record HudSettings(
         Objects.requireNonNull(barEmpty, "bar empty glyph");
         Objects.requireNonNull(noneText, "none text");
         Objects.requireNonNull(water, "water medium");
+        hiddenSections = Objects.requireNonNull(hiddenSections, "hidden sections").stream()
+                .map(id -> id.trim().toLowerCase(Locale.ROOT)).filter(id -> !id.isEmpty()).toList();
         sidebarLines = List.copyOf(Objects.requireNonNull(sidebarLines, "sidebar lines"));
         sidebarYieldTo = List.copyOf(Objects.requireNonNull(sidebarYieldTo, "sidebar yield-to plugins"));
         if (updateTicks < 1) throw new IllegalArgumentException("hud.update-ticks must be at least 1");
@@ -142,11 +145,39 @@ public record HudSettings(
         List<String> lines = config.getStringList("hud.sidebar.lines");
         List<String> stock = new ArrayList<>(defaults().sidebarLines());
         stock.remove(SEASON_LINE);
+        stock.remove(ADDONS_LINE);
         if (!lines.equals(stock)) return;
         List<String> withSeason = new ArrayList<>(lines);
         withSeason.add(withSeason.indexOf(OUTSIDE_LINE) + 1, SEASON_LINE);
         config.set("hud.sidebar.lines", withSeason);
         added.add("hud.sidebar.lines");
+    }
+
+    /** Where addon HUD sections go (API 1.1): alone on a sidebar line. */
+    public static final String ADDONS_LINE = "{addons}";
+    private static final String WATER_AIR_LINE = "<gray>Air: <white>{outdoor} <gray>{weather}";
+
+    /**
+     * When addon sections first arrive (2.1, with {@code hud.sections}), a
+     * sidebar that is still the stock one gains the {@code {addons}} line:
+     * under the season line in air, under the air line in water. A sidebar
+     * the server has made its own is left exactly as it is.
+     */
+    public static void addAddonsLine(YamlConfiguration config, List<String> added) {
+        if (added.stream().noneMatch(path -> path.startsWith("hud.sections"))) return;
+        addAddonsLine(config, "hud.sidebar.lines", defaults().sidebarLines(), SEASON_LINE, added);
+        addAddonsLine(config, "hud.water.sidebar.lines", defaultWater().sidebarLines(), WATER_AIR_LINE, added);
+    }
+
+    private static void addAddonsLine(YamlConfiguration config, String path, List<String> defaults, String after,
+                                      List<String> added) {
+        List<String> stock = new ArrayList<>(defaults);
+        stock.remove(ADDONS_LINE);
+        if (!config.getStringList(path).equals(stock)) return;
+        List<String> lines = new ArrayList<>(stock);
+        lines.add(lines.indexOf(after) + 1, ADDONS_LINE);
+        config.set(path, lines);
+        added.add(path);
     }
 
     public static HudSettings defaults() {
@@ -159,6 +190,7 @@ public record HudSettings(
                         "<gray>Humidity: <white>{humidity}",
                         "<gray>Outside: <white>{outdoor} <gray>{weather}",
                         SEASON_LINE,
+                        ADDONS_LINE,
                         "",
                         "<gray>System: <white>{group}",
                         "<gray>Mode: <white>{mode}",
@@ -176,7 +208,8 @@ public record HudSettings(
                 new Band(78.0, "Warm", "#ffb347"),
                 new Band(86.0, "Hot", "#ff5c5c"),
                 "none",
-                defaultWater());
+                defaultWater(),
+                List.of());
     }
 
     private static Medium defaultWater() {
@@ -184,7 +217,8 @@ public record HudSettings(
                 List.of(
                         "<gray>Water: <white>{temp}",
                         "{bar} {comfort}",
-                        "<gray>Air: <white>{outdoor} <gray>{weather}",
+                        WATER_AIR_LINE,
+                        ADDONS_LINE,
                         "",
                         "<gray>Pool: <white>{group}",
                         "<gray>Mode: <white>{mode}",
@@ -231,7 +265,8 @@ public record HudSettings(
                 band(hud, "comfort.warm", "above-f", d.warm),
                 band(hud, "comfort.hot", "above-f", d.hot),
                 hud.getString("none-text", d.noneText),
-                water(hud.getConfigurationSection("water"), d.water));
+                water(hud.getConfigurationSection("water"), d.water),
+                hud.isList("sections.hidden") ? hud.getStringList("sections.hidden") : d.hiddenSections);
     }
 
     private static Medium water(ConfigurationSection water, Medium d) {

@@ -1,5 +1,6 @@
 package com.github.blade.hvac.api;
 
+import com.github.blade.hvac.api.hud.EzvacHud;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -14,8 +15,10 @@ import java.util.UUID;
  * for addons. Get it with {@link #get()} from a plugin that has
  * {@code depend: [EZvac]} (or {@code softdepend}) in its plugin.yml.
  *
- * <p>Version 1.0 reads only: nothing here changes EZvac's state. Every value
- * handed out is an immutable snapshot. Temperatures are always Fahrenheit;
+ * <p>The API reads only: nothing here changes EZvac's climate or systems.
+ * Every value handed out is an immutable snapshot. Since 1.1 addons can also
+ * add their own sections to the climate HUD ({@link #hud()}).
+ * Temperatures are always Fahrenheit;
  * {@link #units()} says what the server shows players.
  *
  * <p>Call the methods on the server's main thread, except {@link #latestFor},
@@ -29,7 +32,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.0";
+    String API_VERSION = "1.1";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -46,7 +49,7 @@ public interface EzvacApi {
     /** {@link #API_VERSION} of the EZvac that is running. */
     String apiVersion();
 
-    /** The running EZvac's version, such as {@code ALPHA-2.1-P4}. */
+    /** The running EZvac's version, such as {@code ALPHA-2.1}. */
     String pluginVersion();
 
     /** The unit the server shows players: F or C. */
@@ -83,4 +86,12 @@ public interface EzvacApi {
 
     /** Where a world is in the year, or empty where it has no seasons (no sun, or seasons switched off). */
     Optional<SeasonView> season(World world);
+
+    /**
+     * Addon sections on the climate HUD. Check {@link #apiVersion()} first
+     * when the addon should also run on API 1.0, which doesn't have it.
+     *
+     * @since 1.1
+     */
+    EzvacHud hud();
 }

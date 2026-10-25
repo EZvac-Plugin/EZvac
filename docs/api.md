@@ -1,13 +1,19 @@
 # The EZvac API
 
-From 2.1 Pilot 4, other plugins can use what EZvac knows about the climate:
+From ALPHA 2.1, other plugins can use what EZvac knows about the climate:
 the temperature and "feels like" anywhere and around every player, the
 outdoors, thermostats and their systems, dehumidifiers and humidifiers, the
-seasons, and events when things change. An addon is an ordinary Paper plugin
-that depends on EZvac.
+seasons, and events when things change. Addons can also add their own
+sections to EZvac's climate HUD. An addon is an ordinary Paper plugin that
+depends on EZvac.
 
-API version **1.0** reads only: nothing an addon does through it changes
-EZvac. Ways to change things (targets, power) will come in a later API version.
+API version **1.1** reads only: nothing an addon does through it changes
+EZvac's climate or systems. Ways to change things (targets, power) will come
+in a later API version.
+
+[LiveExposure](https://github.com/EZvac-Plugin/LiveExposure), the first
+addon, is a complete open-source example: body temperature for survival
+players, with a section on the HUD.
 
 ## Adding the dependency
 
@@ -30,7 +36,7 @@ never shade them into your jar.
     <dependency>
         <groupId>com.github.EZvac-Plugin.EZvac</groupId>
         <artifactId>ezvac-api</artifactId>
-        <version>ALPHA-2.1-P4</version>
+        <version>ALPHA-2.1</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -40,7 +46,7 @@ never shade them into your jar.
 
 ```kotlin
 repositories { maven("https://jitpack.io") }
-dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-2.1-P4") }
+dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-2.1") }
 ```
 
 In your `plugin.yml`, depend on EZvac so it loads first:
@@ -81,7 +87,7 @@ have `...C()` helpers, and `Temperatures` converts.
 
 ## Events
 
-All fired on the main thread. They are informational in 1.0: none can be
+All fired on the main thread. They are informational: none can be
 cancelled.
 
 | Event | When |
@@ -94,6 +100,45 @@ cancelled.
 
 EZvac only builds an event while some plugin listens to it, so it costs
 nothing on servers without addons.
+
+## HUD sections
+
+Since API 1.1 an addon can add a few lines of its own to the climate HUD
+(`/hvac hud`), drawn for every player who has it switched on:
+
+```java
+ezvac.hud().register(this, "thirst", context -> {
+    int thirst = thirstOf(context.player());           // your own state
+    if (thirst < 0) return List.of();                  // an empty list hides it for this player
+    return List.of(
+            Component.text("Thirst: ", NamedTextColor.GRAY)
+                    .append(Component.text(thirst + "%", NamedTextColor.WHITE)),
+            context.bar(thirst / 100.0, TextColor.color(0x5AB0FF)));
+});
+```
+
+- **Its id** is your plugin's name and the key, in lowercase: `myaddon:thirst`.
+  Registering the same key again replaces it, and it goes away by itself
+  when your plugin is disabled.
+- **When it's called:** on the main thread, every HUD update (twice a second
+  by default), once per player with the HUD on. Keep it cheap: draw from state
+  you already have. `context.reading()` is the climate the HUD shows them.
+- **Matching EZvac's look:** `context.bar(fraction, color)` is the server's own
+  bar (its glyphs, length and empty colour), and `context.temperature(f)`
+  writes a temperature the way the HUD does, in the server's units.
+- **Where it shows:** on the sidebar, where the server's `hud.sidebar.lines`
+  has `{addons}` (every section, in the order they were registered), or a
+  line that's just `{section:myaddon:thirst}`. Stock sidebars have
+  `{addons}` under the season line. The action bar and boss bar have one line
+  only, so a section shows there only where the server puts
+  `{section:<id>}` into the format. Override `inline(context)` to choose the
+  one-line form; by default it's your lines joined with spaces.
+- **Mistakes stay yours:** a section that throws is logged once and left out;
+  the rest of the HUD carries on.
+- **Servers stay in control:** `hud.sections.hidden` switches sections off by
+  id, and `/hvac hud sections` lists them.
+- **Older EZvacs:** `hud()` is new in 1.1. If your addon should also run on
+  1.0, check `apiVersion()` before calling it.
 
 ## Threads
 
