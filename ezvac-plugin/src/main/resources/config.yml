@@ -240,7 +240,8 @@ humidifier:
 # a sidebar line that is just {addons} shows every addon section there, and a
 # line that is just {section:<id>} shows one section on its own. In the
 # actionbar and bossbar formats, {section:<id>} shows that section on one line.
-# The sidebar shows at most 15 lines; anything past that is left off the bottom.
+# The sidebar shows at most 15 lines: your own lines always fit, and addon
+# sections that would go past that are left out, whole.
 hud:
   enabled: true
   # sidebar (scoreboard on the right), actionbar (above the hotbar) or bossbar (top)

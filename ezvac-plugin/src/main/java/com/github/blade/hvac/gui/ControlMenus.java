@@ -150,12 +150,20 @@ public final class ControlMenus implements Listener {
                 : new int[] {climate.humidifier().minimumSetpoint(), climate.humidifier().maximumSetpoint()};
     }
 
+    /** How far from its device a menu still works, in blocks: a little past reach. */
+    static final double REACH_BLOCKS = 8.0;
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onClick(InventoryClickEvent event) {
         if (!(event.getView().getTopInventory().getHolder() instanceof Menu menu)) return;
         // Nothing moves in or out of a control menu, whichever inventory was clicked.
         event.setCancelled(true);
         if (event.getClickedInventory() != menu.inventory || !(event.getWhoClicked() instanceof Player player)) return;
+        if (!player.hasPermission("ezvac.use") || !withinReach(player, menu.position)) {
+            // Opened from the sign, it only works there, and only while the player may use it.
+            plugin.getServer().getScheduler().runTask(plugin, () -> player.closeInventory());
+            return;
+        }
         boolean changed = menu.device == Device.THERMOSTAT ? clickThermostat(player, menu, event.getSlot())
                 : clickUnit(player, menu, event.getSlot());
         if (changed) {
@@ -163,6 +171,21 @@ public final class ControlMenus implements Listener {
             plugin.requestImmediateSync();
         }
         draw(menu);
+    }
+
+    private static boolean withinReach(Player player, BlockKey position) {
+        var location = position.location();
+        return location != null && location.getWorld().equals(player.getWorld())
+                && location.add(0.5, 0.5, 0.5).distanceSquared(player.getLocation()) <= REACH_BLOCKS * REACH_BLOCKS;
+    }
+
+    /**
+     * Closes every open control menu, when EZvac stops: with its listener
+     * gone, the items in a menu left open could be taken out.
+     */
+    public void closeAll() {
+        for (Player player : plugin.getServer().getOnlinePlayers())
+            if (player.getOpenInventory().getTopInventory().getHolder() instanceof Menu) player.closeInventory();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)

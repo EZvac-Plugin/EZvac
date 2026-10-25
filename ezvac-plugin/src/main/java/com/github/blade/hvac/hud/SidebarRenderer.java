@@ -30,7 +30,7 @@ import java.util.UUID;
  * once; servers like that are better served by the placeholders.
  */
 public final class SidebarRenderer implements HudRenderer {
-    private static final int MAX_LINES = 15;
+    private static final int MAX_LINES = HudFormatter.MAX_SIDEBAR_LINES;
 
     private final HudFormatter format;
     private final Map<UUID, Board> boards = new HashMap<>();
@@ -104,7 +104,6 @@ public final class SidebarRenderer implements HudRenderer {
     }
 
     private void update(Board board, List<Component> lines) {
-        // The sidebar holds 15 lines: anything past that is left off the bottom.
         int count = Math.min(MAX_LINES, lines.size());
         // Air and water layouts, and addon sections, change the line count: drop the extras.
         while (board.lines.size() > count) {

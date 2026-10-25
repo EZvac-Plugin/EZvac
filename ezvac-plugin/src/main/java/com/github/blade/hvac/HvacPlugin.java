@@ -213,6 +213,7 @@ public final class HvacPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (menus != null) menus.closeAll();
         getServer().getServicesManager().unregisterAll(this);
         if (api != null) api.clear();
         if (placeholderUnregister != null) placeholderUnregister.run();

@@ -237,17 +237,24 @@ public final class HudFormatter {
      * addon section's one-line form: for the action bar and the boss bar.
      */
     public Component render(String template, ClimateSnapshot snapshot, SectionFrame sections) {
-        String filled = fill(template, snapshot);
-        if (!filled.contains("{section:")) return MINI.deserialize(filled);
-        Matcher match = SECTION.matcher(filled);
+        if (!template.contains("{section:")) return render(template, snapshot);
+        // Sections are found in the template itself, so a system named "{section:..}" stays a name.
+        Matcher match = SECTION.matcher(template);
         StringBuilder out = new StringBuilder();
+        int from = 0;
         while (match.find()) {
-            String id = match.group(1).toLowerCase(Locale.ROOT);
-            Component section = hidden(id) ? Component.empty() : sections.inline(id);
-            match.appendReplacement(out, Matcher.quoteReplacement(MINI.serialize(section)));
+            out.append(fill(template.substring(from, match.start()), snapshot));
+            String id = sectionId(match.group(1));
+            out.append(MINI.serialize(hidden(id) ? Component.empty() : sections.inline(id)));
+            from = match.end();
         }
-        match.appendTail(out);
+        out.append(fill(template.substring(from), snapshot));
         return MINI.deserialize(out.toString());
+    }
+
+    /** A section id as the registry writes it: lowercase, with spaces in a plugin's name as underscores. */
+    public static String sectionId(String id) {
+        return id.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
     }
 
     /**
@@ -259,25 +266,40 @@ public final class HudFormatter {
     public List<Component> lines(List<String> templates, ClimateSnapshot snapshot, SectionFrame sections) {
         List<String> shown = shownLines(templates, snapshot);
         Set<String> placed = new HashSet<>();
+        int own = 0;
         for (String template : shown) {
             Matcher match = SECTION.matcher(template.trim());
-            if (match.matches()) placed.add(match.group(1).toLowerCase(Locale.ROOT));
+            if (match.matches()) placed.add(sectionId(match.group(1)));
+            else if (!template.trim().equals(ADDONS)) own++;
         }
+        // The server's own lines always fit; addon sections share what is left, the first come first served.
+        int room = Math.max(0, MAX_SIDEBAR_LINES - own);
         List<Component> out = new ArrayList<>(shown.size());
         for (String template : shown) {
             String trimmed = template.trim();
             Matcher match = SECTION.matcher(trimmed);
             if (match.matches()) {
-                String id = match.group(1).toLowerCase(Locale.ROOT);
-                if (!hidden(id)) out.addAll(sections.lines(id));
+                room -= addSection(out, sections, sectionId(match.group(1)), room);
             } else if (trimmed.equals(ADDONS)) {
                 for (String id : sections.ids())
-                    if (!placed.contains(id) && !hidden(id)) out.addAll(sections.lines(id));
+                    if (!placed.contains(id)) room -= addSection(out, sections, id, room);
             } else {
                 out.add(render(template, snapshot));
             }
         }
         return out;
+    }
+
+    /** The sidebar shows at most this many lines. */
+    public static final int MAX_SIDEBAR_LINES = 15;
+
+    /** Adds a section's lines if they fit in {@code room}; a section is shown whole or not at all. */
+    private int addSection(List<Component> out, SectionFrame sections, String id, int room) {
+        if (hidden(id)) return 0;
+        List<Component> lines = sections.lines(id);
+        if (lines.isEmpty() || lines.size() > room) return 0;
+        out.addAll(lines);
+        return lines.size();
     }
 
     public Component title() {

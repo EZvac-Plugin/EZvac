@@ -101,6 +101,20 @@ class HudSectionsTest {
         }
         assertEquals(1, logged.size(), "logged once, not every update");
         assertTrue(logged.get(0).getMessage().contains("a:broken"));
+
+        // Once it works again, a new failure is worth telling the admin about.
+        boolean[] broken = {false};
+        sections.register(a, "flaky", context -> {
+            if (broken[0]) throw new IllegalStateException("again");
+            return List.of(Component.text("ok"));
+        });
+        broken[0] = true;
+        sections.frame(null, null).lines("a:flaky");
+        broken[0] = false;
+        sections.frame(null, null).lines("a:flaky");
+        broken[0] = true;
+        sections.frame(null, null).lines("a:flaky");
+        assertEquals(3, logged.size(), "logged again after it had recovered");
     }
 
     @Test
