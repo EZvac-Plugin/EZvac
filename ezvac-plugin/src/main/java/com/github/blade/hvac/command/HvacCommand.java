@@ -132,14 +132,36 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(yellow("The climate HUD is turned off on this server."));
             return;
         }
+        if (args.length >= 2 && args[1].equalsIgnoreCase("sections")) {
+            hudSections(player);
+            return;
+        }
         boolean show;
         if (args.length < 2) show = !hud.isShowing(player);
         else if (args[1].equalsIgnoreCase("on")) show = true;
         else if (args[1].equalsIgnoreCase("off")) show = false;
-        else throw new IllegalArgumentException("Usage: /hvac hud [on|off]");
+        else throw new IllegalArgumentException("Usage: /hvac hud [on|off|sections]");
         hud.setShowing(player, show);
         player.sendMessage(show ? green("Climate HUD on. Use /hvac hud again to hide it.")
                 : gray("Climate HUD off."));
+    }
+
+    /** The addon sections on the HUD (API 1.1), for admins placing them in config.yml. */
+    private void hudSections(Player player) {
+        if (!player.hasPermission(ADMIN_PERMISSION)) {
+            player.sendMessage(red("You need ezvac.admin to list the HUD's addon sections."));
+            return;
+        }
+        List<String> ids = hud.sectionIds();
+        if (ids.isEmpty()) {
+            player.sendMessage(gray("No addon has added a section to the HUD."));
+            return;
+        }
+        List<String> hidden = hud.format().settings().hiddenSections();
+        player.sendMessage(aqua("HUD sections from addons:"));
+        for (String id : ids)
+            player.sendMessage(join(gray(" - "), aqua(id), gray(hidden.contains(id) ? " (hidden in hud.sections.hidden)"
+                    : "  {section:" + id + "}")));
     }
 
     private void create(Player player, String[] args) {
@@ -980,7 +1002,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         "sensor", "sensor-hub");
                 case "thermostat" -> filter(args[1], registry.thermostats().stream().map(Thermostat::id).toArray(String[]::new));
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
-                case "hud" -> filter(args[1], "on", "off");
+                case "hud" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "on", "off", "sections")
+                        : filter(args[1], "on", "off");
                 case "group" -> filter(args[1], registry.thermostats().stream().map(value -> value.group().label()).distinct().toArray(String[]::new));
                 default -> List.of();
             };

@@ -9,6 +9,7 @@ import com.github.blade.hvac.api.SeasonView;
 import com.github.blade.hvac.api.TemperatureUnit;
 import com.github.blade.hvac.api.ThermostatView;
 import com.github.blade.hvac.api.event.PlayerClimateUpdateEvent;
+import com.github.blade.hvac.api.hud.EzvacHud;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.Thermostat;
@@ -32,9 +33,10 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 /**
- * EZvac's public API (2.1 Pilot 4), read-only: it adapts what EZvac already
+ * EZvac's public API, read-only (and addon HUD sections since 1.1): it adapts what EZvac already
  * works out for the HUD, signs and commands, and hands out immutable views.
  * Registered with Paper's services manager while EZvac is enabled.
  */
@@ -46,11 +48,13 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     private final AirflowService airflow;
     private final OutdoorTemperatureService outdoor;
     private final SeasonService seasons;
+    private final HudSections hud;
     /** The last update per player, for latestFor from any thread. */
     private final Map<UUID, ClimateReading> latest = new ConcurrentHashMap<>();
 
     public EzvacApiImpl(String pluginVersion, HvacSettings settings, HvacRegistry registry, HvacController controller,
-                        AirflowService airflow, OutdoorTemperatureService outdoor, SeasonService seasons) {
+                        AirflowService airflow, OutdoorTemperatureService outdoor, SeasonService seasons,
+                        ClimateHudService hudService, Logger logger) {
         this.pluginVersion = Objects.requireNonNull(pluginVersion, "pluginVersion");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -58,7 +62,15 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.seasons = Objects.requireNonNull(seasons, "seasons");
+        this.hud = new HudSections(logger, hudService.format(), (player, reading) ->
+                ApiViews.reading(Position.of(player.getLocation()), reading, seasonOf(player.getWorld())));
     }
+
+    /** The addon sections, for the HUD to draw. */
+    public HudSections sections() { return hud; }
+
+    @Override
+    public EzvacHud hud() { return hud; }
 
     @Override
     public String apiVersion() { return API_VERSION; }
@@ -151,5 +163,6 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     /** Forgets every player, when EZvac stops. */
     public void clear() {
         latest.clear();
+        hud.clear();
     }
 }

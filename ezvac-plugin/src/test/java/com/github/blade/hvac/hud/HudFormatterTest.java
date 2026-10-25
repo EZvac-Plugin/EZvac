@@ -2,11 +2,16 @@ package com.github.blade.hvac.hud;
 
 import com.github.blade.hvac.config.HudSettings;
 import net.kyori.adventure.bossbar.BossBar;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.junit.jupiter.api.Test;
 
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -163,5 +168,89 @@ class HudFormatterTest {
     void valuesCannotInjectFormatting() {
         ClimateSnapshot sneaky = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "<red>evil", "main", "IDLE", 70.0, true, false);
         assertEquals("<red>evil", plain(format.render("{group}", sneaky)));
+    }
+
+    /** Sections by id, drawn as plain lines; counts how often each is drawn. */
+    private static final class FakeSections implements SectionFrame {
+        private final Map<String, List<String>> sections = new LinkedHashMap<>();
+        final Map<String, Integer> drawn = new HashMap<>();
+
+        FakeSections with(String id, String... lines) { sections.put(id, List.of(lines)); return this; }
+
+        @Override public List<String> ids() { return List.copyOf(sections.keySet()); }
+
+        @Override
+        public List<Component> lines(String id) {
+            drawn.merge(id, 1, Integer::sum);
+            return sections.getOrDefault(id, List.of()).stream().map(line -> (Component) Component.text(line)).toList();
+        }
+
+        @Override
+        public Component inline(String id) {
+            drawn.merge(id, 1, Integer::sum);
+            return Component.text(String.join(" ", sections.getOrDefault(id, List.of())));
+        }
+    }
+
+    private static List<String> plainLines(List<Component> lines) {
+        return lines.stream().map(HudFormatterTest::plain).toList();
+    }
+
+    @Test
+    void theAddonsLineTakesEverySectionOrNothing() {
+        List<String> templates = List.of("<gray>Here: <white>{temp}", "{addons}", "end");
+        assertEquals(List.of("Here: 72.0°F", "end"),
+                plainLines(format.lines(templates, cooled(72.0), SectionFrame.NONE)), "no sections, no lines");
+        FakeSections two = new FakeSections().with("a:one", "A1", "A2").with("b:two", "B1");
+        assertEquals(List.of("Here: 72.0°F", "A1", "A2", "B1", "end"),
+                plainLines(format.lines(templates, cooled(72.0), two)), "in registration order");
+        FakeSections hiding = new FakeSections().with("a:one").with("b:two", "B1");
+        assertEquals(List.of("Here: 72.0°F", "B1", "end"),
+                plainLines(format.lines(templates, cooled(72.0), hiding)), "an empty section takes no lines");
+    }
+
+    @Test
+    void aPlacedSectionShowsOnlyWhereItIsPlaced() {
+        FakeSections two = new FakeSections().with("a:one", "A1").with("b:two", "B1");
+        List<String> templates = List.of("{section:B:Two}", "middle", "{addons}", "{section:nobody:here}");
+        assertEquals(List.of("B1", "middle", "A1"), plainLines(format.lines(templates, cooled(72.0), two)),
+                "placed once, ids in any case, unknown ids render nothing");
+        assertEquals(1, two.drawn.get("b:two"), "drawn once");
+    }
+
+    @Test
+    void seasonLinesAreStillLeftOutWithoutSeasons() {
+        FakeSections one = new FakeSections().with("a:one", "A1");
+        List<String> templates = List.of(HudSettings.SEASON_LINE, "{addons}");
+        assertEquals(List.of("A1"), plainLines(format.lines(templates, cooled(72.0), one)));
+    }
+
+    @Test
+    void hiddenSectionsNeverShow() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.sections.hidden", List.of("a:one"));
+        HudFormatter hiding = new HudFormatter(HudSettings.load(config));
+        FakeSections two = new FakeSections().with("a:one", "A1").with("b:two", "B1");
+        assertEquals(List.of("B1"), plainLines(hiding.lines(List.of("{addons}"), cooled(72.0), two)));
+        assertEquals(List.of(), plainLines(hiding.lines(List.of("{section:a:one}"), cooled(72.0), two)));
+        assertEquals("Here ", plain(hiding.render("Here {section:a:one}", cooled(72.0), two)));
+        assertFalse(two.drawn.containsKey("a:one"), "a hidden section is never even drawn");
+    }
+
+    @Test
+    void oneLineFormatsShowASectionInline() {
+        FakeSections one = new FakeSections().with("a:one", "Body", "98.6");
+        assertEquals("72.0°F | Body 98.6", plain(format.render("{temp} | {section:a:one}", cooled(72.0), one)));
+        assertEquals("72.0°F | ", plain(format.render("{temp} | {section:x:y}", cooled(72.0), one)));
+        assertEquals("72.0°F", plain(format.render("{temp}", cooled(72.0), one)));
+    }
+
+    @Test
+    void addonBarsUseTheHudsGlyphsAndLength() {
+        TextColor red = TextColor.color(0xFF5C5C);
+        assertEquals("▮▮▮▮▮▯▯▯▯▯", plain(format.bar(0.5, red)));
+        assertEquals("▯▯▯▯▯▯▯▯▯▯", plain(format.bar(-1, red)));
+        assertEquals("▮▮▮▮▮▮▮▮▮▮", plain(format.bar(7, red)));
+        assertEquals("▯▯▯▯▯▯▯▯▯▯", plain(format.bar(Double.NaN, red)));
     }
 }

@@ -48,7 +48,7 @@ public final class SidebarRenderer implements HudRenderer {
     }
 
     @Override
-    public void render(Player player, ClimateSnapshot snapshot) {
+    public void render(Player player, ClimateSnapshot snapshot, SectionFrame sections) {
         Board board = boards.computeIfAbsent(player.getUniqueId(), ignored -> new Board());
         if (board.scoreboard != null && !board.yielded && player.getScoreboard() != board.scoreboard) {
             // Something else replaced our board. Don't fight it.
@@ -61,7 +61,7 @@ public final class SidebarRenderer implements HudRenderer {
             }
             attach(player, board);
         }
-        update(board, snapshot);
+        update(board, format.lines(format.medium(snapshot).sidebarLines(), snapshot, sections));
     }
 
     @Override
@@ -103,16 +103,16 @@ public final class SidebarRenderer implements HudRenderer {
                 NamedTextColor.YELLOW));
     }
 
-    private void update(Board board, ClimateSnapshot snapshot) {
-        List<String> templates = format.shownLines(format.medium(snapshot).sidebarLines(), snapshot);
-        int count = Math.min(MAX_LINES, templates.size());
-        // Air and water layouts may have different line counts: drop the extras.
+    private void update(Board board, List<Component> lines) {
+        // The sidebar holds 15 lines: anything past that is left off the bottom.
+        int count = Math.min(MAX_LINES, lines.size());
+        // Air and water layouts, and addon sections, change the line count: drop the extras.
         while (board.lines.size() > count) {
             board.scoreboard.resetScores(entry(board.lines.size() - 1));
             board.lines.remove(board.lines.size() - 1);
         }
         for (int i = 0; i < count; i++) {
-            Component line = format.render(templates.get(i), snapshot);
+            Component line = lines.get(i);
             if (i < board.lines.size() && board.lines.get(i).equals(line)
                     && board.objective.getScore(entry(i)).getScore() == count - i) continue;
             // Higher scores sit higher on the sidebar; the entry names are never shown.

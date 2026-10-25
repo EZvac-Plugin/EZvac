@@ -160,6 +160,7 @@ public final class HvacPlugin extends JavaPlugin {
         SoundSettings.carryOverHum(current, added);
         TemperatureUnit.carryOver(current, added);
         HudSettings.addSeasonLine(current, added);
+        HudSettings.addAddonsLine(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
@@ -300,10 +301,13 @@ public final class HvacPlugin extends JavaPlugin {
      * season is reported by the calendar.
      */
     private void registerApi() {
-        api = new EzvacApiImpl(getPluginMeta().getVersion(), settings, registry, controller, airflow, outdoor, seasons);
+        api = new EzvacApiImpl(getPluginMeta().getVersion(), settings, registry, controller, airflow, outdoor, seasons,
+                hud, getLogger());
         getServer().getServicesManager().register(EzvacApi.class, api, this, ServicePriority.Normal);
         getServer().getPluginManager().registerEvents(api, this);
+        getServer().getPluginManager().registerEvents(api.sections(), this);
         hud.setObserver(api);
+        hud.setSections(api.sections());
         seasons.setListener((worldId, from) -> {
             World world = getServer().getWorld(worldId);
             if (world != null) api.season(world).ifPresent(now ->

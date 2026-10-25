@@ -16,6 +16,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -136,8 +137,23 @@ public final class ClimateHudService implements Listener {
     }
 
     private ReadingObserver observer;
+    /** Addon sections (API 1.1), or null before the API is up. */
+    private SectionSource sections;
 
     public void setObserver(ReadingObserver observer) { this.observer = observer; }
+
+    public void setSections(SectionSource sections) { this.sections = sections; }
+
+    /** The addon sections registered right now. */
+    public List<String> sectionIds() {
+        SectionSource source = sections;
+        return source == null ? List.of() : source.ids();
+    }
+
+    private SectionFrame frame(Player player, AirflowService.TemperatureReading reading) {
+        SectionSource source = sections;
+        return source == null || !source.any() ? SectionFrame.NONE : source.frame(player, reading);
+    }
 
     private void update() {
         boolean observed = observer != null && observer.wanted();
@@ -148,7 +164,7 @@ public final class ClimateHudService implements Listener {
                 AirflowService.TemperatureReading reading = read(player);
                 ClimateSnapshot snapshot = capture(player, reading);
                 snapshots.put(player.getUniqueId(), snapshot);
-                if (shown) renderer.render(player, snapshot);
+                if (shown) renderer.render(player, snapshot, frame(player, reading));
                 if (observed) observer.observe(player, reading);
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.WARNING, "Could not update the climate HUD for "
@@ -158,9 +174,10 @@ public final class ClimateHudService implements Listener {
     }
 
     private void render(Player player) {
-        ClimateSnapshot snapshot = capture(player);
+        AirflowService.TemperatureReading reading = read(player);
+        ClimateSnapshot snapshot = capture(player, reading);
         snapshots.put(player.getUniqueId(), snapshot);
-        renderer.render(player, snapshot);
+        renderer.render(player, snapshot, frame(player, reading));
     }
 
     private AirflowService.TemperatureReading read(Player player) {

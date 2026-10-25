@@ -236,6 +236,11 @@ humidifier:
 # {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {season} {season_day}
 # {group} {thermostat} {mode} {target} {zone} {version}
 # In air, {bar} and {comfort} follow {feels}: humid heat reads hotter, wind colder.
+# Addons can add their own sections (such as LiveExposure's body temperature):
+# a sidebar line that is just {addons} shows every addon section there, and a
+# line that is just {section:<id>} shows one section on its own. In the
+# actionbar and bossbar formats, {section:<id>} shows that section on one line.
+# The sidebar shows at most 15 lines; anything past that is left off the bottom.
 hud:
   enabled: true
   # sidebar (scoreboard on the right), actionbar (above the hotbar) or bossbar (top)
@@ -254,6 +259,7 @@ hud:
       - "<gray>Humidity: <white>{humidity}"
       - "<gray>Outside: <white>{outdoor} <gray>{weather}"
       - "<gray>Season: <white>{season} <gray>day {season_day}"
+      - "{addons}"
       - ""
       - "<gray>System: <white>{group}"
       - "<gray>Mode: <white>{mode}"
@@ -270,6 +276,10 @@ hud:
     format: "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{humidity} <dark_gray>|</dark_gray> <gray>{group}"
   bossbar:
     format: "<white>{temp}</white> <gray>feels {feels} -</gray> {comfort} <dark_gray>|</dark_gray> <gray>{group}"
+  sections:
+    # Addon sections to never show, by id (/hvac hud sections lists them),
+    # such as [liveexposure:body].
+    hidden: []
   bar:
     length: 10
     filled: "▮"
@@ -293,6 +303,7 @@ hud:
         - "<gray>Water: <white>{temp}"
         - "{bar} {comfort}"
         - "<gray>Air: <white>{outdoor} <gray>{weather}"
+        - "{addons}"
         - ""
         - "<gray>Pool: <white>{group}"
         - "<gray>Mode: <white>{mode}"

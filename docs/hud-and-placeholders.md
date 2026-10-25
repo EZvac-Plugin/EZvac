@@ -83,11 +83,29 @@ and these tokens:
 `{season}` `{season_day}` `{group}` `{thermostat}` `{mode}` `{target}` `{zone}`
 `{version}`
 
+### Addon sections
+
+Addons such as [LiveExposure](https://github.com/EZvac-Plugin/LiveExposure)
+can add their own lines to the HUD.
+- **On the sidebar:** a line that is just `{addons}` shows every addon's
+  section there. A line that is just `{section:<id>}` shows one section on
+  its own, such as `{section:liveexposure:body}`.
+- **On the action bar and boss bar:** a section shows only where you put
+  `{section:<id>}` into the format, since those have one line.
+- **Hiding one:** list its id under `hud.sections.hidden`. `/hvac hud sections`
+  (admins) lists the sections installed addons have added.
+- **Upgrading:** when the update adds `hud.sections` to your `config.yml`, a
+  sidebar that still has the stock lines gains `{addons}` under the season
+  line (and under the `Air:` line in water). A sidebar you changed is left as
+  it is, so add the line yourself there.
+- **The limit:** the sidebar shows at most 15 lines; anything past that is
+  left off the bottom.
+
 A sidebar line with `{season}` or `{season_day}` is left out where there are
 no seasons, such as in the Nether or with `seasons.enabled: false`. The season
-line is new in 2.1 Pilot 2. When the update adds the seasons to your
+line is new in ALPHA 2.1. When the update adds the seasons to your
 `config.yml`, a sidebar that still has the stock lines gains it too; a sidebar
 you changed is left as it is, so add the line yourself there.
 
-`{version}` is the short EZvac version, such as `A2.0`. See
+`{version}` is the short EZvac version, such as `A2.1`. See
 [Configuration](configuration.md#hud).

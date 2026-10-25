@@ -4,18 +4,26 @@ import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Turns a {@link ClimateSnapshot} into HUD text. Pure: no server state. */
 public final class HudFormatter {
     private static final MiniMessage MINI = MiniMessage.miniMessage();
+    /** {@code {section:<id>}}: one addon section (API 1.1). */
+    private static final Pattern SECTION = Pattern.compile("\\{section:([a-z0-9_.-]+:[a-z0-9_.-]+)}", Pattern.CASE_INSENSITIVE);
+    /** Where every addon section not placed on its own goes, alone on a sidebar line. */
+    public static final String ADDONS = HudSettings.ADDONS_LINE;
     private static final Pattern RELEASE =
             Pattern.compile("ALPHA-([0-9]+(?:[.][0-9]+)*)(?:-HOTFIX([0-9]+))?(?:-P([0-9]+))?", Pattern.CASE_INSENSITIVE);
 
@@ -126,6 +134,20 @@ public final class HudFormatter {
         return out.toString();
     }
 
+    /** A bar of the HUD's glyphs and length filled to {@code fraction} (clamped) in {@code color}: for addon meters. */
+    public Component bar(double fraction, TextColor color) {
+        double clamped = Double.isNaN(fraction) ? 0.0 : Math.max(0.0, Math.min(1.0, fraction));
+        int filled = (int) Math.round(clamped * settings.barLength());
+        StringBuilder out = new StringBuilder();
+        if (filled > 0)
+            out.append("<color:").append(color == null ? TextColor.color(0xFFFFFF).asHexString() : color.asHexString())
+                    .append('>').append(escape(settings.barFilled().repeat(filled))).append("</color>");
+        if (filled < settings.barLength())
+            out.append("<color:").append(settings.barEmptyColor()).append('>')
+                    .append(escape(settings.barEmpty().repeat(settings.barLength() - filled))).append("</color>");
+        return MINI.deserialize(out.toString());
+    }
+
     /** The bar with legacy section-sign colours, for placeholder consumers. */
     public String barLegacy(double fahrenheit) { return legacy(barMini(fahrenheit, air)); }
 
@@ -210,6 +232,54 @@ public final class HudFormatter {
         return MINI.deserialize(fill(template, snapshot));
     }
 
+    /**
+     * A one-line template with any {@code {section:<id>}} replaced by that
+     * addon section's one-line form: for the action bar and the boss bar.
+     */
+    public Component render(String template, ClimateSnapshot snapshot, SectionFrame sections) {
+        String filled = fill(template, snapshot);
+        if (!filled.contains("{section:")) return MINI.deserialize(filled);
+        Matcher match = SECTION.matcher(filled);
+        StringBuilder out = new StringBuilder();
+        while (match.find()) {
+            String id = match.group(1).toLowerCase(Locale.ROOT);
+            Component section = hidden(id) ? Component.empty() : sections.inline(id);
+            match.appendReplacement(out, Matcher.quoteReplacement(MINI.serialize(section)));
+        }
+        match.appendTail(out);
+        return MINI.deserialize(out.toString());
+    }
+
+    /**
+     * The sidebar's lines for this update. Season lines go where there are no
+     * seasons; a line that is just {@code {section:<id>}} becomes that addon
+     * section's lines, and a line that is just {@code {addons}} becomes the
+     * lines of every other section. A hidden section takes no lines.
+     */
+    public List<Component> lines(List<String> templates, ClimateSnapshot snapshot, SectionFrame sections) {
+        List<String> shown = shownLines(templates, snapshot);
+        Set<String> placed = new HashSet<>();
+        for (String template : shown) {
+            Matcher match = SECTION.matcher(template.trim());
+            if (match.matches()) placed.add(match.group(1).toLowerCase(Locale.ROOT));
+        }
+        List<Component> out = new ArrayList<>(shown.size());
+        for (String template : shown) {
+            String trimmed = template.trim();
+            Matcher match = SECTION.matcher(trimmed);
+            if (match.matches()) {
+                String id = match.group(1).toLowerCase(Locale.ROOT);
+                if (!hidden(id)) out.addAll(sections.lines(id));
+            } else if (trimmed.equals(ADDONS)) {
+                for (String id : sections.ids())
+                    if (!placed.contains(id) && !hidden(id)) out.addAll(sections.lines(id));
+            } else {
+                out.add(render(template, snapshot));
+            }
+        }
+        return out;
+    }
+
     public Component title() {
         return MINI.deserialize(settings.title().replace("{version}", escape(version)));
     }
@@ -226,6 +296,11 @@ public final class HudFormatter {
         if (band == medium.warm()) return BossBar.Color.YELLOW;
         if (band == medium.hot()) return BossBar.Color.RED;
         return BossBar.Color.GREEN;
+    }
+
+    /** A section the server switched off in {@code hud.sections.hidden}. */
+    private boolean hidden(String id) {
+        return settings.hiddenSections().contains(id);
     }
 
     private static String escape(String value) {

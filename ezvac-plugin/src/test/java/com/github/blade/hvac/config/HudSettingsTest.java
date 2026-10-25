@@ -15,7 +15,7 @@ class HudSettingsTest {
         assertEquals(HudSettings.Style.SIDEBAR, value.style());
         assertEquals(10, value.updateTicks());
         assertFalse(value.celsius());
-        assertEquals(11, value.sidebarLines().size());
+        assertEquals(12, value.sidebarLines().size());
     }
 
     @Test
@@ -96,11 +96,14 @@ class HudSettingsTest {
     void aStockSidebarGainsTheSeasonLineWhenSeasonsArrive() {
         List<String> stock = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
         stock.remove(HudSettings.SEASON_LINE);
+        stock.remove(HudSettings.ADDONS_LINE);
         YamlConfiguration config = new YamlConfiguration();
         config.set("hud.sidebar.lines", stock);
         List<String> added = new java.util.ArrayList<>(List.of("seasons.enabled"));
         HudSettings.addSeasonLine(config, added);
-        assertEquals(HudSettings.defaults().sidebarLines(), config.getStringList("hud.sidebar.lines"));
+        List<String> withSeason = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
+        withSeason.remove(HudSettings.ADDONS_LINE);
+        assertEquals(withSeason, config.getStringList("hud.sidebar.lines"));
         assertTrue(added.contains("hud.sidebar.lines"));
 
         // A sidebar the server made its own is left alone, and so is one that already has seasons.
@@ -112,5 +115,53 @@ class HudSettingsTest {
         later.set("hud.sidebar.lines", stock);
         HudSettings.addSeasonLine(later, new java.util.ArrayList<>(List.of("biomes")));
         assertEquals(stock, later.getStringList("hud.sidebar.lines"), "only when the seasons are new");
+    }
+
+    @Test
+    void stockSidebarsGainTheAddonsLineWhenSectionsArrive() {
+        // An ALPHA 2.0 config: no season line, no addons line, in air or water.
+        List<String> air = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
+        air.remove(HudSettings.SEASON_LINE);
+        air.remove(HudSettings.ADDONS_LINE);
+        List<String> water = new java.util.ArrayList<>(HudSettings.defaults().water().sidebarLines());
+        water.remove(HudSettings.ADDONS_LINE);
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.sidebar.lines", air);
+        config.set("hud.water.sidebar.lines", water);
+        List<String> added = new java.util.ArrayList<>(List.of("seasons.enabled", "hud.sections.hidden"));
+        HudSettings.addSeasonLine(config, added);
+        HudSettings.addAddonsLine(config, added);
+        assertEquals(HudSettings.defaults().sidebarLines(), config.getStringList("hud.sidebar.lines"));
+        assertEquals(HudSettings.defaults().water().sidebarLines(), config.getStringList("hud.water.sidebar.lines"));
+        List<String> lines = HudSettings.defaults().sidebarLines();
+        assertEquals(lines.indexOf(HudSettings.SEASON_LINE) + 1, lines.indexOf(HudSettings.ADDONS_LINE),
+                "right under the season line");
+        assertTrue(added.contains("hud.water.sidebar.lines"));
+
+        // An ALPHA 2.1 pilot config already has its season line: only the addons line is new.
+        List<String> pilot = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
+        pilot.remove(HudSettings.ADDONS_LINE);
+        YamlConfiguration p4 = new YamlConfiguration();
+        p4.set("hud.sidebar.lines", pilot);
+        HudSettings.addAddonsLine(p4, new java.util.ArrayList<>(List.of("hud.sections.hidden")));
+        assertEquals(HudSettings.defaults().sidebarLines(), p4.getStringList("hud.sidebar.lines"));
+
+        // A server's own layout is left alone, and nothing happens on later upgrades.
+        YamlConfiguration own = new YamlConfiguration();
+        own.set("hud.sidebar.lines", List.of("<gray>Here: <white>{temp}"));
+        HudSettings.addAddonsLine(own, new java.util.ArrayList<>(List.of("hud.sections.hidden")));
+        assertEquals(List.of("<gray>Here: <white>{temp}"), own.getStringList("hud.sidebar.lines"));
+        YamlConfiguration later = new YamlConfiguration();
+        later.set("hud.sidebar.lines", pilot);
+        HudSettings.addAddonsLine(later, new java.util.ArrayList<>(List.of("biomes")));
+        assertEquals(pilot, later.getStringList("hud.sidebar.lines"), "only when sections are new");
+    }
+
+    @Test
+    void hiddenSectionsAreReadInLowercase() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.sections.hidden", List.of(" LiveExposure:Body ", ""));
+        assertEquals(List.of("liveexposure:body"), HudSettings.load(config).hiddenSections());
+        assertEquals(List.of(), HudSettings.defaults().hiddenSections());
     }
 }

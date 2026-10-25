@@ -126,6 +126,7 @@ from the console, add a world's name at the end (it defaults to the main world).
 | --- | --- |
 | `/hvac remove` | Removes the device you're looking at. Equipment takes its water or lava away (later, if that chunk isn't loaded). Removing a settings panel returns its group to Normal; removing a sensor takes it off every hub |
 | `/hvac stats` | Device totals and airflow statistics |
+| `/hvac hud sections` | The sections addons have added to the HUD, with the `{section:<id>}` token for each (see [HUD and placeholders](hud-and-placeholders.md#addon-sections)) |
 | `/hvac sync` | Applies block and world changes straight away instead of on the next update |
 
 Breaking a device's block removes it too, and tells you what was removed.
