@@ -65,7 +65,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("ALPHA-2.0-P4", true, true, true, true, true, true, false, false, false),
                 Arguments.of("ALPHA-2.0-P5", true, true, true, true, true, true, true, false, false),
                 Arguments.of("ALPHA-2.1-P1", true, true, true, true, true, true, true, true, false),
-                Arguments.of("ALPHA-2.1-P2", true, true, true, true, true, true, true, true, true));
+                Arguments.of("ALPHA-2.1-P2", true, true, true, true, true, true, true, true, true),
+                Arguments.of("ALPHA-2.2", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -79,7 +80,7 @@ class RegistryCompatibilityTest {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac.yml");
 
-        assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor, border);
+        assertCoreDevices(registry, release, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor, border);
         assertSeasons(registry, seasonal);
         // A clean shutdown stops every unit and retracts its output first.
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::running).count());
@@ -98,7 +99,7 @@ class RegistryCompatibilityTest {
         TestHost host = new TestHost(folder.toFile());
         HvacRegistry registry = load(host, release, "hvac-running.yml");
 
-        assertCoreDevices(registry, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor, border);
+        assertCoreDevices(registry, release, water, pool, poolHeatPump, climate, humidifier, sensors, weatherSensor, border);
         assertSeasons(registry, seasonal);
         // Heat pump and AC cool their 60 F rooms; the boiler (and the pool heat
         // pump, where there is one) heats the pool. The furnace shares the
@@ -157,7 +158,13 @@ class RegistryCompatibilityTest {
         assertTrue(edge > 14.0 && edge < 18.0, () -> "between desert and plains, was " + edge);
     }
 
-    private static void assertCoreDevices(HvacRegistry registry, boolean water, boolean pool,
+    /**
+     * Releases whose dehumidifier sign opens a menu when clicked (from 2.1 on), so the
+     * fixture bot's click leaves the setpoint at its default.
+     */
+    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2");
+
+    private static void assertCoreDevices(HvacRegistry registry, String release, boolean water, boolean pool,
                                           boolean poolHeatPump, boolean climate, boolean humidifier,
                                           boolean sensors, boolean weatherSensor, boolean border) {
         assertEquals((water ? 3 : 2) + (border ? 1 : 0), registry.thermostats().size());
@@ -191,7 +198,8 @@ class RegistryCompatibilityTest {
         if (climate) {
             Dehumidifier basement = registry.dehumidifiers().iterator().next();
             assertEquals("basement", basement.label());
-            assertEquals(50, basement.setpoint(), "one click from the default 45");
+            if (MENU_RELEASES.contains(release)) assertEquals(45, basement.setpoint(), "the default: a click opens its menu");
+            else assertEquals(50, basement.setpoint(), "one click from the default 45");
             assertFalse(basement.powered(), "switched off with a sneak-click");
             assertEquals(basement, registry.dehumidifierAt(basement.unit()));
             assertEquals(basement, registry.dehumidifierAt(basement.grate()));
@@ -207,7 +215,8 @@ class RegistryCompatibilityTest {
         if (humidifier) {
             Humidifier nursery = registry.humidifiers().iterator().next();
             assertEquals("nursery", nursery.label());
-            assertEquals(45, nursery.setpoint(), "one click from the default 40");
+            if (MENU_RELEASES.contains(release)) assertEquals(40, nursery.setpoint(), "the default: a click opens its menu");
+            else assertEquals(45, nursery.setpoint(), "one click from the default 40");
             assertTrue(nursery.powered());
             assertSame(nursery, registry.climateUnitAt(nursery.slab()), "found by its slab");
             assertTrue(Double.isFinite(nursery.zoneDewPointF()), "it works on its own zone, outside every system");

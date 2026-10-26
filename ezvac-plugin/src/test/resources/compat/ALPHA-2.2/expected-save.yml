@@ -1,0 +1,292 @@
+meta:
+  format: 7
+  next-system: 1
+thermostats:
+  item0:
+    id: main
+    system: house
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 0
+    targetF: 60.0
+    roomF: 82.72953030807322
+    enabled: true
+    mode: COOLING
+    ticksInMode: 2160
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 50.0
+    lastOutdoorF: 89.99383184956002
+    pool: false
+    outdoorDownfall: 0.4000000059604645
+    outdoorPrecipitation: RAIN
+    outdoorSeasonalF: 18.0
+    roomDewPointF: 54.96290465977369
+  item1:
+    id: work
+    system: office
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 16
+    targetF: 60.0
+    roomF: 83.85695684956023
+    enabled: true
+    mode: COOLING
+    ticksInMode: 1920
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 50.0
+    lastOutdoorF: 89.99383184956002
+    pool: false
+    outdoorDownfall: 0.4000000059604645
+    outdoorPrecipitation: RAIN
+    outdoorSeasonalF: 18.0
+    roomDewPointF: 55.64784072541855
+  item2:
+    id: spa
+    system: pool
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 20
+    targetF: 104.0
+    roomF: 101.86734835652798
+    enabled: true
+    mode: HEATING
+    ticksInMode: 1860
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 50.0
+    lastOutdoorF: 89.99383184956002
+    pool: true
+    outdoorDownfall: 0.4000000059604645
+    outdoorPrecipitation: RAIN
+    outdoorSeasonalF: 18.0
+  item3:
+    id: edge
+    system: dunes
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 100
+    y: -60
+    z: 0
+    targetF: 72.0
+    roomF: 101.3918971371722
+    enabled: true
+    mode: IDLE
+    ticksInMode: 1580
+    outdoorNoonF: 85.4696015769872
+    outdoorMidnightF: 57.2528623876085
+    lastOutdoorF: 101.3918971371722
+    pool: false
+    outdoorDownfall: 0.19277536322661892
+    outdoorPrecipitation: NONE
+    outdoorRainShare: 0.4819384008851053
+    outdoorSnowShare: 0.0
+    outdoorSeasonalF: 15.927753603540408
+    roomDewPointF: 61.107113835741494
+equipment:
+  item0:
+    system: house
+    equipmentType: HEAT_PUMP
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 0
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+  item1:
+    system: house
+    equipmentType: FURNACE
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 4
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+  item2:
+    system: office
+    equipmentType: AIR_CONDITIONER
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 8
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+  item3:
+    system: pool
+    equipmentType: BOILER
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 20
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+  item4:
+    system: pool
+    equipmentType: POOL_HEAT_PUMP
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 24
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+vents:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 16
+    y: -61
+    z: 24
+    system: pool
+  item1:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 16
+    y: -60
+    z: 0
+    system: house
+  item2:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 16
+    y: -60
+    z: 4
+    system: house
+  item3:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 16
+    y: -60
+    z: 8
+    system: office
+thermometers:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 4
+    label: porch
+  item1:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 28
+    label: cellar
+    reads: HUMIDITY
+  item2:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 32
+    label: hall
+    reads: BOTH
+rpmMonitors:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 8
+    system: house
+    label: fan
+    autoFlip: false
+settingsPanels:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 12
+    system: house
+    label: controls
+    profile: TURBO
+dehumidifiers:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 19
+    y: -59
+    z: 4
+    unitWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    unitX: 20
+    unitY: -59
+    unitZ: 4
+    grateWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    grateX: 20
+    grateY: -60
+    grateZ: 4
+    label: basement
+    setpoint: 45
+    powered: false
+    running: false
+    tank: 0.0
+    emptyingTicks: 0
+    zoneDewPointF: 61.073501026363594
+humidifiers:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 59
+    y: -60
+    z: 12
+    unitWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    unitX: 60
+    unitY: -60
+    unitZ: 12
+    slabWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    slabX: 60
+    slabY: -59
+    slabZ: 12
+    label: nursery
+    setpoint: 40
+    powered: true
+    running: true
+    zoneDewPointF: 61.18313546516024
+sensors:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 8
+    y: -60
+    z: 40
+    label: garden
+    reads: TEMPERATURE
+  item1:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 10
+    y: -60
+    z: 40
+    label: cellar
+    reads: HUMIDITY
+  item2:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 12
+    y: -60
+    z: 40
+    label: kitchen
+    reads: BOTH
+  item3:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 14
+    y: -60
+    z: 40
+    label: sky
+    reads: WEATHER
+sensorHubs:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    x: 4
+    y: -60
+    z: 40
+    label: home
+    autoFlip: true
+    sensors:
+    - 8,-60,40
+    - 10,-60,40
+    - 12,-60,40
+    - 14,-60,40
