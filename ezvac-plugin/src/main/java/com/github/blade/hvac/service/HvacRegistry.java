@@ -24,13 +24,14 @@ import java.util.logging.Logger;
 /** The sole owner of runtime device state and unified atomic persistence. */
 public final class HvacRegistry {
     /**
-     * Format 6 (2.0) adds thermostat humidity fields and the dehumidifiers,
-     * humidifiers, sensors and sensorHubs sections. All are additive, so format 5 files load without migration;
-     * the bump means the first 2.0 save keeps the 1.x original as
-     * hvac.yml.format5.bak, and 1.7-1.9 refuse a 2.0 file instead of
-     * quietly dropping its humidity.
+     * Format 7 (3.0) links devices to systems instead of naming groups: each
+     * device saves its system's key (an old group name becomes its system's
+     * key), equipment saves its tier, and meta.next-system numbers new
+     * systems. Format 6 files load as they are; the bump keeps the 2.x
+     * original as hvac.yml.format6.bak, and 2.x refuses a 3.0 file instead
+     * of misreading it.
      */
-    public static final int FORMAT_VERSION = 6;
+    public static final int FORMAT_VERSION = 7;
 
     public enum DeviceKind {
         THERMOSTAT, EQUIPMENT, VENT, THERMOMETER, RPM_MONITOR, SETTINGS_PANEL, DEHUMIDIFIER, HUMIDIFIER,
@@ -42,6 +43,19 @@ public final class HvacRegistry {
      *                     so their airflow zones can be dropped as well
      */
     public record PruneResult(Set<SystemId> invalidatedSystems, int removedDevices, List<ClimateUnit> removedUnits) {}
+
+    /** What a system holds, for messages. */
+    public record Members(Thermostat thermostat, int units, int vents, int panels, int monitors) {
+        public boolean empty() { return thermostat == null && units + vents + panels + monitors == 0; }
+    }
+
+    /**
+     * What a merge moved.
+     *
+     * @param unlinkedPanel the absorbed system's settings panel, left unlinked
+     *                      because the system it joined already had one; or null
+     */
+    public record MergeResult(int units, int vents, int monitors, boolean movedPanel, SettingsPanel unlinkedPanel) {}
 
     /**
      * The few server services persistence needs. The plugin supplies the real
@@ -111,6 +125,8 @@ public final class HvacRegistry {
     private boolean writable = true;
     /** The older format just upgraded from, backed up once before the first save; 0 when none. */
     private int upgradedFromFormat;
+    /** The number the next new system gets: #1, #2 and so on, never reused. */
+    private long nextSystem = 1;
 
     // Secondary indexes over the maps above. The maps stay the source of
     // truth; every mutation in this class keeps the indexes in step, and
@@ -119,10 +135,10 @@ public final class HvacRegistry {
     // often once per unit per controller cycle, and block-change events
     // scanned every vent and every unit on the server.
     private final Map<SystemId, TreeMap<BlockKey, Thermostat>> thermostatsBySystem = new HashMap<>();
-    private final Map<String, TreeMap<BlockKey, Thermostat>> thermostatsById = new HashMap<>();
     private final Map<SystemId, TreeMap<BlockKey, EquipmentUnit>> equipmentBySystem = new HashMap<>();
     private final Map<SystemId, TreeMap<BlockKey, ClimateVent>> ventsBySystem = new HashMap<>();
     private final Map<SystemId, TreeMap<BlockKey, SettingsPanel>> panelsBySystem = new HashMap<>();
+    private final Map<SystemId, TreeMap<BlockKey, RpmMonitor>> monitorsBySystem = new HashMap<>();
     /** Vents per world on an x/z grid at least as wide as the airflow search radius. */
     private final Map<UUID, Long2ObjectOpenHashMap<List<ClimateVent>>> ventCells = new HashMap<>();
     /** Owned outputs of active and pending-cleanup units, kept current by each unit's watcher. */
@@ -192,6 +208,9 @@ public final class HvacRegistry {
                 value -> loadByPosition(sensorHubs, "sensorHubs", value.position(), value, value.toMap()));
         resolveLoadedConflicts();
         rebuildIndexes();
+        nextSystem = Math.max(1L, configuration.getLong("meta.next-system", 1L));
+        // A hand-edited or partly restored file may hold a number already given out.
+        for (SystemId system : allSystems()) nextSystem = Math.max(nextSystem, system.number() + 1);
         dirty = false;
     }
 
@@ -310,6 +329,7 @@ public final class HvacRegistry {
         if (!synchronous && writeInProgress) return;
         YamlConfiguration configuration = new YamlConfiguration();
         configuration.set("meta.format", FORMAT_VERSION);
+        configuration.set("meta.next-system", nextSystem);
         write(configuration, "thermostats", thermostats.values(), Thermostat::position, Thermostat::toMap);
         write(configuration, "equipment", equipment.values(), EquipmentUnit::position, EquipmentUnit::toMap);
         write(configuration, "cleanup", pendingCleanup, EquipmentUnit::position, EquipmentUnit::toMap);
@@ -472,17 +492,14 @@ public final class HvacRegistry {
     }
 
     private void resolveLoadedConflicts() {
-        Set<String> ids = new HashSet<>();
+        // Labels may repeat since 3.0; a system still has one thermostat.
         Set<SystemId> systems = new HashSet<>();
         List<Thermostat> orderedThermostats = new ArrayList<>(thermostats.values());
         orderedThermostats.sort(Comparator.comparing(Thermostat::position));
         for (Thermostat thermostat : orderedThermostats) {
-            boolean duplicateId = !ids.add(thermostat.id().toLowerCase(Locale.ROOT));
-            boolean duplicateSystem = !systems.add(thermostat.system());
-            if (!duplicateId && !duplicateSystem) continue;
+            if (systems.add(thermostat.system())) continue;
             thermostats.remove(thermostat.position());
-            preserve("thermostats", thermostat.toMap(), duplicateId
-                    ? "duplicate thermostat id" : "duplicate group controller");
+            preserve("thermostats", thermostat.toMap(), "a second thermostat for one system");
         }
 
         Set<BlockKey> occupied = new HashSet<>(thermostats.keySet());
@@ -506,9 +523,9 @@ public final class HvacRegistry {
         List<SettingsPanel> orderedPanels = new ArrayList<>(settingsPanels.values());
         orderedPanels.sort(Comparator.comparing(SettingsPanel::position));
         for (SettingsPanel panel : orderedPanels) {
-            if (panelSystems.add(panel.system())) continue;
+            if (panel.system() == null || panelSystems.add(panel.system())) continue;
             settingsPanels.remove(panel.position());
-            preserve("settingsPanels", panel.toMap(), "duplicate settings panel for group");
+            preserve("settingsPanels", panel.toMap(), "a second settings panel for one system");
         }
     }
 
@@ -594,18 +611,23 @@ public final class HvacRegistry {
     public RpmMonitor rpmMonitorAt(BlockKey key) { return rpmMonitors.get(key); }
     public SettingsPanel settingsPanelAt(BlockKey key) { return settingsPanels.get(key); }
 
-    /** Case-insensitive; the lowest position wins if two ever share an id. */
-    public Thermostat thermostatById(String id) {
-        if (id == null) return null;
-        return first(thermostatsById.get(idKey(id)));
+    /** Thermostats in a world with this label, ignoring case, by position. Labels may repeat. */
+    public List<Thermostat> thermostatsLabelled(UUID worldId, String label) {
+        List<Thermostat> matching = new ArrayList<>();
+        if (label == null) return matching;
+        for (Thermostat thermostat : thermostats.values())
+            if (thermostat.position().worldId().equals(worldId) && thermostat.id().equalsIgnoreCase(label.trim()))
+                matching.add(thermostat);
+        matching.sort(Comparator.comparing(Thermostat::position));
+        return matching;
     }
 
-    /** The group's controller: the lowest-position thermostat in the group. */
+    /** The system's thermostat, or null while it is headless. */
     public Thermostat thermostatFor(SystemId system) {
         return first(thermostatsBySystem.get(system));
     }
 
-    /** The group's equipment, sorted by position. */
+    /** The system's equipment, sorted by position. */
     public List<EquipmentUnit> equipmentFor(SystemId system) {
         TreeMap<BlockKey, EquipmentUnit> units = equipmentBySystem.get(system);
         return units == null ? List.of() : List.copyOf(units.values());
@@ -615,7 +637,13 @@ public final class HvacRegistry {
         return first(panelsBySystem.get(system));
     }
 
-    /** The group's vents, sorted by position. */
+    /** The RPM monitors showing a system, sorted by position. */
+    public List<RpmMonitor> rpmMonitorsFor(SystemId system) {
+        TreeMap<BlockKey, RpmMonitor> monitors = monitorsBySystem.get(system);
+        return monitors == null ? List.of() : List.copyOf(monitors.values());
+    }
+
+    /** The system's vents, sorted by position. */
     public Collection<ClimateVent> ventsFor(SystemId system) {
         TreeMap<BlockKey, ClimateVent> systemVents = ventsBySystem.get(system);
         return systemVents == null ? List.of() : Collections.unmodifiableCollection(systemVents.values());
@@ -643,8 +671,8 @@ public final class HvacRegistry {
     }
 
     /**
-     * True when this group already has a loaded vent of the given medium. A
-     * group is all air or all water; this is what enforces that at link time.
+     * True when this system already has a loaded vent of the given medium. A
+     * system is all air or all water; this is what enforces that at link time.
      */
     public boolean hasVentOfMedium(SystemId system, boolean water) {
         for (ClimateVent vent : ventsFor(system)) {
@@ -656,11 +684,62 @@ public final class HvacRegistry {
         return false;
     }
 
-    /** True when this group already has equipment belonging to the given loop. */
+    /** True when this system already has equipment belonging to the given loop. */
     public boolean hasEquipmentOfLoop(SystemId system, boolean waterLoop) {
         for (EquipmentUnit unit : equipmentFor(system))
             if (unit.type().waterLoop() == waterLoop) return true;
         return false;
+    }
+
+    /** What decides the system's medium; vents in unloaded chunks are not counted. */
+    public SystemLinks.Shape shapeOf(SystemId system) {
+        SystemLinks.Shape shape = SystemLinks.Shape.EMPTY;
+        for (EquipmentUnit unit : equipmentFor(system)) shape = shape.plus(SystemLinks.Shape.equipment(unit.type()));
+        if (hasVentOfMedium(system, false)) shape = shape.plus(SystemLinks.Shape.vent(false));
+        if (hasVentOfMedium(system, true)) shape = shape.plus(SystemLinks.Shape.vent(true));
+        return shape;
+    }
+
+    /** The system of the thermostat, equipment, vent, settings panel or RPM monitor at a block, or null. */
+    public SystemId systemAt(BlockKey key) {
+        Thermostat thermostat = thermostats.get(key);
+        if (thermostat != null) return thermostat.system();
+        EquipmentUnit unit = equipment.get(key);
+        if (unit != null) return unit.system();
+        ClimateVent vent = vents.get(key);
+        if (vent != null) return vent.system();
+        SettingsPanel panel = settingsPanels.get(key);
+        if (panel != null) return panel.system();
+        RpmMonitor monitor = rpmMonitors.get(key);
+        return monitor == null ? null : monitor.system();
+    }
+
+    public Members members(SystemId system) {
+        TreeMap<BlockKey, ClimateVent> systemVents = ventsBySystem.get(system);
+        TreeMap<BlockKey, EquipmentUnit> units = equipmentBySystem.get(system);
+        TreeMap<BlockKey, SettingsPanel> panels = panelsBySystem.get(system);
+        TreeMap<BlockKey, RpmMonitor> monitors = monitorsBySystem.get(system);
+        return new Members(thermostatFor(system), units == null ? 0 : units.size(),
+                systemVents == null ? 0 : systemVents.size(), panels == null ? 0 : panels.size(),
+                monitors == null ? 0 : monitors.size());
+    }
+
+    /** Every system with at least one device, sorted. */
+    public SortedSet<SystemId> allSystems() {
+        SortedSet<SystemId> systems = new TreeSet<>();
+        systems.addAll(thermostatsBySystem.keySet());
+        systems.addAll(equipmentBySystem.keySet());
+        systems.addAll(ventsBySystem.keySet());
+        systems.addAll(panelsBySystem.keySet());
+        systems.addAll(monitorsBySystem.keySet());
+        return systems;
+    }
+
+    /** A new, empty system in a world. Its number is never given out again. */
+    public SystemId newSystem(UUID worldId) {
+        SystemId system = SystemId.numbered(worldId, nextSystem++);
+        dirty = true;
+        return system;
     }
 
     public OperatingProfile profileFor(SystemId system) {
@@ -726,10 +805,8 @@ public final class HvacRegistry {
 
     public void addThermostat(Thermostat thermostat) {
         requireFree(thermostat.position());
-        if (thermostatById(thermostat.id()) != null)
-            throw new IllegalArgumentException("thermostat id already exists");
         if (thermostatFor(thermostat.system()) != null)
-            throw new IllegalArgumentException("that world already has a thermostat for this group");
+            throw new IllegalArgumentException("that system already has a thermostat");
         thermostats.put(thermostat.position(), thermostat);
         indexThermostat(thermostat);
         dirty = true;
@@ -768,14 +845,15 @@ public final class HvacRegistry {
     public void addRpmMonitor(RpmMonitor monitor) {
         requireFree(monitor.position());
         rpmMonitors.put(monitor.position(), monitor);
+        indexMonitor(monitor);
         dirty = true;
         added(monitor);
     }
 
     public void addSettingsPanel(SettingsPanel panel) {
         requireFree(panel.position());
-        if (settingsPanelFor(panel.system()) != null)
-            throw new IllegalArgumentException("that HVAC group already has a settings panel");
+        if (panel.system() != null && settingsPanelFor(panel.system()) != null)
+            throw new IllegalArgumentException("that system already has a settings panel");
         settingsPanels.put(panel.position(), panel);
         indexPanel(panel);
         dirty = true;
@@ -877,6 +955,7 @@ public final class HvacRegistry {
     public boolean removeRpmMonitor(BlockKey key) {
         RpmMonitor value = rpmMonitors.remove(key);
         if (value == null) return false;
+        unindexMonitor(value);
         dirty = true;
         removed(value);
         return true;
@@ -885,36 +964,179 @@ public final class HvacRegistry {
     public boolean removeSettingsPanel(BlockKey key) {
         SettingsPanel value = settingsPanels.remove(key);
         if (value == null) return false;
-        unindex(panelsBySystem, value.system(), value.position(), value);
+        unindexPanel(value);
         dirty = true;
         removed(value);
         return true;
     }
 
-    /** Moves a registered thermostat to another group. Use this, never Thermostat.setGroup. */
-    public void regroupThermostat(Thermostat thermostat, String label) {
+    // ---- linking ----
+    // Every change of a device's system goes through these, so the indexes follow.
+
+    /** Moves a registered thermostat to a system that has none. Use this, never Thermostat.setSystem. */
+    public void linkThermostat(Thermostat thermostat, SystemId system) {
         if (thermostats.get(thermostat.position()) != thermostat)
             throw new IllegalArgumentException("that thermostat is not registered");
+        Thermostat existing = thermostatFor(system);
+        if (existing != null && existing != thermostat)
+            throw new IllegalArgumentException("that system already has a thermostat");
         unindexThermostat(thermostat);
         try {
-            thermostat.setSystem(label);
+            thermostat.setSystem(system);
         } finally {
             indexThermostat(thermostat);
         }
         dirty = true;
     }
 
-    /** Moves registered equipment to another group. Use this, never EquipmentUnit.setGroup. */
-    public void regroupEquipment(EquipmentUnit unit, String label) {
+    /**
+     * Moves registered equipment to a system. Use this, never
+     * EquipmentUnit.setSystem. A running unit is stopped first, and a unit
+     * whose water or lava is still waiting to be cleaned up cannot move.
+     */
+    public void linkEquipment(EquipmentUnit unit, SystemId system) {
         if (equipment.get(unit.position()) != unit)
             throw new IllegalArgumentException("that equipment is not registered");
+        if (unit.system().equals(system)) return;
+        unit.stop();
+        if (unit.hasOwnedOutput())
+            throw new IllegalArgumentException("its output is in an unloaded chunk and has to be cleaned"
+                    + " up first; go near it and try again");
         unindex(equipmentBySystem, unit.system(), unit.position(), unit);
         try {
-            unit.setSystem(label);
+            unit.setSystem(system);
         } finally {
             index(equipmentBySystem, unit.system(), unit.position(), unit);
         }
         dirty = true;
+    }
+
+    /** Links a panel to a system, or unlinks it with null. A system has one panel at most. */
+    public void linkSettingsPanel(SettingsPanel panel, SystemId system) {
+        if (settingsPanels.get(panel.position()) != panel)
+            throw new IllegalArgumentException("that settings panel is not registered");
+        SettingsPanel existing = system == null ? null : settingsPanelFor(system);
+        if (existing != null && existing != panel)
+            throw new IllegalArgumentException("that system already has a settings panel");
+        unindexPanel(panel);
+        try {
+            panel.setSystem(system);
+        } finally {
+            indexPanel(panel);
+        }
+        dirty = true;
+    }
+
+    /** Links a monitor to a system, or unlinks it with null. */
+    public void linkRpmMonitor(RpmMonitor monitor, SystemId system) {
+        if (rpmMonitors.get(monitor.position()) != monitor)
+            throw new IllegalArgumentException("that RPM monitor is not registered");
+        unindexMonitor(monitor);
+        try {
+            monitor.setSystem(system);
+        } finally {
+            indexMonitor(monitor);
+        }
+        dirty = true;
+    }
+
+    /** Moves a vent to another system; it stays the same vent, so no device event fires. */
+    private void moveVent(ClimateVent vent, SystemId system) {
+        ClimateVent moved = new ClimateVent(vent.position(), system);
+        unindexVent(vent);
+        vents.put(moved.position(), moved);
+        indexVent(moved);
+        dirty = true;
+    }
+
+    /**
+     * Moves everything in a headless system into another: its equipment,
+     * vents, RPM monitors, and its settings panel unless the other system has
+     * one already, in which case that panel is left unlinked. Nothing moves
+     * unless all of it can.
+     */
+    public MergeResult merge(SystemId from, SystemId into) {
+        if (from.equals(into)) throw new IllegalArgumentException("a system cannot merge into itself");
+        if (!from.worldId().equals(into.worldId()))
+            throw new IllegalArgumentException("systems in different worlds cannot merge");
+        if (thermostatFor(from) != null) throw new IllegalArgumentException("only a headless system can be merged");
+        List<EquipmentUnit> units = equipmentFor(from);
+        for (EquipmentUnit unit : units) unit.stop();
+        for (EquipmentUnit unit : units)
+            if (unit.hasOwnedOutput())
+                throw new IllegalArgumentException("a unit's output is in an unloaded chunk and has to be"
+                        + " cleaned up first; go near it and try again");
+        for (EquipmentUnit unit : units) linkEquipment(unit, into);
+        List<ClimateVent> moving = List.copyOf(ventsFor(from));
+        for (ClimateVent vent : moving) moveVent(vent, into);
+        List<RpmMonitor> monitors = rpmMonitorsFor(from);
+        for (RpmMonitor monitor : monitors) linkRpmMonitor(monitor, into);
+        SettingsPanel panel = settingsPanelFor(from);
+        SettingsPanel unlinked = null;
+        boolean movedPanel = false;
+        if (panel != null) {
+            if (settingsPanelFor(into) == null) {
+                linkSettingsPanel(panel, into);
+                movedPanel = true;
+            } else {
+                linkSettingsPanel(panel, null);
+                unlinked = panel;
+            }
+        }
+        dirty = true;
+        return new MergeResult(units.size(), moving.size(), monitors.size(), movedPanel, unlinked);
+    }
+
+    /**
+     * Makes the system's thermostat a pool or a room thermostat to match
+     * what is linked to it. Nothing decides for an empty system.
+     *
+     * @return the thermostat when it changed, otherwise null
+     */
+    public Thermostat settleHead(SystemId system) {
+        Thermostat head = thermostatFor(system);
+        if (head == null) return null;
+        Boolean pool = SystemLinks.pool(shapeOf(system));
+        if (pool == null || !head.setPool(pool, settings)) return null;
+        dirty = true;
+        return head;
+    }
+
+    /**
+     * Unregisters every device of a system, as /hvac remove would one by one:
+     * equipment leaves its water or lava for cleanup, and each device is
+     * reported removed. The blocks stay in the world.
+     */
+    public Members removeSystem(SystemId system) {
+        Members members = members(system);
+        Thermostat head = thermostatFor(system);
+        if (head != null) removeThermostat(head.position());
+        for (EquipmentUnit unit : equipmentFor(system)) removeEquipment(unit.position());
+        for (ClimateVent vent : List.copyOf(ventsFor(system))) removeVent(vent.position());
+        SettingsPanel panel = settingsPanelFor(system);
+        if (panel != null) removeSettingsPanel(panel.position());
+        for (RpmMonitor monitor : rpmMonitorsFor(system)) removeRpmMonitor(monitor.position());
+        return members;
+    }
+
+    /**
+     * Renames the thermometer or sensor at a block. Both are records, so the
+     * registry swaps in the renamed one; hubs link sensors by position.
+     *
+     * @return false when neither is there
+     */
+    public boolean relabel(BlockKey key, String label) {
+        Thermometer thermometer = thermometers.get(key);
+        if (thermometer != null) {
+            thermometers.put(key, new Thermometer(key, label, thermometer.reads()));
+            dirty = true;
+            return true;
+        }
+        Sensor sensor = sensors.get(key);
+        if (sensor == null) return false;
+        sensors.put(key, new Sensor(key, label, sensor.reads()));
+        dirty = true;
+        return true;
     }
 
     public void markDirty() { dirty = true; }
@@ -1055,14 +1277,13 @@ public final class HvacRegistry {
         upgradedFromFormat = 0;
         thermostats.clear(); equipment.clear(); vents.clear(); thermometers.clear();
         rpmMonitors.clear(); settingsPanels.clear(); pendingCleanup.clear(); preservedRecords.clear();
+        nextSystem = 1;
         dehumidifiers.clear(); humidifiers.clear(); sensors.clear(); sensorHubs.clear();
         rebuildIndexes();
         dirty = false;
     }
 
     // ---- index maintenance ----
-
-    private static String idKey(String id) { return id.toLowerCase(Locale.ROOT); }
 
     private static <K, T> void index(Map<K, TreeMap<BlockKey, T>> index, K key, BlockKey position, T value) {
         index.computeIfAbsent(key, ignored -> new TreeMap<>()).put(position, value);
@@ -1077,12 +1298,10 @@ public final class HvacRegistry {
 
     private void indexThermostat(Thermostat thermostat) {
         index(thermostatsBySystem, thermostat.system(), thermostat.position(), thermostat);
-        index(thermostatsById, idKey(thermostat.id()), thermostat.position(), thermostat);
     }
 
     private void unindexThermostat(Thermostat thermostat) {
         unindex(thermostatsBySystem, thermostat.system(), thermostat.position(), thermostat);
-        unindex(thermostatsById, idKey(thermostat.id()), thermostat.position(), thermostat);
     }
 
     private void indexEquipment(EquipmentUnit unit) {
@@ -1090,8 +1309,21 @@ public final class HvacRegistry {
         trackOutput(unit);
     }
 
+    /** Unlinked panels and monitors have no system and are in no index. */
     private void indexPanel(SettingsPanel panel) {
-        index(panelsBySystem, panel.system(), panel.position(), panel);
+        if (panel.system() != null) index(panelsBySystem, panel.system(), panel.position(), panel);
+    }
+
+    private void unindexPanel(SettingsPanel panel) {
+        if (panel.system() != null) unindex(panelsBySystem, panel.system(), panel.position(), panel);
+    }
+
+    private void indexMonitor(RpmMonitor monitor) {
+        if (monitor.system() != null) index(monitorsBySystem, monitor.system(), monitor.position(), monitor);
+    }
+
+    private void unindexMonitor(RpmMonitor monitor) {
+        if (monitor.system() != null) unindex(monitorsBySystem, monitor.system(), monitor.position(), monitor);
     }
 
     private void indexVent(ClimateVent vent) {
@@ -1177,10 +1409,10 @@ public final class HvacRegistry {
     /** Rebuilds every index from the primary maps, after bulk changes such as load or prune. */
     private void rebuildIndexes() {
         thermostatsBySystem.clear();
-        thermostatsById.clear();
         equipmentBySystem.clear();
         ventsBySystem.clear();
         panelsBySystem.clear();
+        monitorsBySystem.clear();
         ventCells.clear();
         unitsByOwnedOutput.clear();
         unitParts.clear();
@@ -1190,6 +1422,7 @@ public final class HvacRegistry {
         pendingCleanup.forEach(this::trackOutput);
         vents.values().forEach(this::indexVent);
         settingsPanels.values().forEach(this::indexPanel);
+        rpmMonitors.values().forEach(this::indexMonitor);
         dehumidifiers.values().forEach(this::indexUnit);
         humidifiers.values().forEach(this::indexUnit);
     }
@@ -1201,16 +1434,11 @@ public final class HvacRegistry {
      */
     String indexDiscrepancy() {
         Map<SystemId, TreeMap<BlockKey, Thermostat>> bySystem = new HashMap<>();
-        Map<String, TreeMap<BlockKey, Thermostat>> byId = new HashMap<>();
-        for (Thermostat value : thermostats.values()) {
-            index(bySystem, value.system(), value.position(), value);
-            index(byId, idKey(value.id()), value.position(), value);
-        }
-        if (!bySystem.equals(thermostatsBySystem)) return "thermostatsByGroup";
-        if (!byId.equals(thermostatsById)) return "thermostatsById";
+        for (Thermostat value : thermostats.values()) index(bySystem, value.system(), value.position(), value);
+        if (!bySystem.equals(thermostatsBySystem)) return "thermostatsBySystem";
         Map<SystemId, TreeMap<BlockKey, EquipmentUnit>> units = new HashMap<>();
         for (EquipmentUnit value : equipment.values()) index(units, value.system(), value.position(), value);
-        if (!units.equals(equipmentBySystem)) return "equipmentByGroup";
+        if (!units.equals(equipmentBySystem)) return "equipmentBySystem";
         Map<SystemId, TreeMap<BlockKey, ClimateVent>> systemVents = new HashMap<>();
         Map<UUID, Map<Long, Set<ClimateVent>>> cells = new HashMap<>();
         for (ClimateVent value : vents.values()) {
@@ -1220,7 +1448,7 @@ public final class HvacRegistry {
                     .computeIfAbsent(cellKey(position.x() >> ventCellShift, position.z() >> ventCellShift),
                             ignored -> new HashSet<>()).add(value);
         }
-        if (!systemVents.equals(ventsBySystem)) return "ventsByGroup";
+        if (!systemVents.equals(ventsBySystem)) return "ventsBySystem";
         Map<UUID, Map<Long, Set<ClimateVent>>> liveCells = new HashMap<>();
         ventCells.forEach((world, grid) -> grid.forEach((cell, bucket) -> {
             if (bucket.size() != new HashSet<>(bucket).size()) throw new IllegalStateException("duplicate vent in cell");
@@ -1228,8 +1456,13 @@ public final class HvacRegistry {
         }));
         if (!cells.equals(liveCells)) return "ventCells";
         Map<SystemId, TreeMap<BlockKey, SettingsPanel>> panels = new HashMap<>();
-        for (SettingsPanel value : settingsPanels.values()) index(panels, value.system(), value.position(), value);
-        if (!panels.equals(panelsBySystem)) return "panelsByGroup";
+        for (SettingsPanel value : settingsPanels.values())
+            if (value.system() != null) index(panels, value.system(), value.position(), value);
+        if (!panels.equals(panelsBySystem)) return "panelsBySystem";
+        Map<SystemId, TreeMap<BlockKey, RpmMonitor>> monitors = new HashMap<>();
+        for (RpmMonitor value : rpmMonitors.values())
+            if (value.system() != null) index(monitors, value.system(), value.position(), value);
+        if (!monitors.equals(monitorsBySystem)) return "monitorsBySystem";
         Map<BlockKey, Set<EquipmentUnit>> outputs = new HashMap<>();
         List<EquipmentUnit> tracked = new ArrayList<>(equipment.values());
         tracked.addAll(pendingCleanup);

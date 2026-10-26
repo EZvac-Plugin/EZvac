@@ -105,7 +105,7 @@ class RegistryLoadFailureTest {
         HvacRegistry registry = registry();
         registry.load();
 
-        assertNotNull(registry.thermostatById("main"), "loaded from the backup");
+        assertNotNull(TestHost.labelled(registry, "main"), "loaded from the backup");
         assertTrue(registry.isWritable());
         List<String> files = files();
         String kept = files.stream().filter(name -> name.startsWith("hvac.yml.unreadable-")).findFirst()
@@ -129,7 +129,7 @@ class RegistryLoadFailureTest {
         Files.writeString(data, VALID, StandardCharsets.UTF_8);
         registry.load();
         assertTrue(registry.isWritable());
-        assertNotNull(registry.thermostatById("main"));
+        assertNotNull(TestHost.labelled(registry, "main"));
         registry.markDirty();
         registry.save(true);
         assertTrue(Files.exists(backup), "saving works again once the file is readable");

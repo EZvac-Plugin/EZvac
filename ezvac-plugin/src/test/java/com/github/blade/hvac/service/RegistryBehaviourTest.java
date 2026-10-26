@@ -68,13 +68,13 @@ class RegistryBehaviourTest {
         SystemId house = new SystemId(WORLD, "house");
         assertEquals(1, registry.thermostats().size());
         assertEquals("lower", registry.thermostatFor(house).id());
-        assertNull(registry.thermostatById("upper"));
+        assertNull(TestHost.labelled(registry, "upper"));
         String file = saved(registry);
         assertTrue(file.contains("id: upper"), "the losing controller must be written back, not deleted");
     }
 
     @Test
-    void duplicateIdsCompareCaseInsensitivelyAndTheLowestPositionWins() throws IOException {
+    void labelsMayRepeatSinceThreePointOh() throws IOException {
         HvacRegistry registry = loadYaml("""
                 thermostats:
                   a:
@@ -86,9 +86,10 @@ class RegistryBehaviourTest {
                     id: MAIN
                     group: two
                 """);
-        assertEquals(1, registry.thermostats().size());
-        assertEquals("two", registry.thermostatById("main").system().key());
-        assertEquals(at(20, 64, 0), registry.thermostatById("mAiN").position());
+        assertEquals(2, registry.thermostats().size(), "a second Main is no longer set aside");
+        assertEquals(List.of(at(20, 64, 0), at(30, 64, 0)), registry.thermostatsLabelled(WORLD, "mAiN").stream()
+                .map(Thermostat::position).toList());
+        assertEquals("two", TestHost.labelled(registry, "main").system().key());
     }
 
     @Test
@@ -166,8 +167,9 @@ class RegistryBehaviourTest {
         registry.addThermostat(new Thermostat(at(1, 64, 0), "a", "house", 72, 72, SETTINGS));
         assertThrows(IllegalArgumentException.class, () -> registry.addThermostat(
                 new Thermostat(at(2, 64, 0), "b", "house", 72, 72, SETTINGS)));
-        assertThrows(IllegalArgumentException.class, () -> registry.addThermostat(
-                new Thermostat(at(3, 64, 0), "A", "elsewhere", 72, 72, SETTINGS)));
+        // Labels may repeat since 3.0: another system's thermostat can be called A too.
+        registry.addThermostat(new Thermostat(at(3, 64, 0), "A", "elsewhere", 72, 72, SETTINGS));
+        assertEquals(2, registry.thermostatsLabelled(WORLD, "a").size());
     }
 
     @Test

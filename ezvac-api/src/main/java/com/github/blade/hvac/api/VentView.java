@@ -5,7 +5,7 @@ import java.util.Objects;
 /**
  * A vent, where a system's air or water comes out.
  *
- * @param system   the system (group) it belongs to
+ * @param system   the key of the system it belongs to (see {@link EzvacApi#thermostatOf})
  * @param position the vent block
  * @param medium   air for a room system, water for a pool system
  * @since 1.2

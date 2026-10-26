@@ -5,8 +5,8 @@ import java.util.Objects;
 /**
  * A thermostat and its system, as it was when this view was made.
  *
- * @param id           the thermostat's id, unique on the server (case-insensitive)
- * @param system       the system (group) it controls
+ * @param id           the thermostat's label; since 1.3 (EZvac 3.0) labels may repeat
+ * @param system       the key of the system it controls (see {@link EzvacApi#thermostatOf})
  * @param position     its sign
  * @param roomF        the temperature of the space it controls: a room, or a pool's water
  * @param targetF      its target

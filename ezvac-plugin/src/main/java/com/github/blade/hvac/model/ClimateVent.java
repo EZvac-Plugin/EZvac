@@ -29,22 +29,22 @@ public record ClimateVent(BlockKey position, SystemId system) {
 
     public ClimateVent {
         Objects.requireNonNull(position, "position");
-        Objects.requireNonNull(system, "group");
+        Objects.requireNonNull(system, "system");
         if (!position.worldId().equals(system.worldId()))
-            throw new IllegalArgumentException("vent and group worlds differ");
+            throw new IllegalArgumentException("vent and system worlds differ");
     }
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         position.write(map, "");
-        map.put("group", system.key());
+        map.put("system", system.key());
         return map;
     }
 
     public static ClimateVent fromMap(Map<String, Object> map) {
         BlockKey position = BlockKey.read(map, "");
-        Object value = map.get("group");
-        if (!(value instanceof String label)) throw new IllegalArgumentException("vent group is missing");
+        Object value = map.containsKey("system") ? map.get("system") : map.get("group");
+        if (!(value instanceof String label)) throw new IllegalArgumentException("vent system is missing");
         return new ClimateVent(position, SystemId.of(position, label));
     }
 }

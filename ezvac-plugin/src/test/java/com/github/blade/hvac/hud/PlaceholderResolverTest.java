@@ -20,7 +20,7 @@ class PlaceholderResolverTest {
                 Map.entry("temp", "72.5°F"), Map.entry("temp_f", "72.5°F"), Map.entry("temp_c", "22.5°C"),
                 Map.entry("outdoor", "88.0°F"), Map.entry("outdoor_f", "88.0°F"),
                 Map.entry("outdoor_c", "31.1°C"), Map.entry("bar_plain", "▮▮▮▮▮▯▯▯▯▯"),
-                Map.entry("comfort", "Comfortable"), Map.entry("group", "house"),
+                Map.entry("comfort", "Comfortable"), Map.entry("system", "house"), Map.entry("group", "house"),
                 Map.entry("thermostat", "main"), Map.entry("mode", "Cooling to 70.0°F"),
                 Map.entry("target", "70.0°F"), Map.entry("influence", "60"),
                 Map.entry("zone", "60% leakage"), Map.entry("conditioned", "true"), Map.entry("medium", "air"),

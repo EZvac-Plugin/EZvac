@@ -195,14 +195,18 @@ public final class ClimateHudService implements Listener {
         return snapshot.inSeason(seasons.season(world).displayName(), seasons.dayOfSeason(world));
     }
 
+    /** What the HUD calls the system of a room whose thermostat is gone. */
+    static final String HEADLESS = "Headless";
+
     private static ClimateSnapshot captureClimate(AirflowService.TemperatureReading reading) {
         Thermostat thermostat = reading.thermostat();
+        // A system is called after its thermostat (3.0); one whose thermostat is gone shows as headless.
         if (reading.system() == null || thermostat == null)
             return new ClimateSnapshot(reading.localF(), reading.outdoorF(), 0.0, reading.airflowDistance(),
-                    null, null, null, Double.NaN, false, reading.water(),
+                    reading.system() == null ? null : HEADLESS, null, null, Double.NaN, false, reading.water(),
                     reading.humidity(), reading.feelsLikeF(), reading.weather());
         return new ClimateSnapshot(reading.localF(), reading.outdoorF(), reading.influence(),
-                reading.airflowDistance(), reading.system().key(), thermostat.id(),
+                reading.airflowDistance(), thermostat.id(), thermostat.id(),
                 thermostat.mode().name(), thermostat.targetF(),
                 reading.influence() >= 1.0, reading.water(),
                 reading.humidity(), reading.feelsLikeF(), reading.weather());

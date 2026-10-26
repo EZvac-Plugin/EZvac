@@ -13,8 +13,10 @@ import java.util.Optional;
  * @param kind     what it is
  * @param label    its name
  * @param position its sign or button
- * @param system   the system it belongs to: set for RPM monitors and settings panels
- * @param links    the sensors a hub shows, in order; empty for everything else
+ * @param system   the key of the system it belongs to: set for RPM monitors and settings panels
+ *                 that are linked to one (since 1.3 they can be unlinked)
+ * @param links    the sensors a hub shows, in order; since 1.3 the equipment an RPM monitor
+ *                 shows; empty for everything else
  * @since 1.2
  */
 public record InstrumentView(Kind kind, String label, Position position, Optional<String> system,

@@ -41,20 +41,31 @@ public final class Thermostat {
     private long outdoorSampledAt = Long.MIN_VALUE;
     /** The air's moisture as a dew point; NaN until first simulated (2.0). */
     private double roomDewPointF = Double.NaN;
-    /** Pool thermostats clamp to the water range and pair only with boilers. */
-    private final boolean pool;
+    /**
+     * Pool thermostats clamp to the water range. Since 3.0 a thermostat
+     * follows what is linked to it: water equipment or grates make it one.
+     */
+    private boolean pool;
 
     /** A temperate biome's downfall, used until the thermostat's chunk is first sampled. */
     public static final double DEFAULT_DOWNFALL = 0.4;
+    /** The targets a new room or pool thermostat starts at. */
+    public static final double ROOM_DEFAULT_F = 72.0;
+    public static final double POOL_DEFAULT_F = 82.0;
 
-    public Thermostat(BlockKey position, String id, String systemLabel,
+    public Thermostat(BlockKey position, String id, String systemKey,
                       double targetF, double roomF, HvacSettings settings) {
-        this(position, id, systemLabel, targetF, roomF, settings, false);
+        this(position, id, systemKey, targetF, roomF, settings, false);
     }
 
-    public Thermostat(BlockKey position, String id, String systemLabel,
+    public Thermostat(BlockKey position, String id, String systemKey,
                       double targetF, double roomF, HvacSettings settings, boolean pool) {
-        this(position, id, SystemId.of(position, systemLabel), settings.clampTarget(targetF, pool),
+        this(position, id, SystemId.of(position, systemKey), targetF, roomF, settings, pool);
+    }
+
+    public Thermostat(BlockKey position, String id, SystemId system,
+                      double targetF, double roomF, HvacSettings settings, boolean pool) {
+        this(position, id, system, settings.clampTarget(targetF, pool),
                 ThermalModel.clampTemperature(roomF), true, OperatingMode.IDLE,
                 settings.minimumOffTicks(), 72.0, 52.0, 62.0, pool);
     }
@@ -66,9 +77,9 @@ public final class Thermostat {
         this.pool = pool;
         this.position = Objects.requireNonNull(position, "position");
         this.id = validateId(id);
-        this.system = Objects.requireNonNull(system, "group");
+        this.system = Objects.requireNonNull(system, "system");
         if (!position.worldId().equals(system.worldId()))
-            throw new IllegalArgumentException("thermostat and group worlds differ");
+            throw new IllegalArgumentException("thermostat and system worlds differ");
         this.targetF = targetF;
         this.roomF = roomF;
         this.enabled = enabled;
@@ -108,9 +119,30 @@ public final class Thermostat {
     public boolean hasRoomDewPoint() { return Double.isFinite(roomDewPointF); }
 
     public void setId(String id) { this.id = validateId(id); }
-    public void setSystem(String label) { this.system = SystemId.of(position, label); }
+    /** Only HvacRegistry may move a registered thermostat: its indexes follow the system. */
+    public void setSystem(SystemId system) {
+        Objects.requireNonNull(system, "system");
+        if (!position.worldId().equals(system.worldId()))
+            throw new IllegalArgumentException("thermostat and system worlds differ");
+        this.system = system;
+    }
     public void setTargetF(double targetF, HvacSettings settings) {
         this.targetF = settings.clampTarget(targetF, pool);
+    }
+
+    /**
+     * Switches between the room and the pool range. A target still at the
+     * old range's default moves to the new one's; any other is clamped.
+     *
+     * @return true when it changed
+     */
+    public boolean setPool(boolean pool, HvacSettings settings) {
+        if (this.pool == pool) return false;
+        double previousDefault = this.pool ? POOL_DEFAULT_F : ROOM_DEFAULT_F;
+        this.pool = pool;
+        targetF = settings.clampTarget(Math.abs(targetF - previousDefault) < 1e-9
+                ? (pool ? POOL_DEFAULT_F : ROOM_DEFAULT_F) : targetF, pool);
+        return true;
     }
     public void setRoomF(double roomF) { this.roomF = ThermalModel.clampTemperature(roomF); }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
@@ -157,7 +189,7 @@ public final class Thermostat {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", id);
-        map.put("group", system.key());
+        map.put("system", system.key());
         position.write(map, "");
         map.put("targetF", targetF);
         map.put("roomF", roomF);
@@ -184,14 +216,15 @@ public final class Thermostat {
     public static Thermostat fromMap(Map<String, Object> map, HvacSettings settings) {
         BlockKey position = BlockKey.read(map, "");
         String id = string(map, "id", string(map, "label", null));
-        String systemLabel = string(map, "group", string(map, "hvacGroupLabel", null));
+        // Format 7 (3.0) saves the system; before then it was the group's name, which becomes its key.
+        String systemKey = string(map, "system", string(map, "group", string(map, "hvacGroupLabel", null)));
         double target = number(map, "targetF", number(map, "targetTempF", 72.0));
         double room = number(map, "roomF", number(map, "roomTempF", 72.0));
         long ticks = whole(map, "ticksInMode", -1L);
         if (ticks < 0L) ticks = Math.max(0L, Math.round(number(map,
                 "modeElapsedMinecraftHours", settings.minimumOffTicks() / 1_000.0) * 1_000.0));
         boolean pool = bool(map, "pool", false);
-        Thermostat thermostat = new Thermostat(position, id, SystemId.of(position, systemLabel),
+        Thermostat thermostat = new Thermostat(position, id, SystemId.of(position, systemKey),
                 settings.clampTarget(target, pool), ThermalModel.clampTemperature(room),
                 bool(map, "enabled", true), OperatingMode.parse(map.get("mode")), ticks,
                 number(map, "outdoorNoonF", 72.0), number(map, "outdoorMidnightF", 52.0),
@@ -209,10 +242,10 @@ public final class Thermostat {
     }
 
     public static String validateId(String value) {
-        if (value == null) throw new IllegalArgumentException("thermostat id is required");
+        if (value == null) throw new IllegalArgumentException("a label is required");
         String id = value.trim();
         if (id.isEmpty() || id.length() > 32 || !id.matches("[A-Za-z0-9][A-Za-z0-9_-]*"))
-            throw new IllegalArgumentException("thermostat ids must be 1-32 letters, numbers, '_' or '-'");
+            throw new IllegalArgumentException("labels must be 1-32 letters, numbers, '_' or '-'");
         return id;
     }
 

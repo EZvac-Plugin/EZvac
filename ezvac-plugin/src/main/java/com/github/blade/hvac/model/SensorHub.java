@@ -11,18 +11,16 @@ import java.util.*;
  */
 public final class SensorHub {
     public static final int MAX_SENSORS = 9;
-    public static final int PER_PAGE = 3;
+    public static final int PER_PAGE = Pager.PER_PAGE;
     /** How long an auto-flipping hub stays on each page: 5 seconds. */
-    public static final long FLIP_TICKS = 100L;
+    public static final long FLIP_TICKS = Pager.FLIP_TICKS;
 
     public enum LinkResult { LINKED, ALREADY_LINKED, FULL, OTHER_WORLD }
 
     private final BlockKey position;
-    private final String label;
+    private String label;
     private final List<BlockKey> sensors = new ArrayList<>();
-    private boolean autoFlip;
-    private int page;
-    private long ticksOnPage;
+    private final Pager pager = new Pager();
 
     public SensorHub(BlockKey position, String label) {
         this.position = Objects.requireNonNull(position, "position");
@@ -31,12 +29,13 @@ public final class SensorHub {
 
     public BlockKey position() { return position; }
     public String label() { return label; }
+    public void setLabel(String label) { this.label = Thermostat.validateId(label); }
     public List<BlockKey> sensors() { return Collections.unmodifiableList(sensors); }
-    public boolean autoFlip() { return autoFlip; }
+    public boolean autoFlip() { return pager.autoFlip(); }
     /** The page showing, from 0. */
-    public int page() { return Math.min(page, pages() - 1); }
+    public int page() { return pager.page(sensors.size()); }
     /** At least one, so an empty hub still has a page to show. */
-    public int pages() { return Math.max(1, (sensors.size() + PER_PAGE - 1) / PER_PAGE); }
+    public int pages() { return Pager.pages(sensors.size()); }
 
     /** Sensors live in the hub's world; a hub shows them in the order they were linked. */
     public LinkResult link(BlockKey sensor) {
@@ -49,43 +48,28 @@ public final class SensorHub {
 
     public boolean unlink(BlockKey sensor) {
         boolean removed = sensors.remove(sensor);
-        if (removed) page = page();
+        if (removed) pager.settle(sensors.size());
         return removed;
     }
 
-    public void nextPage() {
-        page = (page() + 1) % pages();
-        ticksOnPage = 0;
-    }
+    public void nextPage() { pager.next(sensors.size()); }
 
-    public List<BlockKey> sensorsOnPage() {
-        int from = page() * PER_PAGE;
-        return sensors.subList(Math.min(from, sensors.size()), Math.min(from + PER_PAGE, sensors.size()));
-    }
+    public List<BlockKey> sensorsOnPage() { return pager.onPage(sensors); }
 
-    public void setAutoFlip(boolean autoFlip) {
-        this.autoFlip = autoFlip;
-        ticksOnPage = 0;
-    }
+    public void setAutoFlip(boolean autoFlip) { pager.setAutoFlip(autoFlip); }
 
     /**
      * Advances an auto-flipping hub's clock.
      *
      * @return true when it turned the page
      */
-    public boolean advanceAutoFlip(long elapsedTicks) {
-        if (!autoFlip || pages() < 2 || elapsedTicks <= 0) return false;
-        ticksOnPage += elapsedTicks;
-        if (ticksOnPage < FLIP_TICKS) return false;
-        nextPage();
-        return true;
-    }
+    public boolean advanceAutoFlip(long elapsedTicks) { return pager.advance(elapsedTicks, sensors.size()); }
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         position.write(map, "");
         map.put("label", label);
-        map.put("autoFlip", autoFlip);
+        map.put("autoFlip", autoFlip());
         List<String> linked = new ArrayList<>();
         for (BlockKey sensor : sensors) linked.add(sensor.x() + "," + sensor.y() + "," + sensor.z());
         map.put("sensors", linked);
@@ -97,7 +81,7 @@ public final class SensorHub {
         BlockKey position = BlockKey.read(map, "");
         Object label = map.get("label");
         SensorHub hub = new SensorHub(position, label instanceof String text && !text.isBlank() ? text : "Sensors");
-        hub.autoFlip = map.get("autoFlip") instanceof Boolean flag && flag;
+        hub.setAutoFlip(map.get("autoFlip") instanceof Boolean flag && flag);
         if (map.get("sensors") instanceof List<?> list) {
             for (Object entry : list) {
                 String[] parts = String.valueOf(entry).split(",");

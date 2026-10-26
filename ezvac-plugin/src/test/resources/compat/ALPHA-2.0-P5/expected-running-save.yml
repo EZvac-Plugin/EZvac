@@ -1,9 +1,10 @@
 meta:
-  format: 6
+  format: 7
+  next-system: 1
 thermostats:
   item0:
     id: main
-    group: house
+    system: house
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 4
     y: -60
@@ -22,7 +23,7 @@ thermostats:
     roomDewPointF: 45.28172799993209
   item1:
     id: work
-    group: office
+    system: office
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 4
     y: -60
@@ -41,7 +42,7 @@ thermostats:
     roomDewPointF: 45.30170657940163
   item2:
     id: spa
-    group: pool
+    system: pool
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 4
     y: -60
@@ -59,8 +60,9 @@ thermostats:
     outdoorPrecipitation: RAIN
 equipment:
   item0:
-    group: house
+    system: house
     equipmentType: HEAT_PUMP
+    tier: 2
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -74,8 +76,9 @@ equipment:
     outputY: -60
     outputZ: 0
   item1:
-    group: house
+    system: house
     equipmentType: FURNACE
+    tier: 2
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -85,8 +88,9 @@ equipment:
     operatingMode: IDLE
     motorRpm: 0.0
   item2:
-    group: office
+    system: office
     equipmentType: AIR_CONDITIONER
+    tier: 2
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -100,8 +104,9 @@ equipment:
     outputY: -60
     outputZ: 8
   item3:
-    group: pool
+    system: pool
     equipmentType: BOILER
+    tier: 2
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -115,8 +120,9 @@ equipment:
     outputY: -60
     outputZ: 20
   item4:
-    group: pool
+    system: pool
     equipmentType: POOL_HEAT_PUMP
+    tier: 2
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -135,25 +141,25 @@ vents:
     x: 16
     y: -61
     z: 24
-    group: pool
+    system: pool
   item1:
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 16
     y: -60
     z: 0
-    group: house
+    system: house
   item2:
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 16
     y: -60
     z: 4
-    group: house
+    system: house
   item3:
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 16
     y: -60
     z: 8
-    group: office
+    system: office
 thermometers:
   item0:
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
@@ -181,16 +187,16 @@ rpmMonitors:
     x: 4
     y: -60
     z: 8
-    group: house
+    system: house
     label: fan
-    equipmentType: HEAT_PUMP
+    autoFlip: false
 settingsPanels:
   item0:
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 4
     y: -60
     z: 12
-    group: house
+    system: house
     label: controls
     profile: TURBO
 dehumidifiers:

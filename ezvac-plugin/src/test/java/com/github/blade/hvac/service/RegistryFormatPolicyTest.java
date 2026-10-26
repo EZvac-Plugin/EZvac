@@ -69,7 +69,7 @@ class RegistryFormatPolicyTest {
         Files.writeString(data, older, StandardCharsets.UTF_8);
         HvacRegistry registry = registry();
         registry.load();
-        assertNotNull(registry.thermostatById("main"));
+        assertNotNull(TestHost.labelled(registry, "main"));
         Path backup = folder.resolve("hvac.yml.format4.bak");
         assertFalse(Files.exists(backup), "loading alone writes nothing");
 
@@ -91,11 +91,11 @@ class RegistryFormatPolicyTest {
         Files.writeString(data, release19, StandardCharsets.UTF_8);
         HvacRegistry registry = registry();
         registry.load();
-        assertNotNull(registry.thermostatById("main"), "a 1.x save loads as it is");
+        assertNotNull(TestHost.labelled(registry, "main"), "a 1.x save loads as it is");
         registry.markDirty();
         registry.save(true);
         assertEquals(release19, Files.readString(folder.resolve("hvac.yml.format5.bak"), StandardCharsets.UTF_8));
-        assertTrue(Files.readString(data, StandardCharsets.UTF_8).contains("format: 6"));
+        assertTrue(Files.readString(data, StandardCharsets.UTF_8).contains("format: " + HvacRegistry.FORMAT_VERSION));
     }
 
     @Test
@@ -116,7 +116,7 @@ class RegistryFormatPolicyTest {
             Files.writeString(data, file(meta), StandardCharsets.UTF_8);
             HvacRegistry registry = registry();
             registry.load();
-            assertNotNull(registry.thermostatById("main"));
+            assertNotNull(TestHost.labelled(registry, "main"));
             registry.markDirty();
             registry.save(true);
             try (var files = Files.list(folder)) {

@@ -97,9 +97,12 @@ public final class DisplayService {
         return positions;
     }
 
-    /** Turns the page of auto-flipping sensor hubs; the next refresh draws it. */
+    /** Turns the page of auto-flipping sensor hubs and RPM monitors; the next refresh draws it. */
     public void advanceAutoFlip(long elapsedTicks) {
         for (SensorHub hub : registry.sensorHubs()) hub.advanceAutoFlip(elapsedTicks);
+        for (RpmMonitor monitor : registry.rpmMonitors())
+            if (monitor.autoFlip() && monitor.system() != null)
+                monitor.advanceAutoFlip(elapsedTicks, rowsOf(monitor).size());
     }
 
     /**
@@ -229,9 +232,12 @@ public final class DisplayService {
         String footer = !thermostat.enabled() ? "System off"
                 : thermostat.mode() == OperatingMode.IDLE ? "Ready"
                 : eta.isPresent() ? "ETA " + formatEta(eta) : "ETA --";
-        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s|%s",
-                thermostat.roomF(), thermostat.targetF(), mode, percent, footer,
-                thermostat.system().key(), thermostat.id());
+        // Since 3.0 the last line counts the units at work where the group's name used to be.
+        List<EquipmentUnit> units = registry.equipmentFor(thermostat.system());
+        long working = units.stream().filter(EquipmentUnit::running).count();
+        String linked = units.isEmpty() ? footer : footer + " | " + working + "/" + units.size();
+        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s",
+                thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id());
         render(thermostat.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
             NamedTextColor color = thermostat.mode() == OperatingMode.COOLING ? NamedTextColor.AQUA
@@ -240,11 +246,11 @@ public final class DisplayService {
             String setpoint = "Set " + temp(thermostat.targetF());
             if (thermostat.mode() != OperatingMode.IDLE) setpoint += " | " + percent + "%";
             lines.set(2, setpoint, NamedTextColor.WHITE);
-            lines.set(3, footer + " | " + thermostat.system().key(),
+            lines.set(3, linked,
                     eta.isPresent() && thermostat.mode() != OperatingMode.IDLE
                             ? NamedTextColor.GREEN : NamedTextColor.GRAY);
         }, () -> {
-            ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.system().key())
+            ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.pool() ? "Pool" : "")
                     .big(degrees(thermostat.roomF()));
             String target = degrees(thermostat.targetF());
             if (!thermostat.enabled()) screen.line("System off · set " + target, NamedTextColor.RED);
@@ -364,45 +370,81 @@ public final class DisplayService {
         return Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%";
     }
 
-    private void refreshRpmMonitor(RpmMonitor monitor, boolean force) {
-        List<EquipmentUnit> matching = registry.equipmentFor(monitor.system()).stream()
-                .filter(unit -> unit.type() == monitor.equipmentType()).toList();
-        List<EquipmentUnit> running = matching.stream().filter(EquipmentUnit::running).toList();
-        double rpm = running.stream().mapToDouble(EquipmentUnit::motorRpm).average().orElse(0.0);
-        double capacity = running.stream().mapToDouble(unit -> unit.operatingCapacity(settings))
-                .average().orElse(0.0);
-        int percent = (int) Math.round(capacity * 100.0);
-        String fingerprint = String.format(Locale.US, "%.0f|%d|%d|%d|%s", rpm, percent,
-                running.size(), matching.size(), monitor.label());
-        render(monitor.position(), fingerprint, force, lines -> {
-            lines.set(0, monitor.label(), NamedTextColor.AQUA);
-            lines.set(1, monitor.equipmentType().displayName(), NamedTextColor.WHITE);
-            if (matching.isEmpty()) {
-                lines.set(2, "No equipment", NamedTextColor.RED);
-                lines.set(3, monitor.system().key(), NamedTextColor.GRAY);
-            } else {
-                lines.set(2, String.format(Locale.US, "RPM: %,.0f", rpm), NamedTextColor.YELLOW);
-                String state = monitor.equipmentType() == EquipmentType.FURNACE
-                        ? running.size() + "/" + matching.size() + " running"
-                        : percent + "% | " + running.size() + "/" + matching.size();
-                lines.set(3, state, running.isEmpty()
-                        ? NamedTextColor.GRAY : NamedTextColor.GREEN);
+    private List<RpmMonitor.Row> rowsOf(RpmMonitor monitor) {
+        return monitor.system() == null ? List.of() : RpmMonitor.rows(registry.equipmentFor(monitor.system()));
+    }
+
+    /**
+     * An RPM monitor's sign: its label (and page) on the first line, then a
+     * row for each kind of equipment in its system, three to a page.
+     */
+    public void refreshRpmMonitor(RpmMonitor monitor, boolean force) {
+        List<RpmMonitor.Row> rows = rowsOf(monitor);
+        int pages = RpmMonitor.pages(rows.size());
+        String pageText = pages > 1 ? " " + (monitor.page(rows.size()) + 1) + "/" + pages : "";
+        List<RpmMonitor.Row> shown = monitor.onPage(rows);
+        StringBuilder fingerprint = new StringBuilder(monitor.label()).append(pageText)
+                .append(monitor.system() == null ? "|unlinked" : "|linked");
+        for (RpmMonitor.Row row : rows)
+            fingerprint.append(String.format(Locale.US, "|%s %d %d %.0f", row.type(), row.units(), row.running(), row.rpm()));
+        render(monitor.position(), fingerprint.toString(), force, lines -> {
+            lines.set(0, SignText.fit(monitor.label(), lines.width() - SignText.width(pageText)) + pageText,
+                    NamedTextColor.AQUA);
+            if (monitor.system() == null) {
+                lines.set(1, "Not linked", NamedTextColor.GRAY);
+                lines.set(2, "Link with", NamedTextColor.GRAY);
+                lines.set(3, "the link-tool", NamedTextColor.GRAY);
+                return;
+            }
+            if (rows.isEmpty()) {
+                lines.set(1, "No equipment", NamedTextColor.RED);
+                return;
+            }
+            for (int line = 0; line < Pager.PER_PAGE; line++) {
+                if (line >= shown.size()) { lines.set(line + 1, "", NamedTextColor.WHITE); continue; }
+                RpmMonitor.Row row = shown.get(line);
+                lines.set(line + 1, rowText(row, lines.width()),
+                        row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
             }
         }, () -> {
-            ScreenText screen = ScreenText.titled(monitor.label(), monitor.system().key());
-            if (matching.isEmpty()) return screen.line(monitor.equipmentType().displayName(), NamedTextColor.WHITE)
-                    .line("No equipment", NamedTextColor.RED);
-            screen.big(String.format(Locale.US, "%,.0f RPM", rpm))
-                    .line(monitor.equipmentType().displayName(), NamedTextColor.WHITE);
-            if (monitor.equipmentType() != EquipmentType.FURNACE)
-                screen.line(ScreenText.bar(capacity, 10, running.isEmpty() ? NamedTextColor.GRAY : NamedTextColor.GREEN));
-            return screen.line(running.size() + " of " + matching.size() + " running",
-                    running.isEmpty() ? NamedTextColor.GRAY : NamedTextColor.GREEN);
+            ScreenText screen = ScreenText.titled(monitor.label(),
+                    monitor.system() == null ? "" : SystemNames.label(registry, monitor.system()));
+            if (monitor.system() == null) return screen.line("Not linked:", NamedTextColor.GRAY)
+                    .line("link with the", NamedTextColor.GRAY).line("link-tool", NamedTextColor.GRAY);
+            if (rows.isEmpty()) return screen.line("No equipment", NamedTextColor.RED);
+            // A screen holds five rows; with more it pages along with the sign.
+            for (RpmMonitor.Row row : rows.size() <= ScreenText.LINES - 1 ? rows : shown)
+                screen.line(rowText(row, ScreenText.WIDTH), row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
+            return screen;
         });
     }
 
+    /**
+     * "Heat pump ×4 2,950": the kind, how many when more than one, and the
+     * average speed of those running ("off" when none is). A row too wide
+     * for the sign shortens the kind first.
+     */
+    static String rowText(RpmMonitor.Row row, int width) {
+        String count = row.units() > 1 ? " ×" + row.units() : "";
+        String state = row.running() == 0 ? "off" : String.format(Locale.US, "%,.0f", row.rpm());
+        String full = row.type().displayName() + count + " " + state;
+        if (SignText.width(full) <= width) return full;
+        return SignText.fit(shortName(row.type()) + count + " " + state, width);
+    }
+
+    private static String shortName(EquipmentType type) {
+        return switch (type) {
+            case HEAT_PUMP -> "HP";
+            case AIR_CONDITIONER -> "AC";
+            case FURNACE -> "Furnace";
+            case BOILER -> "Boiler";
+            case POOL_HEAT_PUMP -> "Pool HP";
+        };
+    }
+
     public void refreshSettingsPanel(SettingsPanel panel, boolean force) {
-        String fingerprint = panel.label() + "|" + panel.system().key() + "|" + panel.profile();
+        String system = panel.system() == null ? "Not linked" : "System: " + SystemNames.label(registry, panel.system());
+        String fingerprint = panel.label() + "|" + system + "|" + panel.profile();
         NamedTextColor profileColor = switch (panel.profile()) {
             case ECO -> NamedTextColor.GREEN;
             case NORMAL -> NamedTextColor.AQUA;
@@ -410,10 +452,11 @@ public final class DisplayService {
         };
         render(panel.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(panel.label()), NamedTextColor.AQUA);
-            lines.set(1, "System: " + panel.system().key(), NamedTextColor.WHITE);
+            lines.set(1, system, panel.system() == null ? NamedTextColor.GRAY : NamedTextColor.WHITE);
             lines.set(2, "[ " + panel.profile().name() + " ]", profileColor);
             lines.set(3, "Click > | Sneak <", NamedTextColor.GRAY);
-        }, () -> ScreenText.titled(panel.label(), panel.system().key())
+        }, () -> ScreenText.titled(panel.label(), panel.system() == null ? "Not linked"
+                        : SystemNames.label(registry, panel.system()))
                 .big(panel.profile().name())
                 .line("Click: next · Sneak: back", NamedTextColor.GRAY));
     }
