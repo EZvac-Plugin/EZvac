@@ -3,39 +3,83 @@
 Everything that makes a system run: the thermostat that decides, the equipment
 that heats or cools, and the signs that show what's going on.
 
-## Systems and groups
+## Systems
 
-A **system** is identified by its world and **group** name. Each group has one
-thermostat, any number of heat pumps, air conditioners or furnaces, and the
-vents linked to it. A group can also have one settings panel and any number of
-RPM monitors.
+A **system** is a thermostat and everything linked to it with the link tool:
+any number of heat pumps, air conditioners or furnaces, the vents, one
+settings panel and any number of RPM monitors. A system has no name of its
+own: it goes by its thermostat's.
 
 A system conditions either **air** (a room, through iron trapdoor vents) or
 **water** (a pool, through waxed copper grate vents), never both. See
 [Vents and airflow](airflow.md).
 
+### The link tool
+
+```text
+/hvac link-tool          ("duct-tool", "sensor-tool" and "tool" give it too)
+```
+
+1. **Right-click a thermostat** to select it. The tool remembers it, even
+   after a relog.
+2. **Right-click** a dispenser, an iron trapdoor or waxed copper grate, a
+   settings panel or an RPM monitor to link it to that thermostat.
+3. **Sneak-right-click** anything to unlink it. Sneak-clicking the thermostat
+   itself unlinks it from its system.
+
+The same tool links sensors to a sensor hub: select the hub instead. See
+[Sensors](sensors.md).
+
+- **Creating with the tool in hand:** a device you create while holding the
+  tool, with a thermostat selected, is linked straight away.
+- **Another thermostat's devices are never taken.** Linking something that
+  belongs to a system with its own thermostat is refused, and the message says
+  where that thermostat is. Unlink it first.
+- **Headless systems:** when a thermostat is broken or removed, its system
+  stays together, idle: the equipment, vents and signs remain linked to each
+  other. Linking a new thermostat to any part of it brings the whole system
+  along. A unit created on its own, or unlinked, is a headless system of one.
+- **Air or water:** a system can't mix the two. Linking a boiler, a pool heat
+  pump or a waxed copper grate makes its thermostat a pool thermostat;
+  linking air equipment or an iron trapdoor makes it a room thermostat again.
+
+### Removing a whole system
+
+Hold the link tool, look at any part of the system and run:
+
+```text
+/hvac remove system
+```
+
+It says what it would remove. Run `/hvac remove system confirm` within 15
+seconds to unregister every device of that system. Equipment takes its water
+or lava away, as with `/hvac remove`. The blocks themselves stay.
+
 ## Thermostats
 
 ```text
-/hvac create thermostat <id> <group> [targetF]       look at a sign
-/hvac create poolthermostat <id> <group> [targetF]   look at a sign ("pool" works too)
+/hvac create thermostat <label> [target]       look at a sign
+/hvac create poolthermostat <label> [target]   look at a sign ("pool" works too)
 ```
 
 - **Thermostat:** controls an air system. Targets 60-85 °F, 72 °F if you leave
   it out.
 - **Pool thermostat:** the same sign for a water system. Targets 75-104 °F,
-  82 °F by default. It only controls boilers and pool heat pumps, so it can't
-  be used to heat a room to 104 °F.
-- IDs and group names are 1-32 letters, numbers, `_` or `-`. A group has one
+  82 °F by default. A thermostat becomes one by itself when you link a
+  boiler, a pool heat pump or a grate to it; a target still at 72 °F moves to
+  82 °F. `poolthermostat` just starts it in the pool range. A room thermostat
+  never controls water equipment, so it can't heat a room to 104 °F.
+- Labels are 1-32 letters, numbers, `_` or `-`, and may repeat: every house
+  can have a Home. `/hvac rename <label>` changes it. A system has one
   thermostat.
 
 ### The thermostat sign
 
 ```text
-EZvac | main
+EZvac | Home
 74.2 F | COOL
 Set 72.0 F | 68%
-ETA 0:31 | house
+ETA 0:31 | 2/3
 ```
 
 | Line | Shows |
@@ -43,11 +87,11 @@ ETA 0:31 | house
 | 1 | The thermostat's name |
 | 2 | Room temperature and mode: `COOL`, `HEAT`, `IDLE` or `OFF` |
 | 3 | The target, and the system's live capacity while it runs |
-| 4 | Time until the target is reached (`Ready` when idle), and the group |
+| 4 | Time until the target is reached (`Ready` when idle), and how many of its units are running |
 
 - **Change the target** from the menu the sign opens on a right-click (+5, +1
   and +0.1 on the left, the same down on the right), or with
-  `/hvac thermostat <id> set <temperatureF>`.
+  by looking at the sign and running `/hvac thermostat set <temperature>`.
 - **Sneak-right-click** the sign to switch the whole system off (the sign
   shows `System off`) and again to switch it back on. Units you switched off on
   their own stay off.
@@ -67,15 +111,15 @@ All of these are in [Configuration](configuration.md).
 
 ## Equipment
 
-Every piece of equipment is a **dispenser**. Look at it and register it in a
-group:
+Every piece of equipment is a **dispenser**. Look at it and register it, then
+link it to a thermostat with the link tool:
 
 ```text
-/hvac create heatpump <group>
-/hvac create ac <group>
-/hvac create furnace <group>
-/hvac create boiler <group>
-/hvac create poolheatpump <group>       ("poolhp" works too)
+/hvac create heatpump
+/hvac create ac
+/hvac create furnace
+/hvac create boiler
+/hvac create poolheatpump       ("poolhp" works too)
 ```
 
 | Equipment | Cools | Heats | Speed | Output while running | System |
@@ -134,15 +178,15 @@ open side and nothing spills.
 
 ## Operating profiles
 
-A **settings panel** switches a group between Eco, Normal and Turbo:
+A **settings panel** switches a system between Eco, Normal and Turbo:
 
 ```text
-/hvac create settingspanel <group> [label]     look at a sign
+/hvac create settingspanel [label]     look at a sign, then link it
 ```
 
 Right-click the sign to move forward through the profiles and sneak-right-click
-to move back. Without a panel a group always uses Normal, and removing the
-panel returns it to Normal.
+to move back. Without a panel a system always uses Normal, and removing or
+unlinking the panel returns it to Normal. A system has one panel.
 
 | Profile | Default top speed | Variable-unit capacity |
 | --- | ---: | ---: |
@@ -151,16 +195,28 @@ panel returns it to Normal.
 | Turbo | 4,200 RPM | 115% |
 
 Profiles affect heat pumps, air conditioners and pool heat pumps. Every one in
-the group gets the same speed. Furnaces stay at full heat in every profile.
+the system gets the same speed. Furnaces stay at full heat in every profile.
 
 ## RPM monitors
 
 ```text
-/hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler|poolheatpump> [label]
+/hvac create rpmmonitor [label]     look at a sign, then link it
 ```
 
-A sign that shows the average speed, capacity and how many units of that type
-are running. The group must already have that kind of equipment.
+A sign that shows the equipment of its system, one row per kind:
+
+```text
+EZvac | Fans 1/2
+Heat pump ×3 2,950
+Furnace off
+AC ×2 3,100
+```
+
+- **A row** is the kind, how many there are when more than one, and the
+  average speed of those running (`off` when none is). Green while any runs.
+- **Three rows fit on a page.** Right-click turns the page; sneak-right-click
+  switches auto-flip, which turns it every 5 seconds.
+- A system can have any number of monitors.
 
 ## Signs in general
 
@@ -171,17 +227,19 @@ are running. The group must already have that kind of equipment.
   reading is never shown cut in half.
 - Breaking a device tells you what was removed and from which system.
   Removing the last equipment warns that the thermostat will idle until
-  equipment is added again; nothing else is deleted.
+  equipment is linked again, and breaking a thermostat says its system is
+  headless now; nothing else is deleted.
 
 ## Managing systems
 
 ```text
 /hvac list                                   systems in your world
 /hvac info                                   the device you're looking at
-/hvac thermostat <id> set|enable|disable|group|info
-/hvac equipment enable|disable|group|info    look at the equipment
-/hvac group <group> enable|disable|info
+/hvac thermostat set|enable|disable|info     look at the thermostat
+/hvac equipment enable|disable|info          look at the equipment
+/hvac rename <label>                         the sign you're looking at
 /hvac remove                                 the device you're looking at
+/hvac remove system [confirm]                a whole system, holding the link tool
 ```
 
 Full details in [Commands](commands.md). For how the controller, speeds and

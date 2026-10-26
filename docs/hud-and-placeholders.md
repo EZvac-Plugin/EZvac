@@ -58,7 +58,7 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_outdoor%` (`_outdoor_f`, `_outdoor_c`) | `88.0°F` |
 | `%ezvac_bar%` / `%ezvac_bar_plain%` | `▮▮▮▮▮▯▯▯▯▯` (coloured / plain) |
 | `%ezvac_comfort%` | `Comfortable` |
-| `%ezvac_group%`, `%ezvac_thermostat%` | `house`, `main` |
+| `%ezvac_system%`, `%ezvac_thermostat%` | `Home`, `Home`: the thermostat whose air you're in (`%ezvac_group%`, its pre-3.0 name, still works). A system that lost its thermostat shows `Headless` |
 | `%ezvac_mode%`, `%ezvac_target%` | `Cooling to 70.0°F`, `70.0°F` |
 | `%ezvac_zone%`, `%ezvac_influence%`, `%ezvac_conditioned%` | `Core`, `100`, `true` |
 | `%ezvac_medium%` | `air` or `water` |
@@ -80,8 +80,11 @@ use [MiniMessage](https://docs.advntr.dev/minimessage/format.html) formatting
 and these tokens:
 
 `{temp}` `{feels}` `{humidity}` `{bar}` `{comfort}` `{outdoor}` `{weather}`
-`{season}` `{season_day}` `{group}` `{thermostat}` `{mode}` `{target}` `{zone}`
+`{season}` `{season_day}` `{system}` `{thermostat}` `{mode}` `{target}` `{zone}`
 `{version}`
+
+`{system}` is the label of the thermostat whose air you're in, or `Headless`;
+`{group}`, its name before 3.0, still works in existing configs.
 
 ### Addon sections
 

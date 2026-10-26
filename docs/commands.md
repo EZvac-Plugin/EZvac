@@ -38,56 +38,61 @@ block use the block you're looking at, within six blocks.
 
 | Command | Look at | Notes |
 | --- | --- | --- |
-| `/hvac create thermostat <id> <group> [targetF]` | a sign | One per group. Target 60-85 °F, default 72 |
-| `/hvac create poolthermostat <id> <group> [targetF]` | a sign | Also `pool`. Target 75-104 °F, default 82. Only for boilers and pool heat pumps |
-| `/hvac create heatpump <group>` | a dispenser | Cools and heats |
-| `/hvac create ac <group>` | a dispenser | Cools |
-| `/hvac create furnace <group>` | a dispenser | Heats, at full power |
-| `/hvac create boiler <group>` | a dispenser | Heats a pool |
-| `/hvac create poolheatpump <group>` | a dispenser | Also `poolhp`. Heats and cools a pool |
+| `/hvac create thermostat <label> [target]` | a sign | Target 60-85 °F, default 72. Labels may repeat |
+| `/hvac create poolthermostat <label> [target]` | a sign | Also `pool`. Starts in the pool range: 75-104 °F, default 82 |
+| `/hvac create heatpump` | a dispenser | Cools and heats |
+| `/hvac create ac` | a dispenser | Cools |
+| `/hvac create furnace` | a dispenser | Heats, at full power |
+| `/hvac create boiler` | a dispenser | Heats a pool |
+| `/hvac create poolheatpump` | a dispenser | Also `poolhp`. Heats and cools a pool |
 | `/hvac create thermometer [label]` | a sign | |
 | `/hvac create hygrometer [label]` | a sign | |
 | `/hvac create thermohygrometer [label]` | a sign | Also `thermohygro` |
-| `/hvac create rpmmonitor <group> <heatpump\|ac\|furnace\|boiler\|poolheatpump> [label]` | a sign | That kind of equipment must already be in the group |
-| `/hvac create settingspanel <group> [label]` | a sign | One per group. The group must already have a thermostat or equipment |
+| `/hvac create rpmmonitor [label]` | a sign | Shows its system's equipment once linked |
+| `/hvac create settingspanel [label]` | a sign | One per system, once linked |
 | `/hvac create dehumidifier [label]` | its sign | Also `dehum`. A sign on an iron block that sits on a waxed copper grate |
 | `/hvac create humidifier [label]` | its sign | Also `hum`. A sign on the side of an iron block under a waxed cut copper slab |
 | `/hvac create sensor [label]` | a button | Stone, polished blackstone, mangrove or birch |
 | `/hvac create sensor-hub [label]` | a sign | Also `sensorhub` |
 
-IDs and group names are 1-32 letters, numbers, `_` or `-`. A typed temperature
-is in the server's `units`; add `F` or `C` (`72F`, `22C`) to use the other one. Build guides:
+Equipment, settings panels and RPM monitors are linked to a thermostat with the
+link tool, below. Holding the tool with a thermostat selected while you create
+one links it straight away. Labels are 1-32 letters, numbers, `_` or `-`. A
+typed temperature is in the server's `units`; add `F` or `C` (`72F`, `22C`) to
+use the other one. The pre-3.0 forms with a group name still work: the group
+is ignored, with a note. Build guides:
 [Equipment](equipment.md), [Dehumidifiers and humidifiers](dehumidifiers-and-humidifiers.md),
 [Sensors](sensors.md).
 
-## Linking tools (`ezvac.admin`)
+## The link tool (`ezvac.admin`)
 
-**`/hvac duct-tool`** (`/hvac tool` still works) gives the duct link tool:
+**`/hvac link-tool`** gives the link tool, a glinting stick. `/hvac duct-tool`,
+`/hvac sensor-tool` and `/hvac tool` give it too, and the duct and sensor tools
+from before 3.0 work as link tools.
 
-1. Right-click a registered dispenser to select its group.
-2. Right-click iron trapdoors (air vents) or waxed copper grates in water (water
-   vents) in the same world to link them.
-3. Sneak-right-click a vent to unlink it.
+| Click | Does |
+| --- | --- |
+| Right-click a thermostat | Selects it |
+| Right-click a dispenser, a vent block, a settings panel or an RPM monitor | Links it to the selected thermostat. Something in a headless system brings the whole system along; something that belongs to another thermostat is refused |
+| Right-click a sensor hub, then sensors | Links the sensors to the hub: at most nine, in the same world |
+| Sneak-right-click a device | Unlinks it: a unit gets a headless system of its own, a vent is unregistered, a sign shows "Not linked" |
+| Sneak-right-click a thermostat | Unlinks the thermostat; its system carries on headless |
 
 A system is all air or all water, and the vents must match its equipment. See
-[Vents and airflow](airflow.md).
+[Equipment](equipment.md#the-link-tool) and [Vents and airflow](airflow.md).
 
-**`/hvac sensor-tool`** gives the sensor link tool (it glints):
+## Thermostats and equipment (`ezvac.admin`)
 
-1. Right-click a sensor hub to select it.
-2. Right-click sensors to link them: at most nine, in the same world.
-3. Sneak-right-click a sensor to unlink it.
-
-## Thermostats, equipment and groups (`ezvac.admin`)
+These act on the device you're looking at: labels may repeat, so a thermostat
+isn't found by name.
 
 | Command | Does |
 | --- | --- |
-| `/hvac thermostat <id> set <temperatureF>` | Sets the target, kept within the allowed range |
-| `/hvac thermostat <id> enable` / `disable` | Switches the system on or off |
-| `/hvac thermostat <id> group <group>` | Moves the thermostat to another group in the same world that has none |
-| `/hvac thermostat <id> info` | Room and target temperature, mode, group, and whether it's on |
-| `/hvac equipment enable` / `disable` / `group <group>` / `info` | The equipment you're looking at. Moving it stops it and cleans up its output first |
-| `/hvac group <group> enable` / `disable` / `info` | A whole system in your world |
+| `/hvac thermostat set <temperature>` | Sets the target, kept within the allowed range |
+| `/hvac thermostat enable` / `disable` | Switches the system on or off |
+| `/hvac thermostat info` | Room and target temperature, mode, what's linked, and whether it's on |
+| `/hvac equipment enable` / `disable` / `info` | The equipment you're looking at |
+| `/hvac rename <label>` | Renames the sign you're looking at: a thermostat, RPM monitor, settings panel, sensor hub, thermometer, sensor, or dehumidifier or humidifier sign |
 
 The control menu a thermostat's sign opens:
 
@@ -124,7 +129,8 @@ from the console, add a world's name at the end (it defaults to the main world).
 
 | Command | Does |
 | --- | --- |
-| `/hvac remove` | Removes the device you're looking at. Equipment takes its water or lava away (later, if that chunk isn't loaded). Removing a settings panel returns its group to Normal; removing a sensor takes it off every hub |
+| `/hvac remove` | Removes the device you're looking at. Equipment takes its water or lava away (later, if that chunk isn't loaded). Removing a settings panel returns its system to Normal; removing a thermostat leaves its system headless; removing a sensor takes it off every hub |
+| `/hvac remove system` | Holding the link tool, looking at any part of a system: says what it would remove. `/hvac remove system confirm` within 15 seconds removes every device of it. The blocks stay |
 | `/hvac stats` | Device totals and airflow statistics |
 | `/hvac hud sections` | The sections addons have added to the HUD, with the `{section:<id>}` token for each (see [HUD and placeholders](hud-and-placeholders.md#addon-sections)) |
 | `/hvac sync` | Applies block and world changes straight away instead of on the next update |

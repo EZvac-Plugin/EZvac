@@ -2,6 +2,100 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 3.0
+
+**Linked systems.** Group names are gone. A system is now its thermostat
+and whatever you link to it with the new link tool, and thermostat names
+can repeat, so every house can have a Home. It changes how systems are
+built, and nothing about how they run: heating, cooling, airflow and
+humidity behave exactly as in 2.2.
+
+> **Upgrading is one way.** The first save after upgrading converts
+> `hvac.yml` to a new format (7) and keeps the 2.x file as
+> `hvac.yml.format6.bak`. Every old group carries over by itself, with
+> nothing to relink. EZvac 2.x will not start on a format 7 file. Going
+> back means restoring that backup, which loses everything built or changed
+> since the upgrade. Back up `plugins/EZvac` before you upgrade. See
+> [Upgrading](docs/upgrading-and-troubleshooting.md).
+
+### Added
+
+- **The link tool** (`/hvac link-tool`) replaces the duct tool and the
+  sensor tool.
+  - Right-click a thermostat to select it, then right-click equipment, vent
+    blocks, a settings panel or RPM monitors to link them to it.
+    Sneak-click anything to unlink it.
+  - Select a sensor hub instead to link sensors, as before.
+  - `/hvac duct-tool`, `/hvac sensor-tool` and `/hvac tool` still give it,
+    and tools already in inventories keep working.
+  - Creating a device while holding the tool, with a thermostat selected,
+    links it straight away.
+- **Headless systems.** Breaking a thermostat no longer scatters its
+  system: the equipment, vents and signs stay linked together, idle. Link a
+  new thermostat to any part of it and the whole system comes along.
+- **A system with its own thermostat is never taken.** Linking a device
+  that belongs to another thermostat is refused, with where that
+  thermostat is.
+- **Thermostats follow what is linked to them.** Linking a boiler, a pool
+  heat pump or a waxed copper grate makes a thermostat a pool thermostat
+  (75-104 °F), and a target still at the room default moves to the pool
+  default. `/hvac create poolthermostat` still starts one in the pool range.
+- **`/hvac remove system`**, holding the link tool and looking at any part
+  of a system, says what it would remove. Run it again with `confirm` to
+  unregister every device of the system. The blocks stay.
+- **`/hvac rename <label>`** renames the sign you're looking at: a
+  thermostat, RPM monitor, settings panel, sensor hub, thermometer, sensor,
+  or dehumidifier or humidifier sign.
+- **API 1.3:**
+  - `thermostatAt(position)` and `thermostatOf(world, system)`;
+  - `linkTool()`, so addons can see the link tool and what it has selected.
+    EZdebug+ 0.2.0 uses this to show the system being linked.
+
+### Changed
+
+- **RPM monitors show their whole system:** one row per kind of equipment,
+  with how many there are and the average speed of those running. Like a
+  sensor hub, a click turns the page and a sneak-click switches auto-flip.
+  A monitor that watched one kind of equipment now shows all of it.
+- **Commands that took a group name no longer do:**
+  - `create thermostat <label> [target]`;
+  - `create heatpump|ac|furnace|boiler|poolheatpump`;
+  - `create rpmmonitor [label]` and `create settingspanel [label]`.
+
+  The old forms still work, with a note that the group name was ignored.
+- **`/hvac thermostat set|enable|disable|info` acts on the thermostat you
+  look at,** since names can repeat. `/hvac group` and `/hvac equipment
+  group` are gone; the link tool does their job.
+- **The thermostat sign's last line** counts the units at work (`Ready | 2/3`)
+  where the group name used to be.
+- **The HUD's "System:" line** shows the label of the thermostat whose air
+  you're in, or `Headless`.
+  - The new `{system}` token and `%ezvac_system%` placeholder give the same
+    value.
+  - `{group}` and `%ezvac_group%` still work.
+- **`/hvac list`** shows each system as its thermostat and where it is,
+  including headless systems.
+- **API:** a view's `system()` is now an opaque key: an upgraded system
+  keeps its old group name, a new one is `#` and a number. Show players
+  `ThermostatView.id()` or `ClimateReading.thermostat()` instead.
+  `thermostat(world, id)` is deprecated, since labels can repeat.
+
+### Upgrading from 2.2
+
+- **The save:**
+  - `hvac.yml` moves to format 7, and the 2.x file is kept as
+    `hvac.yml.format6.bak`;
+  - each old group becomes a system with the same devices and the same
+    thermostat;
+  - a group that had no thermostat comes back headless;
+  - equipment is saved with a tier (every unit is tier 2), ready for
+    equipment tiers in 3.1.
+- **Labels:** every label stays as it was. Old group-style names such as
+  `2230radcliffedr2stat` can be tidied with `/hvac rename`.
+- **Config:** nothing needs changing. New installs show `{system}` on the
+  HUD; existing configs keep `{group}`, which still works.
+- **Addons:** LiveExposure and EZdebug+ work unchanged.
+
 ## ALPHA 2.2
 
 An API release: addons can now see every EZvac device and where it is.

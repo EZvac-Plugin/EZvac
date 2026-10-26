@@ -4,7 +4,7 @@
 
 You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
 
-1. Put `EzVac-ALPHA-2.2.jar` in the server's `plugins` folder.
+1. Put `EzVac-ALPHA-3.0.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 
@@ -19,6 +19,29 @@ Upgrading from any earlier EZvac release is supported:
 Your `plugins/EZvac/hvac.yml` is read as it is: every release's save file is
 covered by the test suite.
 
+> **2.x to 3.0 is a one-way upgrade.** 3.0 converts `hvac.yml` to **format
+> 7** the first time it saves. Your 2.x file is kept as
+> `hvac.yml.format6.bak`, and EZvac 2.x will not start on the new file.
+> Going back means restoring that backup and losing everything built or
+> changed since the upgrade (see [Going back](#going-back)). Back up
+> `plugins/EZvac/` before you start 3.0.
+
+- **From 2.x to 3.0,** groups become linked systems:
+  - every old group becomes a system with the same thermostat, equipment,
+    vents, settings panel and RPM monitors, so nothing needs relinking;
+  - a group that had no thermostat comes back headless, waiting for a
+    thermostat to be linked to it (or for `/hvac remove system`);
+  - every label stays as it was, even old group-style names such as
+    `2230radcliffedr2stat`. Tidy them with `/hvac rename` whenever you like;
+  - an RPM monitor that watched one kind of equipment now shows all of its
+    system's;
+  - duct and sensor tools in inventories work as link tools;
+  - command blocks or scripts that use `/hvac group`, `/hvac thermostat
+    <name> ...` or `/hvac equipment group` need changing: those commands now
+    act on the device you look at, or are done with the link tool. The old
+    create forms still work and ignore the group name;
+  - nothing in `config.yml` needs changing: `{group}` and `%ezvac_group%`
+    still work and now show the thermostat's label.
 - **From 1.x to 2.0,** the save moves to **format 6**, and your 1.x file is
   kept as `hvac.yml.format5.bak`. Each room's humidity starts at the outdoor
   level and settles from there.
@@ -51,6 +74,12 @@ and quietly dropping what it doesn't understand.
 To go back anyway: stop the server, restore `hvac.yml.format<N>.bak` as
 `hvac.yml`, and put the old jar back. Anything built since the upgrade is lost.
 
+There is no converter from format 7 back to 6, and there can't be a faithful
+one. 2.x needs a unique name for every thermostat and a group for every
+settings panel and RPM monitor, and it can't read a system created in 3.0.
+The 3.0 file itself doesn't lose your group names: an upgraded system keeps
+its old group name as its hidden key.
+
 2.0 and 2.1 share format 6, so 2.0 loads a 2.1 save as it is. It drops the few
 details only 2.1 knows (each thermostat's seasonal swing and its rain/snow mix
 on a biome border), and 2.1 samples them again if you come back.
@@ -77,15 +106,16 @@ on a biome border), and 2.1 samples them again if you come back.
 - The cell in front of the dispenser must be **empty** (air): the unit puts its
   water or lava there. Clear it, and make sure the dispenser faces into its
   casing. See [Equipment](equipment.md#the-casing).
-- `/hvac info` on the dispenser shows whether it's enabled and in which group.
-- Air equipment needs a room thermostat, and pool equipment a pool thermostat.
+- `/hvac info` on the dispenser shows whether it's enabled and which system
+  it's in. "A headless system" means no thermostat controls it: link it to one
+  with the link tool.
 
 **A system stays `IDLE` or `OFF`.**
 - `OFF` means it was switched off: sneak-right-click the thermostat sign, or
-  `/hvac thermostat <id> enable`.
-- `IDLE` with the room far from the target usually means the group has no
+  look at it and run `/hvac thermostat enable`.
+- `IDLE` with the room far from the target usually means the system has no
   equipment that can do the job, for example an air conditioner when it needs
-  heat. `/hvac group <group> info` lists what it has.
+  heat. `/hvac thermostat info` on its sign lists what's linked.
 - Each change also waits out the minimum run and off times (15 and 10 seconds).
 
 **A room doesn't change temperature.**

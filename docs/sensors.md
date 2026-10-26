@@ -48,10 +48,10 @@ A sensor is a **button**, and the button decides what it measures:
 ```text
 /hvac create sensor [label]        look at the button
 /hvac create sensor-hub [label]    look at a sign ("sensorhub" works too)
-/hvac sensor-tool                  gives the sensor link tool
+/hvac link-tool                    gives the link tool ("sensor-tool" works too)
 ```
 
-With the sensor tool (it glints, so you can tell it from the duct tool):
+With the link tool:
 
 1. Right-click a sensor hub to select it.
 2. Right-click sensors to link them: at most nine, in the same world.

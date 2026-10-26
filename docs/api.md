@@ -7,7 +7,7 @@ seasons, and events when things change. Addons can also add their own
 sections to EZvac's climate HUD. An addon is an ordinary Paper plugin that
 depends on EZvac.
 
-API version **1.2** reads only: nothing an addon does through it changes
+API version **1.3** reads only: nothing an addon does through it changes
 EZvac's climate or systems. Ways to change things (targets, power) will come
 in a later API version.
 
@@ -38,7 +38,7 @@ never shade them into your jar.
     <dependency>
         <groupId>com.github.EZvac-Plugin.EZvac</groupId>
         <artifactId>ezvac-api</artifactId>
-        <version>ALPHA-2.2</version>
+        <version>ALPHA-3.0</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -48,7 +48,7 @@ never shade them into your jar.
 
 ```kotlin
 repositories { maven("https://jitpack.io") }
-dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-2.2") }
+dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-3.0") }
 ```
 
 In your `plugin.yml`, depend on EZvac so it loads first:
@@ -75,7 +75,10 @@ server runs.
 | `readingFor(player)` | The climate a player is in, as their HUD reads it (head first, the water when in water) |
 | `latestFor(playerId)` | The reading the last player update gave; safe from any thread |
 | `outdoorAt(location)` | The outdoors there: air, natural water, humidity, dew point, feels-like, weather, and how much the season shifts it |
-| `thermostats()`, `thermostats(world)`, `thermostat(world, id)` | Thermostats: room and target temperature, mode, on/off, pool or room, humidity, running and total equipment |
+| `thermostats()`, `thermostats(world)` | Thermostats: room and target temperature, mode, on/off, pool or room, humidity, running and total equipment |
+| `thermostatAt(position)`, `thermostatOf(world, system)` | The thermostat whose sign is at a position, or the thermostat of a system, by the system key a view or reading gives you (1.3) |
+| `thermostat(world, id)` | Deprecated in 1.3: labels can repeat, so it gives the lowest-placed thermostat with that label |
+| `linkTool()` | Whether an item is EZvac's link tool, and what it has selected: a thermostat and its system, or a sensor hub (1.3) |
 | `climateUnits()`, `climateUnits(world)` | Dehumidifiers and humidifiers: humidity, setpoint, state, power, a dehumidifier's tank |
 | `equipment()`, `equipment(world)` | Heat pumps, air conditioners, furnaces, boilers and pool heat pumps: kind, system, on/off, running, mode, motor RPM (1.2) |
 | `vents()`, `vents(world)` | Vents: system, and whether they blow air or water (1.2) |
@@ -103,11 +106,32 @@ cancelled.
 | `ThermostatTargetChangeEvent` | A target changes, from the control menu (`MENU`) or `/hvac thermostat set` (`COMMAND`) |
 | `EquipmentStateChangeEvent` | A heat pump, air conditioner, furnace, boiler or pool heat pump starts or stops |
 | `SeasonChangeEvent` | A world's season turns, as the days pass or when an admin sets it |
-| `DeviceAddedEvent` | A device is created: with `/hvac create`, or a vent with the duct tool (1.2) |
-| `DeviceRemovedEvent` | A device is gone: broken (`BROKEN`), removed with `/hvac remove` or unlinked with the duct tool (`COMMAND`), or found missing (`MISSING`) (1.2) |
+| `DeviceAddedEvent` | A device is created: with `/hvac create`, or a vent with the link tool (1.2) |
+| `DeviceRemovedEvent` | A device is gone: broken (`BROKEN`), removed with `/hvac remove` or unlinked with the link tool (`COMMAND`), or found missing (`MISSING`) (1.2) |
 
 EZvac only builds an event while some plugin listens to it, so it costs
 nothing on servers without addons.
+
+## Systems
+
+Since EZvac 3.0 (API 1.3) a system is a thermostat and whatever is linked to it
+with the link tool; it has no name of its own. The `system` a view or reading
+gives you is an **opaque key**:
+
+- a system upgraded from EZvac 2.x keeps its old group name as its key, and a
+  new one is `#` and a number;
+- a key is stable while its system exists. When a headless system (one whose
+  thermostat is gone) is linked to a thermostat, its devices take that
+  thermostat's key;
+- **don't show keys to players.** Show the thermostat's label instead:
+  `ThermostatView.id()`, `ClimateReading.thermostat()`, or
+  `thermostatOf(world, key)` for any view's system. Labels may repeat, so two
+  houses can both be Home.
+
+```java
+String name = ezvac.thermostatOf(world, vent.system())
+        .map(ThermostatView::id).orElse("Headless");
+```
 
 ## Devices
 
@@ -134,8 +158,8 @@ for (HvacDevice device : ezvac.devices(world)) {
   device as it was, so you know which marker to take down. Devices hvac.yml
   brings back at startup fire no event; read the lists when your plugin
   enables.
-- **What changes without an event:** a running state, a mode or a hub's
-  links. `EquipmentStateChangeEvent` covers equipment starting and
+- **What changes without an event:** a running state, a mode, a hub's
+  links, or which system a device is linked to (3.0). `EquipmentStateChangeEvent` covers equipment starting and
   stopping; for anything else, read the lists again.
 - **Readings aren't in the views.** A sensor's view says where it is and what
   it reads, not its value. To show a value, read the spot with
@@ -241,5 +265,7 @@ depend: [EZvac]
 - The API's version is separate from EZvac's: check `apiVersion()`, or the
   `@since` tags in the Javadoc.
 - **Which EZvac has which API:** 1.0 came with ALPHA 2.1 Pilot 4, 1.1 with
-  ALPHA 2.1 (HUD sections), and 1.2 with ALPHA 2.2 (every device, and the
-  device events). Depend on the oldest EZvac whose API has what you use.
+  ALPHA 2.1 (HUD sections), 1.2 with ALPHA 2.2 (every device, and the device
+  events), and 1.3 with ALPHA 3.0 (linked systems: `thermostatAt`,
+  `thermostatOf`, the link tool). Depend on the oldest EZvac whose API has what
+  you use.

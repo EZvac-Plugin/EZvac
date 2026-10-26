@@ -1,24 +1,45 @@
-EZVAC ALPHA 2.0 FEATURES
+EZVAC ALPHA 3.0 FEATURES
 ================================
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
-forks, including Purpur. Climate systems are identified only by world and group
-label.
+forks, including Purpur. A climate system is the devices linked together in
+one world; it has a hidden key and no name of its own (3.0).
 
 
 SYSTEM MODEL
 ------------
 
-- One sign thermostat is the controller for one world-scoped HVAC group.
+- A system (SystemId: world + key) is whatever is linked together with the
+  link tool. Its key is never shown or typed: a system upgraded from 2.x keeps
+  its old group label as its key; a new one is #n from meta.next-system in
+  hvac.yml, a counter whose numbers are never reused. A system exists only
+  through its devices; there is no systems section.
+- One sign thermostat is the controller (head) of a system, at most one per
+  system. Thermostat labels may repeat (3.0); commands act on the sign looked
+  at, never on a label. A system without a thermostat is headless: its devices
+  stay linked together and idle until a thermostat is linked to any of them,
+  which merges the whole headless system into that thermostat's.
+- Every equipment unit is always in some system: created on its own, or
+  unlinked, it is a headless system of one. Settings panels and RPM monitors
+  are created unlinked (no system) and linked afterwards.
 - A pool thermostat is the same sign device with the water target range. Water
   that would make a pleasant room is cold to swim in and a hot tub would be
   unliveable as a room, so the two ranges overlap without either containing the
   other: rooms clamp to 60-85 F and pools to 75-104 F, both configurable.
-  A pool thermostat may only control water-loop equipment (boilers and pool
-  heat pumps), which is what stops it being used to heat a room to 104 F.
-- A group may have one optional settings-panel sign. Without one, its operating
-  profile is always NORMAL and matches the stock variable-speed behavior.
-- A group may contain any number of heat pumps, air conditioners, or furnaces.
+  Since 3.0 a thermostat follows what is linked to it (HvacRegistry.settleHead,
+  SystemLinks.pool): water-loop equipment or a loaded waxed copper grate makes
+  it a pool thermostat, air equipment or an iron trapdoor a room one; an empty
+  system decides nothing. A target still at the old range's default (72 or
+  82 F) moves to the new default; any other is clamped. A system never mixes
+  air and water (SystemLinks.conflict), which is what stops a pool range being
+  used to heat a room to 104 F.
+- A system may have one optional settings-panel sign. Without one, its
+  operating profile is always NORMAL and matches the stock variable-speed
+  behavior. When two systems merge and both have one, the absorbed system's
+  panel is left unlinked.
+- A system may contain any number of heat pumps, air conditioners, or furnaces.
+- Equipment saves a tier (1-3; every unit is 2 in 3.0, and nothing reads it
+  yet), so equipment tiers need no new save format.
 - Heat pumps and pool heat pumps cool and heat; air conditioners cool only;
   furnaces and boilers heat only.
 - Dispensers are authoritative actuators. Registered equipment cancels vanilla
@@ -80,9 +101,9 @@ THERMAL AND MOTOR PERFORMANCE
   boundaries. Splitting the same ticks into multiple calls gives the same result.
 - Heat-pump and AC capacity varies from 40% to 100%. Outside the default 3 F
   approach band they request full output; inside it they progressively slow.
-- Every running heat pump and AC in a group receives the same variable-speed
+- Every running heat pump and AC in a system receives the same variable-speed
   command. Their RPM-derived capacities are summed, so combined cooling slows
-  in sync as the group approaches its target.
+  in sync as the system approaches its target.
 - ECO caps variable compressors at 2,400 RPM, NORMAL at 3,600 RPM, and TURBO at
   4,200 RPM by default. All caps are configurable. NORMAL is byte-for-byte the
   same RPM curve used before operating profiles were introduced.
@@ -93,7 +114,7 @@ THERMAL AND MOTOR PERFORMANCE
 - Fixed furnace capacity and variable heat-pump capacity are accounted for
   independently. A slowed heat pump never averages a furnace below 100%; both
   contributions are added before the overall multi-unit diminishing-return cap.
-- Profiles never affect furnaces. Heat pumps and ACs share one group-level
+- Profiles never affect furnaces. Heat pumps and ACs share one system-level
   profile command, including mixed AC/heat-pump cooling systems.
 - Very low startup RPM cannot create phantom heating/cooling or oscillate at an
   exact outdoor-temperature equilibrium.
@@ -212,7 +233,7 @@ DEHUMIDIFIERS
 -------------
 
 - An iron block on a waxed copper grate, controlled by a sign on the iron block.
-  It belongs to no group.
+  It belongs to no system.
 - Its own airflow zone (30 blocks by default, a vent's reach) decides what it dries: the room
   of an air system whose airflow surrounds it, or else the zone itself, which
   keeps its own moisture and is what the HUD reads there.
@@ -252,8 +273,13 @@ DEHUMIDIFIERS
 VENTS AND AIRFLOW
 -----------------
 
-The persistent duct-link stick selects registered equipment and links vent
-blocks to its group. Only explicitly linked blocks become vents.
+The link tool (3.0; a glinting stick with the link_tool tag, which also
+answers to the 2.x duct and sensor tools' tags) selects a thermostat (its
+position is stored on the item) and links equipment, vent blocks, settings
+panels and RPM monitors to its system, or selects a sensor hub and links
+sensors. Sneak-clicking unlinks. Linking a member of a headless system merges
+the whole system; a member of a system with another thermostat is refused.
+Only explicitly linked blocks become vents.
 
 A system conditions either air or water, decided by the vent blocks it uses:
 
@@ -300,7 +326,7 @@ A system conditions either air or water, decided by the vent blocks it uses:
 - Beyond distance 30 there is no influence.
 
 Airflow is event-invalidated and rebuilt incrementally. It never force-loads a
-chunk, inspects at most 4,000 nodes per server tick by default, and caps a group
+chunk, inspects at most 4,000 nodes per server tick by default, and caps a system
 at 200,000 cells. Chunk events invalidate only vent systems whose possible
 airflow radius intersects that chunk, instead of every system in the world.
 
@@ -327,8 +353,9 @@ DISPLAYS AND AUDIO
   Farther signs keep their last text and catch up within a second of someone
   coming near; nothing else depends on sign text.
 - Thermostat signs use a compact real-thermostat layout showing EZvac/ID,
-  current room temperature, COOL/HEAT/IDLE/OFF, setpoint, live capacity, group,
-  and an approximate ETA while actively heating or cooling.
+  current room temperature, COOL/HEAT/IDLE/OFF, setpoint, live capacity, the
+  running/total units of its system (3.0; the group name before), and an
+  approximate ETA while actively heating or cooling.
 - ETA is forward-simulated from the current equipment mix, actual RPM, future
   compressor modulation, outdoor load, and the same thermal rules as control.
 - The target can be changed by command or from the control menu a right-click
@@ -337,14 +364,20 @@ DISPLAYS AND AUDIO
   pool range, plus a power lever. No EZvac sign can be edited; line-3 target
   editing was removed in 2.1.
 - Sneak-right-clicking the sign switches the system off or on (ezvac.use).
-- Thermometers are independent point sensors with no stored group. Each reads
+- Thermometers are independent point sensors with no stored system. Each reads
   its own sign block exactly like /hvac temperature: influenced vent temperature
   where airflow reaches it, blended edge temperature, or outdoor temperature.
-  They may be placed outdoors or where no HVAC group exists.
-- Typed RPM signs show active-unit average RPM, capacity, and running counts.
+  They may be placed outdoors or where no HVAC system exists.
+- RPM monitors (reworked in 3.0) show their system's equipment, one row per
+  EquipmentType in enum order: the kind, the count when more than one, and the
+  average RPM of the running units ("off" when none runs). Rows are fitted to
+  the sign, shortening the kind first. Three rows to a page (model.Pager,
+  shared with sensor hubs): a click turns the page, a sneak-click toggles
+  auto-flip (every 100 ticks), which is saved; the page is not. A 2.x
+  monitor's equipmentType is read and dropped.
 - Settings-panel signs show their system and ECO/NORMAL/TURBO profile. A normal
   right-click advances the profile; sneak-right-click moves backward. Removing
-  the panel immediately restores the group to NORMAL.
+  or unlinking the panel immediately restores the system to NORMAL.
 - Display writes are fingerprinted so unchanged signs are not rewritten.
 - Screens (displays.screens, default true, 2.1): a non-persistent text
   display entity in front of each device sign (ScreenService), placed by sign
@@ -397,7 +430,9 @@ CLIMATE HUD AND PLACEHOLDERS
   packet-based scoreboard plugin such as TAB is installed (the action bar is
   used instead; see hud.sidebar.yield-to-plugins).
 - With PlaceholderAPI installed, %ezvac_temp%, %ezvac_feels_like%,
-  %ezvac_humidity%, %ezvac_weather%, %ezvac_bar%, %ezvac_group% and the rest
+  %ezvac_humidity%, %ezvac_weather%, %ezvac_bar%, %ezvac_system% (also
+  %ezvac_group%: the label of the serving system's thermostat, or Headless)
+  and the rest
   expose the same values to other plugins. Without it, EZvac logs one
   line saying what installing it would add.
 - In water the HUD uses its own layout and scale (hud.water): Water, Air, Pool
@@ -420,8 +455,12 @@ PERSISTENCE
 
 All thermostats, equipment, pending cleanup, vents, thermometers, RPM monitors,
 settings panels, dehumidifiers and humidifiers live in one versioned
-plugins/EZvac/hvac.yml file (format 6 since 2.0; a 1.x file is kept as
-hvac.yml.format5.bak before its first 2.0 save).
+plugins/EZvac/hvac.yml file (format 7 since 3.0: every device saves its
+system's key, equipment its tier, and meta.next-system the next system number;
+a 2.x file loads with each group name as its system's key and is kept as
+hvac.yml.format6.bak before its first 3.0 save, and a 1.x file likewise as
+hvac.yml.format5.bak). There is no conversion back: 2.x refuses a format 7
+file and leaves it untouched.
 
 config.yml is brought up to date on startup: settings added since it was
 written are added with their comments, nothing existing is changed, and the
@@ -467,7 +506,7 @@ PUBLIC API
   A vent's medium follows its system: a pool thermostat, or else water-loop
   equipment, means WATER; no block lookups. HvacRegistry.DeviceObserver
   (EzvacApiImpl) hears runtime add*/remove* calls and pruning (MISSING),
-  never load*; /hvac remove and duct-tool unlinks run inside
+  never load*; /hvac remove, /hvac remove system and link-tool unlinks run inside
   removingByCommand (COMMAND); a relinked vent is removed (COMMAND) and
   added again. ApiEvents fires DeviceAdded/DeviceRemovedEvent only while
   listened to.

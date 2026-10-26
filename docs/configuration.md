@@ -63,7 +63,7 @@ When the thermostat acts.
 | `heating-f-per-minecraft-hour` | 5.0 | How fast one unit at full speed heats |
 | `idle-drift-f-per-minecraft-hour` | 1.25 | How fast a room with nothing running drifts toward the outdoors |
 | `active-leak-f-per-minecraft-hour` | 0.50 | How much the outdoors works against a running system |
-| `maximum-group-capacity` | 2.0 | Most a group's units can add up to, in single units |
+| `maximum-group-capacity` | 2.0 | Most a system's units can add up to, in single units (named before groups became systems in 3.0) |
 
 ## performance.variable-speed
 

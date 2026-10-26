@@ -6,15 +6,14 @@ its vents can blow air (or water) into.
 ## Linking vents
 
 ```text
-/hvac duct-tool        ("/hvac tool" still works)
+/hvac link-tool        ("duct-tool" and "tool" still work)
 ```
 
-1. Right-click a registered dispenser to select its group.
+1. Right-click the system's thermostat to select it.
 2. Right-click vent blocks in the same world to link them.
 3. Sneak-right-click a vent to unlink it.
 
-Only blocks you link become vents. The group must still have equipment when you
-link one.
+Only blocks you link become vents.
 
 | Vent block | Conditions | Fed by |
 | --- | --- | --- |
@@ -46,7 +45,7 @@ air goes around corners and through doorways but not through walls.
 When you open a door or break a wall, the system's airflow updates about a
 second later. More vents cover more of a big space.
 
-<!-- screenshot: a room with two iron trapdoor vents and the duct tool -->
+<!-- screenshot: a room with two iron trapdoor vents and the link tool -->
 
 ## Water systems (pools)
 
@@ -54,8 +53,10 @@ A pool works exactly like a room, through water instead of air:
 
 1. Build a **boiler** or **pool heat pump** in a casing (see
    [Equipment](equipment.md#the-casing)).
-2. Place a sign and run `/hvac create poolthermostat <id> <group> [targetF]`.
-3. Put **waxed copper grates** in the pool and link them with the duct tool.
+2. Place a sign and run `/hvac create thermostat <label> [target]`.
+3. With the link tool, select the thermostat, then link the boiler and put
+   **waxed copper grates** in the pool and link them. The thermostat becomes a
+   pool thermostat (75-104 °F) as soon as the first one is linked.
 
 ```text
  side view of a pool:
