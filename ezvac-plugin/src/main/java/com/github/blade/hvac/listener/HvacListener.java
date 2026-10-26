@@ -89,7 +89,7 @@ public final class HvacListener implements Listener {
         registry.markDirty();
         displays.refreshThermostat(thermostat, true);
         plugin.requestImmediateSync();
-        player.sendMessage(Component.text("System '" + thermostat.group().label() + "' switched "
+        player.sendMessage(Component.text("System '" + thermostat.system().key() + "' switched "
                 + (thermostat.enabled() ? "on." : "off."), thermostat.enabled() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
     }
 
@@ -435,36 +435,36 @@ public final class HvacListener implements Listener {
         if (thermostat != null) {
             removed = registry.removeThermostat(key);
             if (removed) notice = "thermostat '" + thermostat.id() + "' from system '"
-                    + thermostat.group().label() + "'";
+                    + thermostat.system().key() + "'";
         } else if (registry.equipmentAt(key) != null) {
             EquipmentUnit unit = registry.removeEquipment(key);
             removed = unit != null;
             if (removed) {
                 notice = unit.type().displayName() + " from system '"
-                        + unit.group().label() + "'";
+                        + unit.system().key() + "'";
                 // Losing the last source leaves a system that still reads its
                 // temperature but can never act on it, which is otherwise
                 // invisible until someone notices the thermostat stuck on IDLE.
-                if (registry.equipmentFor(unit.group()).isEmpty())
-                    warning = "System '" + unit.group().label() + "' has no equipment left."
+                if (registry.equipmentFor(unit.system()).isEmpty())
+                    warning = "System '" + unit.system().key() + "' has no equipment left."
                             + " Its thermostat will stay idle until you add some.";
             }
         } else {
             ClimateVent vent = registry.removeVent(key);
             if (vent != null) {
-                airflow.invalidate(vent.group());
+                airflow.invalidate(vent.system());
                 removed = true;
                 notice = (ClimateVent.isWaterVent(block.getType()) ? "water vent" : "vent")
-                        + " from system '" + vent.group().label() + "'";
+                        + " from system '" + vent.system().key() + "'";
             } else {
                 RpmMonitor monitor = registry.rpmMonitorAt(key);
                 SettingsPanel panel = registry.settingsPanelAt(key);
                 if (monitor != null && registry.removeRpmMonitor(key)) {
                     removed = true;
-                    notice = "RPM monitor from system '" + monitor.group().label() + "'";
+                    notice = "RPM monitor from system '" + monitor.system().key() + "'";
                 } else if (panel != null && registry.removeSettingsPanel(key)) {
                     removed = true;
-                    notice = "settings panel from system '" + panel.group().label() + "'";
+                    notice = "settings panel from system '" + panel.system().key() + "'";
                 } else if (registry.climateUnitAt(key) != null) {
                     ClimateUnit unit = registry.removeClimateUnit(key);
                     units.release(unit);

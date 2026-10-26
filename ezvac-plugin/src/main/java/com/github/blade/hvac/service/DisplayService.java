@@ -214,14 +214,14 @@ public final class DisplayService {
             case HEATING -> "HEAT";
             case IDLE -> thermostat.enabled() ? "IDLE" : "OFF";
         };
-        List<EquipmentUnit> running = registry.equipmentFor(thermostat.group()).stream()
+        List<EquipmentUnit> running = registry.equipmentFor(thermostat.system()).stream()
                 .filter(unit -> unit.running() && unit.operatingMode() == thermostat.mode()).toList();
         double fixedEquivalent = running.stream().filter(unit -> unit.type() == EquipmentType.FURNACE)
                 .mapToDouble(unit -> unit.operatingCapacity(settings)).sum();
         double variableEquivalent = running.stream().filter(unit -> unit.type() != EquipmentType.FURNACE)
                 .mapToDouble(unit -> unit.operatingCapacity(settings)).sum();
         double capacity = ThermalModel.aggregateIndependentCapacity(fixedEquivalent,
-                variableEquivalent, settings.maximumGroupCapacity());
+                variableEquivalent, settings.maximumSystemCapacity());
         int percent = (int) Math.round(capacity * 100.0);
         List<EtaEstimator.UnitSnapshot> snapshots = running.stream()
                 .map(unit -> new EtaEstimator.UnitSnapshot(unit.type(), unit.motorRpm())).toList();
@@ -231,7 +231,7 @@ public final class DisplayService {
                 : eta.isPresent() ? "ETA " + formatEta(eta) : "ETA --";
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s|%s",
                 thermostat.roomF(), thermostat.targetF(), mode, percent, footer,
-                thermostat.group().label(), thermostat.id());
+                thermostat.system().key(), thermostat.id());
         render(thermostat.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
             NamedTextColor color = thermostat.mode() == OperatingMode.COOLING ? NamedTextColor.AQUA
@@ -240,11 +240,11 @@ public final class DisplayService {
             String setpoint = "Set " + temp(thermostat.targetF());
             if (thermostat.mode() != OperatingMode.IDLE) setpoint += " | " + percent + "%";
             lines.set(2, setpoint, NamedTextColor.WHITE);
-            lines.set(3, footer + " | " + thermostat.group().label(),
+            lines.set(3, footer + " | " + thermostat.system().key(),
                     eta.isPresent() && thermostat.mode() != OperatingMode.IDLE
                             ? NamedTextColor.GREEN : NamedTextColor.GRAY);
         }, () -> {
-            ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.group().label())
+            ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.system().key())
                     .big(degrees(thermostat.roomF()));
             String target = degrees(thermostat.targetF());
             if (!thermostat.enabled()) screen.line("System off · set " + target, NamedTextColor.RED);
@@ -290,7 +290,7 @@ public final class DisplayService {
                 && cached.enabled() == thermostat.enabled()) {
             return cached.eta();
         }
-        OperatingProfile profile = registry.profileFor(thermostat.group());
+        OperatingProfile profile = registry.profileFor(thermostat.system());
         OptionalLong eta = EtaEstimator.estimateTicks(thermostat.roomF(), thermostat.targetF(),
                 outdoor.driftBaselineFor(thermostat), thermostat.mode(), snapshots, profile, settings);
         etaCache.put(thermostat.position(), new CachedEta(thermostat.mode(), thermostat.enabled(), eta));
@@ -365,7 +365,7 @@ public final class DisplayService {
     }
 
     private void refreshRpmMonitor(RpmMonitor monitor, boolean force) {
-        List<EquipmentUnit> matching = registry.equipmentFor(monitor.group()).stream()
+        List<EquipmentUnit> matching = registry.equipmentFor(monitor.system()).stream()
                 .filter(unit -> unit.type() == monitor.equipmentType()).toList();
         List<EquipmentUnit> running = matching.stream().filter(EquipmentUnit::running).toList();
         double rpm = running.stream().mapToDouble(EquipmentUnit::motorRpm).average().orElse(0.0);
@@ -379,7 +379,7 @@ public final class DisplayService {
             lines.set(1, monitor.equipmentType().displayName(), NamedTextColor.WHITE);
             if (matching.isEmpty()) {
                 lines.set(2, "No equipment", NamedTextColor.RED);
-                lines.set(3, monitor.group().label(), NamedTextColor.GRAY);
+                lines.set(3, monitor.system().key(), NamedTextColor.GRAY);
             } else {
                 lines.set(2, String.format(Locale.US, "RPM: %,.0f", rpm), NamedTextColor.YELLOW);
                 String state = monitor.equipmentType() == EquipmentType.FURNACE
@@ -389,7 +389,7 @@ public final class DisplayService {
                         ? NamedTextColor.GRAY : NamedTextColor.GREEN);
             }
         }, () -> {
-            ScreenText screen = ScreenText.titled(monitor.label(), monitor.group().label());
+            ScreenText screen = ScreenText.titled(monitor.label(), monitor.system().key());
             if (matching.isEmpty()) return screen.line(monitor.equipmentType().displayName(), NamedTextColor.WHITE)
                     .line("No equipment", NamedTextColor.RED);
             screen.big(String.format(Locale.US, "%,.0f RPM", rpm))
@@ -402,7 +402,7 @@ public final class DisplayService {
     }
 
     public void refreshSettingsPanel(SettingsPanel panel, boolean force) {
-        String fingerprint = panel.label() + "|" + panel.group().label() + "|" + panel.profile();
+        String fingerprint = panel.label() + "|" + panel.system().key() + "|" + panel.profile();
         NamedTextColor profileColor = switch (panel.profile()) {
             case ECO -> NamedTextColor.GREEN;
             case NORMAL -> NamedTextColor.AQUA;
@@ -410,10 +410,10 @@ public final class DisplayService {
         };
         render(panel.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(panel.label()), NamedTextColor.AQUA);
-            lines.set(1, "System: " + panel.group().label(), NamedTextColor.WHITE);
+            lines.set(1, "System: " + panel.system().key(), NamedTextColor.WHITE);
             lines.set(2, "[ " + panel.profile().name() + " ]", profileColor);
             lines.set(3, "Click > | Sneak <", NamedTextColor.GRAY);
-        }, () -> ScreenText.titled(panel.label(), panel.group().label())
+        }, () -> ScreenText.titled(panel.label(), panel.system().key())
                 .big(panel.profile().name())
                 .line("Click: next · Sneak: back", NamedTextColor.GRAY));
     }

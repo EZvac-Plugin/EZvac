@@ -50,10 +50,10 @@ public final class ApiViews {
     }
 
     /** A thermostat as the API shows it; its unit counts come from the controller. */
-    public static ThermostatView thermostat(Thermostat thermostat, HvacController.GroupStatus status) {
+    public static ThermostatView thermostat(Thermostat thermostat, HvacController.SystemStatus status) {
         double humidity = !thermostat.pool() && thermostat.hasRoomDewPoint()
                 ? Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF()) : Double.NaN;
-        return new ThermostatView(thermostat.id(), thermostat.group().label(), position(thermostat.position()),
+        return new ThermostatView(thermostat.id(), thermostat.system().key(), position(thermostat.position()),
                 thermostat.roomF(), thermostat.targetF(), mode(thermostat.mode()), thermostat.enabled(),
                 thermostat.pool(), humidity, status == null ? 0 : status.running(),
                 status == null ? 0 : status.equipment());
@@ -94,11 +94,11 @@ public final class ApiViews {
     /** A reading as the API shows it: the same numbers as the HUD and /hvac temperature. */
     public static ClimateReading reading(Position at, AirflowService.TemperatureReading reading,
                                          Optional<SeasonView.Season> season) {
-        boolean conditioned = reading.group() != null && reading.thermostat() != null;
+        boolean conditioned = reading.system() != null && reading.thermostat() != null;
         return new ClimateReading(at, reading.localF(), reading.feelsLikeF(), reading.humidity(), reading.outdoorF(),
                 reading.water(), reading.weather(), season,
                 conditioned ? Optional.of(reading.thermostat().id()) : Optional.empty(),
-                conditioned ? Optional.of(reading.group().label()) : Optional.empty(),
+                conditioned ? Optional.of(reading.system().key()) : Optional.empty(),
                 conditioned ? reading.influence() : 0.0);
     }
 
@@ -106,13 +106,13 @@ public final class ApiViews {
     public static EquipmentView equipment(EquipmentUnit unit) {
         ThermostatView.Mode mode = unit.running() && unit.operatingMode() != null
                 ? mode(unit.operatingMode()) : ThermostatView.Mode.IDLE;
-        return new EquipmentView(equipment(unit.type()), unit.group().label(), position(unit.position()),
+        return new EquipmentView(equipment(unit.type()), unit.system().key(), position(unit.position()),
                 unit.enabled(), unit.running(), mode, unit.running() ? unit.motorRpm() : 0.0);
     }
 
     /** A vent; {@code water} when its system is a pool system. */
     public static VentView vent(ClimateVent vent, boolean water) {
-        return new VentView(vent.group().label(), position(vent.position()),
+        return new VentView(vent.system().key(), position(vent.position()),
                 water ? VentView.Medium.WATER : VentView.Medium.AIR);
     }
 
@@ -143,11 +143,11 @@ public final class ApiViews {
 
     public static InstrumentView rpmMonitor(RpmMonitor monitor) {
         return new InstrumentView(InstrumentView.Kind.RPM_MONITOR, monitor.label(), position(monitor.position()),
-                Optional.of(monitor.group().label()), List.of());
+                Optional.of(monitor.system().key()), List.of());
     }
 
     public static InstrumentView settingsPanel(SettingsPanel panel) {
         return new InstrumentView(InstrumentView.Kind.SETTINGS_PANEL, panel.label(), position(panel.position()),
-                Optional.of(panel.group().label()), List.of());
+                Optional.of(panel.system().key()), List.of());
     }
 }

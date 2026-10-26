@@ -67,11 +67,11 @@ class RegistryIndexTest {
     }
 
     /** Equipment that owns an output, built the way load() builds it. */
-    private static EquipmentUnit unitWithOutput(BlockKey position, String group, EquipmentType type) {
+    private static EquipmentUnit unitWithOutput(BlockKey position, String system, EquipmentType type) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("worldUuid", position.worldId().toString());
         map.put("x", position.x()); map.put("y", position.y()); map.put("z", position.z());
-        map.put("group", group);
+        map.put("group", system);
         map.put("equipmentType", type.name());
         map.put("running", true);
         map.put("operatingMode", "HEATING");
@@ -108,7 +108,7 @@ class RegistryIndexTest {
                     String label = label(random);
                     // Mirrors /hvac thermostat <id> group: a group never gets a second controller.
                     Thermostat existing = value == null ? null
-                            : registry.thermostatFor(GroupId.of(value.position(), label));
+                            : registry.thermostatFor(SystemId.of(value.position(), label));
                     if (value != null && (existing == null || existing == value))
                         registry.regroupThermostat(value, label);
                 }
@@ -116,7 +116,7 @@ class RegistryIndexTest {
                     BlockKey position = random.nextBoolean() && !registry.vents().isEmpty()
                             ? pick(registry.vents(), random).position() : randomPosition(random);
                     // Re-adding at an existing vent's block relinks it, as the duct tool does.
-                    registry.addVent(new ClimateVent(position, new GroupId(position.worldId(), label(random))));
+                    registry.addVent(new ClimateVent(position, new SystemId(position.worldId(), label(random))));
                 }
                 case 8 -> {
                     ClimateVent value = pick(registry.vents(), random);
@@ -143,26 +143,26 @@ class RegistryIndexTest {
     }
 
     private static void assertLookupsMatchFullScan(HvacRegistry registry, Random random, String context) {
-        Set<GroupId> groups = new HashSet<>();
+        Set<SystemId> systems = new HashSet<>();
         for (UUID world : List.of(WORLD_A, WORLD_B))
-            for (String label : LABELS) groups.add(new GroupId(world, label));
-        for (GroupId group : groups) {
-            Thermostat expected = registry.thermostats().stream().filter(value -> value.group().equals(group))
+            for (String label : LABELS) systems.add(new SystemId(world, label));
+        for (SystemId system : systems) {
+            Thermostat expected = registry.thermostats().stream().filter(value -> value.system().equals(system))
                     .min(Comparator.comparing(Thermostat::position)).orElse(null);
-            assertSame(expected, registry.thermostatFor(group), context + ": thermostatFor " + group);
-            List<EquipmentUnit> units = registry.equipment().stream().filter(unit -> unit.group().equals(group))
+            assertSame(expected, registry.thermostatFor(system), context + ": thermostatFor " + system);
+            List<EquipmentUnit> units = registry.equipment().stream().filter(unit -> unit.system().equals(system))
                     .sorted(Comparator.comparing(EquipmentUnit::position)).toList();
-            assertEquals(units, registry.equipmentFor(group), context + ": equipmentFor " + group);
-            SettingsPanel panel = registry.settingsPanels().stream().filter(value -> value.group().equals(group))
+            assertEquals(units, registry.equipmentFor(system), context + ": equipmentFor " + system);
+            SettingsPanel panel = registry.settingsPanels().stream().filter(value -> value.system().equals(system))
                     .min(Comparator.comparing(SettingsPanel::position)).orElse(null);
-            assertSame(panel, registry.settingsPanelFor(group), context + ": settingsPanelFor " + group);
-            List<ClimateVent> vents = registry.vents().stream().filter(vent -> vent.group().equals(group))
+            assertSame(panel, registry.settingsPanelFor(system), context + ": settingsPanelFor " + system);
+            List<ClimateVent> vents = registry.vents().stream().filter(vent -> vent.system().equals(system))
                     .sorted(Comparator.comparing(ClimateVent::position)).toList();
-            assertEquals(vents, List.copyOf(registry.ventsFor(group)), context + ": ventsFor " + group);
+            assertEquals(vents, List.copyOf(registry.ventsFor(system)), context + ": ventsFor " + system);
             for (boolean water : new boolean[]{false, true}) {
                 boolean loop = registry.equipment().stream()
-                        .anyMatch(unit -> unit.group().equals(group) && unit.type().waterLoop() == water);
-                assertEquals(loop, registry.hasEquipmentOfLoop(group, water), context + ": hasEquipmentOfLoop");
+                        .anyMatch(unit -> unit.system().equals(system) && unit.type().waterLoop() == water);
+                assertEquals(loop, registry.hasEquipmentOfLoop(system, water), context + ": hasEquipmentOfLoop");
             }
         }
         for (int id = 0; id < 30; id++) {
@@ -210,13 +210,13 @@ class RegistryIndexTest {
         Map<String, Object> view = new TreeMap<>();
         for (UUID world : List.of(WORLD_A, WORLD_B))
             for (String label : LABELS) {
-                GroupId group = new GroupId(world, label);
-                Thermostat controller = registry.thermostatFor(group);
-                view.put(group + " thermostat", controller == null ? null : controller.position());
-                view.put(group + " equipment", registry.equipmentFor(group).stream().map(EquipmentUnit::position).toList());
-                view.put(group + " vents", List.copyOf(registry.ventsFor(group)));
-                SettingsPanel panel = registry.settingsPanelFor(group);
-                view.put(group + " panel", panel == null ? null : panel.position());
+                SystemId system = new SystemId(world, label);
+                Thermostat controller = registry.thermostatFor(system);
+                view.put(system + " thermostat", controller == null ? null : controller.position());
+                view.put(system + " equipment", registry.equipmentFor(system).stream().map(EquipmentUnit::position).toList());
+                view.put(system + " vents", List.copyOf(registry.ventsFor(system)));
+                SettingsPanel panel = registry.settingsPanelFor(system);
+                view.put(system + " panel", panel == null ? null : panel.position());
             }
         view.put("outputs", new TreeSet<>(registry.ownedOutputs()));
         view.put("pending", registry.pendingCleanup().stream().map(EquipmentUnit::position).sorted().toList());

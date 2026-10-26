@@ -33,9 +33,9 @@ public final class AirflowService {
      * @param weather    the outdoor weather word, empty where weather never reaches
      */
     public record TemperatureReading(double localF, double outdoorF, double influence,
-                                     int airflowDistance, GroupId group, Thermostat thermostat,
+                                     int airflowDistance, SystemId system, Thermostat thermostat,
                                      boolean water, double humidity, double feelsLikeF, String weather) {
-        public boolean conditioned() { return group != null && thermostat != null && influence > 0.0; }
+        public boolean conditioned() { return system != null && thermostat != null && influence > 0.0; }
     }
 
     /**
@@ -174,7 +174,7 @@ public final class AirflowService {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.settings = Objects.requireNonNull(settings, "settings");
-        for (ClimateVent vent : registry.vents()) dirty.add(vent.group());
+        for (ClimateVent vent : registry.vents()) dirty.add(vent.system());
         for (ClimateUnit unit : registry.climateUnits()) dirty.add(ZoneId.of(unit));
     }
 
@@ -202,20 +202,20 @@ public final class AirflowService {
         int maxRange = settings.airflowMaximumRange() + 2;
         int maxRangeSq = maxRange * maxRange;
 
-        Set<GroupId> affected = null;
+        Set<SystemId> affected = null;
         for (int cellX = (blockX - maxRange) >> shift; cellX <= (blockX + maxRange) >> shift; cellX++) {
             for (int cellZ = (blockZ - maxRange) >> shift; cellZ <= (blockZ + maxRange) >> shift; cellZ++) {
                 List<ClimateVent> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
                 if (bucket == null) continue;
                 for (ClimateVent vent : bucket) {
                     BlockKey pos = vent.position();
-                    GroupId group = vent.group();
-                    if (affected != null && affected.contains(group)) continue;
+                    SystemId system = vent.system();
+                    if (affected != null && affected.contains(system)) continue;
 
-                    Long2ByteMap cache = completed.get(group);
+                    Long2ByteMap cache = completed.get(system);
                     if (cache != null && cache.containsKey(packed)) {
                         if (affected == null) affected = new HashSet<>();
-                        affected.add(group);
+                        affected.add(system);
                         continue;
                     }
 
@@ -226,14 +226,14 @@ public final class AirflowService {
 
                     if (distSq <= maxRangeSq) {
                         if (affected == null) affected = new HashSet<>();
-                        affected.add(group);
+                        affected.add(system);
                     }
                 }
             }
         }
 
         if (affected != null) {
-            for (GroupId group : affected) invalidate(group);
+            for (SystemId system : affected) invalidate(system);
         }
         invalidateZonesNear(location.getWorld().getUID(), blockX, blockY, blockZ, packed);
     }
@@ -274,7 +274,7 @@ public final class AirflowService {
         if (world == null) return;
         UUID worldId = world.getUID();
         for (ClimateVent vent : registry.vents())
-            if (vent.group().worldId().equals(worldId)) invalidate(vent.group());
+            if (vent.system().worldId().equals(worldId)) invalidate(vent.system());
         for (ClimateUnit unit : registry.climateUnits())
             if (unit.unit().worldId().equals(worldId)) invalidate(ZoneId.of(unit));
     }
@@ -299,7 +299,7 @@ public final class AirflowService {
                             : Math.max(0, vent.position().x() - maximumX);
                     int dz = vent.position().z() < minimumZ ? minimumZ - vent.position().z()
                             : Math.max(0, vent.position().z() - maximumZ);
-                    if (dx + dz <= maxRange) invalidate(vent.group());
+                    if (dx + dz <= maxRange) invalidate(vent.system());
                 }
             }
         }
@@ -391,7 +391,7 @@ public final class AirflowService {
      */
     private Rebuild begin(AirflowTarget target) {
         return switch (target) {
-            case GroupId group -> begin(group);
+            case SystemId system -> begin(system);
             case ZoneId zone -> begin(zone);
         };
     }
@@ -411,13 +411,13 @@ public final class AirflowService {
         return rebuild;
     }
 
-    private Rebuild begin(GroupId group) {
-        World world = Bukkit.getWorld(group.worldId());
+    private Rebuild begin(SystemId system) {
+        World world = Bukkit.getWorld(system.worldId());
         if (world == null) return null;
         List<BlockKey> seeds = new ArrayList<>();
         boolean hasVent = false;
         boolean water = false;
-        for (ClimateVent vent : registry.ventsFor(group)) {
+        for (ClimateVent vent : registry.ventsFor(system)) {
             hasVent = true;
             BlockKey pos = vent.position();
             if (!world.isChunkLoaded(pos.x() >> 4, pos.z() >> 4)) continue;
@@ -425,7 +425,7 @@ public final class AirflowService {
             seeds.add(pos);
         }
         if (!hasVent) return null;
-        Rebuild rebuild = new Rebuild(group, water, settings.airflowMaximumRange(), settings.airflowMaximumCells());
+        Rebuild rebuild = new Rebuild(system, water, settings.airflowMaximumRange(), settings.airflowMaximumCells());
         rebuild.clearChunkCache();
         for (BlockKey pos : seeds) {
             int x = pos.x(), y = pos.y(), z = pos.z();
@@ -437,7 +437,7 @@ public final class AirflowService {
 
     private int advance(Rebuild rebuild, int budget) {
         World world = Bukkit.getWorld(switch (rebuild.target) {
-            case GroupId group -> group.worldId();
+            case SystemId system -> system.worldId();
             case ZoneId zone -> zone.unit().worldId();
         });
         if (world == null) { rebuild.queue.clear(); return 1; }
@@ -536,7 +536,7 @@ public final class AirflowService {
         return foot.conditioned() ? foot : head;
     }
 
-    public TemperatureReading temperatureAt(Location location, GroupId requiredGroup) {
+    public TemperatureReading temperatureAt(Location location, SystemId requiredSystem) {
         OutdoorTemperatureService.Outdoor out = outdoor.climateAt(location);
         double outside = out.airF();
         if (location == null || location.getWorld() == null
@@ -548,15 +548,15 @@ public final class AirflowService {
         boolean water = location.getBlock().getType() == Material.WATER;
         double baseline = water ? out.waterF() : outside;
         long key = pack(location.getBlockX(), location.getBlockY(), location.getBlockZ());
-        Nearest nearest = nearestGroup(candidateGroups(location.getWorld().getUID(),
-                location.getBlockX(), location.getBlockZ()), key, requiredGroup);
-        GroupId best = nearest == null ? null : nearest.group();
+        Nearest nearest = nearestSystem(candidateSystems(location.getWorld().getUID(),
+                location.getBlockX(), location.getBlockZ()), key, requiredSystem);
+        SystemId best = nearest == null ? null : nearest.system();
         int bestDistance = nearest == null ? Integer.MAX_VALUE : nearest.distance();
         if (best == null) {
-            if (requiredGroup != null && !hasVents(requiredGroup)) {
-                Thermostat thermostat = registry.thermostatFor(requiredGroup);
+            if (requiredSystem != null && !hasVents(requiredSystem)) {
+                Thermostat thermostat = registry.thermostatFor(requiredSystem);
                 if (thermostat != null)
-                    return reading(location, thermostat.roomF(), out, 1.0, -1, requiredGroup, thermostat, water);
+                    return reading(location, thermostat.roomF(), out, 1.0, -1, requiredSystem, thermostat, water);
             }
             return reading(location, baseline, out, 0.0, -1, null, null, water);
         }
@@ -578,7 +578,7 @@ public final class AirflowService {
      * thermometer standing outside shows one temperature on both lines.
      */
     private TemperatureReading reading(Location location, double localF, OutdoorTemperatureService.Outdoor out,
-                                       double influence, int distance, GroupId group, Thermostat thermostat,
+                                       double influence, int distance, SystemId system, Thermostat thermostat,
                                        boolean water) {
         ClimateSettings.Variance variance = outdoor.climate().variance();
         boolean varies = location != null && location.getWorld() != null && variance.enabled();
@@ -592,7 +592,7 @@ public final class AirflowService {
         if (water) {
             double poolInfluence = thermostat != null && thermostat.pool() ? influence : 0.0;
             localF += Microvariance.waterSpreadF(variance, poolInfluence) * pattern;
-            return new TemperatureReading(localF, outdoorF, influence, distance, group, thermostat,
+            return new TemperatureReading(localF, outdoorF, influence, distance, system, thermostat,
                     true, Double.NaN, localF, out.weather());
         }
         double dew = out.dewPointF();
@@ -602,7 +602,7 @@ public final class AirflowService {
             // No system conditions this air, but a standalone unit may be drying or humidifying it.
             ZoneReading zone = zoneAt(location.getWorld().getUID(),
                     location.getBlockX(), location.getBlockY(), location.getBlockZ());
-            if (zone != null && zone.unit().servedGroup() == null
+            if (zone != null && zone.unit().servedSystem() == null
                     && Double.isFinite(zone.unit().zoneDewPointF()))
                 dew += (zone.unit().zoneDewPointF() - dew) * zone.influence();
         }
@@ -614,7 +614,7 @@ public final class AirflowService {
         }
         double humidity = Psychrometrics.relativeHumidity(localF, dew);
         double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, out.windMs() * (1.0 - influence));
-        return new TemperatureReading(localF, outdoorF, influence, distance, group, thermostat,
+        return new TemperatureReading(localF, outdoorF, influence, distance, system, thermostat,
                 false, humidity, feelsLike, out.weather());
     }
 
@@ -626,9 +626,9 @@ public final class AirflowService {
      */
     public double waterTemperatureAt(World world, int x, int y, int z) {
         double natural = outdoor.naturalWaterAt(new Location(world, x, y, z));
-        Nearest nearest = nearestGroup(candidateGroups(world.getUID(), x, z), pack(x, y, z), null);
+        Nearest nearest = nearestSystem(candidateSystems(world.getUID(), x, z), pack(x, y, z), null);
         if (nearest == null) return natural;
-        Thermostat thermostat = registry.thermostatFor(nearest.group());
+        Thermostat thermostat = registry.thermostatFor(nearest.system());
         if (thermostat == null) return natural;
         return natural + (thermostat.roomF() - natural) * influenceForDistance(nearest.distance());
     }
@@ -645,9 +645,9 @@ public final class AirflowService {
     }
 
     /** The system whose completed map reaches this block soonest, or null. */
-    public GroupId systemAt(UUID worldId, int x, int y, int z) {
-        Nearest nearest = nearestGroup(candidateGroups(worldId, x, z), pack(x, y, z), null);
-        return nearest == null ? null : nearest.group();
+    public SystemId systemAt(UUID worldId, int x, int y, int z) {
+        Nearest nearest = nearestSystem(candidateSystems(worldId, x, z), pack(x, y, z), null);
+        return nearest == null ? null : nearest.system();
     }
 
     /**
@@ -728,7 +728,7 @@ public final class AirflowService {
     public static int unpackY(long key) { return (int) (key << 52 >> 52); }
     public static int unpackZ(long key) { return (int) (key << 26 >> 38); }
 
-    record Nearest(GroupId group, int distance) {}
+    record Nearest(SystemId system, int distance) {}
 
     /**
      * Groups whose airflow map could contain a block at x/z: those with a vent
@@ -738,35 +738,35 @@ public final class AirflowService {
      * maps of systems elsewhere in the world. Before 1.8 every lookup scanned
      * them all, which a HUD refreshing many players would multiply.
      */
-    Set<GroupId> candidateGroups(UUID worldId, int blockX, int blockZ) {
+    Set<SystemId> candidateSystems(UUID worldId, int blockX, int blockZ) {
         Long2ObjectOpenHashMap<List<ClimateVent>> cells = registry.ventCells(worldId);
         if (cells == null) return Set.of();
         int reach = settings.airflowMaximumRange() + 2;
         int shift = registry.ventCellShift();
-        Set<GroupId> groups = new HashSet<>();
+        Set<SystemId> systems = new HashSet<>();
         for (int cellX = (blockX - reach) >> shift; cellX <= (blockX + reach) >> shift; cellX++) {
             for (int cellZ = (blockZ - reach) >> shift; cellZ <= (blockZ + reach) >> shift; cellZ++) {
                 List<ClimateVent> bucket = cells.get(HvacRegistry.cellKey(cellX, cellZ));
                 if (bucket == null) continue;
-                for (ClimateVent vent : bucket) groups.add(vent.group());
+                for (ClimateVent vent : bucket) systems.add(vent.system());
             }
         }
-        return groups;
+        return systems;
     }
 
     /** The candidate whose completed map reaches the block soonest; ties go to the lower GroupId. */
-    Nearest nearestGroup(Iterable<GroupId> candidates, long key, GroupId requiredGroup) {
-        GroupId best = null;
+    Nearest nearestSystem(Iterable<SystemId> candidates, long key, SystemId requiredSystem) {
+        SystemId best = null;
         int bestDistance = Integer.MAX_VALUE;
-        for (GroupId group : candidates) {
-            if (requiredGroup != null && !requiredGroup.equals(group)) continue;
-            Long2ByteMap map = completed.get(group);
+        for (SystemId system : candidates) {
+            if (requiredSystem != null && !requiredSystem.equals(system)) continue;
+            Long2ByteMap map = completed.get(system);
             if (map == null) continue;
             byte rawDistance = map.get(key);
             if (rawDistance == ABSENT) continue;
             int distance = rawDistance;
-            if (distance < bestDistance || (distance == bestDistance && (best == null || group.compareTo(best) < 0))) {
-                best = group;
+            if (distance < bestDistance || (distance == bestDistance && (best == null || system.compareTo(best) < 0))) {
+                best = system;
                 bestDistance = distance;
             }
         }
@@ -774,16 +774,16 @@ public final class AirflowService {
     }
 
     /** Test support: installs a finished airflow map as if a rebuild had produced it. */
-    void putCompletedMap(GroupId group, Long2ByteMap map) {
-        completed.put(group, map);
+    void putCompletedMap(SystemId system, Long2ByteMap map) {
+        completed.put(system, map);
     }
 
     /** Test support: the old full scan over every completed map in the world. */
-    Nearest nearestGroupByFullScan(UUID worldId, long key, GroupId requiredGroup) {
-        List<GroupId> all = new ArrayList<>();
+    Nearest nearestSystemByFullScan(UUID worldId, long key, SystemId requiredSystem) {
+        List<SystemId> all = new ArrayList<>();
         for (AirflowTarget target : completed.keySet())
-            if (target instanceof GroupId group && group.worldId().equals(worldId)) all.add(group);
-        return nearestGroup(all, key, requiredGroup);
+            if (target instanceof SystemId system && system.worldId().equals(worldId)) all.add(system);
+        return nearestSystem(all, key, requiredSystem);
     }
 
     public double influenceForDistance(int distance) {
@@ -793,8 +793,8 @@ public final class AirflowService {
                 / (double) (settings.airflowMaximumRange() - settings.airflowCoreRange());
     }
 
-    private boolean hasVents(GroupId group) {
-        return !registry.ventsFor(group).isEmpty();
+    private boolean hasVents(SystemId system) {
+        return !registry.ventsFor(system).isEmpty();
     }
 
     public String stats() {

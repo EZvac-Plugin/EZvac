@@ -22,7 +22,7 @@ package com.github.blade.hvac.hud;
  * @param seasonDay    the day of that season from 1, or 0 where there are no seasons
  */
 public record ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
-                              String group, String thermostat, String mode, double targetF,
+                              String system, String thermostat, String mode, double targetF,
                               boolean core, boolean water, double humidity, double feelsLikeF,
                               String weather, String season, int seasonDay) {
     public ClimateSnapshot {
@@ -34,28 +34,28 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
 
     /** A snapshot where there are no seasons. */
     public ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
-                           String group, String thermostat, String mode, double targetF,
+                           String system, String thermostat, String mode, double targetF,
                            boolean core, boolean water, double humidity, double feelsLikeF,
                            String weather) {
-        this(localF, outdoorF, influence, distance, group, thermostat, mode, targetF, core, water,
+        this(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core, water,
                 humidity, feelsLikeF, weather, "", 0);
     }
 
     /** The same snapshot, in this season. */
     public ClimateSnapshot inSeason(String season, int day) {
-        return new ClimateSnapshot(localF, outdoorF, influence, distance, group, thermostat, mode, targetF, core,
+        return new ClimateSnapshot(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core,
                 water, humidity, feelsLikeF, weather, season, day);
     }
 
     /** A snapshot without humidity: it feels like its temperature. */
     public ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
-                           String group, String thermostat, String mode, double targetF,
+                           String system, String thermostat, String mode, double targetF,
                            boolean core, boolean water) {
-        this(localF, outdoorF, influence, distance, group, thermostat, mode, targetF, core, water,
+        this(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core, water,
                 Double.NaN, localF, "");
     }
 
-    public boolean conditioned() { return group != null && thermostat != null && influence > 0.0; }
+    public boolean conditioned() { return system != null && thermostat != null && influence > 0.0; }
 
     /** The temperature comfort is judged by: how air feels, or simply the water's temperature. */
     public double comfortF() { return water ? localF : feelsLikeF; }

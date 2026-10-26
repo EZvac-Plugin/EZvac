@@ -14,7 +14,7 @@ import java.util.Objects;
 public final class Thermostat {
     private final BlockKey position;
     private String id;
-    private GroupId group;
+    private SystemId system;
     private double targetF;
     private double roomF;
     private boolean enabled;
@@ -47,27 +47,27 @@ public final class Thermostat {
     /** A temperate biome's downfall, used until the thermostat's chunk is first sampled. */
     public static final double DEFAULT_DOWNFALL = 0.4;
 
-    public Thermostat(BlockKey position, String id, String groupLabel,
+    public Thermostat(BlockKey position, String id, String systemLabel,
                       double targetF, double roomF, HvacSettings settings) {
-        this(position, id, groupLabel, targetF, roomF, settings, false);
+        this(position, id, systemLabel, targetF, roomF, settings, false);
     }
 
-    public Thermostat(BlockKey position, String id, String groupLabel,
+    public Thermostat(BlockKey position, String id, String systemLabel,
                       double targetF, double roomF, HvacSettings settings, boolean pool) {
-        this(position, id, GroupId.of(position, groupLabel), settings.clampTarget(targetF, pool),
+        this(position, id, SystemId.of(position, systemLabel), settings.clampTarget(targetF, pool),
                 ThermalModel.clampTemperature(roomF), true, OperatingMode.IDLE,
                 settings.minimumOffTicks(), 72.0, 52.0, 62.0, pool);
     }
 
-    private Thermostat(BlockKey position, String id, GroupId group, double targetF,
+    private Thermostat(BlockKey position, String id, SystemId system, double targetF,
                        double roomF, boolean enabled, OperatingMode mode, long ticksInMode,
                        double outdoorNoonF, double outdoorMidnightF, double lastOutdoorF,
                        boolean pool) {
         this.pool = pool;
         this.position = Objects.requireNonNull(position, "position");
         this.id = validateId(id);
-        this.group = Objects.requireNonNull(group, "group");
-        if (!position.worldId().equals(group.worldId()))
+        this.system = Objects.requireNonNull(system, "group");
+        if (!position.worldId().equals(system.worldId()))
             throw new IllegalArgumentException("thermostat and group worlds differ");
         this.targetF = targetF;
         this.roomF = roomF;
@@ -81,7 +81,7 @@ public final class Thermostat {
 
     public BlockKey position() { return position; }
     public String id() { return id; }
-    public GroupId group() { return group; }
+    public SystemId system() { return system; }
     public double targetF() { return targetF; }
     public double roomF() { return roomF; }
     public boolean enabled() { return enabled; }
@@ -108,7 +108,7 @@ public final class Thermostat {
     public boolean hasRoomDewPoint() { return Double.isFinite(roomDewPointF); }
 
     public void setId(String id) { this.id = validateId(id); }
-    public void setGroup(String label) { this.group = GroupId.of(position, label); }
+    public void setSystem(String label) { this.system = SystemId.of(position, label); }
     public void setTargetF(double targetF, HvacSettings settings) {
         this.targetF = settings.clampTarget(targetF, pool);
     }
@@ -157,7 +157,7 @@ public final class Thermostat {
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", id);
-        map.put("group", group.label());
+        map.put("group", system.key());
         position.write(map, "");
         map.put("targetF", targetF);
         map.put("roomF", roomF);
@@ -184,14 +184,14 @@ public final class Thermostat {
     public static Thermostat fromMap(Map<String, Object> map, HvacSettings settings) {
         BlockKey position = BlockKey.read(map, "");
         String id = string(map, "id", string(map, "label", null));
-        String groupLabel = string(map, "group", string(map, "hvacGroupLabel", null));
+        String systemLabel = string(map, "group", string(map, "hvacGroupLabel", null));
         double target = number(map, "targetF", number(map, "targetTempF", 72.0));
         double room = number(map, "roomF", number(map, "roomTempF", 72.0));
         long ticks = whole(map, "ticksInMode", -1L);
         if (ticks < 0L) ticks = Math.max(0L, Math.round(number(map,
                 "modeElapsedMinecraftHours", settings.minimumOffTicks() / 1_000.0) * 1_000.0));
         boolean pool = bool(map, "pool", false);
-        Thermostat thermostat = new Thermostat(position, id, GroupId.of(position, groupLabel),
+        Thermostat thermostat = new Thermostat(position, id, SystemId.of(position, systemLabel),
                 settings.clampTarget(target, pool), ThermalModel.clampTemperature(room),
                 bool(map, "enabled", true), OperatingMode.parse(map.get("mode")), ticks,
                 number(map, "outdoorNoonF", 72.0), number(map, "outdoorMidnightF", 52.0),

@@ -40,7 +40,7 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
     /** Moisture of its own zone when no system's room holds it; NaN until first simulated. */
     private double zoneDewPointF;
     /** The system whose room its zone touches, or null; worked out each cycle, never saved. */
-    private GroupId servedGroup;
+    private SystemId servedSystem;
     /** RH of the space it serves at the last cycle, for its sign; never saved. */
     private double lastHumidity = Double.NaN;
 
@@ -72,8 +72,8 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
     public boolean powered() { return powered; }
     public boolean running() { return running; }
     public double zoneDewPointF() { return zoneDewPointF; }
-    public GroupId servedGroup() { return servedGroup; }
-    public void setServedGroup(GroupId group) { this.servedGroup = group; }
+    public SystemId servedSystem() { return servedSystem; }
+    public void setServedSystem(SystemId system) { this.servedSystem = system; }
     public double lastHumidity() { return lastHumidity; }
     public void setLastHumidity(double humidity) { this.lastHumidity = humidity; }
 

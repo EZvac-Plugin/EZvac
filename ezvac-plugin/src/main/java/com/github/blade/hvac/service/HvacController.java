@@ -21,7 +21,7 @@ public final class HvacController {
     public record CycleResult(List<EquipmentUnit> started, List<EquipmentUnit> stopped,
                               List<EquipmentUnit> running, int prunedDevices) {}
 
-    public record GroupStatus(GroupId group, OperatingMode mode, double roomF, double targetF,
+    public record SystemStatus(SystemId system, OperatingMode mode, double roomF, double targetF,
                               int equipment, int running, double capacity,
                               OperatingProfile profile, boolean controllerLoaded) {}
 
@@ -54,14 +54,14 @@ public final class HvacController {
         if (elapsedTicks < 0) throw new IllegalArgumentException("elapsed ticks must be non-negative");
         simulatedTicks += elapsedTicks;
         HvacRegistry.PruneResult pruned = registry.pruneMissingLoadedDevices();
-        for (GroupId group : pruned.invalidatedGroups()) airflow.invalidate(group);
+        for (SystemId system : pruned.invalidatedSystems()) airflow.invalidate(system);
         // Units broken without a break event (an explosion, a piston) leave their zone behind otherwise.
         for (ClimateUnit unit : pruned.removedUnits()) units.release(unit);
         registry.reconcilePendingCleanup();
 
         LinkedHashSet<EquipmentUnit> started = new LinkedHashSet<>();
         LinkedHashSet<EquipmentUnit> stopped = new LinkedHashSet<>();
-        Map<GroupId, Double> deliveredEquivalent = measureDeliveredCapacity(
+        Map<SystemId, Double> deliveredEquivalent = measureDeliveredCapacity(
                 elapsedTicks, stopped);
 
         List<Thermostat> thermostats = new ArrayList<>(registry.thermostats());
@@ -92,17 +92,17 @@ public final class HvacController {
     }
 
     /** Measures only equipment that physically delivered during the elapsed interval. */
-    private Map<GroupId, Double> measureDeliveredCapacity(long elapsedTicks,
+    private Map<SystemId, Double> measureDeliveredCapacity(long elapsedTicks,
                                                            Set<EquipmentUnit> stopped) {
-        Map<GroupId, Delivery> deliveries = new HashMap<>();
-        Map<GroupId, Double> sharedVariableCommands = new HashMap<>();
-        Map<GroupId, OperatingProfile> sharedProfiles = new HashMap<>();
+        Map<SystemId, Delivery> deliveries = new HashMap<>();
+        Map<SystemId, Double> sharedVariableCommands = new HashMap<>();
+        Map<SystemId, OperatingProfile> sharedProfiles = new HashMap<>();
         Set<BlockKey> reservedOutputs = new HashSet<>();
         List<EquipmentUnit> ordered = new ArrayList<>(registry.equipment());
         ordered.sort(Comparator.comparing(EquipmentUnit::position));
         for (EquipmentUnit unit : ordered) {
             try {
-                Thermostat controller = registry.thermostatFor(unit.group());
+                Thermostat controller = registry.thermostatFor(unit.system());
                 boolean validController = controller != null && isControllerLoaded(controller)
                         && controller.enabled() && controller.mode() == unit.operatingMode();
                 BlockKey output = unit.ownedOutput();
@@ -114,17 +114,17 @@ public final class HvacController {
                     continue;
                 }
                 double requested = unit.type() == EquipmentType.FURNACE ? 1.0
-                        : sharedVariableCommands.computeIfAbsent(unit.group(), ignored ->
+                        : sharedVariableCommands.computeIfAbsent(unit.system(), ignored ->
                         PerformanceModel.requestedVariableCapacity(
                                 Math.abs(controller.roomF() - controller.targetF()), settings));
                 OperatingProfile profile = unit.type() == EquipmentType.FURNACE
                         ? OperatingProfile.NORMAL : sharedProfiles.computeIfAbsent(
-                        unit.group(), registry::profileFor);
+                        unit.system(), registry::profileFor);
                 unit.advanceMotor(requested, elapsedTicks, settings, profile);
                 double capacity = unit.operatingCapacity(settings);
                 Delivery contribution = unit.type() == EquipmentType.FURNACE
                         ? new Delivery(capacity, 0.0) : new Delivery(0.0, capacity);
-                deliveries.merge(unit.group(), contribution, Delivery::add);
+                deliveries.merge(unit.system(), contribution, Delivery::add);
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.WARNING, "Isolating failed HVAC equipment at "
                         + unit.position(), exception);
@@ -132,23 +132,23 @@ public final class HvacController {
                 unit.resetMotor();
             }
         }
-        Map<GroupId, Double> equivalent = new HashMap<>();
-        deliveries.forEach((group, delivery) -> equivalent.put(group,
+        Map<SystemId, Double> equivalent = new HashMap<>();
+        deliveries.forEach((system, delivery) -> equivalent.put(system,
                 ThermalModel.aggregateIndependentCapacity(delivery.fixedEquivalent(),
-                        delivery.variableEquivalent(), settings.maximumGroupCapacity())));
+                        delivery.variableEquivalent(), settings.maximumSystemCapacity())));
         return equivalent;
     }
 
-    private void updateThermostat(Thermostat thermostat, Map<GroupId, Double> delivered,
+    private void updateThermostat(Thermostat thermostat, Map<SystemId, Double> delivered,
                                   long elapsedTicks, Set<BlockKey> managedOutputs,
                                   Map<UUID, LongOpenHashSet> packedOutputs) {
-        boolean authoritative = registry.thermostatFor(thermostat.group()) == thermostat;
+        boolean authoritative = registry.thermostatFor(thermostat.system()) == thermostat;
         boolean controllerLoaded = authoritative && isControllerLoaded(thermostat);
         double outside = outdoor.driftBaselineFor(thermostat);
         OperatingMode intervalMode = controllerLoaded && thermostat.enabled()
                 ? thermostat.mode() : OperatingMode.IDLE;
         double capacity = intervalMode == OperatingMode.IDLE ? 0.0
-                : delivered.getOrDefault(thermostat.group(), 0.0);
+                : delivered.getOrDefault(thermostat.system(), 0.0);
         double boundary = switch (intervalMode) {
             case COOLING -> thermostat.targetF() - settings.coolingStopBelowF();
             case HEATING -> thermostat.targetF() + settings.heatingStopAboveF();
@@ -160,9 +160,9 @@ public final class HvacController {
         if (!thermostat.pool()) updateHumidity(thermostat, intervalMode, capacity, elapsedTicks, packedOutputs);
 
         boolean coolingAvailable = controllerLoaded && hasAvailableEquipment(
-                thermostat.group(), OperatingMode.COOLING, managedOutputs);
+                thermostat.system(), OperatingMode.COOLING, managedOutputs);
         boolean heatingAvailable = controllerLoaded && hasAvailableEquipment(
-                thermostat.group(), OperatingMode.HEATING, managedOutputs);
+                thermostat.system(), OperatingMode.HEATING, managedOutputs);
         ThermostatControl.State control = ThermostatControl.advance(
                 authoritative ? thermostat.mode() : OperatingMode.IDLE,
                 authoritative ? thermostat.ticksInMode() : 0L,
@@ -176,16 +176,16 @@ public final class HvacController {
     private void updateHumidity(Thermostat thermostat, OperatingMode mode, double capacity, long elapsedTicks,
                                 Map<UUID, LongOpenHashSet> packedOutputs) {
         OutdoorTemperatureService.Outdoor out = outdoor.cachedClimateFor(thermostat);
-        AirflowService.WaterExposure exposure = airflow.waterExposure(thermostat.group())
-                .excluding(packedOutputs.get(thermostat.group().worldId()));
+        AirflowService.WaterExposure exposure = airflow.waterExposure(thermostat.system())
+                .excluding(packedOutputs.get(thermostat.system().worldId()));
         HumidityModel.Loads loads = new HumidityModel.Loads(
                 mode == OperatingMode.COOLING ? capacity : 0.0, exposure.wetFraction(),
                 exposure.waterCells().length == 0 ? Double.NaN : waterTemperature(thermostat, exposure),
-                units.scaleFor(thermostat.group()), units.humidifierScaleFor(thermostat.group()));
+                units.scaleFor(thermostat.system()), units.humidifierScaleFor(thermostat.system()));
         HumidityModel.Result result = HumidityModel.step(thermostat.roomDewPointF(), thermostat.roomF(),
                 out.dewPointF(), loads, elapsedTicks, outdoor.climate());
         thermostat.setRoomDewPointF(result.dewPointF());
-        units.credit(thermostat.group(), result.dehumidifiedF());
+        units.credit(thermostat.system(), result.dehumidifiedF());
     }
 
     /** Samples to estimate the temperature of a space's water: a heated pool evaporates faster than a pond. */
@@ -195,11 +195,11 @@ public final class HvacController {
 
     private record WaterReading(double temperatureF, long measuredAt) {}
 
-    private final Map<GroupId, WaterReading> waterReadings = new HashMap<>();
+    private final Map<SystemId, WaterReading> waterReadings = new HashMap<>();
     private long simulatedTicks;
 
     private double waterTemperature(Thermostat thermostat, AirflowService.WaterExposure exposure) {
-        WaterReading cached = waterReadings.get(thermostat.group());
+        WaterReading cached = waterReadings.get(thermostat.system());
         if (cached != null && simulatedTicks - cached.measuredAt() < WATER_REFRESH_TICKS) return cached.temperatureF();
         World world = thermostat.position().world();
         if (world == null) return Double.NaN;
@@ -217,13 +217,13 @@ public final class HvacController {
         double value = samples == 0 ? Double.NaN : total / samples;
         // Systems come and go; a stale entry only costs one map slot until the next sweep.
         if (waterReadings.size() > 2 * registry.thermostats().size() + 16) waterReadings.clear();
-        waterReadings.put(thermostat.group(), new WaterReading(value, simulatedTicks));
+        waterReadings.put(thermostat.system(), new WaterReading(value, simulatedTicks));
         return value;
     }
 
-    private boolean hasAvailableEquipment(GroupId group, OperatingMode mode,
+    private boolean hasAvailableEquipment(SystemId system, OperatingMode mode,
                                           Set<BlockKey> managedOutputs) {
-        for (EquipmentUnit unit : registry.equipmentFor(group)) {
+        for (EquipmentUnit unit : registry.equipmentFor(system)) {
             BlockKey output = unit.outputPosition();
             if (output != null && unit.canStart(mode, managedOutputs.contains(output))) return true;
         }
@@ -239,7 +239,7 @@ public final class HvacController {
         Set<EquipmentUnit> selected = Collections.newSetFromMap(new IdentityHashMap<>());
 
         for (EquipmentUnit unit : ordered) {
-            Thermostat controller = registry.thermostatFor(unit.group());
+            Thermostat controller = registry.thermostatFor(unit.system());
             if (controller == null || !isControllerLoaded(controller) || !controller.enabled()
                     || controller.mode() == OperatingMode.IDLE || !unit.type().supports(controller.mode())) continue;
             BlockKey output = unit.outputPosition();
@@ -261,7 +261,7 @@ public final class HvacController {
         }
         for (EquipmentUnit unit : ordered) {
             if (!selected.contains(unit)) continue;
-            Thermostat controller = registry.thermostatFor(unit.group());
+            Thermostat controller = registry.thermostatFor(unit.system());
             try {
                 record(unit.start(controller.mode()), unit, started, stopped);
             } catch (RuntimeException exception) {
@@ -294,9 +294,9 @@ public final class HvacController {
         if (actuation == EquipmentUnit.Actuation.STOPPED && stopped != null) stopped.add(unit);
     }
 
-    public GroupStatus status(GroupId group) {
-        Thermostat thermostat = registry.thermostatFor(group);
-        List<EquipmentUnit> units = registry.equipmentFor(group);
+    public SystemStatus status(SystemId system) {
+        Thermostat thermostat = registry.thermostatFor(system);
+        List<EquipmentUnit> units = registry.equipmentFor(system);
         int running = (int) units.stream().filter(EquipmentUnit::running).count();
         double fixedEquivalent = units.stream().filter(EquipmentUnit::running)
                 .filter(unit -> unit.type() == EquipmentType.FURNACE)
@@ -304,12 +304,12 @@ public final class HvacController {
         double variableEquivalent = units.stream().filter(EquipmentUnit::running)
                 .filter(unit -> unit.type() != EquipmentType.FURNACE)
                 .mapToDouble(unit -> unit.operatingCapacity(settings)).sum();
-        return new GroupStatus(group, thermostat == null ? OperatingMode.IDLE : thermostat.mode(),
+        return new SystemStatus(system, thermostat == null ? OperatingMode.IDLE : thermostat.mode(),
                 thermostat == null ? Double.NaN : thermostat.roomF(),
                 thermostat == null ? Double.NaN : thermostat.targetF(), units.size(), running,
                 ThermalModel.aggregateIndependentCapacity(fixedEquivalent, variableEquivalent,
-                        settings.maximumGroupCapacity()),
-                registry.profileFor(group),
+                        settings.maximumSystemCapacity()),
+                registry.profileFor(system),
                 thermostat != null && isControllerLoaded(thermostat));
     }
 }

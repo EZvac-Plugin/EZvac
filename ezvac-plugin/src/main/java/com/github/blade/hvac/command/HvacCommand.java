@@ -43,7 +43,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private final ClimateHudService hud;
     private final ClimateUnitService units;
     private final NamespacedKey toolKey;
-    private final NamespacedKey toolGroupKey;
+    private final NamespacedKey toolSystemKey;
     private final NamespacedKey sensorToolKey;
     private final NamespacedKey sensorToolHubKey;
     private final NamespacedKey toolWorldKey;
@@ -62,7 +62,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         this.hud = hud;
         this.units = units;
         toolKey = new NamespacedKey(plugin, "duct_link_tool");
-        toolGroupKey = new NamespacedKey(plugin, "duct_group");
+        toolSystemKey = new NamespacedKey(plugin, "duct_group");
         sensorToolKey = new NamespacedKey(plugin, "sensor_link_tool");
         sensorToolHubKey = new NamespacedKey(plugin, "sensor_hub");
         toolWorldKey = new NamespacedKey(plugin, "duct_world");
@@ -110,7 +110,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "create" -> { if (requireAdmin(player)) create(player, args); }
                 case "thermostat" -> { if (requireAdmin(player)) thermostat(player, args); }
                 case "equipment" -> { if (requireAdmin(player)) equipment(player, args); }
-                case "group" -> { if (requireAdmin(player)) group(player, args); }
+                case "group" -> { if (requireAdmin(player)) system(player, args); }
                 // "tool" was its name before the sensor tool existed; kept so old habits still work.
                 case "duct-tool", "ducttool", "tool" -> { if (requireAdmin(player)) giveTool(player); }
                 case "sensor-tool", "sensortool" -> { if (requireAdmin(player)) giveSensorTool(player); }
@@ -180,12 +180,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 if (args.length < 4) throw new IllegalArgumentException(
                         "Usage: /hvac create " + args[1] + " <id> <group> [targetF]");
                 requireSign(block);
-                GroupId target0 = GroupId.of(position, args[3]);
+                SystemId target0 = SystemId.of(position, args[3]);
                 // A pool thermostat exists to unlock the water target range, so it
                 // may only control a water-loop system. Without this a player could
                 // heat a room to 104 F by pointing one at heat pumps.
                 if (registry.hasEquipmentOfLoop(target0, !pool))
-                    throw new IllegalArgumentException("System '" + target0.label() + "' is powered by "
+                    throw new IllegalArgumentException("System '" + target0.key() + "' is powered by "
                             + (pool ? "air-loop equipment; a pool thermostat needs a boiler or pool heat pump"
                                     : "water-loop equipment; use /hvac create poolthermostat") + ".");
                 double target = args.length >= 5 ? settings.units().parse(args[4])
@@ -195,7 +195,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 registry.addThermostat(thermostat);
                 displays.refreshThermostat(thermostat, true);
                 player.sendMessage(green("Created " + (pool ? "pool thermostat" : "thermostat")
-                        + " '" + thermostat.id() + "' for group '" + thermostat.group().label()
+                        + " '" + thermostat.id() + "' for group '" + thermostat.system().key()
                         + "'. Target range " + range(pool ? settings.poolMinimumTargetF() : settings.minimumTargetF(),
                         pool ? settings.poolMaximumTargetF() : settings.maximumTargetF()) + "."));
             }
@@ -222,12 +222,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 if (args.length < 4) throw new IllegalArgumentException(
                         "Usage: /hvac create rpmmonitor <group> <heatpump|ac|furnace|boiler|poolheatpump> [label]");
                 requireSign(block);
-                GroupId group = new GroupId(block.getWorld().getUID(), args[2]);
+                SystemId system = new SystemId(block.getWorld().getUID(), args[2]);
                 EquipmentType type = parseEquipmentType(args[3]);
-                if (registry.equipmentFor(group).stream().noneMatch(unit -> unit.type() == type))
+                if (registry.equipmentFor(system).stream().noneMatch(unit -> unit.type() == type))
                     throw new IllegalArgumentException("No " + type.displayName() + " exists in that group.");
-                String displayLabel = args.length >= 5 ? args[4] : group.label();
-                registry.addRpmMonitor(new RpmMonitor(position, group, displayLabel, type));
+                String displayLabel = args.length >= 5 ? args[4] : system.key();
+                registry.addRpmMonitor(new RpmMonitor(position, system, displayLabel, type));
                 displays.refreshAll(true);
                 player.sendMessage(green("Created " + type.displayName() + " RPM monitor."));
             }
@@ -235,15 +235,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 if (args.length < 3) throw new IllegalArgumentException(
                         "Usage: /hvac create settingspanel <group> [label]");
                 requireSign(block);
-                GroupId group = new GroupId(block.getWorld().getUID(), args[2]);
-                if (registry.thermostatFor(group) == null && registry.equipmentFor(group).isEmpty())
-                    throw new IllegalArgumentException("No HVAC group named '" + group.label()
+                SystemId system = new SystemId(block.getWorld().getUID(), args[2]);
+                if (registry.thermostatFor(system) == null && registry.equipmentFor(system).isEmpty())
+                    throw new IllegalArgumentException("No HVAC group named '" + system.key()
                             + "' exists in this world.");
-                String displayLabel = args.length >= 4 ? args[3] : group.label();
-                SettingsPanel panel = new SettingsPanel(position, group.label(), displayLabel);
+                String displayLabel = args.length >= 4 ? args[3] : system.key();
+                SettingsPanel panel = new SettingsPanel(position, system.key(), displayLabel);
                 registry.addSettingsPanel(panel);
                 displays.refreshSettingsPanel(panel, true);
-                player.sendMessage(green("Created settings panel for group '" + group.label()
+                player.sendMessage(green("Created settings panel for group '" + system.key()
                         + "' in NORMAL mode."));
             }
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
@@ -332,22 +332,22 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         BlockKey position = BlockKey.of(block.getLocation());
         // Water-loop sources serve vents in water; air-loop sources serve vents
         // in a room. A system draws on one loop only.
-        GroupId target = GroupId.of(position, args[2]);
+        SystemId target = SystemId.of(position, args[2]);
         Thermostat controller = registry.thermostatFor(target);
         if (controller != null && controller.pool() != type.waterLoop())
-            throw new IllegalArgumentException("System '" + target.label() + "' is controlled by a "
+            throw new IllegalArgumentException("System '" + target.key() + "' is controlled by a "
                     + (controller.pool() ? "pool thermostat, which needs a boiler or pool heat pump"
                                          : "room thermostat, which cannot use water-loop equipment") + ".");
         if (registry.hasVentOfMedium(target, !type.waterLoop()))
             throw new IllegalArgumentException(type.displayName() + " is a "
                     + (type.waterLoop() ? "water" : "air") + " source, but system '"
-                    + target.label() + "' distributes through "
+                    + target.key() + "' distributes through "
                     + (type.waterLoop() ? "iron trapdoors (air)" : "waxed copper grates (water)")
                     + ".");
         EquipmentUnit unit = new EquipmentUnit(position, args[2], type);
         registry.addEquipment(unit);
         player.sendMessage(green("Registered " + type.displayName() + " in group '"
-                + unit.group().label() + "'."));
+                + unit.system().key() + "'."));
     }
 
     private void thermostat(Player player, String[] args) {
@@ -368,16 +368,16 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "disable" -> { thermostat.setEnabled(false); registry.markDirty(); player.sendMessage(yellow("Thermostat disabled.")); }
             case "group", "setgroup", "sethvac" -> {
                 if (args.length < 4) throw new IllegalArgumentException("Usage: /hvac thermostat <id> group <group>");
-                GroupId replacement = GroupId.of(thermostat.position(), args[3]);
+                SystemId replacement = SystemId.of(thermostat.position(), args[3]);
                 Thermostat existing = registry.thermostatFor(replacement);
                 if (existing != null && existing != thermostat)
                     throw new IllegalArgumentException("That group already has thermostat '" + existing.id() + "'.");
-                GroupId previous = thermostat.group();
+                SystemId previous = thermostat.system();
                 registry.regroupThermostat(thermostat, args[3]);
                 airflow.invalidate(previous);
-                airflow.invalidate(thermostat.group());
+                airflow.invalidate(thermostat.system());
                 registry.markDirty();
-                player.sendMessage(green("Thermostat moved to group '" + thermostat.group().label() + "'."));
+                player.sendMessage(green("Thermostat moved to group '" + thermostat.system().key() + "'."));
             }
             case "info" -> showThermostat(player, thermostat);
             default -> throw new IllegalArgumentException("Unknown thermostat action '" + args[2] + "'.");
@@ -402,7 +402,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 if (unit.hasOwnedOutput())
                     throw new IllegalArgumentException("The old output chunk must load before this unit can change groups.");
                 registry.regroupEquipment(unit, args[2]);
-                player.sendMessage(green("Equipment moved to group '" + unit.group().label() + "'."));
+                player.sendMessage(green("Equipment moved to group '" + unit.system().key() + "'."));
             }
             case "info" -> showEquipment(player, unit);
             default -> throw new IllegalArgumentException("Unknown equipment action '" + args[1] + "'.");
@@ -411,26 +411,26 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         plugin.requestImmediateSync();
     }
 
-    private void group(Player player, String[] args) {
+    private void system(Player player, String[] args) {
         if (args.length < 3) throw new IllegalArgumentException(
                 "Usage: /hvac group <group> <enable|disable|info>");
-        GroupId group = new GroupId(player.getWorld().getUID(), args[1]);
-        Thermostat thermostat = registry.thermostatFor(group);
-        List<EquipmentUnit> units = registry.equipmentFor(group);
+        SystemId system = new SystemId(player.getWorld().getUID(), args[1]);
+        Thermostat thermostat = registry.thermostatFor(system);
+        List<EquipmentUnit> units = registry.equipmentFor(system);
         if (thermostat == null && units.isEmpty())
-            throw new IllegalArgumentException("No HVAC group named '" + group.label() + "' in this world.");
+            throw new IllegalArgumentException("No HVAC group named '" + system.key() + "' in this world.");
         switch (args[2].toLowerCase(Locale.ROOT)) {
             case "enable" -> {
                 if (thermostat != null) thermostat.setEnabled(true);
                 units.forEach(unit -> unit.setEnabled(true));
-                player.sendMessage(green("Group '" + group.label() + "' enabled."));
+                player.sendMessage(green("Group '" + system.key() + "' enabled."));
             }
             case "disable" -> {
                 if (thermostat != null) thermostat.setEnabled(false);
                 units.forEach(unit -> { unit.setEnabled(false); unit.stop(); });
-                player.sendMessage(yellow("Group '" + group.label() + "' disabled."));
+                player.sendMessage(yellow("Group '" + system.key() + "' disabled."));
             }
-            case "info" -> showGroup(player, group);
+            case "info" -> showSystem(player, system);
             default -> throw new IllegalArgumentException("Unknown group action '" + args[2] + "'.");
         }
         registry.markDirty();
@@ -460,7 +460,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         } else {
             String zone = reading.airflowDistance() <= settings.airflowCoreRange()
                     ? "core" : Math.round(reading.influence() * 100) + (water ? "% mixing" : "% leakage");
-            player.sendMessage(join(gray("Group: "), white(reading.group().label()), gray(" | Path: "),
+            player.sendMessage(join(gray("Group: "), white(reading.system().key()), gray(" | Path: "),
                     white(reading.airflowDistance() + " blocks"), gray(" | Zone: "), white(zone)));
         }
     }
@@ -552,18 +552,18 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private void list(Player player) {
-        Set<GroupId> groups = new TreeSet<>();
-        registry.thermostats().stream().map(Thermostat::group)
-                .filter(group -> group.worldId().equals(player.getWorld().getUID())).forEach(groups::add);
-        registry.equipment().stream().map(EquipmentUnit::group)
-                .filter(group -> group.worldId().equals(player.getWorld().getUID())).forEach(groups::add);
-        if (groups.isEmpty()) { player.sendMessage(gray("No HVAC systems exist in this world.")); return; }
+        Set<SystemId> systems = new TreeSet<>();
+        registry.thermostats().stream().map(Thermostat::system)
+                .filter(system -> system.worldId().equals(player.getWorld().getUID())).forEach(systems::add);
+        registry.equipment().stream().map(EquipmentUnit::system)
+                .filter(system -> system.worldId().equals(player.getWorld().getUID())).forEach(systems::add);
+        if (systems.isEmpty()) { player.sendMessage(gray("No HVAC systems exist in this world.")); return; }
         player.sendMessage(gold("EZvac systems:"));
-        for (GroupId group : groups) {
-            HvacController.GroupStatus status = controller.status(group);
+        for (SystemId system : systems) {
+            HvacController.SystemStatus status = controller.status(system);
             String temperatures = Double.isFinite(status.roomF())
                     ? temp(status.roomF()) + " / " + temp(status.targetF()) : "no thermostat";
-            player.sendMessage(join(white(group.label()), gray(" | "), white(status.mode().name()),
+            player.sendMessage(join(white(system.key()), gray(" | "), white(status.mode().name()),
                     gray(" | "), white(status.profile().name()), gray(" | "), white(temperatures),
                     gray(" | equipment "),
                     white(status.running() + "/" + status.equipment())));
@@ -579,11 +579,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         EquipmentUnit unit = registry.equipmentAt(key);
         if (unit != null) { showEquipment(player, unit); return; }
         ClimateVent vent = registry.ventAt(key);
-        if (vent != null) { player.sendMessage(join(gold("Vent"), gray(" | Group: "), white(vent.group().label()))); return; }
+        if (vent != null) { player.sendMessage(join(gold("Vent"), gray(" | Group: "), white(vent.system().key()))); return; }
         Thermometer thermometer = registry.thermometerAt(key);
         if (thermometer != null) {
             AirflowService.TemperatureReading reading = airflow.temperatureAt(block.getLocation());
-            String source = reading.conditioned() ? reading.group().label() : "outdoor";
+            String source = reading.conditioned() ? reading.system().key() : "outdoor";
             String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
             String local = switch (thermometer.reads()) {
                 case TEMPERATURE -> temp(reading.localF());
@@ -596,10 +596,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         RpmMonitor monitor = registry.rpmMonitorAt(key);
         if (monitor != null) { player.sendMessage(join(gold("RPM monitor"), gray(" | Group: "),
-                white(monitor.group().label()), gray(" | Type: "), white(monitor.equipmentType().displayName()))); return; }
+                white(monitor.system().key()), gray(" | Type: "), white(monitor.equipmentType().displayName()))); return; }
         SettingsPanel panel = registry.settingsPanelAt(key);
         if (panel != null) { player.sendMessage(join(gold("Settings panel"), gray(" | Group: "),
-                white(panel.group().label()), gray(" | Profile: "), white(panel.profile().name()))); return; }
+                white(panel.system().key()), gray(" | Profile: "), white(panel.profile().name()))); return; }
         ClimateUnit climateUnit = registry.climateUnitAt(key);
         if (climateUnit != null) { showClimateUnit(player, climateUnit); return; }
         Sensor sensor = registry.sensorAt(key);
@@ -638,7 +638,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(green("Equipment removed; owned output cleanup was queued if needed."));
         } else {
             ClimateVent vent = registry.removeVent(key);
-            if (vent != null) { airflow.invalidate(vent.group()); player.sendMessage(green("Vent unlinked.")); }
+            if (vent != null) { airflow.invalidate(vent.system()); player.sendMessage(green("Vent unlinked.")); }
             else if (registry.thermometerAt(key) != null) {
                 String name = registry.thermometerAt(key).reads().displayName();
                 registry.removeThermometer(key);
@@ -698,7 +698,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case BOTH -> temp(reading.localF()) + " | " + humidity + " | feels " + temp(reading.feelsLikeF());
             case WEATHER -> throw new AssertionError("handled above");
         };
-        String where = reading.conditioned() ? "system '" + reading.group().label() + "'" : "no system";
+        String where = reading.conditioned() ? "system '" + reading.system().key() + "'" : "no system";
         return join(gold(sensor.label()), gray(" | "), white(values), gray(" | " + where));
     }
 
@@ -793,12 +793,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         EquipmentUnit unit = registry.equipmentAt(position);
         if (unit != null) {
             ItemMeta meta = item.getItemMeta();
-            meta.getPersistentDataContainer().set(toolGroupKey, PersistentDataType.STRING, unit.group().label());
-            meta.getPersistentDataContainer().set(toolWorldKey, PersistentDataType.STRING, unit.group().worldId().toString());
-            meta.lore(List.of(Component.text("Selected: " + unit.group().label(), NamedTextColor.GRAY),
+            meta.getPersistentDataContainer().set(toolSystemKey, PersistentDataType.STRING, unit.system().key());
+            meta.getPersistentDataContainer().set(toolWorldKey, PersistentDataType.STRING, unit.system().worldId().toString());
+            meta.lore(List.of(Component.text("Selected: " + unit.system().key(), NamedTextColor.GRAY),
                     Component.text("Click vents to link them.", NamedTextColor.GRAY)));
             item.setItemMeta(meta);
-            player.sendMessage(green("Selected group '" + unit.group().label() + "'."));
+            player.sendMessage(green("Selected group '" + unit.system().key() + "'."));
             return;
         }
         if (!ClimateVent.isVentBlock(block.getType())) {
@@ -815,11 +815,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             registry.removingByCommand(() -> unlinked[0] = registry.removeVent(position));
             ClimateVent removed = unlinked[0];
             if (removed == null) player.sendMessage(yellow("That block is not a registered vent."));
-            else { airflow.invalidate(removed.group()); player.sendMessage(green("Vent unlinked.")); }
+            else { airflow.invalidate(removed.system()); player.sendMessage(green("Vent unlinked.")); }
             return;
         }
         ItemMeta meta = item.getItemMeta();
-        String label = meta.getPersistentDataContainer().get(toolGroupKey, PersistentDataType.STRING);
+        String label = meta.getPersistentDataContainer().get(toolSystemKey, PersistentDataType.STRING);
         String worldText = meta.getPersistentDataContainer().get(toolWorldKey, PersistentDataType.STRING);
         if (label == null || worldText == null) {
             player.sendMessage(red("Select registered equipment with this tool first."));
@@ -832,40 +832,40 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(red("Equipment and vents must be in the same world."));
             return;
         }
-        GroupId group = new GroupId(worldId, label);
-        if (registry.equipmentFor(group).isEmpty()) {
+        SystemId system = new SystemId(worldId, label);
+        if (registry.equipmentFor(system).isEmpty()) {
             player.sendMessage(red("The selected HVAC group no longer has equipment."));
             return;
         }
         // A system is all air or all water: water cannot come out of a ceiling
         // vent, and conditioned air cannot be piped into a pool.
         boolean water = ClimateVent.isWaterVent(block.getType());
-        if (registry.hasEquipmentOfLoop(group, !water)) {
-            player.sendMessage(red("System '" + group.label() + "' is powered by "
+        if (registry.hasEquipmentOfLoop(system, !water)) {
+            player.sendMessage(red("System '" + system.key() + "' is powered by "
                     + (water ? "air-loop equipment, which cannot condition water"
                              : "water-loop equipment, which cannot condition air") + "."));
             return;
         }
-        if (registry.hasVentOfMedium(group, !water)) {
-            player.sendMessage(red("System '" + group.label() + "' already uses "
+        if (registry.hasVentOfMedium(system, !water)) {
+            player.sendMessage(red("System '" + system.key() + "' already uses "
                     + (water ? "iron trapdoors (air)" : "waxed copper grates (water)")
                     + ". A system must be all air or all water; unlink its existing vents first."));
             return;
         }
         ClimateVent previous = registry.ventAt(position);
-        registry.addVent(new ClimateVent(position, group));
-        if (previous != null) airflow.invalidate(previous.group());
-        airflow.invalidate(group);
+        registry.addVent(new ClimateVent(position, system));
+        if (previous != null) airflow.invalidate(previous.system());
+        airflow.invalidate(system);
         player.sendMessage(green((water ? "Water vent" : "Vent") + " linked to group '"
-                + group.label() + "'."));
+                + system.key() + "'."));
     }
 
     private void showThermostat(Player player, Thermostat thermostat) {
         player.sendMessage(join(gold("Thermostat "), white(thermostat.id()), gray(" | Group: "),
-                white(thermostat.group().label())));
+                white(thermostat.system().key())));
         player.sendMessage(join(gray("Room/target: "), white(temp(thermostat.roomF()) + " / "
                 + temp(thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
-                gray(" | Profile: "), white(registry.profileFor(thermostat.group()).name()),
+                gray(" | Profile: "), white(registry.profileFor(thermostat.system()).name()),
                 gray(" | "), white(thermostat.enabled() ? "enabled" : "disabled")));
         if (!thermostat.pool() && thermostat.hasRoomDewPoint()) {
             double humidity = Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
@@ -876,8 +876,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private void showClimateUnit(Player player, ClimateUnit unit) {
-        String space = unit.servedGroup() == null ? "its own zone"
-                : "system '" + unit.servedGroup().label() + "'";
+        String space = unit.servedSystem() == null ? "its own zone"
+                : "system '" + unit.servedSystem().key() + "'";
         double humidity = unit.lastHumidity();
         player.sendMessage(join(gold(unit.kind().displayName() + " "), white(unit.label()),
                 gray(unit instanceof Dehumidifier ? " | Drying: " : " | Humidifying: "), white(space)));
@@ -888,7 +888,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         ? join(gray(" | Tank: "), white(Math.round(dehumidifier.tank() * 100) + "%"))
                         : gray(" | Plumbed")));
         if (unit instanceof Dehumidifier dehumidifier && dehumidifier.tooCold()) {
-            Thermostat thermostat = unit.servedGroup() == null ? null : registry.thermostatFor(unit.servedGroup());
+            Thermostat thermostat = unit.servedSystem() == null ? null : registry.thermostatFor(unit.servedSystem());
             double dewPointF = thermostat == null ? unit.zoneDewPointF() : thermostat.roomDewPointF();
             player.sendMessage(gold("Air too cold: its dew point (" + settings.units().format(dewPointF, 0)
                     + ") is at or below what the coil can remove ("
@@ -898,18 +898,18 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private void showEquipment(Player player, EquipmentUnit unit) {
-        player.sendMessage(join(gold(unit.type().displayName()), gray(" | Group: "), white(unit.group().label())));
+        player.sendMessage(join(gold(unit.type().displayName()), gray(" | Group: "), white(unit.system().key())));
         player.sendMessage(join(gray("State: "), white(unit.running() ? unit.operatingMode().name() : "IDLE"),
                 gray(" | RPM: "), white(String.format(Locale.US, "%.0f", unit.motorRpm())),
                 gray(" | Profile: "), white(unit.type() == EquipmentType.FURNACE
-                        ? "FIXED" : registry.profileFor(unit.group()).name()),
+                        ? "FIXED" : registry.profileFor(unit.system()).name()),
                 gray(" | Output: "), white(unit.hasOwnedOutput() ? "owned" : "none"),
                 gray(" | "), white(unit.enabled() ? "enabled" : "disabled")));
     }
 
-    private void showGroup(Player player, GroupId group) {
-        HvacController.GroupStatus status = controller.status(group);
-        player.sendMessage(join(gold("Group "), white(group.label()), gray(" | Mode: "), white(status.mode().name())));
+    private void showSystem(Player player, SystemId system) {
+        HvacController.SystemStatus status = controller.status(system);
+        player.sendMessage(join(gold("Group "), white(system.key()), gray(" | Mode: "), white(status.mode().name())));
         player.sendMessage(join(gray("Controller loaded: "), white(Boolean.toString(status.controllerLoaded())),
                 gray(" | Profile: "), white(status.profile().name()),
                 gray(" | Equipment: "), white(status.running() + "/" + status.equipment()),
@@ -1009,7 +1009,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "equipment" -> filter(args[1], "enable", "disable", "group", "info");
                 case "hud" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "on", "off", "sections")
                         : filter(args[1], "on", "off");
-                case "group" -> filter(args[1], registry.thermostats().stream().map(value -> value.group().label()).distinct().toArray(String[]::new));
+                case "group" -> filter(args[1], registry.thermostats().stream().map(value -> value.system().key()).distinct().toArray(String[]::new));
                 default -> List.of();
             };
         }

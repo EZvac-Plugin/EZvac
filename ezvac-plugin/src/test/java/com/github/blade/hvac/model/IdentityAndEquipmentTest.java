@@ -10,22 +10,22 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class IdentityAndEquipmentTest {
     @Test
-    void groupNormalizationIsLocaleIndependent() {
+    void systemNormalizationIsLocaleIndependent() {
         Locale previous = Locale.getDefault();
         try {
             Locale.setDefault(Locale.forLanguageTag("tr-TR"));
-            assertEquals("inside", new GroupId(UUID.randomUUID(), "INSIDE").label());
+            assertEquals("inside", new SystemId(UUID.randomUUID(), "INSIDE").key());
         } finally {
             Locale.setDefault(previous);
         }
     }
 
     @Test
-    void groupLabelsRejectAmbiguousOrUnsafeValues() {
+    void systemLabelsRejectAmbiguousOrUnsafeValues() {
         UUID world = UUID.randomUUID();
-        assertThrows(IllegalArgumentException.class, () -> new GroupId(world, ""));
-        assertThrows(IllegalArgumentException.class, () -> new GroupId(world, "two words"));
-        assertThrows(IllegalArgumentException.class, () -> new GroupId(world, "../group"));
+        assertThrows(IllegalArgumentException.class, () -> new SystemId(world, ""));
+        assertThrows(IllegalArgumentException.class, () -> new SystemId(world, "two words"));
+        assertThrows(IllegalArgumentException.class, () -> new SystemId(world, "../group"));
     }
 
     @Test

@@ -73,8 +73,8 @@ class RegistryObserverTest {
 
     @Test
     void relinkingAVentMovesItToAnotherSystem() {
-        registry.addVent(new ClimateVent(at(5, 64, 0), GroupId.of(at(5, 64, 0), "house")));
-        registry.addVent(new ClimateVent(at(5, 64, 0), GroupId.of(at(5, 64, 0), "garage")));
+        registry.addVent(new ClimateVent(at(5, 64, 0), SystemId.of(at(5, 64, 0), "house")));
+        registry.addVent(new ClimateVent(at(5, 64, 0), SystemId.of(at(5, 64, 0), "garage")));
         assertEquals(List.of("added ClimateVent", "removed ClimateVent COMMAND", "added ClimateVent"), seen);
     }
 
