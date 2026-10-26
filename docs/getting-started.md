@@ -7,7 +7,7 @@ its own. It takes about five minutes in game.
 
 You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
 
-1. Put `EzVac-ALPHA-2.0.jar` in your server's `plugins` folder.
+1. Put `EzVac-ALPHA-3.0.jar` in your server's `plugins` folder.
 2. Start the server. EZvac writes `plugins/EZvac/config.yml` and logs a line
    such as `EZvac enabled: 0 thermostat(s), ...`.
 3. In game, `/hvac help` lists the commands you can use.
@@ -18,8 +18,8 @@ Building things needs `ezvac.admin` (operators have it). Players need only
 ## Your first system
 
 A **system** is a thermostat, the equipment that heats or cools, and the vents
-that blow the air into a room. They belong together because they share a
-**group** name; here it is `house`.
+that blow the air into a room. You put them together with the **link tool**:
+select the thermostat, then click everything that belongs to it.
 
 ### 1. A room
 
@@ -48,7 +48,7 @@ The casing doesn't have to touch the room: the room is reached through vents,
 linked in step 4. Look at the dispenser and run:
 
 ```text
-/hvac create heatpump house
+/hvac create heatpump
 ```
 
 More on every kind of equipment, and on the casing, in
@@ -59,33 +59,37 @@ More on every kind of equipment, and on the casing, in
 Put a sign anywhere you like, look at it, and run:
 
 ```text
-/hvac create thermostat main house 72
+/hvac create thermostat Home 72
 ```
 
-`main` is the thermostat's name, `house` the group, and `72` the target (72 °F
-if you leave it out). Temperatures are in °F unless the server uses Celsius
-(`units: C`); `72F` or `22C` always works. The sign shows the room temperature, what the
+`Home` is the thermostat's name, and `72` the target (72 °F if you leave it
+out). Names don't have to be unique: every house on the server can have a
+Home. Temperatures are in °F unless the server uses Celsius (`units: C`);
+`72F` or `22C` always works. The sign shows the room temperature, what the
 system is doing, the target and how long until it gets there:
 
 ```text
-EZvac | main
+EZvac | Home
 68.4 F | HEAT
 Set 72.0 F | 100%
-ETA 0:52 | house
+ETA 0:52 | 1/1
 ```
 
-### 4. Vents
+### 4. Link it together
 
-Vents are **iron trapdoors** in the room. Get the duct tool, select the heat
-pump, then click the vents:
+Vents are **iron trapdoors** in the room. Get the link tool:
 
 ```text
-/hvac duct-tool
+/hvac link-tool
 ```
 
-1. Right-click the heat pump's dispenser to select the `house` group.
-2. Right-click each iron trapdoor in the room to link it as a vent.
-3. Sneak-right-click a vent to unlink it.
+1. Right-click the thermostat sign to select it.
+2. Right-click the heat pump's dispenser to link it.
+3. Right-click each iron trapdoor in the room to link it as a vent.
+4. Sneak-right-click anything to unlink it again.
+
+If you're holding the tool with a thermostat selected when you create
+equipment or a sign, it's linked straight away.
 
 Air spreads from each vent through the room: full strength for 15 blocks of
 airflow, fading out by 30.
@@ -97,7 +101,7 @@ airflow, fading out by 30.
 - `/hvac hud` keeps the climate where you stand on screen. See
   [HUD and placeholders](hud-and-placeholders.md).
 - To change the target, right-click the thermostat sign and use its menu, or
-  run `/hvac thermostat main set 70`.
+  look at it and run `/hvac thermostat set 70`.
 - To switch the whole system off, sneak-right-click the thermostat sign; do it
   again to switch it back on.
 

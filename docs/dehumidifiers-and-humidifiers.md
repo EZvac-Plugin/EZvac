@@ -26,7 +26,8 @@ Look at the sign and run:
 /hvac create dehumidifier [label]          ("dehum" works too)
 ```
 
-The grate must not already be linked as a water vent.
+The grate must not already be linked as a water vent (unlink it with the link
+tool first).
 
 <!-- screenshot: a dehumidifier with its sign, and one emptying a full tank -->
 
