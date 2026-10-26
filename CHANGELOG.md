@@ -80,6 +80,35 @@ humidity behave exactly as in 2.2.
   `ThermostatView.id()` or `ClimateReading.thermostat()` instead.
   `thermostat(world, id)` is deprecated, since labels can repeat.
 
+### Removed
+
+These no longer exist. Each one says what to use instead when it's tried.
+
+| Removed | Use instead |
+| --- | --- |
+| Group names | Link devices to a thermostat with the link tool |
+| `/hvac group <group> enable\|disable\|info` | Sneak-click the thermostat to switch its system on or off; `/hvac thermostat info` while looking at it |
+| `/hvac thermostat <id> set\|enable\|disable\|info` (by name) | The same, while looking at the thermostat: `/hvac thermostat set 70` |
+| `/hvac thermostat <id> group` and `/hvac equipment group` | Sneak-click with the link tool to unlink, then link to another thermostat |
+| An RPM monitor watching one kind of equipment | A monitor shows all of its system's equipment |
+| Unique thermostat ids | Labels may repeat; `/hvac rename` changes one |
+
+### Deprecated
+
+These still work in 3.0, but are on their way out and may be removed in a
+later release. The changelog will say so first.
+
+| Deprecated | Use instead |
+| --- | --- |
+| A group name in `create` commands (`create thermostat main house 72`, `create heatpump house`, `create rpmmonitor house heatpump fan`) | The forms without it. For now the group is ignored, with a note |
+| The `{group}` HUD token and `%ezvac_group%` | `{system}` and `%ezvac_system%`, which show the same thermostat label |
+| `/hvac duct-tool`, `/hvac sensor-tool`, `/hvac tool`, and the duct and sensor tool items | `/hvac link-tool` and the link tool |
+| API: `EzvacApi.thermostat(world, id)` | `thermostatAt(position)` or `thermostatOf(world, system)`; labels can repeat, so it returns the lowest-placed match |
+
+**For addons,** the API's `system()` strings are now opaque keys (see API
+1.3 above). They aren't deprecated, but they mean something different: show
+players the thermostat's label instead.
+
 ### Upgrading from 2.2
 
 - **The save:**
