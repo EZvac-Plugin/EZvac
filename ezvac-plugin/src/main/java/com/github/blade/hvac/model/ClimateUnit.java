@@ -33,7 +33,7 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
     private final BlockKey position;
     private final BlockKey unit;
     private final BlockKey part;
-    private final String label;
+    private String label;
     private int setpoint;
     private boolean powered;
     protected boolean running;
@@ -68,6 +68,7 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
     /** The block that shows its water: a dehumidifier's grate, a humidifier's slab. */
     public BlockKey part() { return part; }
     public String label() { return label; }
+    public void setLabel(String label) { this.label = Thermostat.validateId(label); }
     public int setpoint() { return setpoint; }
     public boolean powered() { return powered; }
     public boolean running() { return running; }

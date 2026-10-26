@@ -220,6 +220,7 @@ public final class HudFormatter {
                 .replace("{bar}", barMini(snapshot.comfortF(), medium))
                 .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
+                .replace("{system}", escape(system(snapshot)))
                 .replace("{group}", escape(system(snapshot)))
                 .replace("{thermostat}", escape(thermostat(snapshot)))
                 .replace("{mode}", escape(mode(snapshot)))

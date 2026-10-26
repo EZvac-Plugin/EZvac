@@ -4,6 +4,7 @@ import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.ClimateUnitView;
 import com.github.blade.hvac.api.EquipmentView;
 import com.github.blade.hvac.api.EzvacApi;
+import com.github.blade.hvac.api.EzvacLinkTool;
 import com.github.blade.hvac.api.HvacDevice;
 import com.github.blade.hvac.api.InstrumentView;
 import com.github.blade.hvac.api.OutdoorClimate;
@@ -15,17 +16,18 @@ import com.github.blade.hvac.api.VentView;
 import com.github.blade.hvac.api.event.DeviceRemovedEvent;
 import com.github.blade.hvac.api.event.PlayerClimateUpdateEvent;
 import com.github.blade.hvac.api.hud.EzvacHud;
+import com.github.blade.hvac.command.LinkTool;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.EquipmentUnit;
-import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.RpmMonitor;
 import com.github.blade.hvac.model.Sensor;
 import com.github.blade.hvac.model.SensorHub;
 import com.github.blade.hvac.model.SettingsPanel;
+import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Thermometer;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirflowService;
@@ -67,6 +69,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     private final OutdoorTemperatureService outdoor;
     private final SeasonService seasons;
     private final HudSections hud;
+    private EzvacLinkTool linkTool;
     /** The last update per player, for latestFor from any thread. */
     private final Map<UUID, ClimateReading> latest = new ConcurrentHashMap<>();
 
@@ -86,6 +89,15 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
 
     /** The addon sections, for the HUD to draw. */
     public HudSections sections() { return hud; }
+
+    /** Set once the command, which owns the link tool, exists. */
+    public void setLinkTool(LinkTool tool) { this.linkTool = new ApiLinkTool(tool, registry); }
+
+    @Override
+    public EzvacLinkTool linkTool() {
+        if (linkTool == null) throw new IllegalStateException("EZvac is still starting");
+        return linkTool;
+    }
 
     @Override
     public EzvacHud hud() { return hud; }
@@ -130,11 +142,29 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     }
 
     @Override
+    @Deprecated(since = "1.3")
     public Optional<ThermostatView> thermostat(World world, String id) {
-        Thermostat thermostat = id == null ? null : registry.thermostatById(id);
-        if (thermostat == null || world == null || !thermostat.position().worldId().equals(world.getUID()))
+        if (world == null || id == null) return Optional.empty();
+        return registry.thermostatsLabelled(world.getUID(), id).stream().findFirst().map(this::view);
+    }
+
+    @Override
+    public Optional<ThermostatView> thermostatAt(Position position) {
+        if (position == null) return Optional.empty();
+        Thermostat thermostat = registry.thermostatAt(new BlockKey(position.world(), position.x(), position.y(),
+                position.z()));
+        return thermostat == null ? Optional.empty() : Optional.of(view(thermostat));
+    }
+
+    @Override
+    public Optional<ThermostatView> thermostatOf(World world, String system) {
+        if (world == null || system == null) return Optional.empty();
+        try {
+            Thermostat thermostat = registry.thermostatFor(new SystemId(world.getUID(), system));
+            return thermostat == null ? Optional.empty() : Optional.of(view(thermostat));
+        } catch (IllegalArgumentException notAKey) {
             return Optional.empty();
-        return Optional.of(view(thermostat));
+        }
     }
 
     @Override
@@ -200,7 +230,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         for (SensorHub device : registry.sensorHubs())
             if (in(world, device.position())) out.add(ApiViews.sensorHub(device));
         for (RpmMonitor device : registry.rpmMonitors())
-            if (in(world, device.position())) out.add(ApiViews.rpmMonitor(device));
+            if (in(world, device.position())) out.add(rpmMonitor(device));
         for (SettingsPanel device : registry.settingsPanels())
             if (in(world, device.position())) out.add(ApiViews.settingsPanel(device));
         return List.copyOf(out);
@@ -236,6 +266,10 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         return registry.equipmentFor(system).stream().anyMatch(unit -> unit.type().waterLoop());
     }
 
+    private InstrumentView rpmMonitor(RpmMonitor monitor) {
+        return ApiViews.rpmMonitor(monitor, monitor.system() == null ? List.of() : registry.equipmentFor(monitor.system()));
+    }
+
     /** Any of EZvac's devices as the API shows it. */
     HvacDevice device(Object device) {
         return switch (device) {
@@ -246,7 +280,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
             case Thermometer thermometer -> ApiViews.thermometer(thermometer);
             case Sensor sensor -> ApiViews.sensor(sensor);
             case SensorHub hub -> ApiViews.sensorHub(hub);
-            case RpmMonitor monitor -> ApiViews.rpmMonitor(monitor);
+            case RpmMonitor monitor -> rpmMonitor(monitor);
             case SettingsPanel panel -> ApiViews.settingsPanel(panel);
             default -> throw new IllegalArgumentException("not an EZvac device: " + device);
         };

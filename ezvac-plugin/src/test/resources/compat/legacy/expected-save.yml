@@ -1,9 +1,10 @@
 meta:
-  format: 6
+  format: 7
+  next-system: 1
 thermostats:
   item0:
     id: Lobby
-    group: lobby
+    system: lobby
     worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
     x: 10
     y: 64
@@ -21,8 +22,9 @@ thermostats:
     outdoorPrecipitation: RAIN
 equipment:
   item0:
-    group: lobby
+    system: lobby
     equipmentType: AIR_CONDITIONER
+    tier: 2
     worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
     x: 14
     y: 64
@@ -37,8 +39,9 @@ equipment:
     outputZ: 10
 cleanup:
   item0:
-    group: lobby
+    system: lobby
     equipmentType: HEAT_PUMP
+    tier: 2
     worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
     x: 20
     y: 64
@@ -57,7 +60,7 @@ vents:
     x: 18
     y: 66
     z: 10
-    group: lobby
+    system: lobby
 thermometers:
   item0:
     worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10

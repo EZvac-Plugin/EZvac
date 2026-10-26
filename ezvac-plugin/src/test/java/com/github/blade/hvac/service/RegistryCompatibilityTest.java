@@ -123,7 +123,7 @@ class RegistryCompatibilityTest {
         HvacRegistry registry = load(host, "legacy", "hvac.yml");
         UUID world = UUID.fromString("0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10");
 
-        Thermostat thermostat = registry.thermostatById("lobby");
+        Thermostat thermostat = TestHost.labelled(registry, "lobby");
         assertNotNull(thermostat, "ids stay case-insensitive");
         assertEquals("Lobby", thermostat.id());
         assertEquals("lobby", thermostat.system().key());
@@ -152,8 +152,8 @@ class RegistryCompatibilityTest {
         for (Thermostat thermostat : registry.thermostats())
             assertEquals(seasonal, thermostat.toMap().containsKey("outdoorSeasonalF"), thermostat.id());
         if (!seasonal) return;
-        assertEquals(18.0, Objects.requireNonNull(registry.thermostatById("main")).outdoorClimate().seasonalF());
-        double edge = Objects.requireNonNull(registry.thermostatById("edge")).outdoorClimate().seasonalF();
+        assertEquals(18.0, Objects.requireNonNull(TestHost.labelled(registry, "main")).outdoorClimate().seasonalF());
+        double edge = Objects.requireNonNull(TestHost.labelled(registry, "edge")).outdoorClimate().seasonalF();
         assertTrue(edge > 14.0 && edge < 18.0, () -> "between desert and plains, was " + edge);
     }
 
@@ -168,15 +168,15 @@ class RegistryCompatibilityTest {
         assertEquals(1, registry.settingsPanels().size());
         assertTrue(registry.pendingCleanup().isEmpty());
 
-        Thermostat house = Objects.requireNonNull(registry.thermostatById("main"));
+        Thermostat house = Objects.requireNonNull(TestHost.labelled(registry, "main"));
         assertEquals("house", house.system().key());
         assertEquals(60.0, house.targetF());
         assertEquals(2, registry.equipmentFor(house.system()).size());
         assertEquals(OperatingProfile.TURBO, registry.profileFor(house.system()));
-        assertEquals("office", Objects.requireNonNull(registry.thermostatById("work")).system().key());
+        assertEquals("office", Objects.requireNonNull(TestHost.labelled(registry, "work")).system().key());
 
         if (water) {
-            Thermostat spa = Objects.requireNonNull(registry.thermostatById("spa"));
+            Thermostat spa = Objects.requireNonNull(TestHost.labelled(registry, "spa"));
             assertEquals("pool", spa.system().key());
             assertEquals(pool, spa.pool());
             // Pilot 1 pools used a room thermostat, which clamps to the 85 F ceiling.
@@ -199,7 +199,7 @@ class RegistryCompatibilityTest {
                     Thermometer.Reads.BOTH), registry.thermometers().stream().map(Thermometer::reads)
                     .collect(java.util.stream.Collectors.toSet()));
             assertTrue(house.hasRoomDewPoint(), "2.0 saves each air room's moisture");
-            assertFalse(Objects.requireNonNull(registry.thermostatById("spa")).hasRoomDewPoint(),
+            assertFalse(Objects.requireNonNull(TestHost.labelled(registry, "spa")).hasRoomDewPoint(),
                     "a pool has no air of its own");
         }
 
@@ -234,7 +234,7 @@ class RegistryCompatibilityTest {
         }
 
         if (border) {
-            Thermostat edge = Objects.requireNonNull(registry.thermostatById("edge"));
+            Thermostat edge = Objects.requireNonNull(TestHost.labelled(registry, "edge"));
             assertEquals("dunes", edge.system().key());
             assertTrue(registry.equipmentFor(edge.system()).isEmpty());
             var climateThere = edge.outdoorClimate();

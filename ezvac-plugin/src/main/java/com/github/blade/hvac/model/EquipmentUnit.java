@@ -24,22 +24,32 @@ public final class EquipmentUnit {
     private OperatingMode operatingMode;
     private double motorRpm;
     private BlockKey ownedOutput;
+    /**
+     * Its performance tier, 1 to 3 (shown as stars). Every unit is tier 2
+     * for now; the save keeps the field so tiers need no new format later.
+     */
+    private int tier = DEFAULT_TIER;
     /** Told (previous, current) on every owned-output change, so the registry's index stays current. */
     private BiConsumer<BlockKey, BlockKey> ownedOutputWatcher;
 
-    public EquipmentUnit(BlockKey position, String systemLabel, EquipmentType type) {
-        this(position, SystemId.of(position, systemLabel), type, true, false,
-                OperatingMode.IDLE, 0.0, null);
+    public static final int DEFAULT_TIER = 2;
+
+    public EquipmentUnit(BlockKey position, String systemKey, EquipmentType type) {
+        this(position, SystemId.of(position, systemKey), type);
+    }
+
+    public EquipmentUnit(BlockKey position, SystemId system, EquipmentType type) {
+        this(position, system, type, true, false, OperatingMode.IDLE, 0.0, null);
     }
 
     private EquipmentUnit(BlockKey position, SystemId system, EquipmentType type, boolean enabled,
                           boolean running, OperatingMode operatingMode, double motorRpm,
                           BlockKey ownedOutput) {
         this.position = Objects.requireNonNull(position, "position");
-        this.system = Objects.requireNonNull(system, "group");
+        this.system = Objects.requireNonNull(system, "system");
         this.type = Objects.requireNonNull(type, "type");
         if (!position.worldId().equals(system.worldId()))
-            throw new IllegalArgumentException("equipment and group worlds differ");
+            throw new IllegalArgumentException("equipment and system worlds differ");
         this.enabled = enabled;
         this.running = running;
         this.operatingMode = running ? Objects.requireNonNull(operatingMode, "operatingMode")
@@ -56,6 +66,7 @@ public final class EquipmentUnit {
     public OperatingMode operatingMode() { return operatingMode; }
     public double motorRpm() { return motorRpm; }
     public BlockKey ownedOutput() { return ownedOutput; }
+    public int tier() { return tier; }
     public boolean hasOwnedOutput() { return ownedOutput != null; }
 
     /** Installed by HvacRegistry while it tracks this unit; null stops reporting. */
@@ -69,7 +80,13 @@ public final class EquipmentUnit {
             ownedOutputWatcher.accept(previous, output);
     }
 
-    public void setSystem(String label) { this.system = SystemId.of(position, label); }
+    /** Only HvacRegistry may move a registered unit: its indexes follow the system. */
+    public void setSystem(SystemId system) {
+        Objects.requireNonNull(system, "system");
+        if (!position.worldId().equals(system.worldId()))
+            throw new IllegalArgumentException("equipment and system worlds differ");
+        this.system = system;
+    }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public double operatingCapacity(HvacSettings settings) {
         if (!running) return 0.0;
@@ -211,8 +228,9 @@ public final class EquipmentUnit {
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
-        map.put("group", system.key());
+        map.put("system", system.key());
         map.put("equipmentType", type.name());
+        map.put("tier", tier);
         position.write(map, "");
         map.put("enabled", enabled);
         map.put("running", running);
@@ -224,7 +242,7 @@ public final class EquipmentUnit {
 
     public static EquipmentUnit fromMap(Map<String, Object> map) {
         BlockKey position = BlockKey.read(map, "");
-        String system = string(map, "group", string(map, "label", null));
+        String system = string(map, "system", string(map, "group", string(map, "label", null)));
         EquipmentType type = EquipmentType.parse(map.get("equipmentType"));
         boolean running = bool(map, "running", false);
         BlockKey output = null;
@@ -235,9 +253,12 @@ public final class EquipmentUnit {
         }
         OperatingMode mode = OperatingMode.parse(map.get("operatingMode"));
         if (running && mode == OperatingMode.IDLE) mode = OperatingMode.COOLING;
-        return new EquipmentUnit(position, SystemId.of(position, system), type,
+        EquipmentUnit unit = new EquipmentUnit(position, SystemId.of(position, system), type,
                 bool(map, "enabled", true), running, mode,
                 number(map, "motorRpm", 0.0), output);
+        // Saves from before 3.0 have no tier: every unit then was what tier 2 is.
+        unit.tier = (int) Math.max(1, Math.min(3, Math.round(number(map, "tier", DEFAULT_TIER))));
+        return unit;
     }
 
     private static String string(Map<String, Object> map, String key, String fallback) {

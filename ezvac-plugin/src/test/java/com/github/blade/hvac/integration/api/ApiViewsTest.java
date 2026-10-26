@@ -17,13 +17,13 @@ import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.EquipmentUnit;
-import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Humidifier;
 import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.RpmMonitor;
 import com.github.blade.hvac.model.Sensor;
 import com.github.blade.hvac.model.SensorHub;
 import com.github.blade.hvac.model.SettingsPanel;
+import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Thermometer;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirflowService;
@@ -180,8 +180,13 @@ class ApiViewsTest {
         assertEquals(InstrumentView.Kind.WEATHER_SENSOR,
                 ApiViews.sensor(new Sensor(at(0, 64, 1), "Sky", Sensor.Kind.WEATHER)).kind());
 
-        RpmMonitor monitor = new RpmMonitor(at(0, 64, 2), SystemId.of(at(0, 64, 2), "house"), "Fan", EquipmentType.FURNACE);
-        assertEquals(Optional.of("house"), ApiViews.rpmMonitor(monitor).system());
+        RpmMonitor monitor = new RpmMonitor(at(0, 64, 2), SystemId.of(at(0, 64, 2), "house"), "Fan");
+        EquipmentUnit furnace = new EquipmentUnit(at(5, 64, 2), "house", EquipmentType.FURNACE);
+        InstrumentView fan = ApiViews.rpmMonitor(monitor, List.of(furnace));
+        assertEquals(Optional.of("house"), fan.system());
+        assertEquals(List.of(ApiViews.position(furnace.position())), fan.links(), "since 1.3 it links its equipment");
+        assertEquals(Optional.empty(), ApiViews.rpmMonitor(new RpmMonitor(at(0, 64, 4), "Loose"), List.of()).system());
+        assertEquals(Optional.empty(), ApiViews.settingsPanel(new SettingsPanel(at(0, 64, 5), "Loose")).system());
         InstrumentView panel = ApiViews.settingsPanel(new SettingsPanel(at(0, 64, 3), "house", "Panel"));
         assertEquals(InstrumentView.Kind.SETTINGS_PANEL, panel.kind());
         assertEquals(Optional.of("house"), panel.system());

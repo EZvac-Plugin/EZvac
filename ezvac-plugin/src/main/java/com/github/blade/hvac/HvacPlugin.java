@@ -100,6 +100,7 @@ public final class HvacPlugin extends JavaPlugin {
             menus = new ControlMenus(this, registry, displays, settings, climate);
             getServer().getPluginManager().registerEvents(menus, this);
             registerApi();
+            api.setLinkTool(commandHandler.linkTool());
             hud.start();
             if (hud.sidebarYieldedTo() != null)
                 getLogger().info(hud.sidebarYieldedTo() + " draws its own scoreboard, so the /hvac hud overlay uses"

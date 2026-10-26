@@ -1,6 +1,9 @@
 package com.github.blade.hvac.service;
 
+import com.github.blade.hvac.model.Thermostat;
+
 import java.io.File;
+import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Handler;
@@ -32,6 +35,12 @@ final class TestHost implements HvacRegistry.Host {
     List<String> warnings() {
         return records.stream().filter(record -> record.getLevel().intValue() >= Level.WARNING.intValue())
                 .map(LogRecord::getMessage).toList();
+    }
+
+    /** The thermostat with this label (ignoring case) at the lowest position, in any world; or null. */
+    static Thermostat labelled(HvacRegistry registry, String label) {
+        return registry.thermostats().stream().filter(thermostat -> thermostat.id().equalsIgnoreCase(label))
+                .min(Comparator.comparing(Thermostat::position)).orElse(null);
     }
 
     @Override public File dataFolder() { return folder; }

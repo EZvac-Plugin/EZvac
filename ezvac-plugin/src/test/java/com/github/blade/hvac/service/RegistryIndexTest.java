@@ -81,7 +81,7 @@ class RegistryIndexTest {
     }
 
     private static String mutate(HvacRegistry registry, Random random) {
-        int choice = random.nextInt(14);
+        int choice = random.nextInt(17);
         try {
             switch (choice) {
                 case 0 -> registry.addThermostat(new Thermostat(randomPosition(random),
@@ -101,16 +101,13 @@ class RegistryIndexTest {
                 }
                 case 5 -> {
                     EquipmentUnit value = pick(registry.equipment(), random);
-                    if (value != null) registry.regroupEquipment(value, label(random));
+                    if (value != null) registry.linkEquipment(value, SystemId.of(value.position(), label(random)));
                 }
                 case 6 -> {
                     Thermostat value = pick(registry.thermostats(), random);
                     String label = label(random);
-                    // Mirrors /hvac thermostat <id> group: a group never gets a second controller.
-                    Thermostat existing = value == null ? null
-                            : registry.thermostatFor(SystemId.of(value.position(), label));
-                    if (value != null && (existing == null || existing == value))
-                        registry.regroupThermostat(value, label);
+                    // A system never gets a second thermostat: linkThermostat refuses it.
+                    if (value != null) registry.linkThermostat(value, SystemId.of(value.position(), label));
                 }
                 case 7 -> {
                     BlockKey position = random.nextBoolean() && !registry.vents().isEmpty()
@@ -134,6 +131,21 @@ class RegistryIndexTest {
                     registry.releaseOutputOwnership(key);
                 }
                 case 12 -> registry.reconcilePendingCleanup();
+                case 13 -> {
+                    // What the link tool does with a headless system; one with a thermostat is refused.
+                    UUID world = random.nextBoolean() ? WORLD_A : WORLD_B;
+                    registry.merge(new SystemId(world, label(random)), new SystemId(world, label(random)));
+                }
+                case 14 -> registry.addRpmMonitor(new RpmMonitor(randomPosition(random), "rpm"));
+                case 15 -> {
+                    RpmMonitor monitor = pick(registry.rpmMonitors(), random);
+                    SettingsPanel panel = pick(registry.settingsPanels(), random);
+                    String label = random.nextInt(3) == 0 ? null : label(random);
+                    if (monitor != null) registry.linkRpmMonitor(monitor,
+                            label == null ? null : SystemId.of(monitor.position(), label));
+                    if (panel != null) registry.linkSettingsPanel(panel,
+                            label == null ? null : SystemId.of(panel.position(), label));
+                }
                 default -> registry.shutdownEquipment();
             }
         } catch (IllegalArgumentException refused) {
@@ -153,9 +165,12 @@ class RegistryIndexTest {
             List<EquipmentUnit> units = registry.equipment().stream().filter(unit -> unit.system().equals(system))
                     .sorted(Comparator.comparing(EquipmentUnit::position)).toList();
             assertEquals(units, registry.equipmentFor(system), context + ": equipmentFor " + system);
-            SettingsPanel panel = registry.settingsPanels().stream().filter(value -> value.system().equals(system))
+            SettingsPanel panel = registry.settingsPanels().stream().filter(value -> system.equals(value.system()))
                     .min(Comparator.comparing(SettingsPanel::position)).orElse(null);
             assertSame(panel, registry.settingsPanelFor(system), context + ": settingsPanelFor " + system);
+            List<RpmMonitor> monitors = registry.rpmMonitors().stream().filter(value -> system.equals(value.system()))
+                    .sorted(Comparator.comparing(RpmMonitor::position)).toList();
+            assertEquals(monitors, registry.rpmMonitorsFor(system), context + ": rpmMonitorsFor " + system);
             List<ClimateVent> vents = registry.vents().stream().filter(vent -> vent.system().equals(system))
                     .sorted(Comparator.comparing(ClimateVent::position)).toList();
             assertEquals(vents, List.copyOf(registry.ventsFor(system)), context + ": ventsFor " + system);
@@ -169,7 +184,7 @@ class RegistryIndexTest {
             String name = (id % 2 == 0 ? "t" : "T") + id;
             Thermostat expected = registry.thermostats().stream().filter(value -> value.id().equalsIgnoreCase(name))
                     .min(Comparator.comparing(Thermostat::position)).orElse(null);
-            assertSame(expected, registry.thermostatById(name), context + ": thermostatById " + name);
+            assertSame(expected, TestHost.labelled(registry, name), context + ": labelled " + name);
         }
         Set<BlockKey> outputs = new HashSet<>();
         for (EquipmentUnit unit : registry.equipment()) if (unit.ownedOutput() != null) outputs.add(unit.ownedOutput());

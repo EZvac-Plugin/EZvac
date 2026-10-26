@@ -13,7 +13,7 @@ public final class PlaceholderResolver {
     /** Every supported key, in the order the docs list them. */
     public static final List<String> KEYS = List.of(
             "temp", "temp_f", "temp_c", "outdoor", "outdoor_f", "outdoor_c",
-            "bar", "bar_plain", "comfort", "group", "thermostat", "mode", "target",
+            "bar", "bar_plain", "comfort", "system", "group", "thermostat", "mode", "target",
             "influence", "zone", "conditioned", "medium",
             "feels_like", "feels_like_f", "feels_like_c", "humidity", "weather", "season", "season_day");
 
@@ -42,7 +42,8 @@ public final class PlaceholderResolver {
             case "bar" -> format.barLegacy(snapshot);
             case "bar_plain" -> format.barPlain(snapshot);
             case "comfort" -> format.band(snapshot).label();
-            case "group" -> format.system(snapshot);
+            // "group" is the name it had before 3.0; it means the same.
+            case "system", "group" -> format.system(snapshot);
             case "thermostat" -> format.thermostat(snapshot);
             case "mode" -> format.mode(snapshot);
             case "target" -> format.target(snapshot);

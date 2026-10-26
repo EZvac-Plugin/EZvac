@@ -9,7 +9,7 @@ import java.util.Objects;
  * when this view was made.
  *
  * @param kind     what it is; the same kinds as {@link EquipmentStateChangeEvent}
- * @param system   the system (group) it belongs to
+ * @param system   the key of the system it belongs to (see {@link EzvacApi#thermostatOf})
  * @param position its dispenser
  * @param enabled  false when switched off on its own ({@code /hvac equipment disable})
  * @param running  true while it runs

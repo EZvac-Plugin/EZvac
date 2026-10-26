@@ -7,6 +7,7 @@ import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.ClimateUnitService;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
+import com.github.blade.hvac.service.SystemNames;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -68,7 +69,7 @@ public final class HvacListener implements Listener {
     /**
      * Sneak-clicking a thermostat sign switches its system off or back on,
      * like /hvac thermostat disable|enable. Only the thermostat is toggled: a
-     * disabled thermostat idles its whole group, and units switched off on
+     * disabled thermostat idles its whole system, and units switched off on
      * their own stay off when it comes back. A plain click opens the
      * thermostat's control menu instead.
      */
@@ -89,7 +90,7 @@ public final class HvacListener implements Listener {
         registry.markDirty();
         displays.refreshThermostat(thermostat, true);
         plugin.requestImmediateSync();
-        player.sendMessage(Component.text("System '" + thermostat.system().key() + "' switched "
+        player.sendMessage(Component.text(thermostat.id() + " switched "
                 + (thermostat.enabled() ? "on." : "off."), thermostat.enabled() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
     }
 
@@ -112,7 +113,7 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSettingsPanel(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
-                || event.getHand() != EquipmentSlot.HAND) return;
+                || event.getHand() != EquipmentSlot.HAND || command.isTool(event.getItem())) return;
         SettingsPanel panel = registry.settingsPanelAt(
                 BlockKey.of(event.getClickedBlock().getLocation()));
         if (panel == null) return;
@@ -120,6 +121,11 @@ public final class HvacListener implements Listener {
         if (!event.getPlayer().hasPermission("ezvac.use")) {
             event.getPlayer().sendMessage(Component.text(
                     "You may not control this HVAC system.", NamedTextColor.RED));
+            return;
+        }
+        if (panel.system() == null) {
+            event.getPlayer().sendMessage(Component.text("This settings panel isn't linked to a system yet.",
+                    NamedTextColor.YELLOW));
             return;
         }
         OperatingProfile profile = event.getPlayer().isSneaking()
@@ -183,49 +189,47 @@ public final class HvacListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onDuctTool(PlayerInteractEvent event) {
+    public void onLinkTool(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
-                || !command.isDuctTool(event.getItem())) return;
+                || event.getHand() != EquipmentSlot.HAND || !command.isTool(event.getItem())) return;
         event.setCancelled(true);
-        command.handleDuctToolClick(event.getPlayer(), event.getClickedBlock(), event.getItem(),
-                event.getPlayer().isSneaking());
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onSensorTool(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
-                || !command.isSensorTool(event.getItem())) return;
-        event.setCancelled(true);
-        command.handleSensorToolClick(event.getPlayer(), event.getClickedBlock(), event.getItem(),
+        command.linkTool().handleClick(event.getPlayer(), event.getClickedBlock(), event.getItem(),
                 event.getPlayer().isSneaking());
     }
 
     /**
-     * Clicking a sensor hub turns its page; sneak-clicking switches
-     * auto-flip on or off. The click is cancelled, so the sign editor never
-     * opens.
+     * Clicking a sensor hub or an RPM monitor turns its page; sneak-clicking
+     * switches auto-flip on or off. The click is cancelled, so the sign
+     * editor never opens.
      */
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSensorHub(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK || event.getClickedBlock() == null
                 || event.getHand() != EquipmentSlot.HAND || command.isTool(event.getItem())) return;
-        SensorHub hub = registry.sensorHubAt(BlockKey.of(event.getClickedBlock().getLocation()));
-        if (hub == null) return;
+        BlockKey key = BlockKey.of(event.getClickedBlock().getLocation());
+        SensorHub hub = registry.sensorHubAt(key);
+        RpmMonitor monitor = hub == null ? registry.rpmMonitorAt(key) : null;
+        if (hub == null && monitor == null) return;
         event.setCancelled(true);
         Player player = event.getPlayer();
         if (!player.hasPermission("ezvac.use")) {
-            player.sendMessage(Component.text("You may not use this sensor hub.", NamedTextColor.RED));
+            player.sendMessage(Component.text("You may not use this sign.", NamedTextColor.RED));
             return;
         }
         if (player.isSneaking()) {
-            hub.setAutoFlip(!hub.autoFlip());
+            boolean autoFlip = hub != null ? !hub.autoFlip() : !monitor.autoFlip();
+            if (hub != null) hub.setAutoFlip(autoFlip);
+            else monitor.setAutoFlip(autoFlip);
             registry.markDirty();
-            player.sendMessage(Component.text("Auto-flip " + (hub.autoFlip() ? "on." : "off."),
-                    hub.autoFlip() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
-        } else {
+            player.sendMessage(Component.text("Auto-flip " + (autoFlip ? "on." : "off."),
+                    autoFlip ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+        } else if (hub != null) {
             hub.nextPage();
+        } else if (monitor.system() != null) {
+            monitor.nextPage(RpmMonitor.rows(registry.equipmentFor(monitor.system())).size());
         }
-        displays.refreshSensorHub(hub, true);
+        if (hub != null) displays.refreshSensorHub(hub, true);
+        else displays.refreshRpmMonitor(monitor, true);
     }
 
     /**
@@ -422,7 +426,7 @@ public final class HvacListener implements Listener {
      * Breaking a registered device used to be entirely silent, so a stray pickaxe
      * could unregister a thermostat with nothing to show for it. Anything that
      * belongs to a system now says what it was and which system it left.
-     * Thermometers stay quiet: they have no group, so there is nothing to warn
+     * Thermometers stay quiet: they have no system, so there is nothing to warn
      * about losing.
      */
     private void removeDeviceAt(Block block, Player breaker) {
@@ -434,20 +438,24 @@ public final class HvacListener implements Listener {
         Thermostat thermostat = registry.thermostatAt(key);
         if (thermostat != null) {
             removed = registry.removeThermostat(key);
-            if (removed) notice = "thermostat '" + thermostat.id() + "' from system '"
-                    + thermostat.system().key() + "'";
+            if (removed) {
+                notice = "thermostat '" + thermostat.id() + "'";
+                HvacRegistry.Members left = registry.members(thermostat.system());
+                if (!left.empty())
+                    warning = "Its system (" + SystemNames.contents(left) + ") is headless now. Link a new"
+                            + " thermostat to any part of it to bring it back.";
+            }
         } else if (registry.equipmentAt(key) != null) {
             EquipmentUnit unit = registry.removeEquipment(key);
             removed = unit != null;
             if (removed) {
-                notice = unit.type().displayName() + " from system '"
-                        + unit.system().key() + "'";
+                notice = unit.type().displayName() + " from " + SystemNames.of(registry, unit.system());
                 // Losing the last source leaves a system that still reads its
                 // temperature but can never act on it, which is otherwise
                 // invisible until someone notices the thermostat stuck on IDLE.
-                if (registry.equipmentFor(unit.system()).isEmpty())
-                    warning = "System '" + unit.system().key() + "' has no equipment left."
-                            + " Its thermostat will stay idle until you add some.";
+                Thermostat head = registry.thermostatFor(unit.system());
+                if (head != null && registry.equipmentFor(unit.system()).isEmpty())
+                    warning = head.id() + " has no equipment left. It will stay idle until you link some.";
             }
         } else {
             ClimateVent vent = registry.removeVent(key);
@@ -455,16 +463,16 @@ public final class HvacListener implements Listener {
                 airflow.invalidate(vent.system());
                 removed = true;
                 notice = (ClimateVent.isWaterVent(block.getType()) ? "water vent" : "vent")
-                        + " from system '" + vent.system().key() + "'";
+                        + " from " + SystemNames.of(registry, vent.system());
             } else {
                 RpmMonitor monitor = registry.rpmMonitorAt(key);
                 SettingsPanel panel = registry.settingsPanelAt(key);
                 if (monitor != null && registry.removeRpmMonitor(key)) {
                     removed = true;
-                    notice = "RPM monitor from system '" + monitor.system().key() + "'";
+                    notice = "RPM monitor '" + monitor.label() + "'";
                 } else if (panel != null && registry.removeSettingsPanel(key)) {
                     removed = true;
-                    notice = "settings panel from system '" + panel.system().key() + "'";
+                    notice = "settings panel '" + panel.label() + "'";
                 } else if (registry.climateUnitAt(key) != null) {
                     ClimateUnit unit = registry.removeClimateUnit(key);
                     units.release(unit);

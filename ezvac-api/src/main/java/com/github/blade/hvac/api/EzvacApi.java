@@ -19,6 +19,15 @@ import java.util.UUID;
  * Every value handed out is an immutable snapshot. Since 1.1 addons can also
  * add their own sections to the climate HUD ({@link #hud()}), and since 1.2
  * every device is listed with its location ({@link #devices(World)}).
+ *
+ * <p>Systems (1.3, EZvac 3.0): devices are linked to a thermostat with
+ * EZvac's link tool, and a system has no name of its own. The {@code system}
+ * of a view or reading is an opaque key, stable while the system exists: a
+ * system upgraded from EZvac 2.x keeps its old group name as its key, a new
+ * one is {@code #} and a number. When a headless system (one whose
+ * thermostat is gone) is linked to a thermostat, its devices take that
+ * thermostat's key. Show players the thermostat's label instead
+ * ({@link #thermostatOf}); labels may repeat.
  * Temperatures are always Fahrenheit;
  * {@link #units()} says what the server shows players.
  *
@@ -33,7 +42,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.2";
+    String API_VERSION = "1.3";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -86,8 +95,29 @@ public interface EzvacApi {
      */
     Collection<ThermostatView> thermostats(World world);
 
-    /** A thermostat by its id (case-insensitive), if it is in this world. */
+    /**
+     * A thermostat by its label (case-insensitive), if one in this world has it.
+     *
+     * @deprecated since 1.3 labels may repeat, and this returns the one with
+     *             the lowest position; use {@link #thermostatAt} or {@link #thermostatOf}
+     */
+    @Deprecated(since = "1.3")
     Optional<ThermostatView> thermostat(World world, String id);
+
+    /**
+     * The thermostat whose sign is at a position.
+     *
+     * @since 1.3
+     */
+    Optional<ThermostatView> thermostatAt(Position position);
+
+    /**
+     * The thermostat of a system, by the system's key from a view or a
+     * reading; empty while the system is headless or gone.
+     *
+     * @since 1.3
+     */
+    Optional<ThermostatView> thermostatOf(World world, String system);
 
     /** Every dehumidifier and humidifier on the server. */
     Collection<ClimateUnitView> climateUnits();
@@ -161,4 +191,12 @@ public interface EzvacApi {
      * @since 1.1
      */
     EzvacHud hud();
+
+    /**
+     * EZvac's link tool: whether an item is one, and what it has selected.
+     * EZdebug+ uses it to show the system being linked.
+     *
+     * @since 1.3
+     */
+    EzvacLinkTool linkTool();
 }

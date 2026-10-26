@@ -16,8 +16,9 @@ import java.util.Optional;
  * @param inWater        true when the spot is in water
  * @param weather        Clear, Rain, Thunder or Snow; empty where weather never reaches
  * @param season         the season here, empty where there are none
- * @param thermostat     the id of the thermostat whose system conditions this spot, if any
- * @param system         that system's group name, if any
+ * @param thermostat     the label of the thermostat whose system conditions this spot, if any:
+ *                       the name to show players
+ * @param system         that system's key, if any (see {@link EzvacApi#thermostatOf})
  * @param influence      how strongly that system conditions the spot, 0 to 1
  * @since 1.0
  */

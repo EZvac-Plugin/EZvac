@@ -10,8 +10,8 @@ import com.github.blade.hvac.api.ThermostatView;
 import com.github.blade.hvac.api.VentView;
 import com.github.blade.hvac.api.event.EquipmentStateChangeEvent;
 import com.github.blade.hvac.model.BlockKey;
-import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.ClimateUnit;
+import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.Dehumidifier;
 import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.EquipmentUnit;
@@ -20,6 +20,7 @@ import com.github.blade.hvac.model.RpmMonitor;
 import com.github.blade.hvac.model.Sensor;
 import com.github.blade.hvac.model.SensorHub;
 import com.github.blade.hvac.model.SettingsPanel;
+import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Thermometer;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirflowService;
@@ -141,13 +142,18 @@ public final class ApiViews {
                 Optional.empty(), hub.sensors().stream().map(ApiViews::position).toList());
     }
 
-    public static InstrumentView rpmMonitor(RpmMonitor monitor) {
+    /** A monitor links the equipment of its system (1.3); an unlinked one has no system. */
+    public static InstrumentView rpmMonitor(RpmMonitor monitor, List<EquipmentUnit> shown) {
         return new InstrumentView(InstrumentView.Kind.RPM_MONITOR, monitor.label(), position(monitor.position()),
-                Optional.of(monitor.system().key()), List.of());
+                key(monitor.system()), shown.stream().map(unit -> position(unit.position())).toList());
     }
 
     public static InstrumentView settingsPanel(SettingsPanel panel) {
         return new InstrumentView(InstrumentView.Kind.SETTINGS_PANEL, panel.label(), position(panel.position()),
-                Optional.of(panel.system().key()), List.of());
+                key(panel.system()), List.of());
+    }
+
+    private static Optional<String> key(SystemId system) {
+        return system == null ? Optional.empty() : Optional.of(system.key());
     }
 }
