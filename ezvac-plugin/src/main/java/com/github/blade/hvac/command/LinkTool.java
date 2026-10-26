@@ -116,6 +116,15 @@ public final class LinkTool {
 
     public void handleClick(Player player, Block block, ItemStack item, boolean sneaking) {
         if (!isTool(item) || !player.hasPermission(ADMIN_PERMISSION)) return;
+        try {
+            click(player, block, item, sneaking);
+        } catch (IllegalArgumentException refused) {
+            // The registry refuses what it can't do safely, such as moving a unit whose output waits for cleanup.
+            player.sendMessage(red("Can't do that: " + refused.getMessage() + "."));
+        }
+    }
+
+    private void click(Player player, Block block, ItemStack item, boolean sneaking) {
         BlockKey position = BlockKey.of(block.getLocation());
         Thermostat thermostat = registry.thermostatAt(position);
         if (thermostat != null) {
