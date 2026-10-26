@@ -6,7 +6,7 @@
     <parent>
         <groupId>com.github.blade</groupId>
         <artifactId>ezvac-parent</artifactId>
-        <version>ALPHA-2.2</version>
+        <version>ALPHA-3.0</version>
     </parent>
 
     <artifactId>ezvac</artifactId>

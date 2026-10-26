@@ -59,7 +59,7 @@ public interface EzvacApi {
     /** {@link #API_VERSION} of the EZvac that is running. */
     String apiVersion();
 
-    /** The running EZvac's version, such as {@code ALPHA-2.2}. */
+    /** The running EZvac's version, such as {@code ALPHA-3.0}. */
     String pluginVersion();
 
     /** The unit the server shows players: F or C. */
