@@ -197,12 +197,12 @@ public final class ClimateHudService implements Listener {
 
     private static ClimateSnapshot captureClimate(AirflowService.TemperatureReading reading) {
         Thermostat thermostat = reading.thermostat();
-        if (reading.group() == null || thermostat == null)
+        if (reading.system() == null || thermostat == null)
             return new ClimateSnapshot(reading.localF(), reading.outdoorF(), 0.0, reading.airflowDistance(),
                     null, null, null, Double.NaN, false, reading.water(),
                     reading.humidity(), reading.feelsLikeF(), reading.weather());
         return new ClimateSnapshot(reading.localF(), reading.outdoorF(), reading.influence(),
-                reading.airflowDistance(), reading.group().label(), thermostat.id(),
+                reading.airflowDistance(), reading.system().key(), thermostat.id(),
                 thermostat.mode().name(), thermostat.targetF(),
                 reading.influence() >= 1.0, reading.water(),
                 reading.humidity(), reading.feelsLikeF(), reading.weather());

@@ -21,7 +21,7 @@ import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.EquipmentUnit;
-import com.github.blade.hvac.model.GroupId;
+import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.RpmMonitor;
 import com.github.blade.hvac.model.Sensor;
 import com.github.blade.hvac.model.SensorHub;
@@ -227,13 +227,13 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
 
     /** A vent blows water when its system is a pool system: a pool thermostat, or water-loop equipment. */
     private VentView vent(ClimateVent vent) {
-        return ApiViews.vent(vent, poolSystem(vent.group()));
+        return ApiViews.vent(vent, poolSystem(vent.system()));
     }
 
-    private boolean poolSystem(GroupId group) {
-        Thermostat thermostat = registry.thermostatFor(group);
+    private boolean poolSystem(SystemId system) {
+        Thermostat thermostat = registry.thermostatFor(system);
         if (thermostat != null) return thermostat.pool();
-        return registry.equipmentFor(group).stream().anyMatch(unit -> unit.type().waterLoop());
+        return registry.equipmentFor(system).stream().anyMatch(unit -> unit.type().waterLoop());
     }
 
     /** Any of EZvac's devices as the API shows it. */
@@ -282,7 +282,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     }
 
     private ThermostatView view(Thermostat thermostat) {
-        return ApiViews.thermostat(thermostat, controller.status(thermostat.group()));
+        return ApiViews.thermostat(thermostat, controller.status(thermostat.system()));
     }
 
     // ---- per-player updates, on the HUD's cadence ----

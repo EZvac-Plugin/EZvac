@@ -17,7 +17,7 @@ public final class EquipmentUnit {
     public enum Actuation { STARTED, STOPPED, UNCHANGED, PENDING }
 
     private final BlockKey position;
-    private GroupId group;
+    private SystemId system;
     private final EquipmentType type;
     private boolean enabled;
     private boolean running;
@@ -27,18 +27,18 @@ public final class EquipmentUnit {
     /** Told (previous, current) on every owned-output change, so the registry's index stays current. */
     private BiConsumer<BlockKey, BlockKey> ownedOutputWatcher;
 
-    public EquipmentUnit(BlockKey position, String groupLabel, EquipmentType type) {
-        this(position, GroupId.of(position, groupLabel), type, true, false,
+    public EquipmentUnit(BlockKey position, String systemLabel, EquipmentType type) {
+        this(position, SystemId.of(position, systemLabel), type, true, false,
                 OperatingMode.IDLE, 0.0, null);
     }
 
-    private EquipmentUnit(BlockKey position, GroupId group, EquipmentType type, boolean enabled,
+    private EquipmentUnit(BlockKey position, SystemId system, EquipmentType type, boolean enabled,
                           boolean running, OperatingMode operatingMode, double motorRpm,
                           BlockKey ownedOutput) {
         this.position = Objects.requireNonNull(position, "position");
-        this.group = Objects.requireNonNull(group, "group");
+        this.system = Objects.requireNonNull(system, "group");
         this.type = Objects.requireNonNull(type, "type");
-        if (!position.worldId().equals(group.worldId()))
+        if (!position.worldId().equals(system.worldId()))
             throw new IllegalArgumentException("equipment and group worlds differ");
         this.enabled = enabled;
         this.running = running;
@@ -49,7 +49,7 @@ public final class EquipmentUnit {
     }
 
     public BlockKey position() { return position; }
-    public GroupId group() { return group; }
+    public SystemId system() { return system; }
     public EquipmentType type() { return type; }
     public boolean enabled() { return enabled; }
     public boolean running() { return running; }
@@ -69,7 +69,7 @@ public final class EquipmentUnit {
             ownedOutputWatcher.accept(previous, output);
     }
 
-    public void setGroup(String label) { this.group = GroupId.of(position, label); }
+    public void setSystem(String label) { this.system = SystemId.of(position, label); }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public double operatingCapacity(HvacSettings settings) {
         if (!running) return 0.0;
@@ -211,7 +211,7 @@ public final class EquipmentUnit {
 
     public Map<String, Object> toMap() {
         Map<String, Object> map = new LinkedHashMap<>();
-        map.put("group", group.label());
+        map.put("group", system.key());
         map.put("equipmentType", type.name());
         position.write(map, "");
         map.put("enabled", enabled);
@@ -224,7 +224,7 @@ public final class EquipmentUnit {
 
     public static EquipmentUnit fromMap(Map<String, Object> map) {
         BlockKey position = BlockKey.read(map, "");
-        String group = string(map, "group", string(map, "label", null));
+        String system = string(map, "group", string(map, "label", null));
         EquipmentType type = EquipmentType.parse(map.get("equipmentType"));
         boolean running = bool(map, "running", false);
         BlockKey output = null;
@@ -235,7 +235,7 @@ public final class EquipmentUnit {
         }
         OperatingMode mode = OperatingMode.parse(map.get("operatingMode"));
         if (running && mode == OperatingMode.IDLE) mode = OperatingMode.COOLING;
-        return new EquipmentUnit(position, GroupId.of(position, group), type,
+        return new EquipmentUnit(position, SystemId.of(position, system), type,
                 bool(map, "enabled", true), running, mode,
                 number(map, "motorRpm", 0.0), output);
     }

@@ -46,8 +46,8 @@ public record Thermometer(BlockKey position, String label, Reads reads) {
 
     public static Thermometer fromMap(Map<String, Object> map) {
         BlockKey position = BlockKey.read(map, "");
-        String legacyGroup = text(map.get("group"), "Thermometer");
-        return new Thermometer(position, text(map.get("label"), legacyGroup), Reads.parse(map.get("reads")));
+        String legacySystem = text(map.get("group"), "Thermometer");
+        return new Thermometer(position, text(map.get("label"), legacySystem), Reads.parse(map.get("reads")));
     }
 
     private static String text(Object value, String fallback) {

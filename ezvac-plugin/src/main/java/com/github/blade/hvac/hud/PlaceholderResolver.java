@@ -42,7 +42,7 @@ public final class PlaceholderResolver {
             case "bar" -> format.barLegacy(snapshot);
             case "bar_plain" -> format.barPlain(snapshot);
             case "comfort" -> format.band(snapshot).label();
-            case "group" -> format.group(snapshot);
+            case "group" -> format.system(snapshot);
             case "thermostat" -> format.thermostat(snapshot);
             case "mode" -> format.mode(snapshot);
             case "target" -> format.target(snapshot);

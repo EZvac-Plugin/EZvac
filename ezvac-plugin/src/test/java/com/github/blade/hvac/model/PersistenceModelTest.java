@@ -24,7 +24,7 @@ class PersistenceModelTest {
         Thermostat restored = Thermostat.fromMap(source.toMap(), settings);
         assertEquals(position, restored.position());
         assertEquals("Main", restored.id());
-        assertEquals("downstairs", restored.group().label());
+        assertEquals("downstairs", restored.system().key());
         assertEquals(74, restored.targetF());
         assertEquals(81, restored.roomF());
         assertFalse(restored.enabled());
@@ -48,7 +48,7 @@ class PersistenceModelTest {
         legacy.put("modeElapsedMinecraftHours", 0.25);
         Thermostat restored = Thermostat.fromMap(legacy, settings);
         assertEquals(250, restored.ticksInMode());
-        assertEquals("old_group", restored.group().label());
+        assertEquals("old_group", restored.system().key());
     }
 
     @Test
@@ -85,7 +85,7 @@ class PersistenceModelTest {
     }
 
     @Test
-    void thermometerRoundTripIsIndependentAndLegacyGroupBecomesOnlyALabelFallback() {
+    void thermometerRoundTripIsIndependentAndLegacySystemBecomesOnlyALabelFallback() {
         UUID world = UUID.randomUUID();
         Map<String, Object> legacy = new LinkedHashMap<>();
         legacy.put("worldUuid", world.toString());
@@ -126,7 +126,7 @@ class PersistenceModelTest {
 
         SettingsPanel restored = SettingsPanel.fromMap(source.toMap());
         assertEquals(position, restored.position());
-        assertEquals("main", restored.group().label());
+        assertEquals("main", restored.system().key());
         assertEquals("Controls", restored.label());
         assertEquals(OperatingProfile.TURBO, restored.profile());
 

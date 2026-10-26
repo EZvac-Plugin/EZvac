@@ -71,7 +71,7 @@ public final class EtaEstimator {
                 variableEquivalent += PerformanceModel.variableCapacityFromRpm(rpm, settings);
             }
             double capacity = ThermalModel.aggregateIndependentCapacity(
-                    fixedUnits, variableEquivalent, settings.maximumGroupCapacity());
+                    fixedUnits, variableEquivalent, settings.maximumSystemCapacity());
             room = ThermalModel.step(room, targetF, outdoorF, mode, capacity,
                     STEP_TICKS, settings).temperatureF();
             if (reached(room, targetF, mode)) return OptionalLong.of(elapsed);

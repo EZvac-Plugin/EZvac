@@ -162,8 +162,8 @@ public final class HudFormatter {
         return "<color:" + band.color() + ">" + escape(band.label()) + "</color>";
     }
 
-    public String group(ClimateSnapshot snapshot) {
-        return snapshot.group() == null ? settings.noneText() : snapshot.group();
+    public String system(ClimateSnapshot snapshot) {
+        return snapshot.system() == null ? settings.noneText() : snapshot.system();
     }
 
     public String thermostat(ClimateSnapshot snapshot) {
@@ -220,7 +220,7 @@ public final class HudFormatter {
                 .replace("{bar}", barMini(snapshot.comfortF(), medium))
                 .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
-                .replace("{group}", escape(group(snapshot)))
+                .replace("{group}", escape(system(snapshot)))
                 .replace("{thermostat}", escape(thermostat(snapshot)))
                 .replace("{mode}", escape(mode(snapshot)))
                 .replace("{target}", escape(target(snapshot)))

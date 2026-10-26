@@ -126,7 +126,7 @@ class RegistryCompatibilityTest {
         Thermostat thermostat = registry.thermostatById("lobby");
         assertNotNull(thermostat, "ids stay case-insensitive");
         assertEquals("Lobby", thermostat.id());
-        assertEquals("lobby", thermostat.group().label());
+        assertEquals("lobby", thermostat.system().key());
         assertEquals(70.0, thermostat.targetF());
         assertEquals(75.0, thermostat.roomF());
         assertEquals(OperatingMode.COOLING, thermostat.mode());
@@ -135,7 +135,7 @@ class RegistryCompatibilityTest {
         EquipmentUnit unit = registry.equipmentAt(new BlockKey(world, 14, 64, 10));
         assertNotNull(unit);
         assertEquals(EquipmentType.AIR_CONDITIONER, unit.type());
-        assertEquals("lobby", unit.group().label());
+        assertEquals("lobby", unit.system().key());
         assertEquals(new BlockKey(world, 15, 64, 10), unit.ownedOutput());
 
         assertEquals(1, registry.pendingCleanup().size());
@@ -169,19 +169,19 @@ class RegistryCompatibilityTest {
         assertTrue(registry.pendingCleanup().isEmpty());
 
         Thermostat house = Objects.requireNonNull(registry.thermostatById("main"));
-        assertEquals("house", house.group().label());
+        assertEquals("house", house.system().key());
         assertEquals(60.0, house.targetF());
-        assertEquals(2, registry.equipmentFor(house.group()).size());
-        assertEquals(OperatingProfile.TURBO, registry.profileFor(house.group()));
-        assertEquals("office", Objects.requireNonNull(registry.thermostatById("work")).group().label());
+        assertEquals(2, registry.equipmentFor(house.system()).size());
+        assertEquals(OperatingProfile.TURBO, registry.profileFor(house.system()));
+        assertEquals("office", Objects.requireNonNull(registry.thermostatById("work")).system().key());
 
         if (water) {
             Thermostat spa = Objects.requireNonNull(registry.thermostatById("spa"));
-            assertEquals("pool", spa.group().label());
+            assertEquals("pool", spa.system().key());
             assertEquals(pool, spa.pool());
             // Pilot 1 pools used a room thermostat, which clamps to the 85 F ceiling.
             assertEquals(pool ? 104.0 : 85.0, spa.targetF());
-            var poolUnits = registry.equipmentFor(spa.group());
+            var poolUnits = registry.equipmentFor(spa.system());
             assertEquals(EquipmentType.BOILER, poolUnits.get(0).type());
             assertEquals(poolHeatPump ? 2 : 1, poolUnits.size());
             if (poolHeatPump) assertEquals(EquipmentType.POOL_HEAT_PUMP, poolUnits.get(1).type());
@@ -235,8 +235,8 @@ class RegistryCompatibilityTest {
 
         if (border) {
             Thermostat edge = Objects.requireNonNull(registry.thermostatById("edge"));
-            assertEquals("dunes", edge.group().label());
-            assertTrue(registry.equipmentFor(edge.group()).isEmpty());
+            assertEquals("dunes", edge.system().key());
+            assertTrue(registry.equipmentFor(edge.system()).isEmpty());
             var climateThere = edge.outdoorClimate();
             assertFalse(climateThere.pure(), "half plains, half desert");
             assertTrue(climateThere.rainShare() > 0.3 && climateThere.rainShare() < 0.7,

@@ -31,8 +31,8 @@ public final class ClimateUnitService {
     private final OutdoorTemperatureService outdoor;
     private final ClimateSettings climate;
     /** Running dehumidifiers and humidifiers per system they serve, from prepare(). */
-    private final Map<GroupId, List<Dehumidifier>> drying = new HashMap<>();
-    private final Map<GroupId, List<Humidifier>> humidifying = new HashMap<>();
+    private final Map<SystemId, List<Dehumidifier>> drying = new HashMap<>();
+    private final Map<SystemId, List<Humidifier>> humidifying = new HashMap<>();
 
     public ClimateUnitService(HvacRegistry registry, AirflowService airflow, OutdoorTemperatureService outdoor) {
         this.registry = Objects.requireNonNull(registry, "registry");
@@ -48,8 +48,8 @@ public final class ClimateUnitService {
         drying.clear();
         humidifying.clear();
         for (ClimateUnit unit : registry.climateUnits()) {
-            GroupId served = servedSystem(unit);
-            unit.setServedGroup(served);
+            SystemId served = servedSystem(unit);
+            unit.setServedSystem(served);
             if (served == null || !unit.running()) continue;
             switch (unit) {
                 case Dehumidifier dehumidifier -> drying.computeIfAbsent(served, ignored -> new ArrayList<>()).add(dehumidifier);
@@ -62,14 +62,14 @@ public final class ClimateUnitService {
      * A unit serves a system's room when the air right around it is part of
      * that system's airflow. Pools have no air of their own, so they never count.
      */
-    private GroupId servedSystem(ClimateUnit climateUnit) {
+    private SystemId servedSystem(ClimateUnit climateUnit) {
         BlockKey unit = climateUnit.unit();
-        if (!unit.isChunkLoaded()) return climateUnit.servedGroup();
+        if (!unit.isChunkLoaded()) return climateUnit.servedSystem();
         for (int[] side : SIDES) {
-            GroupId group = airflow.systemAt(unit.worldId(), unit.x() + side[0], unit.y() + side[1], unit.z() + side[2]);
-            if (group == null) continue;
-            Thermostat thermostat = registry.thermostatFor(group);
-            if (thermostat != null && !thermostat.pool()) return group;
+            SystemId system = airflow.systemAt(unit.worldId(), unit.x() + side[0], unit.y() + side[1], unit.z() + side[2]);
+            if (system == null) continue;
+            Thermostat thermostat = registry.thermostatFor(system);
+            if (thermostat != null && !thermostat.pool()) return system;
         }
         return null;
     }
@@ -80,25 +80,25 @@ public final class ClimateUnitService {
     }
 
     /** The combined drying strength of the dehumidifiers running in a system's room. */
-    public double scaleFor(GroupId group) {
-        List<Dehumidifier> units = drying.get(group);
+    public double scaleFor(SystemId system) {
+        List<Dehumidifier> units = drying.get(system);
         if (units == null) return 0.0;
-        return units.size() * strength(airflow.mapSize(group), climate.dehumidifier().referenceCells());
+        return units.size() * strength(airflow.mapSize(system), climate.dehumidifier().referenceCells());
     }
 
     /** The combined strength of the humidifiers running in a system's room. */
-    public double humidifierScaleFor(GroupId group) {
-        List<Humidifier> units = humidifying.get(group);
+    public double humidifierScaleFor(SystemId system) {
+        List<Humidifier> units = humidifying.get(system);
         if (units == null) return 0.0;
-        return units.size() * strength(airflow.mapSize(group), climate.humidifier().referenceCells());
+        return units.size() * strength(airflow.mapSize(system), climate.humidifier().referenceCells());
     }
 
     /** Shares the water a system's dehumidifiers pulled out this step between their tanks. */
-    public void credit(GroupId group, double dehumidifiedF) {
-        List<Dehumidifier> units = drying.get(group);
+    public void credit(SystemId system, double dehumidifiedF) {
+        List<Dehumidifier> units = drying.get(system);
         if (units == null || units.isEmpty() || dehumidifiedF <= 0.0) return;
         double share = dehumidifiedF / units.size();
-        int cells = airflow.mapSize(group);
+        int cells = airflow.mapSize(system);
         for (Dehumidifier dehumidifier : units) dehumidifier.fill(tankFill(share, cells, climate), climate.dehumidifier());
     }
 
@@ -130,12 +130,12 @@ public final class ClimateUnitService {
             double humidity = Double.NaN;
             double dewPointF = Double.NaN;
             if (unit != null) {
-                if (climateUnit.servedGroup() == null) {
+                if (climateUnit.servedSystem() == null) {
                     humidity = standalone.getOrDefault(climateUnit, Double.NaN);
                     dewPointF = climateUnit.zoneDewPointF();
                 } else {
-                    humidity = systemHumidity(climateUnit.servedGroup());
-                    dewPointF = systemDewPoint(climateUnit.servedGroup());
+                    humidity = systemHumidity(climateUnit.servedSystem());
+                    dewPointF = systemDewPoint(climateUnit.servedSystem());
                 }
                 if (climateUnit instanceof Dehumidifier dehumidifier) dehumidifier.advanceEmptying(elapsedTicks);
             }
@@ -163,14 +163,14 @@ public final class ClimateUnitService {
         };
     }
 
-    private double systemHumidity(GroupId group) {
-        Thermostat thermostat = registry.thermostatFor(group);
+    private double systemHumidity(SystemId system) {
+        Thermostat thermostat = registry.thermostatFor(system);
         if (thermostat == null || !thermostat.hasRoomDewPoint()) return Double.NaN;
         return Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
     }
 
-    private double systemDewPoint(GroupId group) {
-        Thermostat thermostat = registry.thermostatFor(group);
+    private double systemDewPoint(SystemId system) {
+        Thermostat thermostat = registry.thermostatFor(system);
         return thermostat == null || !thermostat.hasRoomDewPoint() ? Double.NaN : thermostat.roomDewPointF();
     }
 
@@ -185,16 +185,16 @@ public final class ClimateUnitService {
                                                     Map<UUID, LongOpenHashSet> outputs) {
         Set<ClimateUnit> standalone = Collections.newSetFromMap(new IdentityHashMap<>());
         for (ClimateUnit unit : units)
-            if (unit.servedGroup() == null && unit.unit().isChunkLoaded() && unit.unit().location() != null)
+            if (unit.servedSystem() == null && unit.unit().isChunkLoaded() && unit.unit().location() != null)
                 standalone.add(unit);
         Map<ClimateUnit, Double> humidity = new IdentityHashMap<>();
-        Set<ClimateUnit> grouped = Collections.newSetFromMap(new IdentityHashMap<>());
+        Set<ClimateUnit> systemed = Collections.newSetFromMap(new IdentityHashMap<>());
         for (ClimateUnit unit : units) {
-            if (!standalone.contains(unit) || !grouped.add(unit)) continue;
+            if (!standalone.contains(unit) || !systemed.add(unit)) continue;
             List<ClimateUnit> space = new ArrayList<>(List.of(unit));
             for (int next = 0; next < space.size(); next++)
                 for (ClimateUnit other : airflow.unitsSharingAir(space.get(next)))
-                    if (standalone.contains(other) && grouped.add(other)) space.add(other);
+                    if (standalone.contains(other) && systemed.add(other)) space.add(other);
             space.sort(Comparator.comparing(ClimateUnit::position));
             double rh = stepSpace(space, elapsedTicks, outputs);
             for (ClimateUnit member : space) humidity.put(member, rh);

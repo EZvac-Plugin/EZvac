@@ -7,7 +7,7 @@ import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.Dehumidifier;
-import com.github.blade.hvac.model.GroupId;
+import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Humidifier;
 import com.github.blade.hvac.model.Thermostat;
 import org.bukkit.Particle;
@@ -116,10 +116,10 @@ public final class HvacAudioService {
         ticksSinceVents += elapsedTicks;
         if (ticksSinceVents < sounds.ventRefreshTicks()) return;
         ticksSinceVents %= sounds.ventRefreshTicks();
-        Set<GroupId> blowing = new HashSet<>();
-        for (EquipmentUnit unit : running) blowing.add(unit.group());
-        blowing.removeIf(group -> {
-            Thermostat thermostat = registry.thermostatFor(group);
+        Set<SystemId> blowing = new HashSet<>();
+        for (EquipmentUnit unit : running) blowing.add(unit.system());
+        blowing.removeIf(system -> {
+            Thermostat thermostat = registry.thermostatFor(system);
             return thermostat != null && thermostat.pool();
         });
         if (blowing.isEmpty()) return;
@@ -128,7 +128,7 @@ public final class HvacAudioService {
     }
 
     /** Air vents of these systems within hearing of any player, in a fixed order; from the registry's vent grid. */
-    private TreeSet<BlockKey> ventsNearPlayers(Set<GroupId> blowing) {
+    private TreeSet<BlockKey> ventsNearPlayers(Set<SystemId> blowing) {
         TreeSet<BlockKey> near = new TreeSet<>();
         int radius = (int) Math.ceil(settings.audioRadiusBlocks());
         double radiusSquared = settings.audioRadiusBlocks() * settings.audioRadiusBlocks();
@@ -144,7 +144,7 @@ public final class HvacAudioService {
                         if (bucket == null) continue;
                         for (ClimateVent vent : bucket) {
                             BlockKey position = vent.position();
-                            if (!blowing.contains(vent.group()) || near.contains(position)) continue;
+                            if (!blowing.contains(vent.system()) || near.contains(position)) continue;
                             double dx = position.x() + 0.5 - at.getX();
                             double dy = position.y() + 0.5 - at.getY();
                             double dz = position.z() + 0.5 - at.getZ();

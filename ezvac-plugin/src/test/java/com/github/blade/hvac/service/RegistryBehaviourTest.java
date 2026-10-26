@@ -53,7 +53,7 @@ class RegistryBehaviourTest {
     }
 
     @Test
-    void duplicateGroupControllerKeepsTheLowestPositionAndPreservesTheOther() throws IOException {
+    void duplicateSystemControllerKeepsTheLowestPositionAndPreservesTheOther() throws IOException {
         HvacRegistry registry = loadYaml("""
                 thermostats:
                   a:
@@ -65,7 +65,7 @@ class RegistryBehaviourTest {
                     id: lower
                     group: house
                 """);
-        GroupId house = new GroupId(WORLD, "house");
+        SystemId house = new SystemId(WORLD, "house");
         assertEquals(1, registry.thermostats().size());
         assertEquals("lower", registry.thermostatFor(house).id());
         assertNull(registry.thermostatById("upper"));
@@ -87,7 +87,7 @@ class RegistryBehaviourTest {
                     group: two
                 """);
         assertEquals(1, registry.thermostats().size());
-        assertEquals("two", registry.thermostatById("main").group().label());
+        assertEquals("two", registry.thermostatById("main").system().key());
         assertEquals(at(20, 64, 0), registry.thermostatById("mAiN").position());
     }
 
@@ -105,7 +105,7 @@ class RegistryBehaviourTest {
                     label: first
                 """);
         assertEquals(1, registry.settingsPanels().size());
-        assertEquals("first", registry.settingsPanelFor(new GroupId(WORLD, "house")).label());
+        assertEquals("first", registry.settingsPanelFor(new SystemId(WORLD, "house")).label());
         assertTrue(saved(registry).contains("label: second"));
     }
 
@@ -155,13 +155,13 @@ class RegistryBehaviourTest {
         registry.addEquipment(new EquipmentUnit(at(10, 64, 0), "house", EquipmentType.HEAT_PUMP));
         registry.addEquipment(new EquipmentUnit(at(20, 64, 0), "house", EquipmentType.AIR_CONDITIONER));
         registry.addEquipment(new EquipmentUnit(at(15, 64, 0), "other", EquipmentType.HEAT_PUMP));
-        List<BlockKey> order = registry.equipmentFor(new GroupId(WORLD, "house")).stream()
+        List<BlockKey> order = registry.equipmentFor(new SystemId(WORLD, "house")).stream()
                 .map(EquipmentUnit::position).toList();
         assertEquals(List.of(at(10, 64, 0), at(20, 64, 0), at(30, 64, 0)), order);
     }
 
     @Test
-    void addingASecondControllerForAGroupIsRefused() {
+    void addingASecondControllerForASystemIsRefused() {
         HvacRegistry registry = new HvacRegistry(host, SETTINGS);
         registry.addThermostat(new Thermostat(at(1, 64, 0), "a", "house", 72, 72, SETTINGS));
         assertThrows(IllegalArgumentException.class, () -> registry.addThermostat(
@@ -220,16 +220,16 @@ class RegistryBehaviourTest {
         assertNull(registry.equipmentAt(at(10, 64, 0)));
         // With no world loaded the output cannot be retracted yet, so it waits in cleanup.
         assertEquals(List.of(removed), List.copyOf(registry.pendingCleanup()));
-        assertTrue(registry.equipmentFor(removed.group()).isEmpty());
+        assertTrue(registry.equipmentFor(removed.system()).isEmpty());
     }
 
     @Test
     void ventsReplaceInPlaceAndRemoveCleanly() {
         HvacRegistry registry = new HvacRegistry(host, SETTINGS);
-        registry.addVent(new ClimateVent(at(5, 66, 5), new GroupId(WORLD, "house")));
-        registry.addVent(new ClimateVent(at(5, 66, 5), new GroupId(WORLD, "office")));
+        registry.addVent(new ClimateVent(at(5, 66, 5), new SystemId(WORLD, "house")));
+        registry.addVent(new ClimateVent(at(5, 66, 5), new SystemId(WORLD, "office")));
         assertEquals(1, registry.vents().size());
-        assertEquals("office", registry.ventAt(at(5, 66, 5)).group().label());
+        assertEquals("office", registry.ventAt(at(5, 66, 5)).system().key());
         assertNotNull(registry.removeVent(at(5, 66, 5)));
         assertTrue(registry.vents().isEmpty());
         assertNull(registry.removeVent(at(5, 66, 5)));
@@ -306,7 +306,7 @@ class RegistryBehaviourTest {
         assertNull(registry.dehumidifierAt(at(10, 65, 0)), "a humidifier is not a dehumidifier");
         assertEquals(HvacRegistry.DeviceKind.HUMIDIFIER, registry.deviceKind(at(10, 65, 0)));
         assertThrows(IllegalArgumentException.class, () -> registry.addVent(
-                new ClimateVent(at(10, 66, 0), new GroupId(WORLD, "house"))), "a unit's block is taken");
+                new ClimateVent(at(10, 66, 0), new SystemId(WORLD, "house"))), "a unit's block is taken");
         assertNull(registry.indexDiscrepancy());
 
         String file = saved(registry);

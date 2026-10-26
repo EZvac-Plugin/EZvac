@@ -3,7 +3,7 @@ package com.github.blade.hvac.service;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateVent;
-import com.github.blade.hvac.model.GroupId;
+import com.github.blade.hvac.model.SystemId;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -33,18 +33,18 @@ class TemperatureLookupTest {
             AirflowService airflow = new AirflowService(registry, new OutdoorTemperatureService(), settings);
 
             // Systems clustered so their maps overlap, plus a few in another world.
-            int groups = 12 + random.nextInt(12);
+            int systems = 12 + random.nextInt(12);
             List<BlockKey> probes = new ArrayList<>();
-            for (int g = 0; g < groups; g++) {
+            for (int g = 0; g < systems; g++) {
                 UUID world = g % 6 == 5 ? OTHER : WORLD;
-                GroupId group = new GroupId(world, "g" + g);
+                SystemId system = new SystemId(world, "g" + g);
                 Long2ByteOpenHashMap map = new Long2ByteOpenHashMap();
                 map.defaultReturnValue((byte) -1);
                 int vents = 1 + random.nextInt(3);
                 for (int v = 0; v < vents; v++) {
                     BlockKey vent = new BlockKey(world, random.nextInt(160) - 80, 64 + random.nextInt(6),
                             random.nextInt(160) - 80);
-                    registry.addVent(new ClimateVent(vent, group));
+                    registry.addVent(new ClimateVent(vent, system));
                     // Map cells the way a rebuild would: within the range of a vent,
                     // distance growing with path length. Coarse distances force ties.
                     for (int cell = 0; cell < 400; cell++) {
@@ -60,21 +60,21 @@ class TemperatureLookupTest {
                         probes.add(new BlockKey(world, vent.x() + dx, vent.y() + dy, vent.z() + dz));
                     }
                 }
-                airflow.putCompletedMap(group, map);
+                airflow.putCompletedMap(system, map);
             }
             for (int i = 0; i < 200; i++)   // and spots no system reaches
                 probes.add(new BlockKey(WORLD, random.nextInt(400) - 200, 66, random.nextInt(400) - 200));
 
             for (BlockKey probe : probes) {
                 long key = AirflowService.pack(probe.x(), probe.y(), probe.z());
-                AirflowService.Nearest grid = airflow.nearestGroup(
-                        airflow.candidateGroups(probe.worldId(), probe.x(), probe.z()), key, null);
-                AirflowService.Nearest scan = airflow.nearestGroupByFullScan(probe.worldId(), key, null);
+                AirflowService.Nearest grid = airflow.nearestSystem(
+                        airflow.candidateSystems(probe.worldId(), probe.x(), probe.z()), key, null);
+                AirflowService.Nearest scan = airflow.nearestSystemByFullScan(probe.worldId(), key, null);
                 assertEquals(scan, grid, "seed " + seed + " at " + probe);
                 if (scan != null) {
-                    GroupId required = scan.group();
-                    assertEquals(airflow.nearestGroupByFullScan(probe.worldId(), key, required),
-                            airflow.nearestGroup(airflow.candidateGroups(probe.worldId(), probe.x(), probe.z()),
+                    SystemId required = scan.system();
+                    assertEquals(airflow.nearestSystemByFullScan(probe.worldId(), key, required),
+                            airflow.nearestSystem(airflow.candidateSystems(probe.worldId(), probe.x(), probe.z()),
                                     key, required), "seed " + seed + " required group at " + probe);
                 }
             }
@@ -111,7 +111,7 @@ class TemperatureLookupTest {
         HvacSettings settings = HvacSettings.defaults();
         HvacRegistry registry = new HvacRegistry(new TestHost(folder.toFile()), settings);
         AirflowService airflow = new AirflowService(registry, new OutdoorTemperatureService(), settings);
-        assertTrue(airflow.candidateGroups(WORLD, 0, 0).isEmpty());
-        assertNull(airflow.nearestGroup(airflow.candidateGroups(WORLD, 0, 0), AirflowService.pack(0, 64, 0), null));
+        assertTrue(airflow.candidateSystems(WORLD, 0, 0).isEmpty());
+        assertNull(airflow.nearestSystem(airflow.candidateSystems(WORLD, 0, 0), AirflowService.pack(0, 64, 0), null));
     }
 }

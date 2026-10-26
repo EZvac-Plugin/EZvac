@@ -21,7 +21,7 @@ public record HvacSettings(
         double heatingRateFPerHour,
         double idleDriftFPerHour,
         double activeLeakFPerHour,
-        double maximumGroupCapacity,
+        double maximumSystemCapacity,
         double variableApproachBandF,
         double variableMinimumCapacity,
         double variableMinimumRpm,
@@ -61,7 +61,7 @@ public record HvacSettings(
         requirePositiveFinite("temperature.heating-f-per-minecraft-hour", heatingRateFPerHour);
         requireNonNegative("temperature.idle-drift-f-per-minecraft-hour", idleDriftFPerHour);
         requireNonNegative("temperature.active-leak-f-per-minecraft-hour", activeLeakFPerHour);
-        requirePositiveFinite("temperature.maximum-group-capacity", maximumGroupCapacity);
+        requirePositiveFinite("temperature.maximum-group-capacity", maximumSystemCapacity);
         requirePositiveFinite("performance.variable-speed.approach-band-f", variableApproachBandF);
         if (!Double.isFinite(variableMinimumCapacity) || variableMinimumCapacity <= 0.0
                 || variableMinimumCapacity >= 1.0) {
@@ -130,7 +130,7 @@ public record HvacSettings(
                 config.getDouble("temperature.heating-f-per-minecraft-hour", defaults.heatingRateFPerHour),
                 config.getDouble("temperature.idle-drift-f-per-minecraft-hour", defaults.idleDriftFPerHour),
                 config.getDouble("temperature.active-leak-f-per-minecraft-hour", defaults.activeLeakFPerHour),
-                config.getDouble("temperature.maximum-group-capacity", defaults.maximumGroupCapacity),
+                config.getDouble("temperature.maximum-group-capacity", defaults.maximumSystemCapacity),
                 config.getDouble("performance.variable-speed.approach-band-f", defaults.variableApproachBandF),
                 config.getDouble("performance.variable-speed.minimum-capacity", defaults.variableMinimumCapacity),
                 config.getDouble("performance.variable-speed.minimum-rpm", defaults.variableMinimumRpm),

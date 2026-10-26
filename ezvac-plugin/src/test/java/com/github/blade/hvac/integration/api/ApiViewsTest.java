@@ -17,7 +17,7 @@ import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.EquipmentUnit;
-import com.github.blade.hvac.model.GroupId;
+import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Humidifier;
 import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.RpmMonitor;
@@ -52,7 +52,7 @@ class ApiViewsTest {
     @Test
     void aThermostatViewCarriesItsStateAndItsSystemsUnits() {
         Thermostat thermostat = thermostat();
-        HvacController.GroupStatus status = new HvacController.GroupStatus(thermostat.group(), OperatingMode.COOLING,
+        HvacController.SystemStatus status = new HvacController.SystemStatus(thermostat.system(), OperatingMode.COOLING,
                 74.5, 70.0, 3, 2, 1.0, OperatingProfile.NORMAL, true);
         ThermostatView view = ApiViews.thermostat(thermostat, status);
         assertEquals("main", view.id());
@@ -94,7 +94,7 @@ class ApiViewsTest {
         Thermostat thermostat = thermostat();
         Position at = new Position(WORLD, 5, 64, 0);
         AirflowService.TemperatureReading inside = new AirflowService.TemperatureReading(71.0, 90.0, 0.8, 6,
-                GroupId.of(thermostat.position(), "house"), thermostat, false, 45.0, 70.4, "Clear");
+                SystemId.of(thermostat.position(), "house"), thermostat, false, 45.0, 70.4, "Clear");
         ClimateReading reading = ApiViews.reading(at, inside, Optional.of(SeasonView.Season.SUMMER));
         assertEquals(71.0, reading.temperatureF());
         assertEquals(70.4, reading.feelsLikeF());
@@ -158,7 +158,7 @@ class ApiViewsTest {
 
     @Test
     void ventsBlowAirOrWater() {
-        ClimateVent vent = new ClimateVent(at(2, 64, 2), GroupId.of(at(2, 64, 2), "spa"));
+        ClimateVent vent = new ClimateVent(at(2, 64, 2), SystemId.of(at(2, 64, 2), "spa"));
         assertEquals(VentView.Medium.WATER, ApiViews.vent(vent, true).medium());
         assertEquals(VentView.Medium.AIR, ApiViews.vent(vent, false).medium());
         assertEquals("spa", ApiViews.vent(vent, true).system());
@@ -180,7 +180,7 @@ class ApiViewsTest {
         assertEquals(InstrumentView.Kind.WEATHER_SENSOR,
                 ApiViews.sensor(new Sensor(at(0, 64, 1), "Sky", Sensor.Kind.WEATHER)).kind());
 
-        RpmMonitor monitor = new RpmMonitor(at(0, 64, 2), GroupId.of(at(0, 64, 2), "house"), "Fan", EquipmentType.FURNACE);
+        RpmMonitor monitor = new RpmMonitor(at(0, 64, 2), SystemId.of(at(0, 64, 2), "house"), "Fan", EquipmentType.FURNACE);
         assertEquals(Optional.of("house"), ApiViews.rpmMonitor(monitor).system());
         InstrumentView panel = ApiViews.settingsPanel(new SettingsPanel(at(0, 64, 3), "house", "Panel"));
         assertEquals(InstrumentView.Kind.SETTINGS_PANEL, panel.kind());

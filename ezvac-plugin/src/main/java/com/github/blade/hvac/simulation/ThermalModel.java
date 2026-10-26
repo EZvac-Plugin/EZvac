@@ -26,7 +26,7 @@ public final class ThermalModel {
         Objects.requireNonNull(mode, "mode");
         Objects.requireNonNull(settings, "settings");
         requireFinite("capacity", capacity);
-        if (capacity < 0.0 || capacity > settings.maximumGroupCapacity())
+        if (capacity < 0.0 || capacity > settings.maximumSystemCapacity())
             throw new IllegalArgumentException("capacity is outside the configured range");
         if (elapsedTicks < 0) throw new IllegalArgumentException("elapsed ticks must be non-negative");
 
