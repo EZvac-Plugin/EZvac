@@ -108,7 +108,7 @@ public final class HvacPlugin extends JavaPlugin {
                         + " %ezvac_temp%, %ezvac_bar% and friends to it (needs PlaceholderAPI).");
             if (getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) registerPlaceholders();
             else getLogger().info("PlaceholderAPI is not installed. The /hvac hud overlay works without it;"
-                    + " install PlaceholderAPI to also show %ezvac_temp%, %ezvac_bar%, %ezvac_group% and"
+                    + " install PlaceholderAPI to also show %ezvac_temp%, %ezvac_bar%, %ezvac_system% and"
                     + " more in scoreboard, TAB, and chat plugins.");
 
             controllerTask = getServer().getScheduler().runTaskTimer(this,
