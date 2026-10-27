@@ -1,5 +1,6 @@
 package com.github.blade.hvac.config;
 
+import com.github.blade.hvac.model.Tier;
 import org.bukkit.configuration.file.FileConfiguration;
 
 /** Immutable, validated runtime tuning. */
@@ -37,7 +38,12 @@ public record HvacSettings(
         boolean audioEnabled,
         double audioRadiusBlocks,
         long humRefreshTicks,
-        TemperatureUnit units
+        TemperatureUnit units,
+        double singleStageCapacity,
+        double twoStageCapacity,
+        double twoStageLow,
+        String fullStar,
+        String emptyStar
 ) {
     public HvacSettings {
         requirePositive("controller.period-ticks", controllerPeriodTicks);
@@ -103,6 +109,28 @@ public record HvacSettings(
         requirePositiveFinite("audio.radius-blocks", audioRadiusBlocks);
         requirePositive("audio.hum-refresh-ticks", humRefreshTicks);
         java.util.Objects.requireNonNull(units, "units");
+        requireShare("performance.tiers.single-stage.capacity", singleStageCapacity);
+        requireShare("performance.tiers.two-stage.capacity", twoStageCapacity);
+        requireShare("performance.tiers.two-stage.low-stage", twoStageLow);
+        if (fullStar == null || fullStar.isEmpty() || emptyStar == null || emptyStar.isEmpty())
+            throw new IllegalArgumentException("displays.stars.full and empty must not be empty");
+    }
+
+    /**
+     * What a running unit of this tier delivers flat out (3.1): the budget
+     * tiers a little less, variable-speed the full capacity units always had.
+     */
+    public double tierCapacity(Tier tier) {
+        return switch (tier) {
+            case SINGLE_STAGE -> singleStageCapacity;
+            case TWO_STAGE -> twoStageCapacity;
+            case VARIABLE -> 1.0;
+        };
+    }
+
+    /** "★★☆". */
+    public String stars(Tier tier) {
+        return tier.stars(fullStar, emptyStar);
     }
 
     public static HvacSettings load(FileConfiguration config) {
@@ -151,7 +179,12 @@ public record HvacSettings(
                 config.getDouble("audio.radius-blocks", defaults.audioRadiusBlocks),
                 // audio.hum-volume and audio.hum-pitch are no longer read: the hum is a line in audio.sounds.
                 config.getLong("audio.hum-refresh-ticks", defaults.humRefreshTicks),
-                TemperatureUnit.load(config, warn)
+                TemperatureUnit.load(config, warn),
+                config.getDouble("performance.tiers.single-stage.capacity", defaults.singleStageCapacity),
+                config.getDouble("performance.tiers.two-stage.capacity", defaults.twoStageCapacity),
+                config.getDouble("performance.tiers.two-stage.low-stage", defaults.twoStageLow),
+                config.getString("displays.stars.full", defaults.fullStar),
+                config.getString("displays.stars.empty", defaults.emptyStar)
         );
     }
 
@@ -161,7 +194,9 @@ public record HvacSettings(
                 60.0, 85.0, 75.0, 104.0, 3.75, 5.0, 1.25, 0.50, 2.0,
                 3.0, 0.40, 1_200.0, 3_600.0, 2_400.0, 4_200.0, 900.0, 1_200.0,
                 15, 30, 4_000, 200_000,
-                true, 25.0, 60, TemperatureUnit.F);
+                true, 25.0, 60, TemperatureUnit.F,
+                0.70, 0.85, 0.65,
+                "★", "☆");
     }
 
     /**
@@ -175,6 +210,11 @@ public record HvacSettings(
         double minimum = pool ? poolMinimumTargetF : minimumTargetF;
         double maximum = pool ? poolMaximumTargetF : maximumTargetF;
         return Math.max(minimum, Math.min(maximum, value));
+    }
+
+    private static void requireShare(String name, double value) {
+        if (!Double.isFinite(value) || value <= 0.0 || value > 1.0)
+            throw new IllegalArgumentException(name + " must be above 0 and at most 1");
     }
 
     private static void requirePositive(String name, long value) {

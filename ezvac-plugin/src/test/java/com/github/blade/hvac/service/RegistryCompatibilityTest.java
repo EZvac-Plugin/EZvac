@@ -66,7 +66,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("ALPHA-2.0-P5", true, true, true, true, true, true, true, false, false),
                 Arguments.of("ALPHA-2.1-P1", true, true, true, true, true, true, true, true, false),
                 Arguments.of("ALPHA-2.1-P2", true, true, true, true, true, true, true, true, true),
-                Arguments.of("ALPHA-2.2", true, true, true, true, true, true, true, true, true));
+                Arguments.of("ALPHA-2.2", true, true, true, true, true, true, true, true, true),
+                Arguments.of("ALPHA-3.0", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -162,7 +163,20 @@ class RegistryCompatibilityTest {
      * Releases whose dehumidifier sign opens a menu when clicked (from 2.1 on), so the
      * fixture bot's click leaves the setpoint at its default.
      */
-    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2");
+    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0");
+
+    /**
+     * Releases built with the link tool (3.0 on): their systems are numbered
+     * (#1, #2), not named after a group, so a system is checked by what is
+     * linked to it.
+     */
+    private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0");
+
+    /** A fixture's system is its old group name before 3.0; from 3.0 it only has to be a numbered one. */
+    private static void assertSystem(String release, String group, Thermostat thermostat) {
+        if (LINKED_RELEASES.contains(release)) assertTrue(thermostat.system().number() > 0, thermostat.system().key());
+        else assertEquals(group, thermostat.system().key());
+    }
 
     private static void assertCoreDevices(HvacRegistry registry, String release, boolean water, boolean pool,
                                           boolean poolHeatPump, boolean climate, boolean humidifier,
@@ -176,15 +190,21 @@ class RegistryCompatibilityTest {
         assertTrue(registry.pendingCleanup().isEmpty());
 
         Thermostat house = Objects.requireNonNull(TestHost.labelled(registry, "main"));
-        assertEquals("house", house.system().key());
+        assertSystem(release, "house", house);
         assertEquals(60.0, house.targetF());
         assertEquals(2, registry.equipmentFor(house.system()).size());
         assertEquals(OperatingProfile.TURBO, registry.profileFor(house.system()));
-        assertEquals("office", Objects.requireNonNull(TestHost.labelled(registry, "work")).system().key());
+        Thermostat work = Objects.requireNonNull(TestHost.labelled(registry, "work"));
+        assertSystem(release, "office", work);
+        assertEquals(1, registry.equipmentFor(work.system()).size(), "the AC is the office's");
+        assertEquals(house.system(), registry.rpmMonitors().iterator().next().system(), "the monitor is the house's");
+        assertEquals(house.system(), registry.settingsPanels().iterator().next().system());
+        // Tiers came in 3.1: every unit of an older release is variable, at the full capacity it always had.
+        for (EquipmentUnit unit : registry.equipment()) assertEquals(Tier.LEGACY, unit.tier(), unit.type().name());
 
         if (water) {
             Thermostat spa = Objects.requireNonNull(TestHost.labelled(registry, "spa"));
-            assertEquals("pool", spa.system().key());
+            assertSystem(release, "pool", spa);
             assertEquals(pool, spa.pool());
             // Pilot 1 pools used a room thermostat, which clamps to the 85 F ceiling.
             assertEquals(pool ? 104.0 : 85.0, spa.targetF());
@@ -244,7 +264,7 @@ class RegistryCompatibilityTest {
 
         if (border) {
             Thermostat edge = Objects.requireNonNull(TestHost.labelled(registry, "edge"));
-            assertEquals("dunes", edge.system().key());
+            assertSystem(release, "dunes", edge);
             assertTrue(registry.equipmentFor(edge.system()).isEmpty());
             var climateThere = edge.outdoorClimate();
             assertFalse(climateThere.pure(), "half plains, half desert");

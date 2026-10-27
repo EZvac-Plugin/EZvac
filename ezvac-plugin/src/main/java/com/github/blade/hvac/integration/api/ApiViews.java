@@ -103,12 +103,12 @@ public final class ApiViews {
                 conditioned ? reading.influence() : 0.0);
     }
 
-    /** A piece of equipment as the API shows it (API 1.2). */
+    /** A piece of equipment as the API shows it (API 1.2; its tier since 1.4). */
     public static EquipmentView equipment(EquipmentUnit unit) {
         ThermostatView.Mode mode = unit.running() && unit.operatingMode() != null
                 ? mode(unit.operatingMode()) : ThermostatView.Mode.IDLE;
         return new EquipmentView(equipment(unit.type()), unit.system().key(), position(unit.position()),
-                unit.enabled(), unit.running(), mode, unit.running() ? unit.motorRpm() : 0.0);
+                unit.enabled(), unit.running(), mode, unit.running() ? unit.motorRpm() : 0.0, unit.tier().number());
     }
 
     /** A vent; {@code water} when its system is a pool system. */

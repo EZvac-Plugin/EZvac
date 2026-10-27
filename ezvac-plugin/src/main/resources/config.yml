@@ -41,6 +41,21 @@ performance:
     turbo-maximum-rpm: 4200.0
     ramp-up-rpm-per-second: 900.0
     ramp-down-rpm-per-second: 1200.0
+  # Equipment tiers (3.1), shown as stars: the three kinds of real HVAC units.
+  # Single-stage (one star) runs flat out or not at all, so it overshoots and
+  # cycles. Two-stage (two) drops to its low stage within approach-band-f of
+  # the target. Variable-speed (three) eases down smoothly on the curve above;
+  # a variable furnace or boiler is called modulating. The cheaper kinds also
+  # deliver less. Every unit from before 3.1 is variable, at full capacity:
+  # compressors exactly as they ran, furnaces and boilers now modulating.
+  tiers:
+    single-stage:
+      # What it delivers flat out, variable-speed being 1.
+      capacity: 0.70
+    two-stage:
+      capacity: 0.85
+      # Its low stage, as a share of flat out.
+      low-stage: 0.65
 
 airflow:
   core-range: 15
@@ -89,6 +104,12 @@ audio:
 # saved with the world. false shows the plain signs only.
 displays:
   screens: true
+  # How equipment tiers are drawn (3.1): full stars for the tier, empty ones
+  # for the rest, so Standard is ★★☆. Change them for a resource pack, or for
+  # Bedrock players through Geyser if their client draws these differently.
+  stars:
+    full: "★"
+    empty: "☆"
 
 # Transitions between biomes (2.1). The outdoor climate at a spot is the
 # average of the biomes within radius-blocks, nearer ones counting more, so

@@ -48,6 +48,13 @@ public enum EquipmentType {
     }
 
     public Material outputMaterial() { return outputMaterial; }
+
+    /**
+     * Furnaces and boilers burn at a fixed rate: full heat, or a two-stage
+     * unit's low stage (3.1), never throttled like a compressor. Before 3.1
+     * boilers ran on the compressors' variable-speed curve by mistake.
+     */
+    public boolean fixedSpeed() { return this == FURNACE || this == BOILER; }
     public String displayName() { return displayName; }
 
     /**

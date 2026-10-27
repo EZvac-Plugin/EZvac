@@ -42,7 +42,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.3";
+    String API_VERSION = "1.4";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -59,7 +59,7 @@ public interface EzvacApi {
     /** {@link #API_VERSION} of the EZvac that is running. */
     String apiVersion();
 
-    /** The running EZvac's version, such as {@code ALPHA-3.0}. */
+    /** The running EZvac's version, such as {@code ALPHA-3.1}. */
     String pluginVersion();
 
     /** The unit the server shows players: F or C. */

@@ -36,7 +36,8 @@ class ConfigUpdaterTest {
 
         assertTrue(added.contains("temperature.pool-minimum-target-f"), "a missing setting in an existing section");
         assertTrue(added.contains("dehumidifier.range"));
-        assertEquals(List.of("units", "temperature", "audio", "displays", "biome-blend", "seasons", "altitude", "underground", "weather", "humidity", "variance", "dehumidifier", "hud"),
+        assertTrue(added.contains("performance.tiers.two-stage.low-stage"), "3.1's tiers");
+        assertEquals(List.of("units", "temperature", "performance", "audio", "displays", "biome-blend", "seasons", "altitude", "underground", "weather", "humidity", "variance", "dehumidifier", "hud"),
                 ConfigUpdater.topLevel(added).stream().filter(s -> !s.equals("humidifier")).toList());
         for (Map.Entry<String, Object> entry : before.entrySet())
             if (!old.isConfigurationSection(entry.getKey()))

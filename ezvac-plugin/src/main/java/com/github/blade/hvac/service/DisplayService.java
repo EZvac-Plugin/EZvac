@@ -5,6 +5,7 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.EtaEstimator;
+import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.ThermalModel;
 import net.kyori.adventure.text.Component;
@@ -219,15 +220,26 @@ public final class DisplayService {
         };
         List<EquipmentUnit> running = registry.equipmentFor(thermostat.system()).stream()
                 .filter(unit -> unit.running() && unit.operatingMode() == thermostat.mode()).toList();
-        double fixedEquivalent = running.stream().filter(unit -> unit.type() == EquipmentType.FURNACE)
+        double fixedEquivalent = running.stream().filter(unit -> unit.type().fixedSpeed())
                 .mapToDouble(unit -> unit.operatingCapacity(settings)).sum();
-        double variableEquivalent = running.stream().filter(unit -> unit.type() != EquipmentType.FURNACE)
+        double variableEquivalent = running.stream().filter(unit -> !unit.type().fixedSpeed())
                 .mapToDouble(unit -> unit.operatingCapacity(settings)).sum();
-        double capacity = ThermalModel.aggregateIndependentCapacity(fixedEquivalent,
-                variableEquivalent, settings.maximumSystemCapacity());
-        int percent = (int) Math.round(capacity * 100.0);
+        // The meter is the system's load (3.1): what it delivers now as a share of
+        // what its units could deliver flat out. It used to be raw capacity, which
+        // read 141% for two units and 112% for one Premium unit.
+        double fullFixed = 0.0;
+        double fullVariable = 0.0;
+        OperatingProfile profile = registry.profileFor(thermostat.system());
+        for (EquipmentUnit unit : registry.equipmentFor(thermostat.system())) {
+            if (!unit.enabled() || !unit.type().supports(thermostat.mode())) continue;
+            double full = PerformanceModel.fullCapacity(unit.type(), unit.tier(), profile, settings);
+            if (unit.type().fixedSpeed()) fullFixed += full;
+            else fullVariable += full;
+        }
+        double load = PerformanceModel.load(fixedEquivalent, variableEquivalent, fullFixed, fullVariable, settings);
+        int percent = (int) Math.round(load * 100.0);
         List<EtaEstimator.UnitSnapshot> snapshots = running.stream()
-                .map(unit -> new EtaEstimator.UnitSnapshot(unit.type(), unit.motorRpm())).toList();
+                .map(unit -> new EtaEstimator.UnitSnapshot(unit.type(), unit.motorRpm(), unit.tier())).toList();
         OptionalLong eta = estimateEta(thermostat, snapshots, force);
         String footer = !thermostat.enabled() ? "System off"
                 : thermostat.mode() == OperatingMode.IDLE ? "Ready"
@@ -256,9 +268,9 @@ public final class DisplayService {
             if (!thermostat.enabled()) screen.line("System off · set " + target, NamedTextColor.RED);
             else switch (thermostat.mode()) {
                 case COOLING -> screen.line("❄ Cooling to " + target, NamedTextColor.AQUA)
-                        .line(ScreenText.bar(capacity, 10, NamedTextColor.AQUA));
+                        .line(ScreenText.bar(load, 10, NamedTextColor.AQUA));
                 case HEATING -> screen.line("♨ Heating to " + target, NamedTextColor.GOLD)
-                        .line(ScreenText.bar(capacity, 10, NamedTextColor.GOLD));
+                        .line(ScreenText.bar(load, 10, NamedTextColor.GOLD));
                 case IDLE -> screen.line("● Holding " + target, NamedTextColor.GREEN);
             }
             String humidity = thermostat.hasRoomDewPoint() ? Math.round(Psychrometrics.relativeHumidity(
@@ -403,7 +415,7 @@ public final class DisplayService {
             for (int line = 0; line < Pager.PER_PAGE; line++) {
                 if (line >= shown.size()) { lines.set(line + 1, "", NamedTextColor.WHITE); continue; }
                 RpmMonitor.Row row = shown.get(line);
-                lines.set(line + 1, rowText(row, lines.width()),
+                lines.set(line + 1, rowText(row, lines.width(), settings.fullStar(), settings.emptyStar()),
                         row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
             }
         }, () -> {
@@ -414,22 +426,44 @@ public final class DisplayService {
             if (rows.isEmpty()) return screen.line("No equipment", NamedTextColor.RED);
             // A screen holds five rows; with more it pages along with the sign.
             for (RpmMonitor.Row row : rows.size() <= ScreenText.LINES - 1 ? rows : shown)
-                screen.line(rowText(row, ScreenText.WIDTH), row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
+                screen.line(rowText(row, ScreenText.WIDTH, settings.fullStar(), settings.emptyStar()),
+                        row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
             return screen;
         });
     }
 
     /**
-     * "Heat pump ×4 2,950": the kind, how many when more than one, and the
-     * average speed of those running ("off" when none is). A row too wide
-     * for the sign shortens the kind first.
+     * "Heat pump ★★★ ×4 2,950": the kind, its tier's stars, how many when
+     * more than one, and the average speed of those running ("off" when none
+     * is; a furnace or boiler, which has a fixed speed, says "on"). A row too
+     * wide for the sign tries shorter forms in turn: a short kind, the speed
+     * as "2.9k", a compact kind, the count closed up; only then is it cut.
      */
-    static String rowText(RpmMonitor.Row row, int width) {
+    static String rowText(RpmMonitor.Row row, int width, String fullStar, String emptyStar) {
+        String stars = " " + row.tier().stars(fullStar, emptyStar);
         String count = row.units() > 1 ? " ×" + row.units() : "";
-        String state = row.running() == 0 ? "off" : String.format(Locale.US, "%,.0f", row.rpm());
-        String full = row.type().displayName() + count + " " + state;
-        if (SignText.width(full) <= width) return full;
-        return SignText.fit(shortName(row.type()) + count + " " + state, width);
+        boolean fixed = row.type().fixedSpeed();
+        String state = row.running() == 0 ? "off" : fixed ? "on" : String.format(Locale.US, "%,.0f", row.rpm());
+        String compact = row.running() == 0 || fixed ? state : String.format(Locale.US, "%.1fk", row.rpm() / 1000.0);
+        String[] forms = {
+                row.type().displayName() + stars + count + " " + state,
+                shortName(row.type()) + stars + count + " " + state,
+                shortName(row.type()) + stars + count + " " + compact,
+                compactName(row.type()) + stars + count + " " + compact,
+                compactName(row.type()) + stars + count.trim() + " " + compact};
+        for (String form : forms) if (SignText.width(form) <= width) return form;
+        return SignText.fit(forms[forms.length - 1], width);
+    }
+
+    /** The shortest names, for a sign row that needs every pixel. */
+    private static String compactName(EquipmentType type) {
+        return switch (type) {
+            case HEAT_PUMP -> "HP";
+            case AIR_CONDITIONER -> "AC";
+            case FURNACE -> "Furn";
+            case BOILER -> "Boil";
+            case POOL_HEAT_PUMP -> "PHP";
+        };
     }
 
     private static String shortName(EquipmentType type) {

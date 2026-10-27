@@ -31,11 +31,11 @@ public final class RpmMonitor {
     }
 
     /**
-     * One row: every unit of a kind in the system.
+     * One row: every unit of a kind and tier in the system.
      *
      * @param rpm average speed of the running units; 0 when none runs
      */
-    public record Row(EquipmentType type, int units, int running, double rpm) {}
+    public record Row(EquipmentType type, Tier tier, int units, int running, double rpm) {}
 
     public BlockKey position() { return position; }
     /** The system it shows, or null while it is not linked. */
@@ -53,21 +53,25 @@ public final class RpmMonitor {
         this.system = system;
     }
 
-    /** The rows for a system's equipment, in the order equipment kinds are listed. */
+    /** The rows for a system's equipment: by kind as kinds are listed, then by tier, best first. */
     public static List<Row> rows(Collection<EquipmentUnit> equipment) {
         List<Row> rows = new ArrayList<>();
+        Tier[] tiers = Tier.values();
         for (EquipmentType type : EquipmentType.values()) {
-            int units = 0;
-            int running = 0;
-            double rpm = 0.0;
-            for (EquipmentUnit unit : equipment) {
-                if (unit.type() != type) continue;
-                units++;
-                if (!unit.running()) continue;
-                running++;
-                rpm += unit.motorRpm();
+            for (int index = tiers.length - 1; index >= 0; index--) {
+                Tier tier = tiers[index];
+                int units = 0;
+                int running = 0;
+                double rpm = 0.0;
+                for (EquipmentUnit unit : equipment) {
+                    if (unit.type() != type || unit.tier() != tier) continue;
+                    units++;
+                    if (!unit.running()) continue;
+                    running++;
+                    rpm += unit.motorRpm();
+                }
+                if (units > 0) rows.add(new Row(type, tier, units, running, running == 0 ? 0.0 : rpm / running));
             }
-            if (units > 0) rows.add(new Row(type, units, running, running == 0 ? 0.0 : rpm / running));
         }
         return rows;
     }

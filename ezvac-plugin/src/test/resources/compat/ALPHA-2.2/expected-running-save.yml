@@ -1,5 +1,5 @@
 meta:
-  format: 7
+  format: 8
   next-system: 1
 thermostats:
   item0:
@@ -87,7 +87,7 @@ equipment:
   item0:
     system: house
     equipmentType: HEAT_PUMP
-    tier: 2
+    tier: 3
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -103,7 +103,7 @@ equipment:
   item1:
     system: house
     equipmentType: FURNACE
-    tier: 2
+    tier: 3
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -115,7 +115,7 @@ equipment:
   item2:
     system: office
     equipmentType: AIR_CONDITIONER
-    tier: 2
+    tier: 3
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -131,7 +131,7 @@ equipment:
   item3:
     system: pool
     equipmentType: BOILER
-    tier: 2
+    tier: 3
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60
@@ -147,7 +147,7 @@ equipment:
   item4:
     system: pool
     equipmentType: POOL_HEAT_PUMP
-    tier: 2
+    tier: 3
     worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
     x: 10
     y: -60

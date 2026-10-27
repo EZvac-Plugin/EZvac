@@ -14,6 +14,10 @@ class RpmMonitorRowsTest {
     private static final UUID WORLD = UUID.fromString("0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10");
 
     private static EquipmentUnit unit(int x, EquipmentType type, boolean running, double rpm) {
+        return unit(x, type, running, rpm, Tier.TWO_STAGE);
+    }
+
+    private static EquipmentUnit unit(int x, EquipmentType type, boolean running, double rpm, Tier tier) {
         Map<String, Object> map = new java.util.LinkedHashMap<>();
         map.put("worldUuid", WORLD.toString());
         map.put("x", x); map.put("y", 64); map.put("z", 0);
@@ -22,31 +26,49 @@ class RpmMonitorRowsTest {
         map.put("running", running);
         map.put("operatingMode", running ? "COOLING" : "IDLE");
         map.put("motorRpm", rpm);
+        map.put("tier", tier.number());
         return EquipmentUnit.fromMap(map);
     }
 
     @Test
-    void oneRowPerKindInTheOrderKindsAreListed() {
+    void oneRowPerKindAndTierInTheOrderKindsAreListedBestTierFirst() {
         List<RpmMonitor.Row> rows = RpmMonitor.rows(List.of(
-                unit(0, EquipmentType.FURNACE, false, 0),
+                unit(0, EquipmentType.FURNACE, false, 0, Tier.SINGLE_STAGE),
                 unit(1, EquipmentType.HEAT_PUMP, true, 3000),
                 unit(2, EquipmentType.HEAT_PUMP, true, 2000),
-                unit(3, EquipmentType.HEAT_PUMP, false, 0)));
-        assertEquals(List.of(new RpmMonitor.Row(EquipmentType.HEAT_PUMP, 3, 2, 2500),
-                new RpmMonitor.Row(EquipmentType.FURNACE, 1, 0, 0)), rows, "the average is of the running units");
+                unit(3, EquipmentType.HEAT_PUMP, false, 0),
+                unit(4, EquipmentType.HEAT_PUMP, true, 3500, Tier.VARIABLE)));
+        assertEquals(List.of(new RpmMonitor.Row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 1, 1, 3500),
+                new RpmMonitor.Row(EquipmentType.HEAT_PUMP, Tier.TWO_STAGE, 3, 2, 2500),
+                new RpmMonitor.Row(EquipmentType.FURNACE, Tier.SINGLE_STAGE, 1, 0, 0)), rows,
+                "the average is of the running units");
         assertTrue(RpmMonitor.rows(List.of()).isEmpty());
     }
 
+    private static String row(EquipmentType type, Tier tier, int units, int running, double rpm, int width) {
+        return DisplayService.rowText(new RpmMonitor.Row(type, tier, units, running, rpm), width, "★", "☆");
+    }
+
     @Test
-    void aRowShowsTheKindTheCountAndTheSpeed() {
-        assertEquals("Heat pump ×4 2,950",
-                DisplayService.rowText(new RpmMonitor.Row(EquipmentType.HEAT_PUMP, 4, 2, 2950), 200));
-        assertEquals("Furnace off", DisplayService.rowText(new RpmMonitor.Row(EquipmentType.FURNACE, 1, 0, 0), 200),
+    void aRowShowsTheKindItsStarsTheCountAndTheSpeed() {
+        assertEquals("Heat pump ★★★ ×4 2,950", row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 4, 2, 2950, 300));
+        assertEquals("Furnace ★☆☆ off", row(EquipmentType.FURNACE, Tier.SINGLE_STAGE, 1, 0, 0, 300),
                 "no ×1 for a single unit");
-        String narrow = DisplayService.rowText(new RpmMonitor.Row(EquipmentType.POOL_HEAT_PUMP, 2, 1, 3100),
-                SignText.SIGN_WIDTH);
-        assertEquals("Pool HP ×2 3,100", narrow, "the kind is shortened before anything else");
-        assertTrue(SignText.width(narrow) <= SignText.SIGN_WIDTH);
+        assertEquals("Furnace ★★★ ×2 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 2, 1, 715, 300),
+                "a furnace's blower speed says nothing, so it is on or off");
+        for (EquipmentType type : EquipmentType.values())
+            for (Tier tier : Tier.values())
+                for (int units = 1; units <= 9; units++) {
+                    String text = row(type, tier, units, 1, 4_150, SignText.SIGN_WIDTH);
+                    assertTrue(SignText.width(text) <= SignText.SIGN_WIDTH, text);
+                    assertTrue(text.contains(tier.stars("★", "☆")), "the stars always fit: " + text);
+                    assertTrue(text.endsWith(type.fixedSpeed() ? " on" : "4.2k")
+                            || text.endsWith("4,150"), "and so does the speed: " + text);
+                }
+        assertEquals("HP ★★☆ ×4 2.9k", row(EquipmentType.HEAT_PUMP, Tier.TWO_STAGE, 4, 2, 2940, SignText.SIGN_WIDTH),
+                "the kind is shortened first, then the speed");
+        assertEquals("HP [*][*][ ] off", DisplayService.rowText(new RpmMonitor.Row(EquipmentType.HEAT_PUMP,
+                Tier.TWO_STAGE, 1, 0, 0), SignText.SIGN_WIDTH, "[*]", "[ ]"), "a server's own glyphs");
     }
 
     @Test

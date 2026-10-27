@@ -324,12 +324,19 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void createEquipment(Player player, Block block, String[] args, EquipmentType type) {
         if (block.getType() != Material.DISPENSER)
             throw new IllegalArgumentException("Look directly at a dispenser.");
-        if (args.length >= 3) player.sendMessage(yellow(GROUPS_GONE));
+        // The word after the kind is a tier (3.1); before 3.0 it was a group, now ignored.
+        // New units are two-stage unless told (3.1); every unit from before then kept what it was.
+        Tier tier = args.length >= 3 ? Tier.parse(args[2]) : Tier.TWO_STAGE;
+        if (tier == null) {
+            player.sendMessage(yellow(GROUPS_GONE));
+            tier = Tier.TWO_STAGE;
+        }
         BlockKey position = BlockKey.of(block.getLocation());
         // A unit starts in a headless system of its own, until it is linked to a thermostat.
         EquipmentUnit unit = new EquipmentUnit(position, registry.newSystem(position.worldId()), type);
+        unit.setTier(tier);
         registry.addEquipment(unit);
-        player.sendMessage(green("Registered " + type.displayName() + "."));
+        player.sendMessage(green("Registered " + type.displayName() + " " + tierName(tier, type) + "."));
         if (!linkTool.linkCreated(player, block)) player.sendMessage(gray(LINK_HINT));
     }
 
@@ -369,7 +376,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     private void equipment(Player player, String[] args) {
         if (args.length < 2) throw new IllegalArgumentException(
-                "Usage: /hvac equipment <enable|disable|info>");
+                "Usage: /hvac equipment <enable|disable|tier <t1|t2|t3>|info>");
         Block block = target(player);
         if (block == null) return;
         EquipmentUnit unit = registry.equipmentAt(BlockKey.of(block.getLocation()));
@@ -377,6 +384,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         switch (args[1].toLowerCase(Locale.ROOT)) {
             case "enable" -> { unit.setEnabled(true); player.sendMessage(green("Equipment enabled.")); }
             case "disable" -> { unit.setEnabled(false); unit.stop(); player.sendMessage(yellow("Equipment disabled.")); }
+            case "tier" -> {
+                Tier tier = args.length >= 3 ? Tier.parse(args[2]) : null;
+                if (tier == null) throw new IllegalArgumentException("Usage: /hvac equipment tier <t1|t2|t3>"
+                        + " (single-stage, two-stage or variable)");
+                // Stopped first, so it starts again on its new tier's curve.
+                unit.stop();
+                unit.setTier(tier);
+                player.sendMessage(green(unit.type().displayName() + " is now " + tierName(tier, unit.type()) + "."));
+            }
             case "group" -> throw new IllegalArgumentException("Groups are gone since EZvac 3.0. Sneak-click the"
                     + " unit with /hvac link-tool to unlink it, then link it to another thermostat.");
             case "info" -> showEquipment(player, unit);
@@ -776,10 +792,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private void showEquipment(Player player, EquipmentUnit unit) {
-        player.sendMessage(join(gold(unit.type().displayName()), systemOf(unit.system())));
+        player.sendMessage(join(gold(unit.type().displayName() + " "), aqua(tierName(unit.tier(), unit.type())),
+                systemOf(unit.system())));
         player.sendMessage(join(gray("State: "), white(unit.running() ? unit.operatingMode().name() : "IDLE"),
                 gray(" | RPM: "), white(String.format(Locale.US, "%.0f", unit.motorRpm())),
-                gray(" | Profile: "), white(unit.type() == EquipmentType.FURNACE
+                gray(" | Profile: "), white(unit.type().fixedSpeed()
                         ? "FIXED" : registry.profileFor(unit.system()).name()),
                 gray(" | Output: "), white(unit.hasOwnedOutput() ? "owned" : "none"),
                 gray(" | "), white(unit.enabled() ? "enabled" : "disabled")));
@@ -820,6 +837,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         return String.format(Locale.US, "%." + decimals + "f", unit.fromF(lowF)) + "-" + unit.format(highF, decimals);
     }
 
+    /** "★★☆ Two-stage". */
+    private String tierName(Tier tier, EquipmentType type) {
+        return settings.stars(tier) + " " + tier.displayName(type);
+    }
+
     private boolean isTemperature(String text) {
         try {
             settings.units().parse(text);
@@ -855,7 +877,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac season set <season> [day] | next | pause | resume"),
                 gray(" - change the season")));
         sender.sendMessage(join(aqua("/hvac create thermostat <label> [target]"), gray(" - register a sign")));
-        sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace|boiler|poolheatpump"), gray(" - register a dispenser")));
+        sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace|boiler|poolheatpump [t1|t2|t3]"),
+                gray(" - register a dispenser, two-stage (t2) unless told")));
         sender.sendMessage(join(aqua("/hvac create thermometer|hygrometer|thermohygrometer [label]"),
                 gray(" - register a point-sensor sign")));
         sender.sendMessage(join(aqua("/hvac create rpmmonitor | settingspanel [label]"),
@@ -866,7 +889,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac create sensor-hub [label]"), gray(" - a sign showing up to 9 sensors")));
         sender.sendMessage(join(aqua("/hvac link-tool"), gray(" - link devices to a thermostat, or sensors to a hub")));
         sender.sendMessage(join(aqua("/hvac thermostat set|enable|disable|info"), gray(" - the thermostat you look at")));
-        sender.sendMessage(join(aqua("/hvac equipment enable|disable|info"), gray(" - the unit you look at")));
+        sender.sendMessage(join(aqua("/hvac equipment enable|disable|tier|info"), gray(" - the unit you look at")));
         sender.sendMessage(join(aqua("/hvac rename <label>"), gray(" - rename the sign you look at")));
         sender.sendMessage(join(aqua("/hvac remove | remove system | stats | sync"), gray(" - remove, diagnose, reconcile")));
     }
@@ -891,7 +914,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         "thermohygrometer", "rpmmonitor", "settingspanel", "dehumidifier", "humidifier",
                         "sensor", "sensor-hub");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
-                case "equipment" -> filter(args[1], "enable", "disable", "info");
+                case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");
                 case "hud" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "on", "off", "sections")
                         : filter(args[1], "on", "off");
@@ -900,6 +923,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         if (args.length == 3 && args[0].equalsIgnoreCase("remove") && args[1].equalsIgnoreCase("system"))
             return filter(args[2], "confirm");
+        if (args.length == 3 && (args[0].equalsIgnoreCase("equipment") && args[1].equalsIgnoreCase("tier")
+                || args[0].equalsIgnoreCase("create") && isEquipmentType(args[1])))
+            return filter(args[2], "t1", "t2", "t3");
         return List.of();
     }
 
