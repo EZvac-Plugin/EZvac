@@ -1,7 +1,7 @@
 # EZvac
 
 
-<img width="1080" height="1080" alt="ezvac-logo" src="https://github.com/user-attachments/assets/41b316f7-3826-4913-98da-626209b56cb3" />
+<img width="1080" height="540" alt="ezv_D" src="https://github.com/user-attachments/assets/95b2a2b3-4525-4d7d-b38b-214916050f73" />
 
 
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
