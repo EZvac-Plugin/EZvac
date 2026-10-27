@@ -48,6 +48,13 @@ public final class HumidityModel {
      */
     public static Result step(double dewPointF, double roomF, double outdoorDewPointF, Loads loads,
                               long elapsedTicks, ClimateSettings settings) {
+        return step(dewPointF, roomF, outdoorDewPointF, loads, elapsedTicks, settings, 1.0);
+    }
+
+    /** The same, with wind outside multiplying the air exchange by {@code leakFactor} (3.2). */
+    public static Result step(double dewPointF, double roomF, double outdoorDewPointF, Loads loads,
+                              long elapsedTicks, ClimateSettings settings, double leakFactor) {
+        double leak = Double.isFinite(leakFactor) ? Math.max(1.0, leakFactor) : 1.0;
         requireFinite("room temperature", roomF);
         requireFinite("outdoor dew point", outdoorDewPointF);
         double dew = Double.isFinite(dewPointF) ? Math.min(dewPointF, roomF) : Math.min(outdoorDewPointF, roomF);
@@ -65,7 +72,7 @@ public final class HumidityModel {
         double dehumidified = 0.0;
         while (remaining > 1e-12) {
             double hours = Math.min(STEP_HOURS, remaining);
-            double rate = (outdoorDewPointF - dew) * humidity.infiltrationPerHour()
+            double rate = (outdoorDewPointF - dew) * humidity.infiltrationPerHour() * leak
                     + evaporation * fraction((waterF - dew) / 10.0)
                     - cooling * fraction((dew - humidity.coilDewPointF()) / 15.0)
                     // A humidifier slows as the air nears saturation, and stops short of it.

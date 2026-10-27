@@ -1,5 +1,8 @@
 package com.github.blade.hvac.integration.api;
 
+import com.github.blade.hvac.api.Wind;
+import com.github.blade.hvac.config.WindSettings;
+import com.github.blade.hvac.simulation.WindModel;
 import com.github.blade.hvac.api.AirQuality;
 import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.ClimateUnitView;
@@ -159,12 +162,39 @@ public final class ApiViews {
     /** The same, with the air at the spot when air quality is on (API 1.5). */
     public static ClimateReading reading(Position at, AirflowService.TemperatureReading reading,
                                          Optional<SeasonView.Season> season, AirQualitySettings air) {
+        return reading(at, reading, season, air, null);
+    }
+
+    /** The same, with the wind felt at the spot (API 1.5). */
+    public static ClimateReading reading(Position at, AirflowService.TemperatureReading reading,
+                                         Optional<SeasonView.Season> season, AirQualitySettings air,
+                                         WindSettings wind) {
         boolean conditioned = reading.system() != null && reading.thermostat() != null;
         return new ClimateReading(at, reading.localF(), reading.feelsLikeF(), reading.humidity(), reading.outdoorF(),
                 reading.water(), reading.weather(), season,
                 conditioned ? Optional.of(reading.thermostat().id()) : Optional.empty(),
                 conditioned ? Optional.of(reading.system().key()) : Optional.empty(),
-                conditioned ? reading.influence() : 0.0, airQuality(reading.air(), air));
+                conditioned ? reading.influence() : 0.0, airQuality(reading.air(), air),
+                wind(reading.windMs(), wind));
+    }
+
+    /** The wind as the API shows it; calm with wind switched off. */
+    public static Wind wind(double speedMs, WindSettings settings) {
+        if (settings == null || !settings.enabled() || !(speedMs > 0.0)) return Wind.CALM;
+        return new Wind(speedMs, level(WindModel.Level.of(speedMs, settings.speeds())));
+    }
+
+    public static Wind.Level level(WindModel.Level level) {
+        return switch (level) {
+            case CALM -> Wind.Level.CALM;
+            case BREEZY -> Wind.Level.BREEZY;
+            case WINDY -> Wind.Level.WINDY;
+            case GALE -> Wind.Level.GALE;
+        };
+    }
+
+    public static Wind.Day windDay(WindModel.Day day) {
+        return new Wind.Day(day.day(), level(day.level()), day.meanMs());
     }
 
     /** A piece of equipment as the API shows it (API 1.2; its tier since 1.4). */
@@ -199,6 +229,7 @@ public final class ApiViews {
             case BOTH -> InstrumentView.Kind.TEMPERATURE_HUMIDITY_SENSOR;
             case WEATHER -> InstrumentView.Kind.WEATHER_SENSOR;
             case AIR -> InstrumentView.Kind.AIR_SENSOR;
+            case WIND -> InstrumentView.Kind.WIND_SENSOR;
         };
         return new InstrumentView(kind, sensor.label(), position(sensor.position()), Optional.empty(), List.of());
     }

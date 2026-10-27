@@ -37,9 +37,18 @@ public final class AirflowService {
     public record TemperatureReading(double localF, double outdoorF, double influence,
                                      int airflowDistance, SystemId system, Thermostat thermostat,
                                      boolean water, double humidity, double feelsLikeF, String weather,
-                                     AirQualityModel.Air air) {
+                                     AirQualityModel.Air air, double windMs) {
         public TemperatureReading {
             air = air == null ? AirQualityModel.Air.UNKNOWN : air;
+            windMs = Double.isFinite(windMs) ? Math.max(0.0, windMs) : 0.0;
+        }
+
+        /** A reading without wind. */
+        public TemperatureReading(double localF, double outdoorF, double influence, int airflowDistance,
+                                  SystemId system, Thermostat thermostat, boolean water, double humidity,
+                                  double feelsLikeF, String weather, AirQualityModel.Air air) {
+            this(localF, outdoorF, influence, airflowDistance, system, thermostat, water, humidity, feelsLikeF,
+                    weather, air, 0.0);
         }
 
         /** A reading without air. */
@@ -666,9 +675,22 @@ public final class AirflowService {
                     Microvariance.DEW_POINT, location.getBlockX(), location.getBlockY(), location.getBlockZ(), hours));
         }
         double humidity = Psychrometrics.relativeHumidity(localF, dew);
-        double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, out.windMs() * (1.0 - influence));
+        double wind = out.windMs() * (1.0 - influence) * shelter(location);
+        double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, wind);
         return new TemperatureReading(localF, outdoorF, influence, distance, system, thermostat,
-                false, humidity, feelsLike, out.weather(), air);
+                false, humidity, feelsLike, out.weather(), air, wind);
+    }
+
+    /**
+     * How much of the outdoor wind gets to a spot (3.2), by how much sky
+     * reaches it: all of it in the open, a little through a doorway, none in
+     * a closed room, whether or not a system conditions it.
+     */
+    static double shelter(Location location) {
+        if (location == null || location.getWorld() == null) return 1.0;
+        if (!location.getWorld().isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4)) return 1.0;
+        double sky = location.getBlock().getLightFromSky() / 15.0;
+        return sky * sky;
     }
 
     /**

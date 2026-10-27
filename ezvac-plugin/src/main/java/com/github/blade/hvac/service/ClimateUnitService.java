@@ -289,12 +289,14 @@ public final class ClimateUnitService {
         ZoneId zone = ZoneId.of(largest);
         int cells = airflow.mapSize(zone);
         double wetFraction = airflow.waterExposure(zone).excluding(outputs.get(largest.unit().worldId())).wetFraction();
+        // Wind outside makes the space leakier (3.2).
+        double leak = climate.wind().infiltrationFactor(out.windMs());
         if (air.enabled()) {
             AirQualityModel.Air sources = air.sourcesFor(zone, largest.unit().worldId(), cells);
-            stepSharedAir(space, cells, sources, out.air(), elapsedTicks, climate.humidity().infiltrationPerHour(),
-                    air.settings(), spent);
+            stepSharedAir(space, cells, sources, out.air(), elapsedTicks,
+                    climate.humidity().infiltrationPerHour() * leak, air.settings(), spent);
         }
-        return stepSharedSpace(space, cells, wetFraction, out.airF(), out.dewPointF(), elapsedTicks, climate);
+        return stepSharedSpace(space, cells, wetFraction, out.airF(), out.dewPointF(), elapsedTicks, climate, leak);
     }
 
     /**
@@ -337,6 +339,12 @@ public final class ClimateUnitService {
      */
     static double stepSharedSpace(List<ClimateUnit> space, int cells, double wetFraction, double outdoorF,
                                   double outdoorDewPointF, long elapsedTicks, ClimateSettings climate) {
+        return stepSharedSpace(space, cells, wetFraction, outdoorF, outdoorDewPointF, elapsedTicks, climate, 1.0);
+    }
+
+    /** The same, with wind outside multiplying the air exchange by {@code leak} (3.2). */
+    static double stepSharedSpace(List<ClimateUnit> space, int cells, double wetFraction, double outdoorF,
+                                  double outdoorDewPointF, long elapsedTicks, ClimateSettings climate, double leak) {
         double drying = 0.0;
         double adding = 0.0;
         List<Dehumidifier> dehumidifiers = new ArrayList<>();
@@ -359,7 +367,7 @@ public final class ClimateUnitService {
         }
         double startF = dewCount == 0 ? Double.NaN : dewSum / dewCount;
         HumidityModel.Result result = HumidityModel.step(startF, outdoorF, outdoorDewPointF,
-                new HumidityModel.Loads(0.0, wetFraction, Double.NaN, drying, adding), elapsedTicks, climate);
+                new HumidityModel.Loads(0.0, wetFraction, Double.NaN, drying, adding), elapsedTicks, climate, leak);
         for (ClimateUnit unit : space) unit.setZoneDewPointF(result.dewPointF());
         if (result.dehumidifiedF() > 0.0 && !dehumidifiers.isEmpty()) {
             double share = result.dehumidifiedF() / dehumidifiers.size();

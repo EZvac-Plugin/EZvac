@@ -169,6 +169,9 @@ public final class DisplayService {
         if (sensor.reads() == Sensor.Kind.AIR)
             return new SensorReading(sensor, true, Double.NaN, Double.NaN,
                     airSettings().enabled() ? AirText.aqi(reading.air()) : "Off", units);
+        if (sensor.reads() == Sensor.Kind.WIND)
+            return new SensorReading(sensor, true, Double.NaN, Double.NaN,
+                    WindText.sign(reading.windMs(), outdoor.climate().wind(), units), units);
         return new SensorReading(sensor, true, reading.localF(), reading.humidity(), "", units);
     }
 
@@ -315,8 +318,11 @@ public final class DisplayService {
             return cached.eta();
         }
         OperatingProfile profile = registry.profileFor(thermostat.system());
+        // A windy day makes the room leakier, as the controller steps it (3.2); a pool's water takes none.
+        double leak = thermostat.pool() ? 1.0
+                : outdoor.climate().wind().infiltrationFactor(outdoor.cachedClimateFor(thermostat).windMs());
         OptionalLong eta = EtaEstimator.estimateTicks(thermostat.roomF(), thermostat.targetF(),
-                outdoor.driftBaselineFor(thermostat), thermostat.mode(), snapshots, profile, settings);
+                outdoor.driftBaselineFor(thermostat), thermostat.mode(), snapshots, profile, settings, leak);
         etaCache.put(thermostat.position(), new CachedEta(thermostat.mode(), thermostat.enabled(), eta));
         return eta;
     }

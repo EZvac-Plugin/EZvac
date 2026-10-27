@@ -433,6 +433,7 @@ public final class HvacListener implements Listener {
         // A world loaded again starts from its weather then, not from where it was eased to before.
         plugin.weather().forget(event.getWorld());
         plugin.outdoor().forgetBlend(event.getWorld());
+        if (plugin.outdoor().wind() != null) plugin.outdoor().wind().forget(event.getWorld());
         plugin.seasons().forget(event.getWorld().getUID());
         plugin.requestImmediateSync();
     }

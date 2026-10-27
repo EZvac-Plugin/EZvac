@@ -7,6 +7,7 @@ import com.github.blade.hvac.simulation.BiomeClimate;
 import com.github.blade.hvac.simulation.OutdoorAir;
 import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.ThermalModel;
+import com.github.blade.hvac.simulation.WindModel;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -45,6 +46,8 @@ public final class Thermostat {
     private double roomDewPointF = Double.NaN;
     /** The outdoor air it last sampled (3.2); null until then, which reads as the default countryside. */
     private OutdoorAir.Baseline outdoorAir;
+    /** How much of the wind reaches its spot (3.2); NaN until sampled, which reads as fully open. */
+    private double outdoorWindExposure = Double.NaN;
     /** What is in the room's air (3.2); unknown until first simulated, when it starts at the outdoor air. */
     private AirQualityModel.Air roomAir = AirQualityModel.Air.UNKNOWN;
     /**
@@ -119,7 +122,7 @@ public final class Thermostat {
         double seasonal = Double.isFinite(outdoorSeasonalF) ? outdoorSeasonalF
                 : BiomeClimate.estimateSeasonalF((outdoorNoonF + outdoorMidnightF) / 2.0);
         return new BiomeBlend.Blended(outdoorNoonF, outdoorMidnightF, outdoorDownfall, outdoorRainShare,
-                outdoorSnowShare, seasonal, outdoorAir);
+                outdoorSnowShare, seasonal, outdoorAir, Double.isFinite(outdoorWindExposure) ? outdoorWindExposure : 1.0);
     }
     public AirQualityModel.Air roomAir() { return roomAir; }
     public void setRoomAir(AirQualityModel.Air air) {
@@ -185,6 +188,7 @@ public final class Thermostat {
         setOutdoorWeatherShares(climate.rainShare(), climate.snowShare());
         if (Double.isFinite(climate.seasonalF())) this.outdoorSeasonalF = Math.max(0.0, climate.seasonalF());
         this.outdoorAir = climate.air();
+        this.outdoorWindExposure = climate.windExposure();
     }
     private void setOutdoorWeatherShares(double rain, double snow) {
         if (!Double.isFinite(rain) || !Double.isFinite(snow)) return;
@@ -226,6 +230,7 @@ public final class Thermostat {
             map.put("outdoorCoarse", outdoorAir.coarse());
             map.put("outdoorPollen", outdoorAir.pollen());
         }
+        if (Double.isFinite(outdoorWindExposure)) map.put("outdoorWind", outdoorWindExposure);
         roomAir.write(map, "room");
         return map;
     }
@@ -264,6 +269,10 @@ public final class Thermostat {
                 // A hand-edited negative value: sampled again on the first cycle.
             }
         }
+        double wind = number(map, "outdoorWind", Double.NaN);
+        // A hand-edited value out of range is sampled again on the first cycle.
+        if (Double.isFinite(wind) && wind >= 0.0 && wind <= WindModel.MAXIMUM_EXPOSURE)
+            thermostat.outdoorWindExposure = wind;
         thermostat.setRoomAir(AirQualityModel.Air.read(map, "room"));
         return thermostat;
     }

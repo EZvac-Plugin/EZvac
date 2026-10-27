@@ -1,5 +1,6 @@
 package com.github.blade.hvac.api;
 
+import java.util.List;
 import com.github.blade.hvac.api.hud.EzvacHud;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -183,6 +184,17 @@ public interface EzvacApi {
 
     /** Where a world is in the year, or empty where it has no seasons (no sun, or seasons switched off). */
     Optional<SeasonView> season(World world);
+
+    /**
+     * A world's wind for today and the days after it, {@code days} in all,
+     * as {@code /hvac wind} shows it. Empty where there is no wind: outside
+     * the overworld, or with wind switched off.
+     *
+     * @since 1.5
+     */
+    default List<Wind.Day> windForecast(World world, int days) {
+        return List.of();
+    }
 
     /**
      * Addon sections on the climate HUD. Check {@link #apiVersion()} first

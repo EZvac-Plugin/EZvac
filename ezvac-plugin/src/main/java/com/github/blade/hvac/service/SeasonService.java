@@ -175,6 +175,27 @@ public final class SeasonService {
         return Seasons.seasonAt(ticks(worldId), settings.daysPerSeason());
     }
 
+    /**
+     * The season this many days from now (negative: ago), for the wind's
+     * forecast (3.2); null where there are no seasons or they are off.
+     */
+    public Seasons.Season seasonIn(UUID worldId, int days) {
+        World world = worlds.get(worldId);
+        if (world == null || !world.clockSeen || !settings.enabled()) return null;
+        return Seasons.seasonAt(ticks(worldId) + days * 24_000L, settings.daysPerSeason());
+    }
+
+    /**
+     * The calendar's day count while it runs (3.2: the day the wind is drawn
+     * for), or -1 where there are no seasons, they are off, or the calendar
+     * is paused and its days stand still.
+     */
+    public long runningDay(UUID worldId) {
+        World world = worlds.get(worldId);
+        if (world == null || !world.clockSeen || !settings.enabled() || world.calendar.paused()) return -1L;
+        return world.calendar.day();
+    }
+
     public int dayOfSeason(UUID worldId) {
         return Seasons.dayOfSeason(ticks(worldId), settings.daysPerSeason());
     }

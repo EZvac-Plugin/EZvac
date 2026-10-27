@@ -44,7 +44,18 @@ public final class WeatherModel {
      */
     public record Effect(double meanShiftF, double swingFactor, double windMs, double wetness) {
         public static Effect calm(ClimateSettings.Weather settings) {
-            return new Effect(0.0, 1.0, settings.windClearMs(), 0.0);
+            return calm(settings, settings.windClearMs());
+        }
+
+        /** No weather, with the day's wind (3.2). */
+        public static Effect calm(ClimateSettings.Weather settings, double windMs) {
+            return new Effect(0.0, 1.0, Math.max(0.0, windMs), 0.0);
+        }
+
+        /** The same weather, with the wind scaled for how exposed the spot is (3.2). */
+        public Effect windScaled(double exposure) {
+            return exposure == 1.0 ? this : new Effect(meanShiftF, swingFactor, windMs * Math.max(0.0, exposure),
+                    wetness);
         }
 
         /** The noon/midnight pair that produces the shifted mean and narrowed swing. */
@@ -59,15 +70,25 @@ public final class WeatherModel {
 
     public static Effect effect(Precipitation precipitation, Conditions conditions,
                                 ClimateSettings.Weather settings) {
+        return effect(precipitation, conditions, settings, settings.windClearMs());
+    }
+
+    /**
+     * The same, on a day whose own wind is {@code dayWindMs} (3.2): rain and
+     * thunder add their extra wind on top of it, as they add to
+     * {@code wind-clear-ms} without daily wind.
+     */
+    public static Effect effect(Precipitation precipitation, Conditions conditions,
+                                ClimateSettings.Weather settings, double dayWindMs) {
         if (!settings.enabled() || precipitation == Precipitation.NONE || conditions == null)
-            return Effect.calm(settings);
+            return Effect.calm(settings, dayWindMs);
         double wet = clamp(conditions.wetness());
         double storm = Math.min(wet, clamp(conditions.storm()));
         double cooling = precipitation == Precipitation.SNOW
                 ? settings.snowCoolingF() * wet
                 : settings.rainCoolingF() * wet
                 + Math.max(0.0, settings.thunderCoolingF() - settings.rainCoolingF()) * storm;
-        double wind = settings.windClearMs() + (settings.windRainMs() - settings.windClearMs()) * wet
+        double wind = dayWindMs + (settings.windRainMs() - settings.windClearMs()) * wet
                 + (settings.windThunderMs() - settings.windRainMs()) * storm;
         return new Effect(-cooling, 1.0 - settings.swingReduction() * wet, Math.max(0.0, wind), wet);
     }
@@ -79,15 +100,21 @@ public final class WeatherModel {
      * exactly its own effect.
      */
     public static Effect effect(BiomeBlend.Blended climate, Conditions conditions, ClimateSettings.Weather settings) {
+        return effect(climate, conditions, settings, settings.windClearMs());
+    }
+
+    /** The same, on a day whose own wind is {@code dayWindMs} (3.2). */
+    public static Effect effect(BiomeBlend.Blended climate, Conditions conditions, ClimateSettings.Weather settings,
+                                double dayWindMs) {
         double rain = clamp(climate.rainShare());
         double snow = Math.min(clamp(climate.snowShare()), 1.0 - rain);
         double dry = 1.0 - rain - snow;
-        if (rain == 1.0) return effect(Precipitation.RAIN, conditions, settings);
-        if (snow == 1.0) return effect(Precipitation.SNOW, conditions, settings);
-        Effect calm = Effect.calm(settings);
+        if (rain == 1.0) return effect(Precipitation.RAIN, conditions, settings, dayWindMs);
+        if (snow == 1.0) return effect(Precipitation.SNOW, conditions, settings, dayWindMs);
+        Effect calm = Effect.calm(settings, dayWindMs);
         if (dry >= 1.0) return calm;
-        Effect wet = effect(Precipitation.RAIN, conditions, settings);
-        Effect cold = effect(Precipitation.SNOW, conditions, settings);
+        Effect wet = effect(Precipitation.RAIN, conditions, settings, dayWindMs);
+        Effect cold = effect(Precipitation.SNOW, conditions, settings, dayWindMs);
         return new Effect(
                 wet.meanShiftF() * rain + cold.meanShiftF() * snow + calm.meanShiftF() * dry,
                 wet.swingFactor() * rain + cold.swingFactor() * snow + calm.swingFactor() * dry,

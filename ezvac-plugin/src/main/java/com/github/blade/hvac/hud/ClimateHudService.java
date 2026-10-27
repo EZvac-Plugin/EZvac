@@ -1,5 +1,9 @@
 package com.github.blade.hvac.hud;
 
+import com.github.blade.hvac.config.WindSettings;
+import com.github.blade.hvac.config.TemperatureUnit;
+import com.github.blade.hvac.service.WindService;
+import com.github.blade.hvac.service.WindText;
 import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.model.Thermostat;
@@ -42,6 +46,8 @@ public final class ClimateHudService implements Listener {
     private final SeasonService seasons;
     /** Null, or switched off, shows no air (3.2). */
     private final AirQualitySettings air;
+    /** Null, or switched off, shows no wind (3.2). */
+    private final WindSettings wind;
     private final HudFormatter format;
     private final HudRenderer renderer;
     /** The scoreboard plugin that pushed the HUD from the sidebar to the action bar, or null. */
@@ -64,6 +70,13 @@ public final class ClimateHudService implements Listener {
     /** @param air air quality settings (3.2); null shows no air */
     public ClimateHudService(Plugin plugin, AirflowService airflow, HudSettings settings, SeasonService seasons,
                              AirQualitySettings air) {
+        this(plugin, airflow, settings, seasons, air, null);
+    }
+
+    /** @param wind wind settings (3.2); null shows no wind */
+    public ClimateHudService(Plugin plugin, AirflowService airflow, HudSettings settings, SeasonService seasons,
+                             AirQualitySettings air, WindSettings wind) {
+        this.wind = wind;
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.seasons = seasons;
@@ -203,6 +216,12 @@ public final class ClimateHudService implements Listener {
         ClimateSnapshot snapshot = captureClimate(reading);
         if (air != null && air.enabled() && reading.air().known())
             snapshot = snapshot.withAir(reading.air(), AirText.pollen(reading.air(), air).displayName());
+        if (wind != null && wind.enabled() && !reading.water() && WindService.hasWind(player.getWorld())) {
+            WindSettings.Units units = WindText.units(wind,
+                    format.settings().celsius() ? TemperatureUnit.C : TemperatureUnit.F);
+            snapshot = snapshot.withWind(reading.windMs(), WindText.level(reading.windMs(), wind).displayName(),
+                    WindText.speed(reading.windMs(), units));
+        }
         UUID world = player.getWorld().getUID();
         if (seasons == null || !seasons.settings().enabled() || !seasons.tracks(world)) return snapshot;
         return snapshot.inSeason(seasons.season(world).displayName(), seasons.dayOfSeason(world));

@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
                               Humidifier humidifier, Variance variance, BiomeBlend biomeBlend,
                               Seasons seasons, Altitude altitude, Underground underground, Biomes biomes,
-                              AirQualitySettings airQuality) {
+                              AirQualitySettings airQuality, WindSettings wind) {
     /**
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
@@ -250,7 +250,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Altitude(0.1, 64),
                 new Underground(true, 4, 20),
                 new Biomes(Map.of()),
-                AirQualitySettings.defaults());
+                AirQualitySettings.defaults(),
+                WindSettings.defaults());
     }
 
     /** Reads strictly: a value out of range throws. */
@@ -333,7 +334,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getInt("underground.start-depth", u.startDepth()),
                         config.getInt("underground.full-depth", u.fullDepth()))),
                 biomes(config.getConfigurationSection("biomes"), warn),
-                AirQualitySettings.load(config, warn));
+                AirQualitySettings.load(config, warn),
+                WindSettings.load(config, warn));
     }
 
     /**

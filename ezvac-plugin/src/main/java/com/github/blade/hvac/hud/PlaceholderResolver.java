@@ -16,7 +16,8 @@ public final class PlaceholderResolver {
             "bar", "bar_plain", "comfort", "system", "group", "thermostat", "mode", "target",
             "influence", "zone", "conditioned", "medium",
             "feels_like", "feels_like_f", "feels_like_c", "humidity", "weather", "season", "season_day",
-            "aqi", "aqi_colored", "aqi_band", "pm25", "pm10", "pollen", "pollen_count");
+            "aqi", "aqi_colored", "aqi_band", "pm25", "pm10", "pollen", "pollen_count",
+            "wind", "wind_level", "wind_speed", "wind_ms", "wind_kmh", "wind_mph");
 
     private final HudFormatter format;
 
@@ -69,7 +70,18 @@ public final class PlaceholderResolver {
             case "pollen" -> format.pollen(snapshot);
             case "pollen_count" -> snapshot.air().known()
                     ? Long.toString(Math.round(snapshot.air().pollen())) : format.settings().noneText();
+            case "wind" -> format.wind(snapshot);
+            case "wind_level" -> format.windLevel(snapshot);
+            case "wind_speed" -> snapshot.windLevel().isEmpty() ? format.settings().noneText() : snapshot.windSpeed();
+            case "wind_ms" -> windNumber(snapshot, 1.0);
+            case "wind_kmh" -> windNumber(snapshot, 3.6);
+            case "wind_mph" -> windNumber(snapshot, 2.236_936);
             default -> null;
         };
+    }
+
+    private String windNumber(ClimateSnapshot snapshot, double perMs) {
+        if (snapshot.windLevel().isEmpty()) return format.settings().noneText();
+        return Long.toString(Math.round(snapshot.windMs() * perMs));
     }
 }

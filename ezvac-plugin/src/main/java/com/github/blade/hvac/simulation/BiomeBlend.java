@@ -17,9 +17,16 @@ public final class BiomeBlend {
 
     /** One biome sample: its climate, and how much it counts. */
     public record Sample(double noonF, double midnightF, double downfall, Precipitation precipitation, double weight,
-                         double seasonalF, OutdoorAir.Baseline air) {
+                         double seasonalF, OutdoorAir.Baseline air, double windExposure) {
         public Sample {
             air = air == null ? OutdoorAir.Baseline.DEFAULT : air;
+            windExposure = Double.isFinite(windExposure) ? Math.max(0.0, windExposure) : 1.0;
+        }
+
+        /** A sample fully open to the wind. */
+        public Sample(double noonF, double midnightF, double downfall, Precipitation precipitation, double weight,
+                      double seasonalF, OutdoorAir.Baseline air) {
+            this(noonF, midnightF, downfall, precipitation, weight, seasonalF, air, 1.0);
         }
 
         /** A sample with the default outdoor air. */
@@ -41,11 +48,19 @@ public final class BiomeBlend {
      * @param snowShare share where snow falls; the rest never gets weather
      * @param seasonalF how far mid-summer and mid-winter move away from noonF and midnightF (2.1)
      * @param air       the outdoor air on a dry day, pollen at its spring peak (3.2)
+     * @param windExposure how much of the open-ground wind reaches the spot (3.2)
      */
     public record Blended(double noonF, double midnightF, double downfall, double rainShare, double snowShare,
-                          double seasonalF, OutdoorAir.Baseline air) {
+                          double seasonalF, OutdoorAir.Baseline air, double windExposure) {
         public Blended {
             air = air == null ? OutdoorAir.Baseline.DEFAULT : air;
+            windExposure = Double.isFinite(windExposure) ? Math.max(0.0, windExposure) : 1.0;
+        }
+
+        /** A climate fully open to the wind. */
+        public Blended(double noonF, double midnightF, double downfall, double rainShare, double snowShare,
+                       double seasonalF, OutdoorAir.Baseline air) {
+            this(noonF, midnightF, downfall, rainShare, snowShare, seasonalF, air, 1.0);
         }
 
         /** A climate with the default outdoor air. */
@@ -73,20 +88,33 @@ public final class BiomeBlend {
         /** A single biome's climate and air, unblended. */
         public static Blended of(double noonF, double midnightF, double downfall, Precipitation precipitation,
                                  double seasonalF, OutdoorAir.Baseline air) {
+            return of(noonF, midnightF, downfall, precipitation, seasonalF, air, 1.0);
+        }
+
+        /** A single biome's climate, air and exposure to the wind, unblended. */
+        public static Blended of(double noonF, double midnightF, double downfall, Precipitation precipitation,
+                                 double seasonalF, OutdoorAir.Baseline air, double windExposure) {
             return new Blended(noonF, midnightF, downfall,
                     precipitation == Precipitation.RAIN ? 1.0 : 0.0, precipitation == Precipitation.SNOW ? 1.0 : 0.0,
-                    seasonalF, air);
+                    seasonalF, air, windExposure);
         }
 
         /** The same climate with this outdoor air. */
         public Blended withAir(OutdoorAir.Baseline air) {
-            return new Blended(noonF, midnightF, downfall, rainShare, snowShare, seasonalF, air);
+            return new Blended(noonF, midnightF, downfall, rainShare, snowShare, seasonalF, air, windExposure);
+        }
+
+        /** The same climate with this much of the wind reaching it. */
+        public Blended withWindExposure(double exposure) {
+            if (exposure == windExposure) return this;
+            return new Blended(noonF, midnightF, downfall, rainShare, snowShare, seasonalF, air, exposure);
         }
 
         /** The same climate, this much warmer at noon and at midnight alike (negative: colder). */
         public Blended warmer(double shiftF) {
             if (shiftF == 0.0) return this;
-            return new Blended(noonF + shiftF, midnightF + shiftF, downfall, rainShare, snowShare, seasonalF, air);
+            return new Blended(noonF + shiftF, midnightF + shiftF, downfall, rainShare, snowShare, seasonalF, air,
+                    windExposure);
         }
 
         /** Share of the surroundings that gets any weather. */
@@ -127,7 +155,7 @@ public final class BiomeBlend {
      */
     public static Blended blend(List<Sample> samples) {
         double total = 0.0, noon = 0.0, midnight = 0.0, downfall = 0.0, rain = 0.0, snow = 0.0, seasonal = 0.0;
-        double fine = 0.0, coarse = 0.0, pollen = 0.0;
+        double fine = 0.0, coarse = 0.0, pollen = 0.0, wind = 0.0;
         Sample first = null;
         boolean uniform = true;
         for (Sample sample : samples) {
@@ -136,7 +164,8 @@ public final class BiomeBlend {
             if (first == null) first = sample;
             else uniform &= sample.noonF() == first.noonF() && sample.midnightF() == first.midnightF()
                     && sample.downfall() == first.downfall() && sample.precipitation() == first.precipitation()
-                    && sample.seasonalF() == first.seasonalF() && sample.air().equals(first.air());
+                    && sample.seasonalF() == first.seasonalF() && sample.air().equals(first.air())
+                    && sample.windExposure() == first.windExposure();
             total += w;
             noon += sample.noonF() * w;
             midnight += sample.midnightF() * w;
@@ -145,15 +174,16 @@ public final class BiomeBlend {
             fine += sample.air().fine() * w;
             coarse += sample.air().coarse() * w;
             pollen += sample.air().pollen() * w;
+            wind += sample.windExposure() * w;
             if (sample.precipitation() == Precipitation.RAIN) rain += w;
             else if (sample.precipitation() == Precipitation.SNOW) snow += w;
         }
         if (total <= 0.0) return null;
         // Deep inside one biome the average is that biome, exactly, not to the last rounding bit.
         if (uniform) return Blended.of(first.noonF(), first.midnightF(), first.downfall(), first.precipitation(),
-                first.seasonalF(), first.air());
+                first.seasonalF(), first.air(), first.windExposure());
         return new Blended(noon / total, midnight / total, downfall / total, share(rain, total), share(snow, total),
-                seasonal / total, new OutdoorAir.Baseline(fine / total, coarse / total, pollen / total));
+                seasonal / total, new OutdoorAir.Baseline(fine / total, coarse / total, pollen / total), wind / total);
     }
 
     /** Between two blended climates, for smooth readings between sample cells. */
@@ -164,7 +194,8 @@ public final class BiomeBlend {
                 lerp(a.downfall(), b.downfall(), t), lerp(a.rainShare(), b.rainShare(), t),
                 lerp(a.snowShare(), b.snowShare(), t), lerp(a.seasonalF(), b.seasonalF(), t),
                 a.air().equals(b.air()) ? a.air() : new OutdoorAir.Baseline(lerp(a.air().fine(), b.air().fine(), t),
-                        lerp(a.air().coarse(), b.air().coarse(), t), lerp(a.air().pollen(), b.air().pollen(), t)));
+                        lerp(a.air().coarse(), b.air().coarse(), t), lerp(a.air().pollen(), b.air().pollen(), t)),
+                lerp(a.windExposure(), b.windExposure(), t));
     }
 
     private static double lerp(double a, double b, double t) {

@@ -22,12 +22,14 @@ import java.util.Optional;
  * @param influence      how strongly that system conditions the spot, 0 to 1
  * @param airQuality     what is in the air at the spot (1.5); empty in water, or where the server
  *                       has air quality switched off
+ * @param wind           the wind felt at the spot (1.5): calm indoors, in water and where a system
+ *                       conditions it
  * @since 1.0
  */
 public record ClimateReading(Position position, double temperatureF, double feelsLikeF, double humidity,
                              double outdoorF, boolean inWater, String weather, Optional<SeasonView.Season> season,
                              Optional<String> thermostat, Optional<String> system, double influence,
-                             Optional<AirQuality> airQuality) {
+                             Optional<AirQuality> airQuality, Wind wind) {
     public ClimateReading {
         Objects.requireNonNull(position, "position");
         weather = weather == null ? "" : weather;
@@ -35,6 +37,16 @@ public record ClimateReading(Position position, double temperatureF, double feel
         thermostat = thermostat == null ? Optional.empty() : thermostat;
         system = system == null ? Optional.empty() : system;
         airQuality = airQuality == null ? Optional.empty() : airQuality;
+        wind = wind == null ? Wind.CALM : wind;
+    }
+
+    /** A reading without wind. */
+    public ClimateReading(Position position, double temperatureF, double feelsLikeF, double humidity,
+                          double outdoorF, boolean inWater, String weather, Optional<SeasonView.Season> season,
+                          Optional<String> thermostat, Optional<String> system, double influence,
+                          Optional<AirQuality> airQuality) {
+        this(position, temperatureF, feelsLikeF, humidity, outdoorF, inWater, weather, season, thermostat, system,
+                influence, airQuality, Wind.CALM);
     }
 
     /** A reading without air quality, as before API 1.5. */
@@ -42,7 +54,7 @@ public record ClimateReading(Position position, double temperatureF, double feel
                           double outdoorF, boolean inWater, String weather, Optional<SeasonView.Season> season,
                           Optional<String> thermostat, Optional<String> system, double influence) {
         this(position, temperatureF, feelsLikeF, humidity, outdoorF, inWater, weather, season, thermostat, system,
-                influence, Optional.empty());
+                influence, Optional.empty(), Wind.CALM);
     }
 
     /** True where an EZvac system conditions the spot. */
