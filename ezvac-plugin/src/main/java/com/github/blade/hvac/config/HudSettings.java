@@ -146,10 +146,32 @@ public record HudSettings(
         List<String> stock = new ArrayList<>(defaults().sidebarLines());
         stock.remove(SEASON_LINE);
         stock.remove(ADDONS_LINE);
+        stock.remove(AIR_LINE);    // arrives after, in addAirLine
         if (!lines.equals(stock)) return;
         List<String> withSeason = new ArrayList<>(lines);
         withSeason.add(withSeason.indexOf(OUTSIDE_LINE) + 1, SEASON_LINE);
         config.set("hud.sidebar.lines", withSeason);
+        added.add("hud.sidebar.lines");
+    }
+
+    /** The air line added to the sidebar in 3.2, right after the humidity line. */
+    public static final String AIR_LINE = "<gray>Air: {aqi} <white>{aqi_band} <gray>· Pollen <white>{pollen}";
+    private static final String HUMIDITY_LINE = "<gray>Humidity: <white>{humidity}";
+
+    /**
+     * When air quality first arrives in a server's config.yml (3.2), a
+     * sidebar that is still the stock one gains the air line, as the season
+     * line arrived in 2.1. One the server has made its own is left as it is.
+     */
+    public static void addAirLine(YamlConfiguration config, List<String> added) {
+        if (added.stream().noneMatch(path -> path.startsWith("air-quality."))) return;
+        List<String> lines = config.getStringList("hud.sidebar.lines");
+        List<String> stock = new ArrayList<>(defaults().sidebarLines());
+        stock.remove(AIR_LINE);
+        if (!lines.equals(stock) || !lines.contains(HUMIDITY_LINE)) return;
+        List<String> withAir = new ArrayList<>(lines);
+        withAir.add(withAir.indexOf(HUMIDITY_LINE) + 1, AIR_LINE);
+        config.set("hud.sidebar.lines", withAir);
         added.add("hud.sidebar.lines");
     }
 
@@ -165,7 +187,9 @@ public record HudSettings(
      */
     public static void addAddonsLine(YamlConfiguration config, List<String> added) {
         if (added.stream().noneMatch(path -> path.startsWith("hud.sections"))) return;
-        addAddonsLine(config, "hud.sidebar.lines", defaults().sidebarLines(), SEASON_LINE, added);
+        List<String> beforeAir = new ArrayList<>(defaults().sidebarLines());
+        beforeAir.remove(AIR_LINE);    // arrives after, in addAirLine
+        addAddonsLine(config, "hud.sidebar.lines", beforeAir, SEASON_LINE, added);
         addAddonsLine(config, "hud.water.sidebar.lines", defaultWater().sidebarLines(), WATER_AIR_LINE, added);
     }
 
@@ -187,7 +211,8 @@ public record HudSettings(
                         "<gray>Here: <white>{temp}",
                         "<gray>Feels like: <white>{feels}",
                         "{bar} {comfort}",
-                        "<gray>Humidity: <white>{humidity}",
+                        HUMIDITY_LINE,
+                        AIR_LINE,
                         "<gray>Outside: <white>{outdoor} <gray>{weather}",
                         SEASON_LINE,
                         ADDONS_LINE,

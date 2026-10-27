@@ -1,8 +1,11 @@
 package com.github.blade.hvac.service;
 
+import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.model.*;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.HumidityModel;
+import com.github.blade.hvac.simulation.ThermalModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.bukkit.Location;
@@ -10,7 +13,7 @@ import org.bukkit.Location;
 import java.util.*;
 
 /**
- * Runs standalone dehumidifiers and humidifiers once per controller cycle,
+ * Runs standalone dehumidifiers, humidifiers and air purifiers once per controller cycle,
  * in two halves around the controller: {@link #prepare()} works out which
  * space each unit serves before the controller steps every system's
  * humidity, and {@link #afterCycle(long)} steps standalone zones, handles
@@ -22,6 +25,8 @@ public final class ClimateUnitService {
     public record Changes(List<ClimateUnit> started, List<ClimateUnit> stopped,
                           List<Dehumidifier> emptying, List<ClimateUnit> running) {}
 
+    private static final double TICKS_PER_HOUR = ThermalModel.MINECRAFT_TICKS_PER_HOUR;
+
     private static final int[][] SIDES = {
             {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}
     };
@@ -29,24 +34,34 @@ public final class ClimateUnitService {
     private final HvacRegistry registry;
     private final AirflowService airflow;
     private final OutdoorTemperatureService outdoor;
+    private final AirQualityService air;
     private final ClimateSettings climate;
     /** Running dehumidifiers and humidifiers per system they serve, from prepare(). */
     private final Map<SystemId, List<Dehumidifier>> drying = new HashMap<>();
     private final Map<SystemId, List<Humidifier>> humidifying = new HashMap<>();
+    private final Map<SystemId, List<AirPurifier>> purifying = new HashMap<>();
+    /** Purifiers whose filter filled this cycle. */
+    private final List<AirPurifier> spent = new ArrayList<>();
 
-    public ClimateUnitService(HvacRegistry registry, AirflowService airflow, OutdoorTemperatureService outdoor) {
+    public ClimateUnitService(HvacRegistry registry, AirflowService airflow, OutdoorTemperatureService outdoor,
+                              AirQualityService air) {
         this.registry = Objects.requireNonNull(registry, "registry");
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
+        this.air = Objects.requireNonNull(air, "air");
         this.climate = outdoor.climate();
     }
 
     public ClimateSettings climate() { return climate; }
 
+    public AirQualityService air() { return air; }
+
     /** Before the controller: which space each unit serves, and which systems are being worked on. */
     public void prepare() {
         drying.clear();
         humidifying.clear();
+        purifying.clear();
+        spent.clear();
         for (ClimateUnit unit : registry.climateUnits()) {
             SystemId served = servedSystem(unit);
             unit.setServedSystem(served);
@@ -54,6 +69,8 @@ public final class ClimateUnitService {
             switch (unit) {
                 case Dehumidifier dehumidifier -> drying.computeIfAbsent(served, ignored -> new ArrayList<>()).add(dehumidifier);
                 case Humidifier humidifier -> humidifying.computeIfAbsent(served, ignored -> new ArrayList<>()).add(humidifier);
+                case AirPurifier purifier ->
+                        purifying.computeIfAbsent(served, ignored -> new ArrayList<>()).add(purifier);
             }
         }
     }
@@ -93,6 +110,52 @@ public final class ClimateUnitService {
         return units.size() * strength(airflow.mapSize(system), climate.humidifier().referenceCells());
     }
 
+    /** The combined strength of the air purifiers running in a system's room (3.2), each at its fan speed. */
+    public double purifierScaleFor(SystemId system) {
+        List<AirPurifier> units = purifying.get(system);
+        if (units == null) return 0.0;
+        return speeds(units, air.settings()) * strength(airflow.mapSize(system), air.settings().referenceCells());
+    }
+
+    /** The purifiers' fan speeds added up: 1 is one purifier on High. */
+    private static double speeds(List<AirPurifier> units, AirQualitySettings settings) {
+        double total = 0.0;
+        for (AirPurifier purifier : units) total += purifier.speedFactor(settings.purifier());
+        return total;
+    }
+
+    /** Shares what a system's purifiers caught this step between their filters (3.2). */
+    public void creditAir(SystemId system, AirQualityModel.Air captured, long elapsedTicks) {
+        List<AirPurifier> units = purifying.get(system);
+        if (units == null || units.isEmpty()) return;
+        wear(units, captured, airflow.mapSize(system), elapsedTicks, air.settings(), spent);
+    }
+
+    /**
+     * Fills the filters of the purifiers that shared a space, each by its
+     * share of the cleaning: a purifier on High catches more than one on Low.
+     * What they caught is scaled to the reference size, so a purifier
+     * cleaning a large space fills faster than one in a small space with the
+     * same air.
+     */
+    static void wear(List<AirPurifier> units, AirQualityModel.Air captured, int cells, long elapsedTicks,
+                     AirQualitySettings settings, List<AirPurifier> filled) {
+        double total = speeds(units, settings);
+        if (!(total > 0.0)) return;
+        double size = Math.max(1, cells) / (double) settings.referenceCells();
+        double hours = elapsedTicks / TICKS_PER_HOUR;
+        for (AirPurifier purifier : units) {
+            double share = purifier.speedFactor(settings.purifier()) / total;
+            if (purifier.wear(captured.times(size * share), hours, settings.purifier())) {
+                purifier.showSpentFilter();
+                filled.add(purifier);
+            }
+        }
+    }
+
+    /** Purifiers whose filters filled during this cycle. */
+    public List<AirPurifier> spentFilters() { return List.copyOf(spent); }
+
     /** Shares the water a system's dehumidifiers pulled out this step between their tanks. */
     public void credit(SystemId system, double dehumidifiedF) {
         List<Dehumidifier> units = drying.get(system);
@@ -129,19 +192,24 @@ public final class ClimateUnitService {
             Location unit = climateUnit.unit().isChunkLoaded() ? climateUnit.unit().location() : null;
             double humidity = Double.NaN;
             double dewPointF = Double.NaN;
+            AirQualityModel.Air spaceAir = AirQualityModel.Air.UNKNOWN;
             if (unit != null) {
                 if (climateUnit.servedSystem() == null) {
                     humidity = standalone.getOrDefault(climateUnit, Double.NaN);
                     dewPointF = climateUnit.zoneDewPointF();
+                    spaceAir = climateUnit.zoneAir();
                 } else {
                     humidity = systemHumidity(climateUnit.servedSystem());
                     dewPointF = systemDewPoint(climateUnit.servedSystem());
+                    spaceAir = systemAir(climateUnit.servedSystem());
                 }
                 if (climateUnit instanceof Dehumidifier dehumidifier) dehumidifier.advanceEmptying(elapsedTicks);
+                if (climateUnit instanceof AirPurifier purifier) purifier.readFilterBlock();
             }
             if (climateUnit instanceof Dehumidifier dehumidifier)
                 dehumidifier.updateTooCold(dewPointF, climate.dehumidifier());
             climateUnit.setLastHumidity(humidity);
+            climateUnit.setLastAir(air.enabled() ? spaceAir : AirQualityModel.Air.UNKNOWN);
             // A unit whose chunk is unloaded sees NaN and stops, like equipment out of reach.
             climateUnit.control(humidity, climate);
             if (unit != null) climateUnit.setPartWater(showsWater(climateUnit));
@@ -160,6 +228,7 @@ public final class ClimateUnitService {
         return switch (unit) {
             case Dehumidifier dehumidifier -> dehumidifier.emptying();
             case Humidifier humidifier -> humidifier.running();
+            case AirPurifier ignored -> false;
         };
     }
 
@@ -167,6 +236,11 @@ public final class ClimateUnitService {
         Thermostat thermostat = registry.thermostatFor(system);
         if (thermostat == null || !thermostat.hasRoomDewPoint()) return Double.NaN;
         return Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
+    }
+
+    private AirQualityModel.Air systemAir(SystemId system) {
+        Thermostat thermostat = registry.thermostatFor(system);
+        return thermostat == null ? AirQualityModel.Air.UNKNOWN : thermostat.roomAir();
     }
 
     private double systemDewPoint(SystemId system) {
@@ -215,7 +289,38 @@ public final class ClimateUnitService {
         ZoneId zone = ZoneId.of(largest);
         int cells = airflow.mapSize(zone);
         double wetFraction = airflow.waterExposure(zone).excluding(outputs.get(largest.unit().worldId())).wetFraction();
+        if (air.enabled()) {
+            AirQualityModel.Air sources = air.sourcesFor(zone, largest.unit().worldId(), cells);
+            stepSharedAir(space, cells, sources, out.air(), elapsedTicks, climate.humidity().infiltrationPerHour(),
+                    air.settings(), spent);
+        }
         return stepSharedSpace(space, cells, wetFraction, out.airF(), out.dewPointF(), elapsedTicks, climate);
+    }
+
+    /**
+     * One standalone space's air step (3.2), for every unit in it: it drifts
+     * toward the outdoors, its fires add to it, its running purifiers clean
+     * it and share what they caught, and every unit keeps the space's new air.
+     * Pure apart from the units it updates.
+     *
+     * @return the space's new air
+     */
+    static AirQualityModel.Air stepSharedAir(List<ClimateUnit> space, int cells, AirQualityModel.Air sources,
+                                             AirQualityModel.Air outdoorAir, long elapsedTicks,
+                                             double infiltrationPerHour, AirQualitySettings settings,
+                                             List<AirPurifier> filled) {
+        AirQualityModel.Air start = AirQualityModel.Air.UNKNOWN;
+        List<AirPurifier> purifiers = new ArrayList<>();
+        for (ClimateUnit unit : space) {
+            if (!start.known() && unit.zoneAir().known()) start = unit.zoneAir();
+            if (unit instanceof AirPurifier purifier && purifier.running() && cells > 0) purifiers.add(purifier);
+        }
+        double scale = speeds(purifiers, settings) * strength(cells, settings.referenceCells());
+        AirQualityModel.Result result = AirQualityModel.step(start, outdoorAir,
+                new AirQualityModel.Loads(sources, 0.0, scale), elapsedTicks, infiltrationPerHour, settings);
+        for (ClimateUnit unit : space) unit.setZoneAir(result.air());
+        if (!purifiers.isEmpty()) wear(purifiers, result.captured(), cells, elapsedTicks, settings, filled);
+        return result.air();
     }
 
     /**
@@ -249,6 +354,7 @@ public final class ClimateUnitService {
                     dehumidifiers.add(dehumidifier);
                 }
                 case Humidifier ignored -> adding += strength(cells, climate.humidifier().referenceCells());
+                case AirPurifier ignored -> { }
             }
         }
         double startF = dewCount == 0 ? Double.NaN : dewSum / dewCount;
@@ -266,5 +372,6 @@ public final class ClimateUnitService {
     /** Drops a removed unit's zone; the registry already dried its water block. */
     public void release(ClimateUnit unit) {
         airflow.forget(ZoneId.of(unit));
+        air.forget(ZoneId.of(unit));
     }
 }

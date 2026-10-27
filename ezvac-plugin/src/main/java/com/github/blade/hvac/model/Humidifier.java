@@ -53,9 +53,12 @@ public final class Humidifier extends ClimateUnit {
     }
 
     public static Humidifier fromMap(Map<String, Object> map) {
-        return new Humidifier(BlockKey.read(map, ""), BlockKey.read(map, "unit"), BlockKey.read(map, "slab"),
+        Humidifier humidifier = new Humidifier(BlockKey.read(map, ""), BlockKey.read(map, "unit"),
+                BlockKey.read(map, "slab"),
                 text(map, "label", "Humidifier"), (int) Math.round(number(map, "setpoint", 40.0)),
                 bool(map, "powered", true), bool(map, "running", false),
                 number(map, "zoneDewPointF", Double.NaN));
+        humidifier.readZoneAir(map);
+        return humidifier;
     }
 }

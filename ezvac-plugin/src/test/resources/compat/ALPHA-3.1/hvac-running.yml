@@ -1,0 +1,341 @@
+meta:
+  format: 8
+  next-system: 10
+thermostats:
+  item0:
+    id: main
+    system: '#1'
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 0
+    targetF: 60.0
+    roomF: 85.54638694344489
+    enabled: true
+    mode: COOLING
+    ticksInMode: 1320
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 50.0
+    lastOutdoorF: 89.99383184956002
+    pool: false
+    outdoorDownfall: 0.4000000059604645
+    outdoorPrecipitation: RAIN
+    outdoorSeasonalF: 18.0
+    roomDewPointF: 56.64541991638198
+  item1:
+    id: work
+    system: '#4'
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 16
+    targetF: 60.0
+    roomF: 87.07148809956036
+    enabled: true
+    mode: COOLING
+    ticksInMode: 1120
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 50.0
+    lastOutdoorF: 89.99383184956002
+    pool: false
+    outdoorDownfall: 0.4000000059604645
+    outdoorPrecipitation: RAIN
+    outdoorSeasonalF: 18.0
+    roomDewPointF: 57.976678595158184
+  item2:
+    id: spa
+    system: '#6'
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 20
+    targetF: 104.0
+    roomF: 94.98499872656052
+    enabled: true
+    mode: HEATING
+    ticksInMode: 1040
+    outdoorNoonF: 72.0
+    outdoorMidnightF: 50.0
+    lastOutdoorF: 89.99383184956002
+    pool: true
+    outdoorDownfall: 0.4000000059604645
+    outdoorPrecipitation: RAIN
+    outdoorSeasonalF: 18.0
+  item3:
+    id: edge
+    system: '#9'
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 100
+    y: -60
+    z: 0
+    targetF: 72.0
+    roomF: 101.3918971371722
+    enabled: true
+    mode: IDLE
+    ticksInMode: 1680
+    outdoorNoonF: 85.4696015769872
+    outdoorMidnightF: 57.2528623876085
+    lastOutdoorF: 101.3918971371722
+    pool: false
+    outdoorDownfall: 0.19277536322661892
+    outdoorPrecipitation: NONE
+    outdoorRainShare: 0.4819384008851053
+    outdoorSnowShare: 0.0
+    outdoorSeasonalF: 15.927753603540408
+    roomDewPointF: 61.107113835741494
+equipment:
+  item0:
+    system: '#1'
+    equipmentType: HEAT_PUMP
+    tier: 3
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 10
+    y: -60
+    z: 0
+    enabled: true
+    running: true
+    operatingMode: COOLING
+    motorRpm: 4200.0
+    outputWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    outputWorld: world
+    outputX: 11
+    outputY: -60
+    outputZ: 0
+  item1:
+    system: '#1'
+    equipmentType: FURNACE
+    tier: 1
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 10
+    y: -60
+    z: 4
+    enabled: true
+    running: false
+    operatingMode: IDLE
+    motorRpm: 0.0
+  item2:
+    system: '#4'
+    equipmentType: AIR_CONDITIONER
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 10
+    y: -60
+    z: 8
+    enabled: true
+    running: true
+    operatingMode: COOLING
+    motorRpm: 3600.0
+    outputWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    outputWorld: world
+    outputX: 11
+    outputY: -60
+    outputZ: 8
+  item3:
+    system: '#6'
+    equipmentType: BOILER
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 10
+    y: -60
+    z: 20
+    enabled: true
+    running: true
+    operatingMode: HEATING
+    motorRpm: 1100.0
+    outputWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    outputWorld: world
+    outputX: 11
+    outputY: -60
+    outputZ: 20
+  item4:
+    system: '#6'
+    equipmentType: POOL_HEAT_PUMP
+    tier: 2
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 10
+    y: -60
+    z: 24
+    enabled: true
+    running: true
+    operatingMode: HEATING
+    motorRpm: 3600.0
+    outputWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    outputWorld: world
+    outputX: 11
+    outputY: -60
+    outputZ: 24
+vents:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 16
+    y: -61
+    z: 24
+    system: '#6'
+  item1:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 16
+    y: -60
+    z: 0
+    system: '#1'
+  item2:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 16
+    y: -60
+    z: 4
+    system: '#1'
+  item3:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 16
+    y: -60
+    z: 8
+    system: '#4'
+thermometers:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 4
+    label: porch
+  item1:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 28
+    label: cellar
+    reads: HUMIDITY
+  item2:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 32
+    label: hall
+    reads: BOTH
+rpmMonitors:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 8
+    system: '#1'
+    label: fan
+    autoFlip: false
+settingsPanels:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 12
+    system: '#1'
+    label: controls
+    profile: TURBO
+dehumidifiers:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 19
+    y: -59
+    z: 4
+    unitWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    unitWorld: world
+    unitX: 20
+    unitY: -59
+    unitZ: 4
+    grateWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    grateWorld: world
+    grateX: 20
+    grateY: -60
+    grateZ: 4
+    label: basement
+    setpoint: 45
+    powered: false
+    running: false
+    tank: 0.0
+    emptyingTicks: 0
+    zoneDewPointF: 60.952009057717014
+humidifiers:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 59
+    y: -60
+    z: 12
+    unitWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    unitWorld: world
+    unitX: 60
+    unitY: -60
+    unitZ: 12
+    slabWorldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    slabWorld: world
+    slabX: 60
+    slabY: -59
+    slabZ: 12
+    label: nursery
+    setpoint: 40
+    powered: true
+    running: true
+    zoneDewPointF: 61.19658776604062
+sensors:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 8
+    y: -60
+    z: 40
+    label: garden
+    reads: TEMPERATURE
+  item1:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 10
+    y: -60
+    z: 40
+    label: cellar
+    reads: HUMIDITY
+  item2:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 12
+    y: -60
+    z: 40
+    label: kitchen
+    reads: BOTH
+  item3:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 14
+    y: -60
+    z: 40
+    label: sky
+    reads: WEATHER
+sensorHubs:
+  item0:
+    worldUuid: b9bff999-d8d4-4113-894b-9bd99c140665
+    world: world
+    x: 4
+    y: -60
+    z: 40
+    label: home
+    autoFlip: true
+    sensors:
+    - 8,-60,40
+    - 10,-60,40
+    - 12,-60,40
+    - 14,-60,40

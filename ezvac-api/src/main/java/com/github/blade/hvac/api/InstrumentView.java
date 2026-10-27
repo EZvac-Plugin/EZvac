@@ -32,12 +32,14 @@ public record InstrumentView(Kind kind, String label, Position position, Optiona
     public enum Kind {
         THERMOMETER, HYGROMETER, THERMO_HYGROMETER,
         TEMPERATURE_SENSOR, HUMIDITY_SENSOR, TEMPERATURE_HUMIDITY_SENSOR, WEATHER_SENSOR,
-        SENSOR_HUB, RPM_MONITOR, SETTINGS_PANEL;
+        SENSOR_HUB, RPM_MONITOR, SETTINGS_PANEL,
+        /** An air monitor sign and a cherry-button air sensor (1.5). */
+        AIR_MONITOR, AIR_SENSOR;
 
         /** True for the sensor buttons. */
         public boolean sensor() {
             return this == TEMPERATURE_SENSOR || this == HUMIDITY_SENSOR || this == TEMPERATURE_HUMIDITY_SENSOR
-                    || this == WEATHER_SENSOR;
+                    || this == WEATHER_SENSOR || this == AIR_SENSOR;
         }
     }
 }

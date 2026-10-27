@@ -277,6 +277,31 @@ public final class HvacListener implements Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         changed(event.getBlockPlaced());
+        refreshFilter(event.getBlockPlaced());
+    }
+
+    /**
+     * An air purifier's tube coral is its filter: away from water it would die
+     * on its own within minutes, so only a full filter's coral dies, when the
+     * purifier says so (3.2).
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onFilterFade(BlockFadeEvent event) {
+        if (event.getBlock().getType() != AirPurifier.FILTER || !registry.hasClimateUnits()) return;
+        BlockKey key = BlockKey.of(event.getBlock().getLocation());
+        if (registry.climateUnitAt(key) instanceof AirPurifier purifier && purifier.filterBlock().equals(key))
+            event.setCancelled(true);
+    }
+
+    /** Shows a filter taken out or put in on the purifier's sign at once, instead of on the next cycle. */
+    private void refreshFilter(Block block) {
+        if (!registry.hasClimateUnits()) return;
+        BlockKey key = BlockKey.of(block.getLocation());
+        if (!(registry.climateUnitAt(key) instanceof AirPurifier purifier) || !purifier.filterBlock().equals(key))
+            return;
+        purifier.readFilter(block.getType());
+        registry.markDirty();
+        displays.refreshClimateUnit(purifier, true);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -473,6 +498,16 @@ public final class HvacListener implements Listener {
                 } else if (panel != null && registry.removeSettingsPanel(key)) {
                     removed = true;
                     notice = "settings panel '" + panel.label() + "'";
+                } else if (registry.climateUnitAt(key) instanceof AirPurifier purifier
+                        && purifier.filterBlock().equals(key)) {
+                    // Taking out the filter leaves the purifier waiting for a new one.
+                    purifier.readFilter(Material.AIR);
+                    registry.markDirty();
+                    displays.refreshClimateUnit(purifier, true);
+                    if (breaker != null && purifier.filter() <= 0.0)
+                        breaker.sendMessage(Component.text("Filter removed. Place a fresh tube coral block to give "
+                                + purifier.label() + " a new one.", NamedTextColor.YELLOW));
+                    return;
                 } else if (registry.climateUnitAt(key) != null) {
                     ClimateUnit unit = registry.removeClimateUnit(key);
                     units.release(unit);

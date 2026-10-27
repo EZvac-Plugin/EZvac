@@ -118,10 +118,13 @@ public final class Dehumidifier extends ClimateUnit {
     }
 
     public static Dehumidifier fromMap(Map<String, Object> map) {
-        return new Dehumidifier(BlockKey.read(map, ""), BlockKey.read(map, "unit"), BlockKey.read(map, "grate"),
+        Dehumidifier dehumidifier = new Dehumidifier(BlockKey.read(map, ""), BlockKey.read(map, "unit"),
+                BlockKey.read(map, "grate"),
                 text(map, "label", "Dehumidifier"), (int) Math.round(number(map, "setpoint", 45.0)),
                 bool(map, "powered", true), bool(map, "running", false),
                 number(map, "tank", 0.0), (long) number(map, "emptyingTicks", 0.0),
                 number(map, "zoneDewPointF", Double.NaN));
+        dehumidifier.readZoneAir(map);
+        return dehumidifier;
     }
 }

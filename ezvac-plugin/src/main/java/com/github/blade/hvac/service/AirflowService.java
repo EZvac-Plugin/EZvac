@@ -7,6 +7,7 @@ import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import com.github.blade.hvac.config.ClimateSettings;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.Microvariance;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.ThermalModel;
@@ -31,10 +32,24 @@ public final class AirflowService {
      * @param humidity   relative humidity of the air at the spot (%), NaN in water
      * @param feelsLikeF apparent temperature; in water, the water temperature
      * @param weather    the outdoor weather word, empty where weather never reaches
+     * @param air        what is in the air at the spot (3.2); unknown in water
      */
     public record TemperatureReading(double localF, double outdoorF, double influence,
                                      int airflowDistance, SystemId system, Thermostat thermostat,
-                                     boolean water, double humidity, double feelsLikeF, String weather) {
+                                     boolean water, double humidity, double feelsLikeF, String weather,
+                                     AirQualityModel.Air air) {
+        public TemperatureReading {
+            air = air == null ? AirQualityModel.Air.UNKNOWN : air;
+        }
+
+        /** A reading without air. */
+        public TemperatureReading(double localF, double outdoorF, double influence, int airflowDistance,
+                                  SystemId system, Thermostat thermostat, boolean water, double humidity,
+                                  double feelsLikeF, String weather) {
+            this(localF, outdoorF, influence, airflowDistance, system, thermostat, water, humidity, feelsLikeF,
+                    weather, AirQualityModel.Air.UNKNOWN);
+        }
+
         public boolean conditioned() { return system != null && thermostat != null && influence > 0.0; }
     }
 
@@ -80,6 +95,9 @@ public final class AirflowService {
 
     /** Bordering water blocks a single map records; beyond this a space is simply "very wet". */
     private static final int MAXIMUM_WATER_CELLS = 4_096;
+    /** Smoke sources one space notes at most (3.2); a room past this is a bonfire either way. */
+    private static final int MAXIMUM_SMOKE_CELLS = 256;
+    private static final long[] NO_CELLS = new long[0];
 
     /**
      * A standalone unit's zone reaching a spot.
@@ -101,6 +119,8 @@ public final class AirflowService {
         final Long2ByteOpenHashMap distances = new Long2ByteOpenHashMap();
         /** Water blocks the air walk bumped into: pools, fountains, a lake outside an open door. */
         final LongOpenHashSet waterCells = new LongOpenHashSet();
+        /** Campfires, fire, lava and the like in or around the air (3.2); burning or not is read later. */
+        final LongOpenHashSet smokeCells = new LongOpenHashSet();
         boolean capped;
         // Chunk lookups dominate the walk, and a breadth-first frontier stays
         // within a chunk for long runs. The cache is cleared every tick so a
@@ -160,6 +180,7 @@ public final class AirflowService {
     private final HvacSettings settings;
     private final Map<AirflowTarget, Long2ByteMap> completed = new HashMap<>();
     private final Map<AirflowTarget, WaterExposure> exposures = new HashMap<>();
+    private final Map<AirflowTarget, long[]> smoke = new HashMap<>();
     private final LinkedHashSet<AirflowTarget> dirty = new LinkedHashSet<>();
     private final Map<AirflowTarget, Long> dirtySince = new HashMap<>();
     private final Map<AirflowTarget, Long> dirtyFirst = new HashMap<>();
@@ -266,8 +287,11 @@ public final class AirflowService {
     }
 
     private int rangeOf(ClimateUnit unit) {
-        return unit instanceof Humidifier ? outdoor.climate().humidifier().range()
-                : outdoor.climate().dehumidifier().range();
+        return switch (unit) {
+            case Humidifier ignored -> outdoor.climate().humidifier().range();
+            case Dehumidifier ignored -> outdoor.climate().dehumidifier().range();
+            case AirPurifier ignored -> outdoor.climate().airQuality().purifier().range();
+        };
     }
 
     public void invalidateWorld(World world) {
@@ -327,6 +351,7 @@ public final class AirflowService {
         dirtyFirst.remove(target);
         completed.remove(target);
         exposures.remove(target);
+        smoke.remove(target);
         if (active != null && active.target.equals(target)) active = null;
     }
 
@@ -345,6 +370,7 @@ public final class AirflowService {
                 if (active == null) {
                     completed.remove(target);
                     exposures.remove(target);
+                    smoke.remove(target);
                     continue;
                 }
             }
@@ -359,6 +385,8 @@ public final class AirflowService {
                 if (active.water || active.waterCells.isEmpty()) exposures.remove(active.target);
                 else exposures.put(active.target, new WaterExposure(active.distances.size(),
                         active.waterCells.toLongArray()));
+                if (active.smokeCells.isEmpty()) smoke.remove(active.target);
+                else smoke.put(active.target, active.smokeCells.toLongArray());
                 visitedCells += active.distances.size();
                 completedRebuilds++;
                 if (active.capped) cappedRebuilds++;
@@ -402,8 +430,11 @@ public final class AirflowService {
         World world = Bukkit.getWorld(unit.worldId());
         ClimateUnit climateUnit = registry.climateUnitAt(unit);
         if (world == null || climateUnit == null || !world.isChunkLoaded(unit.x() >> 4, unit.z() >> 4)) return null;
-        int maximumCells = climateUnit instanceof Humidifier ? outdoor.climate().humidifier().maximumCells()
-                : outdoor.climate().dehumidifier().maximumCells();
+        int maximumCells = switch (climateUnit) {
+            case Humidifier ignored -> outdoor.climate().humidifier().maximumCells();
+            case Dehumidifier ignored -> outdoor.climate().dehumidifier().maximumCells();
+            case AirPurifier ignored -> outdoor.climate().airQuality().purifier().maximumCells();
+        };
         Rebuild rebuild = new Rebuild(zone, false, rangeOf(climateUnit), maximumCells);
         rebuild.clearChunkCache();
         for (int[] direction : DIRECTIONS)
@@ -468,17 +499,32 @@ public final class AirflowService {
         Block block = chunk.getBlock(x & 15, y, z & 15);
         // A branch rather than a predicate field: this runs thousands of times
         // per tick and stays monomorphic this way.
-        if (!(rebuild.water ? isWaterPath(block) : isAirPath(block))) {
-            if (!rebuild.water && rebuild.waterCells.size() < MAXIMUM_WATER_CELLS
-                    && block.getType() == Material.WATER) rebuild.waterCells.add(key);
-            return;
+        if (rebuild.water) {
+            if (!isWaterPath(block)) return;
+        } else {
+            // Read once: the air test, water and smoke sources all need it.
+            Material type = block.getType();
+            if (!isAirPath(block, type)) {
+                if (type == Material.WATER) {
+                    if (rebuild.waterCells.size() < MAXIMUM_WATER_CELLS) rebuild.waterCells.add(key);
+                } else if (rebuild.smokeCells.size() < MAXIMUM_SMOKE_CELLS && SmokeSource.of(type) != null) {
+                    rebuild.smokeCells.add(key);
+                }
+                return;
+            }
+            // Fire is open air the walk passes through, and smoke where it burns.
+            if ((type == Material.FIRE || type == Material.SOUL_FIRE)
+                    && rebuild.smokeCells.size() < MAXIMUM_SMOKE_CELLS) rebuild.smokeCells.add(key);
         }
         rebuild.distances.put(key, (byte) distance);
         rebuild.queue.addLast(new Node(x, y, z, distance));
     }
 
     static boolean isAirPath(Block block) {
-        Material type = block.getType();
+        return isAirPath(block, block.getType());
+    }
+
+    private static boolean isAirPath(Block block, Material type) {
         // Most cells in a ducted volume are plain air, and getBlockData()
         // allocates a fresh copy on every call. Answer air without it.
         if (type == Material.AIR || type == Material.CAVE_AIR || type == Material.VOID_AIR) return true;
@@ -596,15 +642,22 @@ public final class AirflowService {
                     true, Double.NaN, localF, out.weather());
         }
         double dew = out.dewPointF();
-        if (thermostat != null && !thermostat.pool() && thermostat.hasRoomDewPoint() && influence > 0.0) {
+        // The air blends from the outdoors toward the room's, or a standalone unit's zone's, like moisture (3.2).
+        AirQualityModel.Air air = out.air();
+        boolean room = thermostat != null && !thermostat.pool() && influence > 0.0;
+        if (room) air = air.toward(thermostat.roomAir().known() ? thermostat.roomAir() : air, influence);
+        if (room && thermostat.hasRoomDewPoint()) {
             dew += (thermostat.roomDewPointF() - dew) * influence;
         } else if (location != null) {
             // No system conditions this air, but a standalone unit may be drying or humidifying it.
             ZoneReading zone = zoneAt(location.getWorld().getUID(),
                     location.getBlockX(), location.getBlockY(), location.getBlockZ());
-            if (zone != null && zone.unit().servedSystem() == null
-                    && Double.isFinite(zone.unit().zoneDewPointF()))
-                dew += (zone.unit().zoneDewPointF() - dew) * zone.influence();
+            if (zone != null && zone.unit().servedSystem() == null) {
+                if (Double.isFinite(zone.unit().zoneDewPointF()))
+                    dew += (zone.unit().zoneDewPointF() - dew) * zone.influence();
+                if (!room && zone.unit().zoneAir().known())
+                    air = air.toward(zone.unit().zoneAir(), zone.influence());
+            }
         }
         if (varies) {
             double airInfluence = thermostat != null && !thermostat.pool() ? influence : 0.0;
@@ -615,7 +668,7 @@ public final class AirflowService {
         double humidity = Psychrometrics.relativeHumidity(localF, dew);
         double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, out.windMs() * (1.0 - influence));
         return new TemperatureReading(localF, outdoorF, influence, distance, system, thermostat,
-                false, humidity, feelsLike, out.weather());
+                false, humidity, feelsLike, out.weather(), air);
     }
 
     /**
@@ -636,6 +689,11 @@ public final class AirflowService {
     /** The water a system's air (or a unit's zone) touches, from its last completed map. */
     public WaterExposure waterExposure(AirflowTarget target) {
         return exposures.getOrDefault(target, WaterExposure.NONE);
+    }
+
+    /** Packed positions of the smoke sources a space's last scan found (3.2), burning or not. */
+    public long[] smokeCells(AirflowTarget target) {
+        return smoke.getOrDefault(target, NO_CELLS);
     }
 
     /** Cells in a target's last completed map; 0 when it has none yet. */

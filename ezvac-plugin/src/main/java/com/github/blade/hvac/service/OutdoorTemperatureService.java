@@ -3,9 +3,11 @@ package com.github.blade.hvac.service;
 import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.Thermostat;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.BiomeBlend;
 import com.github.blade.hvac.simulation.BiomeClimate;
 import com.github.blade.hvac.simulation.HumidityModel;
+import com.github.blade.hvac.simulation.OutdoorAir;
 import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
@@ -48,8 +50,20 @@ public final class OutdoorTemperatureService {
      * @param dewPointF outdoor moisture
      * @param windMs    outdoor wind, for apparent temperature
      * @param weather   Clear, Rain, Thunder or Snow; empty where weather never reaches
+     * @param air       what is in the outdoor air right now (3.2)
      */
-    public record Outdoor(double airF, double waterF, double dewPointF, double windMs, String weather) {
+    public record Outdoor(double airF, double waterF, double dewPointF, double windMs, String weather,
+                          AirQualityModel.Air air) {
+        public Outdoor {
+            air = air == null || !air.known() ? OutdoorAir.now(OutdoorAir.Baseline.DEFAULT,
+                    OutdoorAir.SUMMER_POLLEN, 0.0) : air;
+        }
+
+        /** Without air: the default countryside's. */
+        public Outdoor(double airF, double waterF, double dewPointF, double windMs, String weather) {
+            this(airF, waterF, dewPointF, windMs, weather, null);
+        }
+
         public double humidity() { return Psychrometrics.relativeHumidity(airF, dewPointF); }
         public double feelsLikeF() { return Psychrometrics.apparentTemperatureF(airF, humidity(), windMs); }
     }
@@ -66,6 +80,7 @@ public final class OutdoorTemperatureService {
      */
     private final Map<Biome, BiomeClimate.Climate> climateCache = new EnumMap<>(Biome.class);
     private final Map<Biome, Double> downfallCache = new EnumMap<>(Biome.class);
+    private final Map<Biome, OutdoorAir.Baseline> airCache = new EnumMap<>(Biome.class);
     /**
      * Blended climate per 4x4 column of biome cells, per world, then per
      * 4-block height cell. Biomes almost never change, so each cell is worked
@@ -107,6 +122,18 @@ public final class OutdoorTemperatureService {
         BiomeClimate.Climate found = climate.biomes().climate(biome.getKey().toString());
         if (found == null) found = BiomeClimate.estimate(block.getTemperature(), block.getHumidity());
         climateCache.put(biome, found);
+        return found;
+    }
+
+    /** The biome's outdoor air (3.2): the server's own from config.yml, else EZvac's, else the default. */
+    private OutdoorAir.Baseline airOf(Block block, Biome biome) {
+        if (biome == Biome.CUSTOM)
+            return customKey(block).map(key -> climate.airQuality().baseline(key.toString()))
+                    .orElse(OutdoorAir.Baseline.DEFAULT);
+        OutdoorAir.Baseline cached = airCache.get(biome);
+        if (cached != null) return cached;
+        OutdoorAir.Baseline found = climate.airQuality().baseline(biome.getKey().toString());
+        airCache.put(biome, found);
         return found;
     }
 
@@ -202,7 +229,7 @@ public final class OutdoorTemperatureService {
         Biome biome = block.getBiome();
         BiomeClimate.Climate own = climateOf(block, biome);
         return BiomeBlend.Blended.of(own.noonF(), own.midnightF(), downfall(block, biome),
-                precipitationAt(block, own), own.seasonalF());
+                precipitationAt(block, own), own.seasonalF(), airOf(block, biome));
     }
 
     private BiomeBlend.Blended cell(World world, int cellX, int cellY, int cellZ, int radius) {
@@ -244,7 +271,8 @@ public final class OutdoorTemperatureService {
                 Biome biome = block.getBiome();
                 BiomeClimate.Climate own = climateOf(block, biome);
                 samples.add(new BiomeBlend.Sample(own.noonF(), own.midnightF(), downfall(block, biome),
-                        precipitationAt(block, own), BiomeBlend.weight(distance, radius), own.seasonalF()));
+                        precipitationAt(block, own), BiomeBlend.weight(distance, radius), own.seasonalF(),
+                        airOf(block, biome)));
             }
         }
         BiomeBlend.Blended result = BiomeBlend.blend(samples);
@@ -423,7 +451,15 @@ public final class OutdoorTemperatureService {
         BiomeBlend.Blended now = inSeason(world, local);
         double dew = HumidityModel.outdoorDewPointF(now.noonF(), now.midnightF(), now.downfall(), effect, airF,
                 climate.humidity());
-        return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local));
+        return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local),
+                outdoorAir(world, local, effect));
+    }
+
+    /** The outdoor air right now: the biome's, its season's pollen, and rain washing it out (3.2). */
+    private AirQualityModel.Air outdoorAir(World world, BiomeBlend.Blended local, WeatherModel.Effect effect) {
+        double pollen = seasons == null || world == null
+                ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactor(world.getUID());
+        return OutdoorAir.now(local.air(), pollen, effect.wetness());
     }
 
     /** The outdoor air at this time of day and point of the year, weather included. */

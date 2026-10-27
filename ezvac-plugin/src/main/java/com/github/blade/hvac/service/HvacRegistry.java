@@ -40,7 +40,7 @@ public final class HvacRegistry {
 
     public enum DeviceKind {
         THERMOSTAT, EQUIPMENT, VENT, THERMOMETER, RPM_MONITOR, SETTINGS_PANEL, DEHUMIDIFIER, HUMIDIFIER,
-        SENSOR, SENSOR_HUB, NONE
+        AIR_PURIFIER, SENSOR, SENSOR_HUB, NONE
     }
 
     /**
@@ -95,7 +95,7 @@ public final class HvacRegistry {
     private static final Set<String> KNOWN_SECTIONS = Set.of(
             "thermostats", "equipment", "cleanup", "vents",
             "thermometers", "rpmMonitors", "settingsPanels", "dehumidifiers", "humidifiers",
-            "sensors", "sensorHubs");
+            "purifiers", "sensors", "sensorHubs");
 
     private final Host host;
     private final HvacSettings settings;
@@ -109,6 +109,8 @@ public final class HvacRegistry {
     private final Map<BlockKey, Dehumidifier> dehumidifiers = new HashMap<>();
     /** Keyed by control sign; saved in their own section. */
     private final Map<BlockKey, Humidifier> humidifiers = new HashMap<>();
+    /** Keyed by control sign; saved in their own section (3.2). */
+    private final Map<BlockKey, AirPurifier> purifiers = new HashMap<>();
     /** Keyed by button. */
     private final Map<BlockKey, Sensor> sensors = new HashMap<>();
     /** Keyed by sign. Few per world, so lookups by linked sensor simply scan them. */
@@ -207,6 +209,8 @@ public final class HvacRegistry {
                 this::loadDehumidifier);
         readSection(configuration, "humidifiers", Humidifier::fromMap,
                 this::loadHumidifier);
+        readSection(configuration, "purifiers", AirPurifier::fromMap,
+                value -> loadByPosition(purifiers, "purifiers", value.position(), value, value.toMap()));
         readSection(configuration, "sensors", Sensor::fromMap,
                 value -> loadByPosition(sensors, "sensors", value.position(), value, value.toMap()));
         readSection(configuration, "sensorHubs", SensorHub::fromMap,
@@ -351,6 +355,7 @@ public final class HvacRegistry {
                 Dehumidifier::position, Dehumidifier::toMap);
         write(configuration, "humidifiers", humidifiers.values(),
                 Humidifier::position, Humidifier::toMap);
+        write(configuration, "purifiers", purifiers.values(), AirPurifier::position, AirPurifier::toMap);
         write(configuration, "sensors", sensors.values(), Sensor::position, Sensor::toMap);
         write(configuration, "sensorHubs", sensorHubs.values(), SensorHub::position, SensorHub::toMap);
         for (Map.Entry<String, List<Map<String, Object>>> entry : preservedRecords.entrySet()) {
@@ -519,6 +524,7 @@ public final class HvacRegistry {
         removePositionConflicts(settingsPanels, occupied, "settingsPanels", SettingsPanel::toMap);
         removeUnitConflicts(dehumidifiers, occupied, "dehumidifiers");
         removeUnitConflicts(humidifiers, occupied, "humidifiers");
+        removeUnitConflicts(purifiers, occupied, "purifiers");
         removePositionConflicts(sensors, occupied, "sensors", Sensor::toMap);
         removePositionConflicts(sensorHubs, occupied, "sensorHubs", SensorHub::toMap);
         int dangling = 0;
@@ -580,11 +586,13 @@ public final class HvacRegistry {
     public Collection<SettingsPanel> settingsPanels() { return Collections.unmodifiableCollection(settingsPanels.values()); }
     public Collection<Dehumidifier> dehumidifiers() { return Collections.unmodifiableCollection(dehumidifiers.values()); }
     public Collection<Humidifier> humidifiers() { return Collections.unmodifiableCollection(humidifiers.values()); }
-    /** Every dehumidifier and humidifier, ordered by sign position. */
+    public Collection<AirPurifier> purifiers() { return Collections.unmodifiableCollection(purifiers.values()); }
+    /** Every dehumidifier, humidifier and air purifier, ordered by sign position. */
     public List<ClimateUnit> climateUnits() {
-        List<ClimateUnit> units = new ArrayList<>(dehumidifiers.size() + humidifiers.size());
+        List<ClimateUnit> units = new ArrayList<>(dehumidifiers.size() + humidifiers.size() + purifiers.size());
         units.addAll(dehumidifiers.values());
         units.addAll(humidifiers.values());
+        units.addAll(purifiers.values());
         units.sort(Comparator.comparing(ClimateUnit::position));
         return units;
     }
@@ -599,11 +607,14 @@ public final class HvacRegistry {
         hubs.sort(Comparator.comparing(SensorHub::position));
         return hubs;
     }
-    public boolean hasClimateUnits() { return !dehumidifiers.isEmpty() || !humidifiers.isEmpty(); }
-    /** The unit whose sign, iron block or water block is at this block, or null. */
+    public boolean hasClimateUnits() {
+        return !dehumidifiers.isEmpty() || !humidifiers.isEmpty() || !purifiers.isEmpty();
+    }
+    /** The unit whose sign, iron block or other block (water, filter) is at this block, or null. */
     public ClimateUnit climateUnitAt(BlockKey key) {
         ClimateUnit value = dehumidifiers.get(key);
         if (value == null) value = humidifiers.get(key);
+        if (value == null) value = purifiers.get(key);
         return value != null ? value : unitParts.get(key);
     }
     /** The dehumidifier any of whose blocks is at this block, or null. */
@@ -764,7 +775,11 @@ public final class HvacRegistry {
         if (rpmMonitors.containsKey(key)) return DeviceKind.RPM_MONITOR;
         if (settingsPanels.containsKey(key)) return DeviceKind.SETTINGS_PANEL;
         ClimateUnit unit = climateUnitAt(key);
-        if (unit != null) return unit instanceof Dehumidifier ? DeviceKind.DEHUMIDIFIER : DeviceKind.HUMIDIFIER;
+        if (unit != null) return switch (unit) {
+            case Dehumidifier ignored -> DeviceKind.DEHUMIDIFIER;
+            case Humidifier ignored -> DeviceKind.HUMIDIFIER;
+            case AirPurifier ignored -> DeviceKind.AIR_PURIFIER;
+        };
         if (sensors.containsKey(key)) return DeviceKind.SENSOR;
         if (sensorHubs.containsKey(key)) return DeviceKind.SENSOR_HUB;
         return DeviceKind.NONE;
@@ -907,6 +922,7 @@ public final class HvacRegistry {
         switch (unit) {
             case Dehumidifier dehumidifier -> dehumidifiers.put(unit.position(), dehumidifier);
             case Humidifier humidifier -> humidifiers.put(unit.position(), humidifier);
+            case AirPurifier purifier -> purifiers.put(unit.position(), purifier);
         }
         indexUnit(unit);
         dirty = true;
@@ -919,6 +935,7 @@ public final class HvacRegistry {
         if (value == null) return null;
         dehumidifiers.remove(value.position(), value);
         humidifiers.remove(value.position(), value);
+        purifiers.remove(value.position(), value);
         unindexUnit(value);
         value.setPartWater(false);   // a removed unit never leaves water behind
         dirty = true;
@@ -1216,6 +1233,7 @@ public final class HvacRegistry {
         List<ClimateUnit> removedUnits = new ArrayList<>();
         pruneUnits(dehumidifiers.values().iterator(), removedUnits);
         pruneUnits(humidifiers.values().iterator(), removedUnits);
+        pruneUnits(purifiers.values().iterator(), removedUnits);
         removed += removedUnits.size();
         removedUnits.forEach(unit -> removed(unit, DeviceObserver.Cause.MISSING));
         removed += pruneSigns(sensorHubs.values().iterator(), SensorHub::position);
@@ -1257,11 +1275,14 @@ public final class HvacRegistry {
         }
     }
 
-    /** Each of its three blocks is either unloaded or still what it should be. */
+    /**
+     * Each of its blocks is either unloaded or still what it should be. An air
+     * purifier's filter may be taken out: it waits for a new one.
+     */
     private static boolean unitIntact(ClimateUnit value) {
         return blockIs(value.position(), type -> Tag.ALL_SIGNS.isTagged(type))
                 && blockIs(value.unit(), type -> type == Material.IRON_BLOCK)
-                && blockIs(value.part(), type -> type == value.partMaterial());
+                && (!value.partRequired() || blockIs(value.part(), type -> type == value.partMaterial()));
     }
 
     private static boolean blockIs(BlockKey position, java.util.function.Predicate<Material> expected) {
@@ -1287,7 +1308,7 @@ public final class HvacRegistry {
         thermostats.clear(); equipment.clear(); vents.clear(); thermometers.clear();
         rpmMonitors.clear(); settingsPanels.clear(); pendingCleanup.clear(); preservedRecords.clear();
         nextSystem = 1;
-        dehumidifiers.clear(); humidifiers.clear(); sensors.clear(); sensorHubs.clear();
+        dehumidifiers.clear(); humidifiers.clear(); purifiers.clear(); sensors.clear(); sensorHubs.clear();
         rebuildIndexes();
         dirty = false;
     }
@@ -1434,6 +1455,7 @@ public final class HvacRegistry {
         rpmMonitors.values().forEach(this::indexMonitor);
         dehumidifiers.values().forEach(this::indexUnit);
         humidifiers.values().forEach(this::indexUnit);
+        purifiers.values().forEach(this::indexUnit);
     }
 
     /**

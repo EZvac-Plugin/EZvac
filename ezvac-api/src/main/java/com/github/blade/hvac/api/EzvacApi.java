@@ -42,7 +42,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.4";
+    String API_VERSION = "1.5";
 
     /**
      * EZvac's API, from Paper's services manager.

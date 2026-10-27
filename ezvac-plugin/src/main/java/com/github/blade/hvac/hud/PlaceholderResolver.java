@@ -15,7 +15,8 @@ public final class PlaceholderResolver {
             "temp", "temp_f", "temp_c", "outdoor", "outdoor_f", "outdoor_c",
             "bar", "bar_plain", "comfort", "system", "group", "thermostat", "mode", "target",
             "influence", "zone", "conditioned", "medium",
-            "feels_like", "feels_like_f", "feels_like_c", "humidity", "weather", "season", "season_day");
+            "feels_like", "feels_like_f", "feels_like_c", "humidity", "weather", "season", "season_day",
+            "aqi", "aqi_colored", "aqi_band", "pm25", "pm10", "pollen", "pollen_count");
 
     private final HudFormatter format;
 
@@ -58,6 +59,16 @@ public final class PlaceholderResolver {
             case "weather" -> snapshot.weather();
             case "season" -> snapshot.season();
             case "season_day" -> snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "";
+            case "aqi" -> format.aqi(snapshot);
+            case "aqi_colored" -> format.aqiLegacy(snapshot);
+            case "aqi_band" -> format.aqiBand(snapshot);
+            case "pm25" -> snapshot.air().known()
+                    ? String.format(Locale.US, "%.1f", snapshot.air().pm25()) : format.settings().noneText();
+            case "pm10" -> snapshot.air().known()
+                    ? Long.toString(Math.round(snapshot.air().pm10())) : format.settings().noneText();
+            case "pollen" -> format.pollen(snapshot);
+            case "pollen_count" -> snapshot.air().known()
+                    ? Long.toString(Math.round(snapshot.air().pollen())) : format.settings().noneText();
             default -> null;
         };
     }

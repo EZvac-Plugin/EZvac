@@ -195,7 +195,7 @@ public final class BiomeClimate {
     /**
      * Underground: the day/night swing fades into the daily mean, the seasons
      * fade, and weather no longer reaches. Deep down it is the same all day
-     * and all year, as in a real mine.
+     * and all year, as in a real mine. Pollen fades with the sky (3.2).
      */
     public static BiomeBlend.Blended underground(BiomeBlend.Blended surface, double factor) {
         if (!(factor > 0.0)) return surface;
@@ -203,6 +203,7 @@ public final class BiomeClimate {
         double mean = (surface.noonF() + surface.midnightF()) / 2.0;
         return new BiomeBlend.Blended(surface.noonF() + (mean - surface.noonF()) * g,
                 surface.midnightF() + (mean - surface.midnightF()) * g, surface.downfall(),
-                surface.rainShare() * (1.0 - g), surface.snowShare() * (1.0 - g), surface.seasonalF() * (1.0 - g));
+                surface.rainShare() * (1.0 - g), surface.snowShare() * (1.0 - g), surface.seasonalF() * (1.0 - g),
+                surface.air().underground(g));
     }
 }

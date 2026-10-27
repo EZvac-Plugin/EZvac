@@ -1,6 +1,7 @@
 package com.github.blade.hvac.model;
 
 import com.github.blade.hvac.config.ClimateSettings;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.ThermalModel;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -11,24 +12,26 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * A standalone humidity device: an iron block with a control sign and one
- * more block that shows its water. It needs no system. Its own airflow zone
- * decides which space it works on: a system's room when the zone touches
- * one, otherwise the zone itself (a shed, a basement), whose moisture it then
- * keeps here.
+ * A standalone climate device: an iron block with a control sign and one
+ * more block: a dehumidifier's grate or a humidifier's slab, which show its
+ * water, or an air purifier's filter (3.2). It needs no system. Its own
+ * airflow zone decides which space it works on: a system's room when the
+ * zone touches one, otherwise the zone itself (a shed, a basement), whose
+ * moisture and air it then keeps here.
  *
  * <p>The control logic is pure, so it can be tested without a server.
  */
-public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
+public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPurifier {
     public enum Kind {
-        DEHUMIDIFIER("Dehumidifier"), HUMIDIFIER("Humidifier");
+        DEHUMIDIFIER("Dehumidifier"), HUMIDIFIER("Humidifier"), AIR_PURIFIER("Air purifier");
 
         private final String displayName;
         Kind(String displayName) { this.displayName = displayName; }
         public String displayName() { return displayName; }
     }
 
-    public enum State { OFF, IDLE, RUNNING, EMPTYING }
+    /** EMPTYING is a dehumidifier's; NO_FILTER and FILTER_SPENT an air purifier's (3.2). */
+    public enum State { OFF, IDLE, RUNNING, EMPTYING, NO_FILTER, FILTER_SPENT }
 
     private final BlockKey position;
     private final BlockKey unit;
@@ -43,6 +46,10 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
     private SystemId servedSystem;
     /** RH of the space it serves at the last cycle, for its sign; never saved. */
     private double lastHumidity = Double.NaN;
+    /** What is in its own zone's air when no system's room holds it (3.2); unknown until first simulated. */
+    private AirQualityModel.Air zoneAir = AirQualityModel.Air.UNKNOWN;
+    /** The air of the space it serves at the last cycle, for its sign; never saved. */
+    private AirQualityModel.Air lastAir = AirQualityModel.Air.UNKNOWN;
 
     protected ClimateUnit(BlockKey position, BlockKey unit, BlockKey part, String label, int setpoint,
                           boolean powered, boolean running, double zoneDewPointF) {
@@ -77,6 +84,17 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
     public void setServedSystem(SystemId system) { this.servedSystem = system; }
     public double lastHumidity() { return lastHumidity; }
     public void setLastHumidity(double humidity) { this.lastHumidity = humidity; }
+    public AirQualityModel.Air zoneAir() { return zoneAir; }
+    public void setZoneAir(AirQualityModel.Air air) { this.zoneAir = air == null ? AirQualityModel.Air.UNKNOWN : air; }
+    public AirQualityModel.Air lastAir() { return lastAir; }
+    public void setLastAir(AirQualityModel.Air air) { this.lastAir = air == null ? AirQualityModel.Air.UNKNOWN : air; }
+
+    /**
+     * Whether it is gone when its part is: a dehumidifier without its grate is
+     * broken, but an air purifier whose filter was taken out just waits for a
+     * new one.
+     */
+    public boolean partRequired() { return true; }
 
     public State state() {
         if (!powered) return State.OFF;
@@ -84,6 +102,10 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
     }
 
     public void setSetpoint(int setpoint) { this.setpoint = clampSetpoint(setpoint); }
+
+    /** The lowest setpoint it accepts: 1% RH; an air purifier's is an AQI. */
+    protected int minimumSetpoint() { return 1; }
+    protected int maximumSetpoint() { return 99; }
 
     /** Off stops it at once; anything else it holds stays exactly as it is until it is back on. */
     public void setPowered(boolean powered) {
@@ -137,10 +159,17 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier {
 
     protected void writeZone(Map<String, Object> map) {
         if (Double.isFinite(zoneDewPointF)) map.put("zoneDewPointF", zoneDewPointF);
+        zoneAir.write(map, "zone");
     }
 
-    private static int clampSetpoint(int value) {
-        return Math.max(1, Math.min(99, value));
+    /** Restores what {@link #writeZone} saved beyond the dew point, which the constructor takes. */
+    protected void readZoneAir(Map<String, Object> map) {
+        setZoneAir(AirQualityModel.Air.read(map, "zone"));
+    }
+
+    // Only ever called with constants by subclasses, so it is safe from the constructor.
+    private int clampSetpoint(int value) {
+        return Math.max(minimumSetpoint(), Math.min(maximumSetpoint(), value));
     }
 
     protected static String text(Map<String, Object> map, String key, String fallback) {

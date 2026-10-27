@@ -1,9 +1,12 @@
 package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.HvacPlugin;
+import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.model.*;
+import com.github.blade.hvac.simulation.AirQualityIndex;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.EtaEstimator;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
@@ -163,6 +166,9 @@ public final class DisplayService {
         if (sensor.reads() == Sensor.Kind.WEATHER)
             return new SensorReading(sensor, true, Double.NaN, Double.NaN, weatherAt(location), units);
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
+        if (sensor.reads() == Sensor.Kind.AIR)
+            return new SensorReading(sensor, true, Double.NaN, Double.NaN,
+                    airSettings().enabled() ? AirText.aqi(reading.air()) : "Off", units);
         return new SensorReading(sensor, true, reading.localF(), reading.humidity(), "", units);
     }
 
@@ -322,8 +328,13 @@ public final class DisplayService {
         String inside = percent(reading.humidity());
         String outside = thermometer.reads() == Thermometer.Reads.TEMPERATURE ? ""
                 : percent(outdoor.climateAt(location).humidity());
-        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s", reading.localF(),
-                reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label());
+        boolean airOn = airSettings().enabled();
+        String airLine = airOn ? AirText.signLine(reading.air()) : "Air quality off";
+        String pollen = airOn && reading.air().known()
+                ? "Pollen " + AirText.pollen(reading.air(), airSettings()).displayName() : "";
+        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s|%s|%s", reading.localF(),
+                reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label(),
+                thermometer.reads() == Thermometer.Reads.AIR ? airLine : "", pollen);
         render(thermometer.position(), fingerprint, force, lines -> {
             lines.set(0, signTitle(thermometer), NamedTextColor.AQUA);
             switch (thermometer.reads()) {
@@ -347,6 +358,11 @@ public final class DisplayService {
                     lines.set(3, "Out " + temp(reading.outdoorF()) + " " + outside,
                             NamedTextColor.GRAY);
                 }
+                case AIR -> {
+                    lines.set(1, "Air monitor", NamedTextColor.WHITE);
+                    lines.set(2, airLine, airOn ? AirText.color(reading.air()) : NamedTextColor.GRAY);
+                    lines.set(3, pollen, NamedTextColor.GRAY);
+                }
             }
         }, () -> {
             ScreenText screen = ScreenText.titled(thermometer.label(), "");
@@ -362,6 +378,19 @@ public final class DisplayService {
                         .line("Humidity " + inside, NamedTextColor.WHITE)
                         .line("Feels " + degrees(reading.feelsLikeF()), NamedTextColor.YELLOW)
                         .line("Out " + degrees(reading.outdoorF()) + " · " + outside, NamedTextColor.GRAY);
+                case AIR -> {
+                    if (!airOn || !reading.air().known()) {
+                        screen.big("--").line(airOn ? "AQI" : "Air quality off", NamedTextColor.GRAY);
+                    } else {
+                        AirQualityModel.Air air = reading.air();
+                        AirQualityIndex.Band band = AirText.band(air);
+                        screen.big(AirText.aqiNumber(air)).line("AQI · " + band.displayName(), AirText.color(band));
+                        if (band != AirQualityIndex.Band.GOOD)
+                            screen.line("Mostly " + AirQualityIndex.dominant(air).cause().toLowerCase(Locale.ROOT),
+                                    NamedTextColor.WHITE);
+                        screen.line(pollen, NamedTextColor.YELLOW);
+                    }
+                }
             }
             if (!sky.isEmpty()) screen.line(sky, NamedTextColor.GRAY);
             return screen;
@@ -497,6 +526,10 @@ public final class DisplayService {
 
     /** A dehumidifier's last line is its tank; a humidifier, being plumbed, just says what it is. */
     public void refreshClimateUnit(ClimateUnit unit, boolean force) {
+        if (unit instanceof AirPurifier purifier) {
+            refreshPurifier(purifier, force);
+            return;
+        }
         double humidity = unit.lastHumidity();
         String reading = (Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
                 + " > " + unit.setpoint() + "%";
@@ -508,12 +541,14 @@ public final class DisplayService {
             case IDLE -> "Idle";
             case RUNNING -> "Running";
             case EMPTYING -> "Emptying...";
+            case NO_FILTER, FILTER_SPENT -> state.name();
         };
         NamedTextColor stateColor = tooCold ? NamedTextColor.GOLD : switch (state) {
             case OFF -> NamedTextColor.RED;
             case IDLE -> NamedTextColor.GRAY;
             case RUNNING -> NamedTextColor.GREEN;
             case EMPTYING -> NamedTextColor.AQUA;
+            case NO_FILTER, FILTER_SPENT -> NamedTextColor.GOLD;
         };
         String footer = unit instanceof Dehumidifier dehumidifier
                 ? "Tank " + Math.round(dehumidifier.tank() * 100) + "%" : unit.kind().displayName();
@@ -533,6 +568,53 @@ public final class DisplayService {
                         .append(ScreenText.bar(dehumidifier.tank(), 8, NamedTextColor.AQUA)));
             return screen;
         });
+    }
+
+    /**
+     * An air purifier's sign (3.2): the AQI it reads, its fan (Auto shows the
+     * speed it picked), and how full its filter is.
+     */
+    private void refreshPurifier(AirPurifier purifier, boolean force) {
+        AirQualityModel.Air air = purifier.lastAir();
+        String reading = AirText.signLine(air);
+        ClimateUnit.State state = purifier.state();
+        String stateText = switch (state) {
+            case OFF -> "OFF";
+            case IDLE -> purifier.mode().displayName();
+            case RUNNING -> purifier.modeText();
+            case NO_FILTER -> "No filter";
+            case FILTER_SPENT, EMPTYING -> "Filter spent";
+        };
+        NamedTextColor stateColor = switch (state) {
+            case OFF -> NamedTextColor.RED;
+            case IDLE -> NamedTextColor.GRAY;
+            case RUNNING -> NamedTextColor.GREEN;
+            case NO_FILTER, FILTER_SPENT, EMPTYING -> NamedTextColor.GOLD;
+        };
+        String footer = purifier.installed() == AirPurifier.Filter.MISSING ? "Place tube coral"
+                : "Filter " + Math.round(purifier.filter() * 100) + "%";
+        String pollen = air.known() ? "Pollen " + AirText.pollen(air, airSettings()).displayName() : "";
+        String fingerprint = purifier.label() + "|" + reading + "|" + stateText + "|" + footer + "|" + pollen;
+        render(purifier.position(), fingerprint, force, lines -> {
+            lines.set(0, lines.titled(purifier.label()), NamedTextColor.AQUA);
+            lines.set(1, reading, AirText.color(air));
+            lines.set(2, stateText, stateColor);
+            lines.set(3, footer, NamedTextColor.GRAY);
+        }, () -> {
+            ScreenText screen = ScreenText.titled(purifier.label(), purifier.kind().displayName())
+                    .big(air.known() ? AirText.aqiNumber(air) : "--")
+                    .line(air.known() ? "AQI · " + AirText.band(air).displayName() : "AQI", AirText.color(air))
+                    .line("● " + stateText, stateColor);
+            if (purifier.installed() != AirPurifier.Filter.MISSING)
+                screen.line(Component.text("Filter ", NamedTextColor.GRAY)
+                        .append(ScreenText.bar(purifier.filter(), 8, NamedTextColor.AQUA)));
+            if (!pollen.isEmpty()) screen.line(pollen, NamedTextColor.YELLOW);
+            return screen;
+        });
+    }
+
+    private AirQualitySettings airSettings() {
+        return outdoor.climate().airQuality();
     }
 
     /** A temperature as a sign shows it: {@code 72.4 F}, or {@code 22.4 C} with units: C. */

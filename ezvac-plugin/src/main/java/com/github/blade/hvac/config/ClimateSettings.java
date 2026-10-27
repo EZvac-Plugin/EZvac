@@ -19,7 +19,8 @@ import java.util.function.Supplier;
  */
 public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
                               Humidifier humidifier, Variance variance, BiomeBlend biomeBlend,
-                              Seasons seasons, Altitude altitude, Underground underground, Biomes biomes) {
+                              Seasons seasons, Altitude altitude, Underground underground, Biomes biomes,
+                              AirQualitySettings airQuality) {
     /**
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
@@ -231,9 +232,9 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         }
     }
 
-    /** The farthest either kind of standalone unit reaches, for spatial lookups. */
+    /** The farthest any kind of standalone unit reaches, for spatial lookups. */
     public int unitRange() {
-        return Math.max(dehumidifier.range(), humidifier.range());
+        return Math.max(Math.max(dehumidifier.range(), humidifier.range()), airQuality.purifier().range());
     }
 
     public static ClimateSettings defaults() {
@@ -248,7 +249,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Seasons(true, 15, 1.0, 5.0),
                 new Altitude(0.1, 64),
                 new Underground(true, 4, 20),
-                new Biomes(Map.of()));
+                new Biomes(Map.of()),
+                AirQualitySettings.defaults());
     }
 
     /** Reads strictly: a value out of range throws. */
@@ -330,7 +332,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getBoolean("underground.enabled", u.enabled()),
                         config.getInt("underground.start-depth", u.startDepth()),
                         config.getInt("underground.full-depth", u.fullDepth()))),
-                biomes(config.getConfigurationSection("biomes"), warn));
+                biomes(config.getConfigurationSection("biomes"), warn),
+                AirQualitySettings.load(config, warn));
     }
 
     /**

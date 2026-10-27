@@ -67,7 +67,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("ALPHA-2.1-P1", true, true, true, true, true, true, true, true, false),
                 Arguments.of("ALPHA-2.1-P2", true, true, true, true, true, true, true, true, true),
                 Arguments.of("ALPHA-2.2", true, true, true, true, true, true, true, true, true),
-                Arguments.of("ALPHA-3.0", true, true, true, true, true, true, true, true, true));
+                Arguments.of("ALPHA-3.0", true, true, true, true, true, true, true, true, true),
+                Arguments.of("ALPHA-3.1", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -163,14 +164,21 @@ class RegistryCompatibilityTest {
      * Releases whose dehumidifier sign opens a menu when clicked (from 2.1 on), so the
      * fixture bot's click leaves the setpoint at its default.
      */
-    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0");
+    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0", "ALPHA-3.1");
 
     /**
      * Releases built with the link tool (3.0 on): their systems are numbered
      * (#1, #2), not named after a group, so a system is checked by what is
      * linked to it.
      */
-    private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0");
+    private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0", "ALPHA-3.1");
+
+    /**
+     * Releases built with tiers (3.1 on): the fixture bot makes the house heat
+     * pump variable (t3) and its furnace single-stage (t1); everything else is
+     * the two-stage default.
+     */
+    private static final java.util.Set<String> TIER_RELEASES = java.util.Set.of("ALPHA-3.1");
 
     /** A fixture's system is its old group name before 3.0; from 3.0 it only has to be a numbered one. */
     private static void assertSystem(String release, String group, Thermostat thermostat) {
@@ -200,7 +208,14 @@ class RegistryCompatibilityTest {
         assertEquals(house.system(), registry.rpmMonitors().iterator().next().system(), "the monitor is the house's");
         assertEquals(house.system(), registry.settingsPanels().iterator().next().system());
         // Tiers came in 3.1: every unit of an older release is variable, at the full capacity it always had.
-        for (EquipmentUnit unit : registry.equipment()) assertEquals(Tier.LEGACY, unit.tier(), unit.type().name());
+        for (EquipmentUnit unit : registry.equipment()) {
+            Tier expected = !TIER_RELEASES.contains(release) ? Tier.LEGACY : switch (unit.type()) {
+                case HEAT_PUMP -> Tier.VARIABLE;
+                case FURNACE -> Tier.SINGLE_STAGE;
+                default -> Tier.TWO_STAGE;
+            };
+            assertEquals(expected, unit.tier(), unit.type().name());
+        }
 
         if (water) {
             Thermostat spa = Objects.requireNonNull(TestHost.labelled(registry, "spa"));

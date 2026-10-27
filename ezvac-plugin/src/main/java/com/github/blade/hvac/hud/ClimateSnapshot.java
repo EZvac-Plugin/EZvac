@@ -1,5 +1,7 @@
 package com.github.blade.hvac.hud;
 
+import com.github.blade.hvac.simulation.AirQualityModel;
+
 /**
  * What one player's climate looked like at the last HUD update. Immutable,
  * so renderers and placeholder requests on any thread can read it safely
@@ -20,16 +22,30 @@ package com.github.blade.hvac.hud;
  * @param weather      outdoor weather word (Clear, Rain, Thunder, Snow), empty where there is none
  * @param season       the season (Spring, Summer, Autumn, Winter), empty where there are none (2.1)
  * @param seasonDay    the day of that season from 1, or 0 where there are no seasons
+ * @param air          what is in the air (3.2); unknown in water or with air quality off
+ * @param pollen       the pollen level's name (Low .. Very high), empty where the air is unknown
  */
 public record ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
                               String system, String thermostat, String mode, double targetF,
                               boolean core, boolean water, double humidity, double feelsLikeF,
-                              String weather, String season, int seasonDay) {
+                              String weather, String season, int seasonDay, AirQualityModel.Air air,
+                              String pollen) {
     public ClimateSnapshot {
         if (!Double.isFinite(feelsLikeF)) feelsLikeF = localF;
         if (weather == null) weather = "";
         if (season == null) season = "";
         if (season.isEmpty()) seasonDay = 0;
+        if (air == null) air = AirQualityModel.Air.UNKNOWN;
+        if (pollen == null || !air.known()) pollen = "";
+    }
+
+    /** A snapshot without air. */
+    public ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
+                           String system, String thermostat, String mode, double targetF,
+                           boolean core, boolean water, double humidity, double feelsLikeF,
+                           String weather, String season, int seasonDay) {
+        this(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core, water, humidity,
+                feelsLikeF, weather, season, seasonDay, AirQualityModel.Air.UNKNOWN, "");
     }
 
     /** A snapshot where there are no seasons. */
@@ -44,7 +60,13 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
     /** The same snapshot, in this season. */
     public ClimateSnapshot inSeason(String season, int day) {
         return new ClimateSnapshot(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core,
-                water, humidity, feelsLikeF, weather, season, day);
+                water, humidity, feelsLikeF, weather, season, day, air, pollen);
+    }
+
+    /** The same snapshot, with the air and its pollen level (3.2). */
+    public ClimateSnapshot withAir(AirQualityModel.Air air, String pollen) {
+        return new ClimateSnapshot(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core,
+                water, humidity, feelsLikeF, weather, season, seasonDay, air, pollen);
     }
 
     /** A snapshot without humidity: it feels like its temperature. */
