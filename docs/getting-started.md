@@ -7,7 +7,7 @@ its own. It takes about five minutes in game.
 
 You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
 
-1. Put `EzVac-ALPHA-3.0.jar` in your server's `plugins` folder.
+1. Put `EzVac-ALPHA-3.1.jar` in your server's `plugins` folder.
 2. Start the server. EZvac writes `plugins/EZvac/config.yml` and logs a line
    such as `EZvac enabled: 0 thermostat(s), ...`.
 3. In game, `/hvac help` lists the commands you can use.

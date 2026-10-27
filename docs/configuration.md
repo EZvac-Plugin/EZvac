@@ -77,6 +77,19 @@ Heat pumps, air conditioners and pool heat pumps slow down near the target.
 | `eco-maximum-rpm`, `turbo-maximum-rpm` | 2400, 4200 | Top speed in the Eco and Turbo profiles |
 | `ramp-up-rpm-per-second`, `ramp-down-rpm-per-second` | 900, 1200 | How fast they speed up and slow down |
 
+This is the variable-speed (★★★) curve. The other tiers (3.1) are set beside it.
+
+## performance.tiers
+
+The budget tiers (3.1). Variable-speed (★★★) isn't listed: it is the
+`variable-speed` curve above at full capacity. See [Tiers](equipment.md#tiers).
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `single-stage.capacity` | 0.70 | What a single-stage unit delivers flat out, variable being 1 |
+| `two-stage.capacity` | 0.85 | What a two-stage unit delivers flat out |
+| `two-stage.low-stage` | 0.65 | Its low stage, as a share of flat out, within `approach-band-f` of the target |
+
 ## airflow
 
 | Setting | Default | Meaning |
@@ -135,6 +148,7 @@ audio:
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `screens` | true | A floating screen in front of every EZvac sign; false shows the plain signs only |
+| `stars.full`, `stars.empty` | `★`, `☆` | How equipment tiers are drawn: ★★☆ is Standard. Change them for a resource pack, or for Bedrock players through Geyser |
 
 See [Screens and control menus](screens-and-menus.md).
 
