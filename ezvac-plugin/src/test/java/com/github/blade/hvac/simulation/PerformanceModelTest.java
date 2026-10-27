@@ -93,7 +93,7 @@ class PerformanceModelTest {
         assertEquals(1.15, PerformanceModel.variableCapacityFromRpm(4_200.0, settings), EPSILON);
 
         EquipmentUnit furnace = runningUnit(EquipmentType.FURNACE, 0.0);
-        furnace.advanceMotor(0.1, 200, settings, OperatingProfile.ECO);
+        furnace.advanceMotor(1.0, 200, settings, OperatingProfile.ECO);
         assertEquals(1_100.0, furnace.motorRpm(), EPSILON);
         assertEquals(1.0, furnace.operatingCapacity(settings), EPSILON);
 

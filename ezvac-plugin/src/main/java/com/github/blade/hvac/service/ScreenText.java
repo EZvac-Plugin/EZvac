@@ -102,11 +102,7 @@ public final class ScreenText {
         return "▮".repeat(filled) + "▯".repeat(cells - filled);
     }
 
-    /**
-     * A bar in colour with its percentage after it. Several units together can
-     * pass 100%: the bar is then full and the number says by how much, as the
-     * sign does.
-     */
+    /** A bar in colour with its percentage after it: a system's load (3.1), 0 to 100%. */
     public static Component bar(double fraction, int cells, TextColor color) {
         double value = Double.isFinite(fraction) ? Math.max(0.0, fraction) : 0.0;
         return Component.text(bar(value, cells), color)

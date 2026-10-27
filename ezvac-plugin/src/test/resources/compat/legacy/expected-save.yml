@@ -1,5 +1,5 @@
 meta:
-  format: 7
+  format: 8
   next-system: 1
 thermostats:
   item0:
@@ -24,7 +24,7 @@ equipment:
   item0:
     system: lobby
     equipmentType: AIR_CONDITIONER
-    tier: 2
+    tier: 3
     worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
     x: 14
     y: 64
@@ -41,7 +41,7 @@ cleanup:
   item0:
     system: lobby
     equipmentType: HEAT_PUMP
-    tier: 2
+    tier: 3
     worldUuid: 0b6c3f0e-6a77-4f3e-9d6b-2f1c9a7e4d10
     x: 20
     y: 64

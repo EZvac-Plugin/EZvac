@@ -30,8 +30,13 @@ public final class HvacRegistry {
      * systems. Format 6 files load as they are; the bump keeps the 2.x
      * original as hvac.yml.format6.bak, and 2.x refuses a 3.0 file instead
      * of misreading it.
+     *
+     * <p>Format 8 (3.1) gives equipment its tier: 1 single-stage, 2 two-stage,
+     * 3 variable. A 3.0 file saved every unit as 2, which no longer means
+     * what those units are, so an older file's equipment is all variable: the
+     * full capacity every unit had before tiers.
      */
-    public static final int FORMAT_VERSION = 7;
+    public static final int FORMAT_VERSION = 8;
 
     public enum DeviceKind {
         THERMOSTAT, EQUIPMENT, VENT, THERMOMETER, RPM_MONITOR, SETTINGS_PANEL, DEHUMIDIFIER, HUMIDIFIER,
@@ -206,6 +211,10 @@ public final class HvacRegistry {
                 value -> loadByPosition(sensors, "sensors", value.position(), value, value.toMap()));
         readSection(configuration, "sensorHubs", SensorHub::fromMap,
                 value -> loadByPosition(sensorHubs, "sensorHubs", value.position(), value, value.toMap()));
+        if (upgradedFromFormat > 0 && upgradedFromFormat < 8) {
+            for (EquipmentUnit unit : equipment.values()) unit.setTier(Tier.LEGACY);
+            for (EquipmentUnit unit : pendingCleanup) unit.setTier(Tier.LEGACY);
+        }
         resolveLoadedConflicts();
         rebuildIndexes();
         nextSystem = Math.max(1L, configuration.getLong("meta.next-system", 1L));

@@ -4,7 +4,9 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.OperatingProfile;
+import com.github.blade.hvac.model.Tier;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.OptionalLong;
@@ -15,11 +17,17 @@ public final class EtaEstimator {
     private static final long MAXIMUM_ETA_TICKS = 36_000L; // 30 real-time minutes
     private static final double EPSILON = 1.0e-9;
 
-    public record UnitSnapshot(EquipmentType type, double rpm) {
+    public record UnitSnapshot(EquipmentType type, double rpm, Tier tier) {
         public UnitSnapshot {
             Objects.requireNonNull(type, "type");
+            Objects.requireNonNull(tier, "tier");
             if (!Double.isFinite(rpm) || rpm < 0.0)
                 throw new IllegalArgumentException("RPM must be finite and non-negative");
+        }
+
+        /** A variable unit, as every unit from before tiers (3.1) is. */
+        public UnitSnapshot(EquipmentType type, double rpm) {
+            this(type, rpm, Tier.LEGACY);
         }
     }
 
@@ -44,34 +52,46 @@ public final class EtaEstimator {
         if (mode == OperatingMode.IDLE) return OptionalLong.empty();
         if (reached(roomF, targetF, mode)) return OptionalLong.of(0L);
 
-        int fixedUnits = 0;
+        List<Tier> furnaces = new ArrayList<>();
         int variableCount = 0;
         // Sized for the worst case and filled by index: the previous
         // List<Double> boxed on every get and set, once per unit per step,
         // for up to 1800 steps.
         double[] variableRpms = new double[units.size()];
+        Tier[] variableTiers = new Tier[units.size()];
         for (UnitSnapshot unit : units) {
             if (!unit.type().supports(mode)) continue;
-            if (unit.type() == EquipmentType.FURNACE) fixedUnits++;
-            else variableRpms[variableCount++] = unit.rpm();
+            if (unit.type().fixedSpeed()) furnaces.add(unit.tier());
+            else {
+                variableTiers[variableCount] = unit.tier();
+                variableRpms[variableCount++] = unit.rpm();
+            }
         }
-        if (fixedUnits == 0 && variableCount == 0) return OptionalLong.empty();
+        if (furnaces.isEmpty() && variableCount == 0) return OptionalLong.empty();
 
         double room = roomF;
         for (long elapsed = STEP_TICKS; elapsed <= MAXIMUM_ETA_TICKS; elapsed += STEP_TICKS) {
-            double requested = PerformanceModel.requestedVariableCapacity(
-                    Math.abs(room - targetF), settings);
-            double targetRpm = PerformanceModel.variableTargetRpm(requested, profile, settings);
+            double error = Math.abs(room - targetF);
+            // Each unit runs as its tier does (3.1): flat out, on a stage, or modulating.
+            double fixedEquivalent = 0.0;
+            for (Tier tier : furnaces) {
+                double share = Math.max(settings.variableMinimumCapacity(),
+                        Math.min(1.0, PerformanceModel.stagedRequest(tier, error, settings)));
+                fixedEquivalent += settings.tierCapacity(tier) * share;
+            }
             double variableEquivalent = 0.0;
             for (int index = 0; index < variableCount; index++) {
+                Tier tier = variableTiers[index];
+                double targetRpm = PerformanceModel.variableTargetRpm(
+                        PerformanceModel.stagedRequest(tier, error, settings), profile, settings);
                 double rpm = PerformanceModel.approach(variableRpms[index], targetRpm,
                         STEP_TICKS / 20.0, settings.variableRampUpRpmPerSecond(),
                         settings.variableRampDownRpmPerSecond());
                 variableRpms[index] = rpm;
-                variableEquivalent += PerformanceModel.variableCapacityFromRpm(rpm, settings);
+                variableEquivalent += settings.tierCapacity(tier) * PerformanceModel.variableCapacityFromRpm(rpm, settings);
             }
             double capacity = ThermalModel.aggregateIndependentCapacity(
-                    fixedUnits, variableEquivalent, settings.maximumSystemCapacity());
+                    fixedEquivalent, variableEquivalent, settings.maximumSystemCapacity());
             room = ThermalModel.step(room, targetF, outdoorF, mode, capacity,
                     STEP_TICKS, settings).temperatureF();
             if (reached(room, targetF, mode)) return OptionalLong.of(elapsed);

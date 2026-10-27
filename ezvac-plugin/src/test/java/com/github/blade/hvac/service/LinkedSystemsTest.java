@@ -290,7 +290,7 @@ class LinkedSystemsTest {
         assertFalse(file.contains("group:"), file);
         assertTrue(file.contains("system: house"));
         assertTrue(file.contains("system: test123"));
-        assertTrue(file.contains("tier: 2"));
+        assertTrue(file.contains("tier: 3"), "an upgraded heat pump is variable, as it always ran");
         assertTrue(Files.isRegularFile(folder.resolve("hvac.yml.format6.bak")), "the 2.x file is kept");
     }
 

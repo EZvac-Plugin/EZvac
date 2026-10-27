@@ -95,7 +95,6 @@ public final class HvacController {
     private Map<SystemId, Double> measureDeliveredCapacity(long elapsedTicks,
                                                            Set<EquipmentUnit> stopped) {
         Map<SystemId, Delivery> deliveries = new HashMap<>();
-        Map<SystemId, Double> sharedVariableCommands = new HashMap<>();
         Map<SystemId, OperatingProfile> sharedProfiles = new HashMap<>();
         Set<BlockKey> reservedOutputs = new HashSet<>();
         List<EquipmentUnit> ordered = new ArrayList<>(registry.equipment());
@@ -113,16 +112,16 @@ public final class HvacController {
                     unit.advanceMotor(0.0, elapsedTicks, settings);
                     continue;
                 }
-                double requested = unit.type() == EquipmentType.FURNACE ? 1.0
-                        : sharedVariableCommands.computeIfAbsent(unit.system(), ignored ->
-                        PerformanceModel.requestedVariableCapacity(
-                                Math.abs(controller.roomF() - controller.targetF()), settings));
-                OperatingProfile profile = unit.type() == EquipmentType.FURNACE
+                // Each unit is asked what its tier can do (3.1): every variable unit of a system
+                // gets the same command, as before, and the other tiers their stage.
+                double requested = PerformanceModel.stagedRequest(unit.tier(),
+                        Math.abs(controller.roomF() - controller.targetF()), settings);
+                OperatingProfile profile = unit.type().fixedSpeed()
                         ? OperatingProfile.NORMAL : sharedProfiles.computeIfAbsent(
                         unit.system(), registry::profileFor);
                 unit.advanceMotor(requested, elapsedTicks, settings, profile);
                 double capacity = unit.operatingCapacity(settings);
-                Delivery contribution = unit.type() == EquipmentType.FURNACE
+                Delivery contribution = unit.type().fixedSpeed()
                         ? new Delivery(capacity, 0.0) : new Delivery(0.0, capacity);
                 deliveries.merge(unit.system(), contribution, Delivery::add);
             } catch (RuntimeException exception) {
@@ -299,10 +298,10 @@ public final class HvacController {
         List<EquipmentUnit> units = registry.equipmentFor(system);
         int running = (int) units.stream().filter(EquipmentUnit::running).count();
         double fixedEquivalent = units.stream().filter(EquipmentUnit::running)
-                .filter(unit -> unit.type() == EquipmentType.FURNACE)
+                .filter(unit -> unit.type().fixedSpeed())
                 .mapToDouble(unit -> unit.operatingCapacity(settings)).sum();
         double variableEquivalent = units.stream().filter(EquipmentUnit::running)
-                .filter(unit -> unit.type() != EquipmentType.FURNACE)
+                .filter(unit -> !unit.type().fixedSpeed())
                 .mapToDouble(unit -> unit.operatingCapacity(settings)).sum();
         return new SystemStatus(system, thermostat == null ? OperatingMode.IDLE : thermostat.mode(),
                 thermostat == null ? Double.NaN : thermostat.roomF(),

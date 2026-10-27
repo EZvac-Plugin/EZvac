@@ -24,15 +24,12 @@ public final class EquipmentUnit {
     private OperatingMode operatingMode;
     private double motorRpm;
     private BlockKey ownedOutput;
-    /**
-     * Its performance tier, 1 to 3 (shown as stars). Every unit is tier 2
-     * for now; the save keeps the field so tiers need no new format later.
-     */
-    private int tier = DEFAULT_TIER;
+    /** Its tier (3.1), shown as stars: single-stage, two-stage or variable. */
+    private Tier tier;
+    /** The share of flat out a two-stage or modulating furnace or boiler burns at; never saved. */
+    private double share = 1.0;
     /** Told (previous, current) on every owned-output change, so the registry's index stays current. */
     private BiConsumer<BlockKey, BlockKey> ownedOutputWatcher;
-
-    public static final int DEFAULT_TIER = 2;
 
     public EquipmentUnit(BlockKey position, String systemKey, EquipmentType type) {
         this(position, SystemId.of(position, systemKey), type);
@@ -48,6 +45,8 @@ public final class EquipmentUnit {
         this.position = Objects.requireNonNull(position, "position");
         this.system = Objects.requireNonNull(system, "system");
         this.type = Objects.requireNonNull(type, "type");
+        // Variable until told otherwise: every unit from before tiers is (3.1).
+        this.tier = Tier.LEGACY;
         if (!position.worldId().equals(system.worldId()))
             throw new IllegalArgumentException("equipment and system worlds differ");
         this.enabled = enabled;
@@ -66,7 +65,9 @@ public final class EquipmentUnit {
     public OperatingMode operatingMode() { return operatingMode; }
     public double motorRpm() { return motorRpm; }
     public BlockKey ownedOutput() { return ownedOutput; }
-    public int tier() { return tier; }
+    public Tier tier() { return tier; }
+    /** The share of flat out a furnace or boiler burns at: 1 unless it is on a lower stage. */
+    public double share() { return share; }
     public boolean hasOwnedOutput() { return ownedOutput != null; }
 
     /** Installed by HvacRegistry while it tracks this unit; null stops reporting. */
@@ -88,10 +89,23 @@ public final class EquipmentUnit {
         this.system = system;
     }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    /** Changes its tier. The caller stops it first, so it restarts under the new tier's curve. */
+    public void setTier(Tier tier) {
+        this.tier = Objects.requireNonNull(tier, "tier");
+        share = 1.0;
+    }
+
+    /**
+     * What it delivers while running, a variable unit flat out being 1. The
+     * budget tiers deliver their share of that (3.1); a furnace or boiler on
+     * a lower stage, or modulating, its share of its own flat out.
+     */
     public double operatingCapacity(HvacSettings settings) {
         if (!running) return 0.0;
-        return type == EquipmentType.FURNACE ? 1.0
-                : PerformanceModel.variableCapacityFromRpm(motorRpm, settings);
+        double scale = settings.tierCapacity(tier);
+        if (type.fixedSpeed()) return scale * share;
+        return scale * PerformanceModel.variableCapacityFromRpm(motorRpm, settings);
     }
 
     public BlockKey outputPosition() {
@@ -210,14 +224,14 @@ public final class EquipmentUnit {
         Objects.requireNonNull(settings, "settings");
         Objects.requireNonNull(profile, "profile");
         double seconds = elapsedTicks / 20.0;
-        if (type == EquipmentType.FURNACE) {
-            motorRpm = PerformanceModel.approach(motorRpm,
-                    running ? PerformanceModel.FURNACE_MAXIMUM_RPM : 0.0, seconds,
-                    PerformanceModel.FURNACE_RAMP_UP_PER_SECOND,
-                    PerformanceModel.FURNACE_RAMP_DOWN_PER_SECOND);
+        // A single-stage unit only runs flat out, whatever it is asked for.
+        double request = tier == Tier.SINGLE_STAGE ? 1.0 : requestedCapacity;
+        if (type.fixedSpeed()) {
+            share = running ? Math.max(settings.variableMinimumCapacity(), Math.min(1.0, request)) : 1.0;
+            motorRpm = PerformanceModel.approach(motorRpm, running ? PerformanceModel.FURNACE_MAXIMUM_RPM * share : 0.0,
+                    seconds, PerformanceModel.FURNACE_RAMP_UP_PER_SECOND, PerformanceModel.FURNACE_RAMP_DOWN_PER_SECOND);
         } else {
-            double target = running
-                    ? PerformanceModel.variableTargetRpm(requestedCapacity, profile, settings) : 0.0;
+            double target = running ? PerformanceModel.variableTargetRpm(request, profile, settings) : 0.0;
             motorRpm = PerformanceModel.approach(motorRpm, target, seconds,
                     settings.variableRampUpRpmPerSecond(),
                     settings.variableRampDownRpmPerSecond());
@@ -230,7 +244,7 @@ public final class EquipmentUnit {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("system", system.key());
         map.put("equipmentType", type.name());
-        map.put("tier", tier);
+        map.put("tier", tier.number());
         position.write(map, "");
         map.put("enabled", enabled);
         map.put("running", running);
@@ -256,8 +270,8 @@ public final class EquipmentUnit {
         EquipmentUnit unit = new EquipmentUnit(position, SystemId.of(position, system), type,
                 bool(map, "enabled", true), running, mode,
                 number(map, "motorRpm", 0.0), output);
-        // Saves from before 3.0 have no tier: every unit then was what tier 2 is.
-        unit.tier = (int) Math.max(1, Math.min(3, Math.round(number(map, "tier", DEFAULT_TIER))));
+        // A save without a tier is from before 3.0; HvacRegistry also gives a 3.0 save (format 7) its legacy tiers.
+        if (map.get("tier") instanceof Number number) unit.tier = Tier.of((int) Math.round(number.doubleValue()));
         return unit;
     }
 
