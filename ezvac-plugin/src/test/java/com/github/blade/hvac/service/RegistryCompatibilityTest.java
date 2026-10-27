@@ -68,7 +68,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("ALPHA-2.1-P2", true, true, true, true, true, true, true, true, true),
                 Arguments.of("ALPHA-2.2", true, true, true, true, true, true, true, true, true),
                 Arguments.of("ALPHA-3.0", true, true, true, true, true, true, true, true, true),
-                Arguments.of("ALPHA-3.1", true, true, true, true, true, true, true, true, true));
+                Arguments.of("ALPHA-3.1", true, true, true, true, true, true, true, true, true),
+                Arguments.of("ALPHA-3.2", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -164,21 +165,26 @@ class RegistryCompatibilityTest {
      * Releases whose dehumidifier sign opens a menu when clicked (from 2.1 on), so the
      * fixture bot's click leaves the setpoint at its default.
      */
-    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0", "ALPHA-3.1");
+    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2");
 
     /**
      * Releases built with the link tool (3.0 on): their systems are numbered
      * (#1, #2), not named after a group, so a system is checked by what is
      * linked to it.
      */
-    private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0", "ALPHA-3.1");
+    private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2");
 
     /**
      * Releases built with tiers (3.1 on): the fixture bot makes the house heat
      * pump variable (t3) and its furnace single-stage (t1); everything else is
      * the two-stage default.
      */
-    private static final java.util.Set<String> TIER_RELEASES = java.util.Set.of("ALPHA-3.1");
+    private static final java.util.Set<String> TIER_RELEASES = java.util.Set.of("ALPHA-3.1", "ALPHA-3.2");
+    /**
+     * Releases whose fixture has the 3.2 air and wind devices: an air purifier set to High, an air
+     * monitor, and a cherry-button air sensor and bamboo-button wind sensor on the hub.
+     */
+    private static final java.util.Set<String> AIR_RELEASES = java.util.Set.of("ALPHA-3.2");
 
     /** A fixture's system is its old group name before 3.0; from 3.0 it only has to be a numbered one. */
     private static void assertSystem(String release, String group, Thermostat thermostat) {
@@ -192,7 +198,8 @@ class RegistryCompatibilityTest {
         assertEquals((water ? 3 : 2) + (border ? 1 : 0), registry.thermostats().size());
         assertEquals((water ? 4 : 3) + (poolHeatPump ? 1 : 0), registry.equipment().size());
         assertEquals(water ? 4 : 3, registry.vents().size());
-        assertEquals(climate ? 3 : 1, registry.thermometers().size());
+        boolean air = AIR_RELEASES.contains(release);
+        assertEquals((climate ? 3 : 1) + (air ? 1 : 0), registry.thermometers().size());
         assertEquals(1, registry.rpmMonitors().size());
         assertEquals(1, registry.settingsPanels().size());
         assertTrue(registry.pendingCleanup().isEmpty());
@@ -238,8 +245,10 @@ class RegistryCompatibilityTest {
             assertFalse(basement.powered(), "switched off with a sneak-click");
             assertEquals(basement, registry.dehumidifierAt(basement.unit()));
             assertEquals(basement, registry.dehumidifierAt(basement.grate()));
-            assertEquals(java.util.Set.of(Thermometer.Reads.TEMPERATURE, Thermometer.Reads.HUMIDITY,
-                    Thermometer.Reads.BOTH), registry.thermometers().stream().map(Thermometer::reads)
+            java.util.Set<Thermometer.Reads> reads = new java.util.HashSet<>(java.util.Set.of(
+                    Thermometer.Reads.TEMPERATURE, Thermometer.Reads.HUMIDITY, Thermometer.Reads.BOTH));
+            if (air) reads.add(Thermometer.Reads.AIR);
+            assertEquals(reads, registry.thermometers().stream().map(Thermometer::reads)
                     .collect(java.util.stream.Collectors.toSet()));
             assertTrue(house.hasRoomDewPoint(), "2.0 saves each air room's moisture");
             assertFalse(Objects.requireNonNull(TestHost.labelled(registry, "spa")).hasRoomDewPoint(),
@@ -257,7 +266,7 @@ class RegistryCompatibilityTest {
             assertTrue(Double.isFinite(nursery.zoneDewPointF()), "it works on its own zone, outside every system");
         }
 
-        assertEquals(sensors ? (weatherSensor ? 4 : 3) : 0, registry.sensors().size());
+        assertEquals(sensors ? (weatherSensor ? 4 : 3) + (air ? 2 : 0) : 0, registry.sensors().size());
         assertEquals(sensors ? 1 : 0, registry.sensorHubs().size());
         if (sensors) {
             SensorHub home = registry.sensorHubs().iterator().next();
@@ -270,11 +279,30 @@ class RegistryCompatibilityTest {
                 labels.add("sky");
                 kinds.add(Sensor.Kind.WEATHER);
             }
+            if (air) {
+                labels.addAll(List.of("hall", "roof"));
+                kinds.addAll(List.of(Sensor.Kind.AIR, Sensor.Kind.WIND));
+            }
             assertEquals(labels, home.sensors().stream()
                     .map(key -> registry.sensorAt(key).label()).toList(), "in the order they were linked");
             assertEquals(kinds, home.sensors().stream().map(key -> registry.sensorAt(key).reads()).toList(),
-                    "stone, polished blackstone, mangrove and birch buttons");
+                    "stone, polished blackstone, mangrove, birch, cherry and bamboo buttons");
             assertEquals(List.of(home), registry.hubsShowing(home.sensors().get(0)));
+        }
+
+        assertEquals(air ? 1 : 0, registry.purifiers().size());
+        if (air) {
+            AirPurifier attic = registry.purifiers().iterator().next();
+            assertEquals("attic", attic.label());
+            assertEquals(AirPurifier.Mode.HIGH, attic.mode(), "set in its menu");
+            assertTrue(attic.powered());
+            assertTrue(attic.filter() > 0.0 && attic.filter() < 1.0, "a filter it has been using");
+            assertSame(attic, registry.climateUnitAt(attic.filterBlock()), "found by its filter");
+            assertTrue(attic.zoneAir().known(), "it cleans its own zone, outside every system");
+            assertTrue(house.roomAir().known(), "3.2 saves each air room's air");
+            assertFalse(Objects.requireNonNull(TestHost.labelled(registry, "spa")).roomAir().known(),
+                    "a pool has no air of its own");
+            assertTrue(house.outdoorClimate().windExposure() > 0.0, "and how much wind reaches it");
         }
 
         if (border) {
