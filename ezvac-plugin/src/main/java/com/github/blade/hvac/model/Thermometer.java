@@ -7,12 +7,12 @@ import java.util.Objects;
 
 /**
  * Independent point sensor; its reading is determined only by its block
- * position. One device in three flavours: a thermometer, a hygrometer
- * (humidity), or a thermo-hygrometer (both).
+ * position. One device in four flavours: a thermometer, a hygrometer
+ * (humidity), a thermo-hygrometer (both), or an air monitor (3.2: AQI and pollen).
  */
 public record Thermometer(BlockKey position, String label, Reads reads) {
     public enum Reads {
-        TEMPERATURE("Thermometer"), HUMIDITY("Hygrometer"), BOTH("Thermo-hygrometer");
+        TEMPERATURE("Thermometer"), HUMIDITY("Hygrometer"), BOTH("Thermo-hygrometer"), AIR("Air monitor");
 
         private final String displayName;
         Reads(String displayName) { this.displayName = displayName; }

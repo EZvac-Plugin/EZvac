@@ -1,6 +1,7 @@
 package com.github.blade.hvac.hud;
 
 import com.github.blade.hvac.config.HudSettings;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -26,13 +27,34 @@ class PlaceholderResolverTest {
                 Map.entry("zone", "60% leakage"), Map.entry("conditioned", "true"), Map.entry("medium", "air"),
                 Map.entry("feels_like", "73.4°F"), Map.entry("feels_like_f", "73.4°F"),
                 Map.entry("feels_like_c", "23.0°C"), Map.entry("humidity", "45%"), Map.entry("weather", "Rain"),
-                Map.entry("season", "Summer"), Map.entry("season_day", "3")));
+                Map.entry("season", "Summer"), Map.entry("season_day", "3"),
+                // No air was measured here: air quality off, or before its first cycle.
+                Map.entry("aqi", "none"), Map.entry("aqi_colored", "none"), Map.entry("aqi_band", ""),
+                Map.entry("pm25", "none"), Map.entry("pm10", "none"), Map.entry("pollen", "none"),
+                Map.entry("pollen_count", "none")));
         for (String key : PlaceholderResolver.KEYS) {
             String value = resolver.resolve(cooled, key);
             assertNotNull(value, key);
             if (key.equals("bar")) assertTrue(value.contains("▮▮▮▮▮") && value.contains("§"), value);
             else assertEquals(expected.get(key), value, key);
         }
+    }
+
+    @Test
+    void theAirKeysReadTheAir() {
+        ClimateSnapshot aired = cooled.withAir(new AirQualityModel.Air(12.0, 20.0, 90.0), "High");
+        // PM2.5 12.0 scores 56 and PM10 32 scores 30, so the AQI is 56: Moderate.
+        assertEquals("56", resolver.resolve(aired, "aqi"));
+        assertEquals("§e56§r", resolver.resolve(aired, "aqi_colored"));
+        assertEquals("Moderate", resolver.resolve(aired, "aqi_band"));
+        assertEquals("12.0", resolver.resolve(aired, "pm25"));
+        assertEquals("32", resolver.resolve(aired, "pm10"));
+        assertEquals("High", resolver.resolve(aired, "pollen"));
+        assertEquals("90", resolver.resolve(aired, "pollen_count"));
+        HudFormatter format = new HudFormatter(HudSettings.defaults());
+        assertEquals("<gray>Air: <yellow>56</yellow> <white>Moderate <gray>· Pollen <white>High",
+                format.fill(HudSettings.AIR_LINE, aired));
+        assertEquals("<gray>Air: none <white> <gray>· Pollen <white>none", format.fill(HudSettings.AIR_LINE, cooled));
     }
 
     @Test

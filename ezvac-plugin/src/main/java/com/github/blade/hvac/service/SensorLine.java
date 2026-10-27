@@ -6,7 +6,7 @@ import com.github.blade.hvac.model.Sensor;
 
 /**
  * One sensor's reading as a single sign line: {@code Kitchen 72.4F},
- * {@code Cellar 58%}, {@code Kitchen 72F 45%}, {@code Garden Rain}, or
+ * {@code Cellar 58%}, {@code Kitchen 72F 45%}, {@code Garden Rain}, {@code Hall AQI 42}, or
  * {@code Kitchen --} when it can't be read. The reading always fits; a long label is cut short to
  * make room for it, measured in pixels like every sign line. Pure.
  */
@@ -22,7 +22,8 @@ public final class SensorLine {
     /**
      * @param loaded   false when the sensor's chunk is unloaded
      * @param humidity RH in percent; NaN where there is none (a sensor in water)
-     * @param weather  what a weather sensor reports ({@code Rain}, {@code Covered}); unused by the others
+     * @param weather  what a weather sensor reports ({@code Rain}, {@code Covered}), or an air sensor
+     *                 ({@code AQI 42}); unused by the others
      * @param width    the sign's line width in pixels
      */
     public static String format(String label, Sensor.Kind reads, boolean loaded,
@@ -37,7 +38,7 @@ public final class SensorLine {
             case TEMPERATURE -> units.compact(temperatureF);
             case HUMIDITY -> percent(humidity);
             case BOTH -> units.whole(temperatureF) + " " + percent(humidity);
-            case WEATHER -> weather;
+            case WEATHER, AIR -> weather;
         };
         String fitted = fit(label, width - SignText.width(" " + value));
         // Only a hanging sign showing an extreme reading has no room left for even one letter.

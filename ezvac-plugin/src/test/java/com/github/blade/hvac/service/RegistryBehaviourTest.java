@@ -325,4 +325,31 @@ class RegistryBehaviourTest {
         assertEquals(1, reloaded.climateUnits().size());
         assertNull(reloaded.indexDiscrepancy());
     }
+
+    @Test
+    void purifiersSaveInTheirOwnSectionAndRoomsKeepTheirAir() throws IOException {
+        HvacRegistry registry = new HvacRegistry(host, SETTINGS);
+        AirPurifier purifier = new AirPurifier(at(21, 65, 0), at(20, 65, 0), at(20, 64, 0), "hall",
+                AirPurifier.Mode.AUTO);
+        registry.addClimateUnit(purifier);
+        assertSame(purifier, registry.climateUnitAt(at(20, 64, 0)), "the coral finds its purifier");
+        assertEquals(HvacRegistry.DeviceKind.AIR_PURIFIER, registry.deviceKind(at(21, 65, 0)));
+        assertEquals(List.of(purifier), List.copyOf(registry.purifiers()));
+        assertTrue(registry.hasClimateUnits());
+        Thermostat thermostat = new Thermostat(at(0, 70, 0), "Home", registry.newSystem(WORLD), 72, 72, SETTINGS,
+                false);
+        registry.addThermostat(thermostat);
+        thermostat.setRoomAir(new com.github.blade.hvac.simulation.AirQualityModel.Air(12.5, 20, 33));
+
+        String file = saved(registry);
+        assertTrue(file.contains("\npurifiers:\n") && file.contains("roomFine: 12.5"), file);
+        HvacRegistry reloaded = new HvacRegistry(host, SETTINGS);
+        reloaded.load();
+        assertInstanceOf(AirPurifier.class, reloaded.climateUnitAt(at(21, 65, 0)));
+        assertEquals(new com.github.blade.hvac.simulation.AirQualityModel.Air(12.5, 20, 33),
+                reloaded.thermostatAt(at(0, 70, 0)).roomAir());
+        assertNull(reloaded.indexDiscrepancy());
+        assertNotNull(reloaded.removeClimateUnit(at(21, 65, 0)));
+        assertTrue(reloaded.purifiers().isEmpty());
+    }
 }

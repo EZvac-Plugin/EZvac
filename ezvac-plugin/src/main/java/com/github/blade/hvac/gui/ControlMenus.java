@@ -7,8 +7,10 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.AirPurifier;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.Thermostat;
+import com.github.blade.hvac.service.AirText;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.simulation.Psychrometrics;
@@ -132,6 +134,10 @@ public final class ControlMenus implements Listener {
     }
 
     private void drawUnit(Inventory inventory, ClimateUnit unit) {
+        if (unit instanceof AirPurifier purifier) {
+            drawPurifier(inventory, purifier);
+            return;
+        }
         inventory.setItem(HUMIDITY_RAISE, step(Material.BLACK_STAINED_GLASS_PANE, "+5%", NamedTextColor.WHITE));
         inventory.setItem(HUMIDITY_LOWER, step(Material.WHITE_STAINED_GLASS_PANE, "-5%", NamedTextColor.WHITE));
         int[] range = range(unit);
@@ -143,11 +149,49 @@ public final class ControlMenus implements Listener {
         inventory.setItem(POWER, power(unit.powered(), unit.kind().displayName()));
     }
 
+    /**
+     * An air purifier has fan speeds instead of a setpoint (3.2): Low, Medium
+     * and High, and Auto, which picks one from the air. The one it is on glints.
+     */
+    private void drawPurifier(Inventory inventory, AirPurifier purifier) {
+        for (int i = 0; i < PURIFIER_MODES.length; i++) {
+            AirPurifier.Mode mode = PURIFIER_MODES[i];
+            boolean on = purifier.mode() == mode;
+            ItemStack button = item(PURIFIER_PANES[i], Component.text((on ? "● " : "") + mode.displayName(),
+                    on ? NamedTextColor.GREEN : NamedTextColor.WHITE).decorate(TextDecoration.BOLD),
+                    List.of(gray(switch (mode) {
+                        case LOW -> "Quiet, gentle cleaning";
+                        case MEDIUM -> "Steady cleaning";
+                        case HIGH -> "Full power";
+                        case AUTO -> "Speeds up when the air gets worse";
+                    })));
+            if (on) button.editMeta(meta -> meta.setEnchantmentGlintOverride(true));
+            inventory.setItem(PURIFIER_SLOTS[i], button);
+        }
+        List<Component> lore = new ArrayList<>();
+        lore.add(gray("Now " + AirText.aqi(purifier.lastAir())));
+        lore.add(gray("Running " + purifier.modeText()));
+        lore.add(gray("Filter " + Math.round(purifier.filter() * 100) + "%"));
+        inventory.setItem(INFO, item(Material.TUBE_CORAL_BLOCK,
+                Component.text(purifier.mode().displayName(), NamedTextColor.AQUA), lore));
+        inventory.setItem(POWER, power(purifier.powered(), purifier.kind().displayName()));
+    }
+
+    /** An air purifier's modes, along the top row. */
+    private static final AirPurifier.Mode[] PURIFIER_MODES = AirPurifier.Mode.values();
+    static final int[] PURIFIER_SLOTS = {1, 3, 5, 7};
+    private static final Material[] PURIFIER_PANES = {Material.LIGHT_BLUE_STAINED_GLASS_PANE,
+            Material.CYAN_STAINED_GLASS_PANE, Material.BLUE_STAINED_GLASS_PANE, Material.LIME_STAINED_GLASS_PANE};
+
     /** The setpoints a unit can be given: from its lowest preset to its highest. */
     private int[] range(ClimateUnit unit) {
-        return unit.kind() == ClimateUnit.Kind.DEHUMIDIFIER
-                ? new int[] {climate.dehumidifier().minimumSetpoint(), climate.dehumidifier().maximumSetpoint()}
-                : new int[] {climate.humidifier().minimumSetpoint(), climate.humidifier().maximumSetpoint()};
+        return switch (unit.kind()) {
+            case DEHUMIDIFIER -> new int[] {climate.dehumidifier().minimumSetpoint(),
+                    climate.dehumidifier().maximumSetpoint()};
+            case HUMIDIFIER -> new int[] {climate.humidifier().minimumSetpoint(),
+                    climate.humidifier().maximumSetpoint()};
+            case AIR_PURIFIER -> new int[] {0, 0};    // it has modes, not a setpoint
+        };
     }
 
     /** How far from its device a menu still works, in blocks: a little past reach. */
@@ -234,10 +278,19 @@ public final class ControlMenus implements Listener {
             player.closeInventory();
             return false;
         }
+        int modeSlot = java.util.Arrays.stream(PURIFIER_SLOTS).boxed().toList().indexOf(slot);
         if (slot == POWER) unit.setPowered(!unit.powered());
-        else if (slot == HUMIDITY_RAISE || slot == HUMIDITY_LOWER) {
+        else if (unit instanceof AirPurifier purifier) {
+            if (modeSlot < 0) return false;
+            if (purifier.mode() == PURIFIER_MODES[modeSlot]) {
+                click(player, false);
+                return false;
+            }
+            purifier.setMode(PURIFIER_MODES[modeSlot]);
+        } else if (slot == HUMIDITY_RAISE || slot == HUMIDITY_LOWER) {
             int[] range = range(unit);
-            int setpoint = Setpoints.stepHumidity(unit.setpoint(), slot == HUMIDITY_RAISE ? 5 : -5, range[0], range[1]);
+            int setpoint = Setpoints.stepHumidity(unit.setpoint(), slot == HUMIDITY_RAISE ? 5 : -5,
+                    range[0], range[1]);
             if (setpoint == unit.setpoint()) {
                 click(player, false);
                 return false;

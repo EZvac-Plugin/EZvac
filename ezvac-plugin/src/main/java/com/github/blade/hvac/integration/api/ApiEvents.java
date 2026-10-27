@@ -38,14 +38,16 @@ public final class ApiEvents {
     public static void modeChanged(Thermostat thermostat, OperatingMode from, HvacController controller) {
         if (thermostat.mode() == from) return;
         fire(ThermostatModeChangeEvent.getHandlerList(), () -> new ThermostatModeChangeEvent(
-                ApiViews.thermostat(thermostat, controller.status(thermostat.system())), ApiViews.mode(from)));
+                ApiViews.thermostat(thermostat, controller.status(thermostat.system()),
+                        controller.airQuality()), ApiViews.mode(from)));
     }
 
     public static void targetChanged(Thermostat thermostat, double previousF, ThermostatTargetChangeEvent.Cause cause,
                                      HvacController controller) {
         if (thermostat.targetF() == previousF) return;
         fire(ThermostatTargetChangeEvent.getHandlerList(), () -> new ThermostatTargetChangeEvent(
-                ApiViews.thermostat(thermostat, controller.status(thermostat.system())), previousF, cause));
+                ApiViews.thermostat(thermostat, controller.status(thermostat.system()),
+                        controller.airQuality()), previousF, cause));
     }
 
     public static void equipmentChanged(EquipmentUnit unit, boolean running) {

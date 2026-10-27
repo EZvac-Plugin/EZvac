@@ -2,6 +2,8 @@ package com.github.blade.hvac.hud;
 
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
+import com.github.blade.hvac.service.AirText;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.TextColor;
@@ -179,6 +181,33 @@ public final class HudFormatter {
     }
 
     /** "45%", or the none text in water or where humidity is unknown. */
+    /** The AQI number (3.2), or the none-text where the air isn't measured. */
+    public String aqi(ClimateSnapshot snapshot) {
+        return snapshot.air().known() ? AirText.aqiNumber(snapshot.air()) : settings.noneText();
+    }
+
+    /** The AQI in its band's colour, for MiniMessage templates. */
+    private String aqiMini(ClimateSnapshot snapshot) {
+        if (!snapshot.air().known()) return escape(settings.noneText());
+        String color = NamedTextColor.NAMES.key(AirText.color(snapshot.air()));
+        return "<" + color + ">" + AirText.aqiNumber(snapshot.air()) + "</" + color + ">";
+    }
+
+    /** The AQI coloured with legacy codes, for scoreboard plugins. */
+    public String aqiLegacy(ClimateSnapshot snapshot) {
+        if (!snapshot.air().known()) return settings.noneText();
+        return AirText.legacyColor(snapshot.air()) + AirText.aqiNumber(snapshot.air()) + "§r";
+    }
+
+    /** Good, Moderate, Sensitive, Unhealthy, Very bad or Hazardous; empty where the air isn't measured. */
+    public String aqiBand(ClimateSnapshot snapshot) {
+        return snapshot.air().known() ? AirText.band(snapshot.air()).shortName() : "";
+    }
+
+    public String pollen(ClimateSnapshot snapshot) {
+        return snapshot.pollen().isEmpty() ? settings.noneText() : snapshot.pollen();
+    }
+
     public String humidity(ClimateSnapshot snapshot) {
         if (snapshot.water() || !Double.isFinite(snapshot.humidity())) return settings.noneText();
         return Math.round(snapshot.humidity()) + "%";
@@ -214,6 +243,9 @@ public final class HudFormatter {
                 .replace("{temp}", escape(temperature(snapshot.localF())))
                 .replace("{feels}", escape(feelsLike(snapshot)))
                 .replace("{humidity}", escape(humidity(snapshot)))
+                .replace("{aqi_band}", escape(aqiBand(snapshot)))
+                .replace("{aqi}", aqiMini(snapshot))
+                .replace("{pollen}", escape(pollen(snapshot)))
                 .replace("{weather}", escape(snapshot.weather()))
                 .replace("{season_day}", snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "")
                 .replace("{season}", escape(snapshot.season()))

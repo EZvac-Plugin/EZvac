@@ -251,11 +251,81 @@ humidifier:
   # It starts again once RH is this far below the setpoint.
   hysteresis: 2.0
 
+# Air quality (3.2). Every room and standalone zone tracks fine particles
+# (PM2.5), coarse particles (up to PM10) and pollen. The AQI is the US EPA
+# index, the higher of the PM2.5 and PM10 scores; pollen has its own level and
+# is not part of it. Outdoor air depends on the biome, the season's pollen and
+# the rain; indoors, campfires, fire, lava, lit furnaces and candles add smoke.
+# Rates are per in-game hour.
+air-quality:
+  # false hides every air reading, and air purifiers sit idle.
+  enabled: true
+  # The space size sources and purifiers are quoted for, in airflow cells.
+  # A bigger space dilutes both; a small one concentrates smoke, up to 4x.
+  reference-cells: 1500
+  # Share of each kind that settles out of still air per hour: big particles
+  # fall fastest, so a closed room loses dust and pollen but keeps smoke.
+  settling: { fine: 0.1, coarse: 0.3, pollen: 0.5 }
+  # Share a system's own filter takes out per hour while its equipment runs.
+  # It catches pollen and dust well, smoke poorly: that is a purifier's job.
+  system-filter: { fine: 0.15, coarse: 0.5, pollen: 0.8 }
+  # What one burning block adds per hour, in µg/m³, at reference-cells.
+  sources:
+    campfire: { fine: 20.0, coarse: 8.0 }
+    fire: { fine: 25.0, coarse: 10.0 }
+    lava: { fine: 6.0, coarse: 4.0 }
+    # A lit furnace, smoker or blast furnace. EZvac's own furnaces and boilers
+    # are sealed and add nothing.
+    furnace: { fine: 4.0, coarse: 2.0 }
+    candle: { fine: 1.0, coarse: 0.0 }
+  # Pollen in grains/m³ where it turns Moderate, High and Very high.
+  pollen-levels: { moderate: 20, high: 80, very-high: 200 }
+  # Air purifiers: an iron block on a tube coral block, which is the filter,
+  # with a sign on the iron block; /hvac create purifier.
+  purifier:
+    # Reach of the unit's own airflow zone, in blocks.
+    range: 30
+    maximum-cells: 50000
+    # Share of each kind one purifier takes out per hour on High, at
+    # reference-cells.
+    rate: { fine: 2.5, coarse: 2.5, pollen: 3.0 }
+    # Like a real one it has fan speeds, picked in its menu: how hard each
+    # cleans, as a share of rate. New purifiers start in Auto.
+    speeds: { low: 0.35, medium: 0.65, high: 1.0 }
+    # Auto reads the air and picks a speed: Low in clean air, Medium past
+    # medium-above-aqi or at medium-pollen, High past high-above-aqi or at
+    # high-pollen (moderate, high, very-high or never). It steps down only
+    # once the AQI is hysteresis under the step and the pollen a tenth under
+    # its level, so it doesn't flicker between two speeds.
+    auto:
+      medium-above-aqi: 50
+      high-above-aqi: 100
+      medium-pollen: moderate
+      high-pollen: high
+      hysteresis: 20
+    # What a filter holds, in µg/m³ caught at reference-cells (pollen
+    # weighted by pollen-weight). The default lasts a few in-game days beside
+    # a campfire and about a month running in clean air. A full filter's
+    # coral dies; break it and place fresh tube coral.
+    filter-capacity: 2400
+    # A filter running nonstop on High in perfectly clean air still wears out
+    # after this many in-game days; slower speeds wear it slower.
+    maximum-life-days: 60
+    pollen-weight: 0.5
+  # Your own outdoor air per biome, over EZvac's figures: fine and coarse in
+  # µg/m³, pollen in grains/m³ at its spring peak. Leave a value out to keep
+  # EZvac's. For example:
+  #   minecraft:plains: { pollen: 40 }
+  #   my_pack:ash_wastes: { fine: 150, coarse: 200, pollen: 0 }
+  biomes: {}
+
 # On-screen climate HUD and PlaceholderAPI placeholders (ALPHA 1.8).
 # Players turn the HUD on or off for themselves with /hvac hud. Text uses
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:
 # {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {season} {season_day}
-# {system} {thermostat} {mode} {target} {zone} {version}
+# {aqi} {aqi_band} {pollen} {system} {thermostat} {mode} {target} {zone} {version}
+# {aqi} is the Air Quality Index in its band's colour; {aqi_band} is Good,
+# Moderate, Sensitive, Unhealthy, Very bad or Hazardous (3.2).
 # {system} is the label of the thermostat whose air you are in (3.0); {group}, its
 # old name, still works.
 # In air, {bar} and {comfort} follow {feels}: humid heat reads hotter, wind colder.
@@ -281,6 +351,7 @@ hud:
       - "<gray>Feels like: <white>{feels}"
       - "{bar} {comfort}"
       - "<gray>Humidity: <white>{humidity}"
+      - "<gray>Air: {aqi} <white>{aqi_band} <gray>· Pollen <white>{pollen}"
       - "<gray>Outside: <white>{outdoor} <gray>{weather}"
       - "<gray>Season: <white>{season} <gray>day {season_day}"
       - "{addons}"

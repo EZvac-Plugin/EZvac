@@ -8,6 +8,7 @@ import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
 import net.kyori.adventure.text.Component;
@@ -172,7 +173,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
                     + "|furnace|boiler|poolheatpump|thermometer|hygrometer|thermohygrometer|rpmmonitor"
-                    + "|settingspanel|dehumidifier|humidifier> ..."));
+                    + "|settingspanel|dehumidifier|humidifier|purifier|airmonitor> ..."));
             return;
         }
         Block block = target(player);
@@ -206,14 +207,18 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "boiler" -> createEquipment(player, block, args, EquipmentType.BOILER);
             case "poolheatpump", "pool_heat_pump", "poolhp" ->
                     createEquipment(player, block, args, EquipmentType.POOL_HEAT_PUMP);
-            case "thermometer", "hygrometer", "thermohygrometer", "thermohygro", "thermo-hygrometer" -> {
+            case "thermometer", "hygrometer", "thermohygrometer", "thermohygro", "thermo-hygrometer",
+                 "airmonitor", "air-monitor", "aqi" -> {
                 requireSign(block);
                 Thermometer.Reads reads = switch (args[1].toLowerCase(Locale.ROOT)) {
                     case "thermometer" -> Thermometer.Reads.TEMPERATURE;
                     case "hygrometer" -> Thermometer.Reads.HUMIDITY;
+                    case "airmonitor", "air-monitor", "aqi" -> Thermometer.Reads.AIR;
                     default -> Thermometer.Reads.BOTH;
                 };
-                String displayLabel = args.length >= 3 ? args[2] : reads.displayName().replace("-", "");
+                // Labels have no spaces or dashes: Thermohygrometer, Airmonitor.
+                String displayLabel = args.length >= 3 ? args[2]
+                        : reads.displayName().replace("-", "").replace(" ", "");
                 registry.addThermometer(new Thermometer(position, displayLabel, reads));
                 displays.refreshAll(true);
                 player.sendMessage(green("Created independent point " + reads.displayName().toLowerCase(Locale.ROOT) + "."));
@@ -245,11 +250,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
             case "humidifier", "hum" -> createHumidifier(player, block, position, args);
+            case "purifier", "airpurifier", "air-purifier" -> createPurifier(player, block, position, args);
             case "sensor" -> {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
                     throw new IllegalArgumentException("Look at a stone button (temperature), a polished blackstone"
-                            + " button (humidity), a mangrove button (both) or a birch button (weather).");
+                            + " button (humidity), a mangrove button (both), a birch button (weather) or a cherry"
+                            + " button (air quality).");
                 Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : "Sensor", reads);
                 registry.addSensor(sensor);
                 player.sendMessage(green("Created " + reads.description() + " sensor '" + sensor.label()
@@ -312,10 +319,36 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 label, units.climate().humidifier().defaultSetpoint()));
     }
 
+    /**
+     * An air purifier (3.2) is built like a dehumidifier: an iron block, with
+     * the sign on it, standing on a tube coral block, which is its filter.
+     */
+    private void createPurifier(Player player, Block sign, BlockKey position, String[] args) {
+        requireSign(sign);
+        Block iron = sign.getBlockData() instanceof WallSign wall
+                ? sign.getRelative(wall.getFacing().getOppositeFace()) : sign.getRelative(BlockFace.DOWN);
+        if (iron.getType() != Material.IRON_BLOCK)
+            throw new IllegalArgumentException("Put the sign on an iron block: on its side, or standing on top.");
+        Block filter = iron.getRelative(BlockFace.DOWN);
+        if (filter.getType() != AirPurifier.FILTER)
+            throw new IllegalArgumentException("The iron block must sit on a tube coral block: the filter.");
+        String label = args.length >= 3 ? args[2] : "Purifier";
+        registerUnit(player, new AirPurifier(position, BlockKey.of(iron.getLocation()),
+                BlockKey.of(filter.getLocation()), label, AirPurifier.Mode.AUTO));
+        if (!units.air().enabled())
+            player.sendMessage(yellow("Air quality is switched off on this server (air-quality.enabled), so it"
+                    + " will stay idle."));
+    }
+
     private void registerUnit(Player player, ClimateUnit unit) {
         registry.addClimateUnit(unit);
         airflow.invalidate(ZoneId.of(unit));
         displays.refreshClimateUnit(unit, true);
+        if (unit instanceof AirPurifier) {
+            player.sendMessage(green("Created air purifier '" + unit.label() + "' in Auto. Click the sign to pick"
+                    + " a fan speed, sneak-click to switch it on or off."));
+            return;
+        }
         player.sendMessage(green("Created " + unit.kind().displayName().toLowerCase(Locale.ROOT) + " '"
                 + unit.label() + "' at " + unit.setpoint() + "%. Click the sign to change the setpoint,"
                 + " sneak-click to switch it on or off."));
@@ -441,6 +474,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(join(gray("Feels like: "),
                     white(temp(reading.feelsLikeF())),
                     gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%")));
+        if (!water && units.air().enabled() && reading.air().known())
+            player.sendMessage(join(gray("Air: "), airLine(reading.air())));
         UUID world = player.getWorld().getUID();
         if (plugin.seasons().settings().enabled() && plugin.seasons().tracks(world))
             player.sendMessage(join(gray("Season: "), white(seasonText(world)),
@@ -601,6 +636,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case TEMPERATURE -> temp(reading.localF());
                 case HUMIDITY -> humidity;
                 case BOTH -> temp(reading.localF()) + ", " + humidity + ", feels " + temp(reading.feelsLikeF());
+                case AIR -> AirText.summary(reading.air(), units.air().settings());
             };
             player.sendMessage(join(gold(thermometer.reads().displayName()), gray(" | Local: "), white(local),
                     gray(" | Source: "), white(source)));
@@ -743,6 +779,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case TEMPERATURE -> temp(reading.localF());
             case HUMIDITY -> humidity;
             case BOTH -> temp(reading.localF()) + " | " + humidity + " | feels " + temp(reading.feelsLikeF());
+            case AIR -> AirText.summary(reading.air(), units.air().settings());
             case WEATHER -> throw new AssertionError("handled above");
         };
         String where = reading.conditioned() ? "system " + SystemNames.label(registry, reading.system()) : "no system";
@@ -767,9 +804,47 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     gray(" | Feels like: "), white(temp(
                             Psychrometrics.apparentTemperatureF(thermostat.roomF(), humidity, 0.0)))));
         }
+        if (!thermostat.pool() && units.air().enabled() && thermostat.roomAir().known()) {
+            player.sendMessage(join(gray("Air: "), airLine(thermostat.roomAir())));
+            player.sendMessage(gray(AirText.details(thermostat.roomAir())));
+        }
+    }
+
+    /** {@code AQI 42 Good · Pollen High}, coloured by its band (3.2). */
+    private Component airLine(AirQualityModel.Air air) {
+        return Component.text(AirText.summary(air, units.air().settings()), AirText.color(air));
+    }
+
+    /** An air purifier for /hvac info (3.2): what it reads, its filter, and the particles in detail. */
+    private void showPurifier(Player player, AirPurifier purifier) {
+        String space = purifier.servedSystem() == null ? "its own zone"
+                : "system " + SystemNames.label(registry, purifier.servedSystem());
+        player.sendMessage(join(gold("Air purifier "), white(purifier.label()), gray(" | Cleaning: "), white(space)));
+        String filter = switch (purifier.installed()) {
+            case MISSING -> "none: place a tube coral block under it";
+            case SPENT -> "full: break the dead coral and place fresh tube coral";
+            case FRESH -> Math.round(purifier.filter() * 100) + "% left";
+        };
+        String fan = purifier.mode() == AirPurifier.Mode.AUTO
+                ? "Auto" + (purifier.running() ? ", running " + purifier.speed().displayName() : "")
+                : purifier.mode().displayName();
+        player.sendMessage(join(gray("Fan: "), white(fan),
+                gray(" | State: "), white(purifier.state().name()), gray(" | Filter: "), white(filter)));
+        AirQualityModel.Air air = purifier.lastAir();
+        if (air.known()) {
+            player.sendMessage(join(gray("Air: "), airLine(air)));
+            player.sendMessage(gray(AirText.details(air)));
+        } else {
+            player.sendMessage(gray(units.air().enabled() ? "Air: not measured yet."
+                    : "Air quality is switched off on this server (air-quality.enabled)."));
+        }
     }
 
     private void showClimateUnit(Player player, ClimateUnit unit) {
+        if (unit instanceof AirPurifier purifier) {
+            showPurifier(player, purifier);
+            return;
+        }
         String space = unit.servedSystem() == null ? "its own zone"
                 : "system " + SystemNames.label(registry, unit.servedSystem());
         double humidity = unit.lastHumidity();
@@ -879,13 +954,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac create thermostat <label> [target]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace|boiler|poolheatpump [t1|t2|t3]"),
                 gray(" - register a dispenser, two-stage (t2) unless told")));
-        sender.sendMessage(join(aqua("/hvac create thermometer|hygrometer|thermohygrometer [label]"),
+        sender.sendMessage(join(aqua("/hvac create thermometer|hygrometer|thermohygrometer|airmonitor [label]"),
                 gray(" - register a point-sensor sign")));
         sender.sendMessage(join(aqua("/hvac create rpmmonitor | settingspanel [label]"),
                 gray(" - a sign for a system's equipment, or its profile")));
         sender.sendMessage(join(aqua("/hvac create dehumidifier [label]"), gray(" - sign on an iron block on a grate")));
         sender.sendMessage(join(aqua("/hvac create humidifier [label]"), gray(" - sign on an iron block under a copper slab")));
-        sender.sendMessage(join(aqua("/hvac create sensor [label]"), gray(" - a stone, polished blackstone, mangrove or birch button")));
+        sender.sendMessage(join(aqua("/hvac create purifier [label]"), gray(" - sign on an iron block on tube coral")));
+        sender.sendMessage(join(aqua("/hvac create sensor [label]"),
+                gray(" - a stone, polished blackstone, mangrove, birch or cherry button")));
         sender.sendMessage(join(aqua("/hvac create sensor-hub [label]"), gray(" - a sign showing up to 9 sensors")));
         sender.sendMessage(join(aqua("/hvac link-tool"), gray(" - link devices to a thermostat, or sensors to a hub")));
         sender.sendMessage(join(aqua("/hvac thermostat set|enable|disable|info"), gray(" - the thermostat you look at")));
@@ -911,8 +988,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
-                        "thermohygrometer", "rpmmonitor", "settingspanel", "dehumidifier", "humidifier",
-                        "sensor", "sensor-hub");
+                        "thermohygrometer", "airmonitor", "rpmmonitor", "settingspanel", "dehumidifier",
+                        "humidifier", "purifier", "sensor", "sensor-hub");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");

@@ -1,7 +1,9 @@
 package com.github.blade.hvac.hud;
 
+import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.model.Thermostat;
+import com.github.blade.hvac.service.AirText;
 import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.SeasonService;
 import org.bukkit.NamespacedKey;
@@ -38,6 +40,8 @@ public final class ClimateHudService implements Listener {
     private final AirflowService airflow;
     /** Null where there is no calendar (tests): the HUD then shows no season. */
     private final SeasonService seasons;
+    /** Null, or switched off, shows no air (3.2). */
+    private final AirQualitySettings air;
     private final HudFormatter format;
     private final HudRenderer renderer;
     /** The scoreboard plugin that pushed the HUD from the sidebar to the action bar, or null. */
@@ -54,9 +58,16 @@ public final class ClimateHudService implements Listener {
     }
 
     public ClimateHudService(Plugin plugin, AirflowService airflow, HudSettings settings, SeasonService seasons) {
+        this(plugin, airflow, settings, seasons, null);
+    }
+
+    /** @param air air quality settings (3.2); null shows no air */
+    public ClimateHudService(Plugin plugin, AirflowService airflow, HudSettings settings, SeasonService seasons,
+                             AirQualitySettings air) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.seasons = seasons;
+        this.air = air;
         this.format = new HudFormatter(settings, plugin.getPluginMeta().getVersion());
         // Scoreboard plugins like TAB draw their sidebar with raw packets, which
         // the server's scoreboard API cannot see, so the sidebar's own conflict
@@ -190,6 +201,8 @@ public final class ClimateHudService implements Listener {
 
     private ClimateSnapshot capture(Player player, AirflowService.TemperatureReading reading) {
         ClimateSnapshot snapshot = captureClimate(reading);
+        if (air != null && air.enabled() && reading.air().known())
+            snapshot = snapshot.withAir(reading.air(), AirText.pollen(reading.air(), air).displayName());
         UUID world = player.getWorld().getUID();
         if (seasons == null || !seasons.settings().enabled() || !seasons.tracks(world)) return snapshot;
         return snapshot.inSeason(seasons.season(world).displayName(), seasons.dayOfSeason(world));

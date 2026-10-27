@@ -1,5 +1,6 @@
 package com.github.blade.hvac.integration.api;
 
+import com.github.blade.hvac.api.AirQuality;
 import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.ClimateUnitView;
 import com.github.blade.hvac.api.EquipmentView;
@@ -9,6 +10,8 @@ import com.github.blade.hvac.api.SeasonView;
 import com.github.blade.hvac.api.ThermostatView;
 import com.github.blade.hvac.api.VentView;
 import com.github.blade.hvac.api.event.EquipmentStateChangeEvent;
+import com.github.blade.hvac.config.AirQualitySettings;
+import com.github.blade.hvac.model.AirPurifier;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.ClimateVent;
@@ -25,11 +28,14 @@ import com.github.blade.hvac.model.Thermometer;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.HvacController;
+import com.github.blade.hvac.simulation.AirQualityIndex;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * Turns EZvac's own objects into the public API's views (2.1). The
@@ -52,25 +58,77 @@ public final class ApiViews {
 
     /** A thermostat as the API shows it; its unit counts come from the controller. */
     public static ThermostatView thermostat(Thermostat thermostat, HvacController.SystemStatus status) {
+        return thermostat(thermostat, status, null);
+    }
+
+    /** The same, with the room's air when air quality is on (API 1.5). */
+    public static ThermostatView thermostat(Thermostat thermostat, HvacController.SystemStatus status,
+                                            AirQualitySettings air) {
         double humidity = !thermostat.pool() && thermostat.hasRoomDewPoint()
                 ? Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF()) : Double.NaN;
         return new ThermostatView(thermostat.id(), thermostat.system().key(), position(thermostat.position()),
                 thermostat.roomF(), thermostat.targetF(), mode(thermostat.mode()), thermostat.enabled(),
                 thermostat.pool(), humidity, status == null ? 0 : status.running(),
-                status == null ? 0 : status.equipment());
+                status == null ? 0 : status.equipment(),
+                thermostat.pool() ? Optional.empty() : airQuality(thermostat.roomAir(), air));
     }
 
     public static ClimateUnitView climateUnit(ClimateUnit unit) {
-        ClimateUnitView.Kind kind = unit.kind() == ClimateUnit.Kind.DEHUMIDIFIER
-                ? ClimateUnitView.Kind.DEHUMIDIFIER : ClimateUnitView.Kind.HUMIDIFIER;
+        return climateUnit(unit, null);
+    }
+
+    public static ClimateUnitView climateUnit(ClimateUnit unit, AirQualitySettings air) {
+        ClimateUnitView.Kind kind = switch (unit.kind()) {
+            case DEHUMIDIFIER -> ClimateUnitView.Kind.DEHUMIDIFIER;
+            case HUMIDIFIER -> ClimateUnitView.Kind.HUMIDIFIER;
+            case AIR_PURIFIER -> ClimateUnitView.Kind.AIR_PURIFIER;
+        };
         ClimateUnitView.State state = switch (unit.state()) {
             case OFF -> ClimateUnitView.State.OFF;
             case IDLE -> ClimateUnitView.State.IDLE;
             case RUNNING -> ClimateUnitView.State.RUNNING;
             case EMPTYING -> ClimateUnitView.State.EMPTYING;
+            case NO_FILTER -> ClimateUnitView.State.NO_FILTER;
+            case FILTER_SPENT -> ClimateUnitView.State.FILTER_SPENT;
         };
         return new ClimateUnitView(unit.label(), kind, position(unit.position()), unit.lastHumidity(),
-                unit.setpoint(), unit.powered(), state, unit instanceof Dehumidifier dry ? dry.tank() : 0.0);
+                unit.setpoint(), unit.powered(), state, unit instanceof Dehumidifier dry ? dry.tank() : 0.0,
+                unit instanceof AirPurifier purifier ? OptionalDouble.of(purifier.filter()) : OptionalDouble.empty(),
+                airQuality(unit.lastAir(), air),
+                unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.mode())) : Optional.empty(),
+                unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.speed())) : Optional.empty());
+    }
+
+    private static ClimateUnitView.Fan fan(AirPurifier.Mode mode) {
+        return switch (mode) {
+            case LOW -> ClimateUnitView.Fan.LOW;
+            case MEDIUM -> ClimateUnitView.Fan.MEDIUM;
+            case HIGH -> ClimateUnitView.Fan.HIGH;
+            case AUTO -> ClimateUnitView.Fan.AUTO;
+        };
+    }
+
+    /** Air as the API shows it; empty when it isn't known or air quality is off. */
+    public static Optional<AirQuality> airQuality(AirQualityModel.Air air, AirQualitySettings settings) {
+        if (settings == null || !settings.enabled() || !air.known()) return Optional.empty();
+        int aqi = AirQualityIndex.aqi(air);
+        AirQuality.Band band = switch (AirQualityIndex.Band.of(aqi)) {
+            case GOOD -> AirQuality.Band.GOOD;
+            case MODERATE -> AirQuality.Band.MODERATE;
+            case SENSITIVE -> AirQuality.Band.UNHEALTHY_FOR_SENSITIVE_GROUPS;
+            case UNHEALTHY -> AirQuality.Band.UNHEALTHY;
+            case VERY_UNHEALTHY -> AirQuality.Band.VERY_UNHEALTHY;
+            case HAZARDOUS -> AirQuality.Band.HAZARDOUS;
+        };
+        AirQuality.Pollutant dominant = AirQualityIndex.dominant(air) == AirQualityIndex.Pollutant.PM10
+                ? AirQuality.Pollutant.PM10 : AirQuality.Pollutant.PM25;
+        AirQuality.PollenLevel pollen = switch (AirQualityIndex.PollenLevel.of(air.pollen(), settings.pollenLevels())) {
+            case LOW -> AirQuality.PollenLevel.LOW;
+            case MODERATE -> AirQuality.PollenLevel.MODERATE;
+            case HIGH -> AirQuality.PollenLevel.HIGH;
+            case VERY_HIGH -> AirQuality.PollenLevel.VERY_HIGH;
+        };
+        return Optional.of(new AirQuality(air.pm25(), air.pm10(), air.pollen(), aqi, band, dominant, pollen));
     }
 
     public static SeasonView.Season season(Seasons.Season season) {
@@ -95,12 +153,18 @@ public final class ApiViews {
     /** A reading as the API shows it: the same numbers as the HUD and /hvac temperature. */
     public static ClimateReading reading(Position at, AirflowService.TemperatureReading reading,
                                          Optional<SeasonView.Season> season) {
+        return reading(at, reading, season, null);
+    }
+
+    /** The same, with the air at the spot when air quality is on (API 1.5). */
+    public static ClimateReading reading(Position at, AirflowService.TemperatureReading reading,
+                                         Optional<SeasonView.Season> season, AirQualitySettings air) {
         boolean conditioned = reading.system() != null && reading.thermostat() != null;
         return new ClimateReading(at, reading.localF(), reading.feelsLikeF(), reading.humidity(), reading.outdoorF(),
                 reading.water(), reading.weather(), season,
                 conditioned ? Optional.of(reading.thermostat().id()) : Optional.empty(),
                 conditioned ? Optional.of(reading.system().key()) : Optional.empty(),
-                conditioned ? reading.influence() : 0.0);
+                conditioned ? reading.influence() : 0.0, airQuality(reading.air(), air));
     }
 
     /** A piece of equipment as the API shows it (API 1.2; its tier since 1.4). */
@@ -122,6 +186,7 @@ public final class ApiViews {
             case TEMPERATURE -> InstrumentView.Kind.THERMOMETER;
             case HUMIDITY -> InstrumentView.Kind.HYGROMETER;
             case BOTH -> InstrumentView.Kind.THERMO_HYGROMETER;
+            case AIR -> InstrumentView.Kind.AIR_MONITOR;
         };
         return new InstrumentView(kind, thermometer.label(), position(thermometer.position()), Optional.empty(),
                 List.of());
@@ -133,6 +198,7 @@ public final class ApiViews {
             case HUMIDITY -> InstrumentView.Kind.HUMIDITY_SENSOR;
             case BOTH -> InstrumentView.Kind.TEMPERATURE_HUMIDITY_SENSOR;
             case WEATHER -> InstrumentView.Kind.WEATHER_SENSOR;
+            case AIR -> InstrumentView.Kind.AIR_SENSOR;
         };
         return new InstrumentView(kind, sensor.label(), position(sensor.position()), Optional.empty(), List.of());
     }

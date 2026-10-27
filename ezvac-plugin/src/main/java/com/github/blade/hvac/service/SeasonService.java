@@ -2,6 +2,7 @@ package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.model.SeasonCalendar;
+import com.github.blade.hvac.simulation.OutdoorAir;
 import com.github.blade.hvac.simulation.Seasons;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.InvalidConfigurationException;
@@ -152,6 +153,16 @@ public final class SeasonService {
     public double airFactor(UUID worldId) {
         World world = worlds.get(worldId);
         return world == null || !world.clockSeen || !settings.enabled() ? 0.0 : world.air;
+    }
+
+    /**
+     * Pollen through the year as a share of its spring peak (3.2). Where
+     * there are no seasons, or they are switched off, it stays at summer's.
+     */
+    public double pollenFactor(UUID worldId) {
+        World world = worlds.get(worldId);
+        if (world == null || !world.clockSeen || !settings.enabled()) return OutdoorAir.SUMMER_POLLEN;
+        return OutdoorAir.pollenSeasonFactor(world.calendar.ticks(world.fullTime), settings.daysPerSeason());
     }
 
     /** The same for natural water, a few days behind the air. */

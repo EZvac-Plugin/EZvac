@@ -1,8 +1,10 @@
 package com.github.blade.hvac.model;
 
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.BiomeBlend;
 import com.github.blade.hvac.simulation.BiomeClimate;
+import com.github.blade.hvac.simulation.OutdoorAir;
 import com.github.blade.hvac.simulation.Precipitation;
 import com.github.blade.hvac.simulation.ThermalModel;
 
@@ -41,6 +43,10 @@ public final class Thermostat {
     private long outdoorSampledAt = Long.MIN_VALUE;
     /** The air's moisture as a dew point; NaN until first simulated (2.0). */
     private double roomDewPointF = Double.NaN;
+    /** The outdoor air it last sampled (3.2); null until then, which reads as the default countryside. */
+    private OutdoorAir.Baseline outdoorAir;
+    /** What is in the room's air (3.2); unknown until first simulated, when it starts at the outdoor air. */
+    private AirQualityModel.Air roomAir = AirQualityModel.Air.UNKNOWN;
     /**
      * Pool thermostats clamp to the water range. Since 3.0 a thermostat
      * follows what is linked to it: water equipment or grates make it one.
@@ -113,7 +119,11 @@ public final class Thermostat {
         double seasonal = Double.isFinite(outdoorSeasonalF) ? outdoorSeasonalF
                 : BiomeClimate.estimateSeasonalF((outdoorNoonF + outdoorMidnightF) / 2.0);
         return new BiomeBlend.Blended(outdoorNoonF, outdoorMidnightF, outdoorDownfall, outdoorRainShare,
-                outdoorSnowShare, seasonal);
+                outdoorSnowShare, seasonal, outdoorAir);
+    }
+    public AirQualityModel.Air roomAir() { return roomAir; }
+    public void setRoomAir(AirQualityModel.Air air) {
+        this.roomAir = air == null ? AirQualityModel.Air.UNKNOWN : air;
     }
     public double roomDewPointF() { return roomDewPointF; }
     public boolean hasRoomDewPoint() { return Double.isFinite(roomDewPointF); }
@@ -174,6 +184,7 @@ public final class Thermostat {
         setOutdoorHumidityProfile(climate.downfall(), climate.dominant());
         setOutdoorWeatherShares(climate.rainShare(), climate.snowShare());
         if (Double.isFinite(climate.seasonalF())) this.outdoorSeasonalF = Math.max(0.0, climate.seasonalF());
+        this.outdoorAir = climate.air();
     }
     private void setOutdoorWeatherShares(double rain, double snow) {
         if (!Double.isFinite(rain) || !Double.isFinite(snow)) return;
@@ -210,6 +221,12 @@ public final class Thermostat {
         // Saved once it has sampled since 2.1; an older save loads and saves back unchanged until then.
         if (Double.isFinite(outdoorSeasonalF)) map.put("outdoorSeasonalF", outdoorSeasonalF);
         if (hasRoomDewPoint()) map.put("roomDewPointF", roomDewPointF);
+        if (outdoorAir != null) {
+            map.put("outdoorFine", outdoorAir.fine());
+            map.put("outdoorCoarse", outdoorAir.coarse());
+            map.put("outdoorPollen", outdoorAir.pollen());
+        }
+        roomAir.write(map, "room");
         return map;
     }
 
@@ -238,6 +255,16 @@ public final class Thermostat {
         double seasonal = number(map, "outdoorSeasonalF", Double.NaN);
         if (Double.isFinite(seasonal)) thermostat.outdoorSeasonalF = Math.max(0.0, seasonal);
         thermostat.setRoomDewPointF(number(map, "roomDewPointF", Double.NaN));
+        // Saves from before 3.2 have no air: the room starts at the outdoor air, sampled again on its first cycle.
+        if (map.get("outdoorFine") instanceof Number) {
+            try {
+                thermostat.outdoorAir = new OutdoorAir.Baseline(number(map, "outdoorFine", 0.0),
+                        number(map, "outdoorCoarse", 0.0), number(map, "outdoorPollen", 0.0));
+            } catch (IllegalArgumentException ignored) {
+                // A hand-edited negative value: sampled again on the first cycle.
+            }
+        }
+        thermostat.setRoomAir(AirQualityModel.Air.read(map, "room"));
         return thermostat;
     }
 

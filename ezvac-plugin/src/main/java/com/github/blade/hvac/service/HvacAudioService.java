@@ -4,6 +4,7 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.SoundSettings;
 import com.github.blade.hvac.config.SoundSettings.Event;
 import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.AirPurifier;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.Dehumidifier;
@@ -102,9 +103,9 @@ public final class HvacAudioService {
         if (ticksSinceHum < settings.humRefreshTicks()) return;
         ticksSinceHum %= settings.humRefreshTicks();
         for (EquipmentUnit unit : running) play(unit.position(), Event.EQUIPMENT_HUM);
-        // Humidifiers bubble instead.
+        // Humidifiers bubble instead; an air purifier's fan hums like a dehumidifier's (3.2).
         for (ClimateUnit unit : units)
-            if (unit instanceof Dehumidifier) play(unit.unit(), Event.DEHUMIDIFIER_HUM);
+            if (unit instanceof Dehumidifier || unit instanceof AirPurifier) play(unit.unit(), Event.DEHUMIDIFIER_HUM);
     }
 
     /**

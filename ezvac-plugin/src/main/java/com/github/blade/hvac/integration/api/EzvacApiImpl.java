@@ -17,6 +17,7 @@ import com.github.blade.hvac.api.event.DeviceRemovedEvent;
 import com.github.blade.hvac.api.event.PlayerClimateUpdateEvent;
 import com.github.blade.hvac.api.hud.EzvacHud;
 import com.github.blade.hvac.command.LinkTool;
+import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.BlockKey;
@@ -84,7 +85,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         this.outdoor = Objects.requireNonNull(outdoor, "outdoor");
         this.seasons = Objects.requireNonNull(seasons, "seasons");
         this.hud = new HudSections(logger, hudService.format(), (player, reading) ->
-                ApiViews.reading(Position.of(player.getLocation()), reading, seasonOf(player.getWorld())));
+                ApiViews.reading(Position.of(player.getLocation()), reading, seasonOf(player.getWorld()), air()));
     }
 
     /** The addon sections, for the HUD to draw. */
@@ -115,13 +116,15 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
 
     @Override
     public ClimateReading readingAt(Location location) {
-        return ApiViews.reading(Position.of(location), airflow.temperatureAt(location), seasonOf(location.getWorld()));
+        return ApiViews.reading(Position.of(location), airflow.temperatureAt(location), seasonOf(location.getWorld()),
+                air());
     }
 
     @Override
     public ClimateReading readingFor(Player player) {
         return ApiViews.reading(Position.of(player.getLocation()),
-                airflow.temperatureForBody(player.getLocation(), player.getEyeLocation()), seasonOf(player.getWorld()));
+                airflow.temperatureForBody(player.getLocation(), player.getEyeLocation()), seasonOf(player.getWorld()),
+                air());
     }
 
     @Override
@@ -276,7 +279,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
             case Thermostat thermostat -> view(thermostat);
             case EquipmentUnit unit -> ApiViews.equipment(unit);
             case ClimateVent vent -> vent(vent);
-            case ClimateUnit unit -> ApiViews.climateUnit(unit);
+            case ClimateUnit unit -> ApiViews.climateUnit(unit, air());
             case Thermometer thermometer -> ApiViews.thermometer(thermometer);
             case Sensor sensor -> ApiViews.sensor(sensor);
             case SensorHub hub -> ApiViews.sensorHub(hub);
@@ -316,7 +319,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     }
 
     private ThermostatView view(Thermostat thermostat) {
-        return ApiViews.thermostat(thermostat, controller.status(thermostat.system()));
+        return ApiViews.thermostat(thermostat, controller.status(thermostat.system()), air());
     }
 
     // ---- per-player updates, on the HUD's cadence ----
@@ -328,7 +331,8 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
 
     @Override
     public void observe(Player player, AirflowService.TemperatureReading reading) {
-        ClimateReading current = ApiViews.reading(Position.of(player.getLocation()), reading, seasonOf(player.getWorld()));
+        ClimateReading current = ApiViews.reading(Position.of(player.getLocation()), reading,
+                seasonOf(player.getWorld()), air());
         ClimateReading previous = latest.put(player.getUniqueId(), current);
         Bukkit.getPluginManager().callEvent(new PlayerClimateUpdateEvent(player, previous, current));
     }
@@ -342,5 +346,10 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     public void clear() {
         latest.clear();
         hud.clear();
+    }
+
+    /** The server's air quality settings, so views carry the air when it is on (API 1.5). */
+    private AirQualitySettings air() {
+        return outdoor.climate().airQuality();
     }
 }

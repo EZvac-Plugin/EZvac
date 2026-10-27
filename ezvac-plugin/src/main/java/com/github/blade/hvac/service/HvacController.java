@@ -1,8 +1,10 @@
 package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.HvacPlugin;
+import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.*;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.HumidityModel;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.ThermalModel;
@@ -48,6 +50,11 @@ public final class HvacController {
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.units = Objects.requireNonNull(units, "units");
+    }
+
+    /** The server's air quality settings, for the API's views (3.2). */
+    public AirQualitySettings airQuality() {
+        return units.air().settings();
     }
 
     public CycleResult cycle(long elapsedTicks) {
@@ -156,7 +163,10 @@ public final class HvacController {
         ThermalModel.Result thermal = ThermalModel.step(thermostat.roomF(), boundary, outside,
                 intervalMode, capacity, elapsedTicks, settings);
         thermostat.setRoomF(thermal.temperatureF());
-        if (!thermostat.pool()) updateHumidity(thermostat, intervalMode, capacity, elapsedTicks, packedOutputs);
+        if (!thermostat.pool()) {
+            updateHumidity(thermostat, intervalMode, capacity, elapsedTicks, packedOutputs);
+            updateAir(thermostat, capacity > 0.0, elapsedTicks);
+        }
 
         boolean coolingAvailable = controllerLoaded && hasAvailableEquipment(
                 thermostat.system(), OperatingMode.COOLING, managedOutputs);
@@ -185,6 +195,25 @@ public final class HvacController {
                 out.dewPointF(), loads, elapsedTicks, outdoor.climate());
         thermostat.setRoomDewPointF(result.dewPointF());
         units.credit(thermostat.system(), result.dehumidifiedF());
+    }
+
+    /**
+     * The room's air (3.2): it drifts toward the outdoor air, what burns in it
+     * adds smoke, the system's own filter cleans it while equipment runs, and
+     * purifiers in the room clean it and fill their filters.
+     */
+    private void updateAir(Thermostat thermostat, boolean equipmentRan, long elapsedTicks) {
+        AirQualityService air = units.air();
+        if (!air.enabled()) return;
+        SystemId system = thermostat.system();
+        OutdoorTemperatureService.Outdoor out = outdoor.cachedClimateFor(thermostat);
+        AirQualityModel.Loads loads = new AirQualityModel.Loads(
+                air.sourcesFor(system, system.worldId(), airflow.mapSize(system)),
+                equipmentRan ? 1.0 : 0.0, units.purifierScaleFor(system));
+        AirQualityModel.Result result = AirQualityModel.step(thermostat.roomAir(), out.air(), loads, elapsedTicks,
+                outdoor.climate().humidity().infiltrationPerHour(), air.settings());
+        thermostat.setRoomAir(result.air());
+        units.creditAir(system, result.captured(), elapsedTicks);
     }
 
     /** Samples to estimate the temperature of a space's water: a heated pool evaporates faster than a pond. */

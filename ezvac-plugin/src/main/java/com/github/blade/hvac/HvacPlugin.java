@@ -60,6 +60,7 @@ public final class HvacPlugin extends JavaPlugin {
     private ClimateHudService hud;
     /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
     private Runnable placeholderUnregister;
+    private AirQualityService airQuality;
     private BukkitTask controllerTask;
     private BukkitTask airflowTask;
     private boolean immediateSyncQueued;
@@ -83,10 +84,11 @@ public final class HvacPlugin extends JavaPlugin {
             airflow = new AirflowService(registry, outdoor, settings);
             displays = new DisplayService(this, registry, airflow, outdoor, settings,
                     new ScreenService(this, getConfig().getBoolean("displays.screens", true)));
-            units = new ClimateUnitService(registry, airflow, outdoor);
+            airQuality = new AirQualityService(airflow, climate.airQuality());
+            units = new ClimateUnitService(registry, airflow, outdoor, airQuality);
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
             audio = new HvacAudioService(settings, loadSounds(), registry);
-            hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()), seasons);
+            hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()), seasons, climate.airQuality());
 
             HvacCommand commandHandler = new HvacCommand(this, registry, controller,
                     outdoor, airflow, displays, settings, hud, units);
@@ -125,7 +127,8 @@ public final class HvacPlugin extends JavaPlugin {
                     + registry.vents().size() + " vent(s), "
                     + registry.settingsPanels().size() + " settings panel(s), "
                     + registry.dehumidifiers().size() + " dehumidifier(s), "
-                    + registry.humidifiers().size() + " humidifier(s).");
+                    + registry.humidifiers().size() + " humidifier(s), "
+                    + registry.purifiers().size() + " air purifier(s).");
         } catch (RuntimeException exception) {
             getLogger().log(Level.SEVERE, "EZvac could not start safely", exception);
             getServer().getPluginManager().disablePlugin(this);
@@ -162,6 +165,7 @@ public final class HvacPlugin extends JavaPlugin {
         TemperatureUnit.carryOver(current, added);
         HudSettings.addSeasonLine(current, added);
         HudSettings.addAddonsLine(current, added);
+        HudSettings.addAirLine(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
@@ -292,6 +296,9 @@ public final class HvacPlugin extends JavaPlugin {
 
     public HvacSettings settings() { return settings; }
     public ClimateSettings climate() { return climate; }
+
+    /** Air quality and what burns in each space (3.2). */
+    public AirQualityService airQuality() { return airQuality; }
     public WeatherService weather() { return weather; }
     public SeasonService seasons() { return seasons; }
     public ControlMenus menus() { return menus; }
