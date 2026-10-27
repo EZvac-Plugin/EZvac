@@ -7,7 +7,7 @@ Every reading is taken the same way as `/hvac temperature` at that spot. A spot
 deep in a system's airflow reads the room, one near the edge a blend, and one
 outside every system the outdoors.
 
-## Thermometers, hygrometers and thermo-hygrometers
+## Thermometers, hygrometers, thermo-hygrometers and air monitors
 
 Look at a sign and run one of:
 
@@ -15,6 +15,7 @@ Look at a sign and run one of:
 /hvac create thermometer [label]
 /hvac create hygrometer [label]
 /hvac create thermohygrometer [label]      ("thermohygro" works too)
+/hvac create airmonitor [label]
 ```
 
 ```text
@@ -27,6 +28,9 @@ Outside: 64.0 F     Outside: 41%        Out 64.0 F 41%
 - **Thermometer:** the temperature where the sign is, and outdoors.
 - **Hygrometer:** the humidity where the sign is, and outdoors.
 - **Thermo-hygrometer:** temperature, humidity and "feels like" together.
+- **Air monitor (3.2):** the Air Quality Index, coloured by its band, with
+  what drives it when it isn't Good (`AQI 88 Smoke`), and the pollen. See
+  [Air quality](air-quality.md).
 
 They belong to no system and can go anywhere, outdoors too. Breaking the sign
 removes them.
@@ -42,6 +46,8 @@ A sensor is a **button**, and the button decides what it measures:
 | Polished blackstone button | Humidity |
 | Mangrove button | Temperature and humidity |
 | Birch button | Weather: Clear, Rain, Thunder or Snow |
+| Cherry button | Air quality: the AQI (3.2) |
+| Lightning rod | Wind: `Gale 61km/h` (3.2). Not a button, but it works the same way |
 
 ### Build and link
 

@@ -2,6 +2,116 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 3.2
+
+**Air quality.** Every room now knows what is in its air: fine particles
+(PM2.5), dust (PM10) and pollen. EZvac scores the particles as the US EPA Air
+Quality Index (AQI). Campfires and fire fill a room with smoke, deserts and
+the Nether bring dust and ash, and spring brings pollen. **Air purifiers**
+clean it, and their tube coral filters fill up and die.
+
+**Wind.** Every day now has its own wind, from Calm to a Gale. It makes the
+outdoors feel colder, makes houses leakier so systems work harder, and whips
+up dust storms in the desert.
+
+### Added
+
+- **Air quality in every room and standalone space.**
+  - **The AQI** is the higher of the PM2.5 and PM10 scores, from Good to
+    Hazardous. When the air isn't Good, EZvac says why: smoke or dust.
+  - **Pollen is not part of the AQI;** it has its own level, from Low to Very
+    high.
+  - **A room's air drifts toward the outdoors** through the gaps in the
+    building, as its moisture does.
+  - **Particles settle out of still air,** the big ones fastest.
+  - **A system's own filter** cleans its room while its equipment runs. It
+    catches pollen and dust well, smoke poorly.
+- **What burns makes smoke:** lit campfires, fire, lava, lit furnaces,
+  smokers and blast furnaces, and lit candles. A doused campfire adds nothing,
+  torches don't count, and EZvac's own furnaces and boilers are sealed.
+- **Outdoor air by biome.**
+  - **Pollen** is highest in flower forests, meadows and cherry groves.
+  - **Dust** is highest in deserts and badlands.
+  - **The Nether** brings smoke, spores and ash; the basalt deltas are
+    Hazardous.
+  - **The End** is clean.
+  - **Pollen follows the seasons:** its peak is in spring, there is less in
+    summer and autumn, and none in winter.
+  - **Rain and snow** wash the air.
+- **Air purifiers:** an iron block on a tube coral block, with a sign;
+  `/hvac create purifier`.
+  - **Fan speeds, like a real one:** Low, Medium, High, and Auto, which
+    idles on Low and ramps up as the AQI or the pollen gets worse. New
+    purifiers start in Auto.
+  - **The coral is the filter.** It fills faster the dirtier the air. A full
+    filter's coral dies; break it and place fresh tube coral.
+  - **Breaking the filter** leaves the purifier waiting for a new one.
+  - **The coral never dies on its own** while it is a filter.
+- **Air monitors and air sensors.**
+  - `/hvac create airmonitor` turns a sign into an air monitor, showing the
+    AQI, its cause and the pollen.
+  - **A cherry button** is an air sensor for sensor hubs.
+- **Daily wind.**
+  - **Each day draws a level:** Calm, Breezy, Windy or Gale, from the world
+    seed and the day. Everyone gets the same wind, and nothing is saved.
+  - **Spring and autumn are windier,** summer calmer.
+  - **It gusts** through the day, eases over from one day to the next, and
+    storms add to it.
+  - **Terrain changes it.** Mountain tops, the sea and open country are
+    windier; forests shelter you, and jungles most of all. There is no wind
+    underground, indoors, or in the Nether and the End.
+- **What wind does.**
+  - **Outside feels colder:** "feels like" takes in the real wind.
+  - **Rooms leak more:** in a gale a room drifts toward the outdoors up to
+    twice as fast, so its system works harder. Its humidity and air follow
+    the outdoors faster too.
+  - **Dust storms:** a strong wind lifts dust where the ground is dry. A
+    desert gale pushes the AQI into Unhealthy.
+  - **Smoke thins and pollen spreads** on windy days.
+- **`/hvac wind`** shows today's wind, the wind where you stand and the next
+  days'. Admins can set today's with `/hvac wind set <calm|breezy|windy|gale>`
+  until the day ends, and `auto` lets it blow as it would.
+- **A lightning rod is a wind sensor** for sensor hubs: `/hvac create sensor`
+  while looking at it.
+- **Air in commands:** `/hvac temperature` and `/hvac info` show the air.
+  `/hvac info` gives PM2.5, PM10 and pollen in detail. Thermostat signs and
+  screens don't: a real thermostat measures no air.
+- **HUD tokens and placeholders.**
+  - `{aqi}`, `{aqi_band}`, `{pollen}`, `{wind}` and `{wind_level}` work in
+    HUD templates, and a stock sidebar gains an air line and a wind line.
+    `/hvac temperature` also shows the wind.
+  - `%ezvac_aqi%`, `%ezvac_aqi_colored%`, `%ezvac_aqi_band%`, `%ezvac_pm25%`,
+    `%ezvac_pm10%`, `%ezvac_pollen%`, `%ezvac_pollen_count%`, `%ezvac_wind%`,
+    `%ezvac_wind_level%`, `%ezvac_wind_speed%`, `%ezvac_wind_ms%`,
+    `%ezvac_wind_kmh%` and `%ezvac_wind_mph%` work in PlaceholderAPI.
+  - Wind speeds show in km/h with °C and mph with °F.
+- **`air-quality` and `wind` in config.yml:** turn either off, or tune the
+  sources, filters, purifiers, the wind's chances and speeds, and each
+  biome's air and exposure to the wind. Your config.yml gains them with
+  their comments.
+- **API 1.5:**
+  - `AirQuality`, on `ClimateReading` and `ThermostatView`;
+  - air purifiers in `climateUnits()`, with their filter;
+  - air monitors and air sensors in `instruments()`;
+  - `Wind`, on `ClimateReading` and `OutdoorClimate`, and
+    `windForecast(world, days)`;
+  - wind sensors in `instruments()`.
+  - Older constructors still work. A `switch` over an EZvac enum needs a
+    `default` branch: 1.5 adds new kinds.
+
+### Upgrading from 3.1
+
+Stop the server, replace the jar and start it.
+- **The save stays format 8.** Every room's air starts at the outdoor level.
+- **Going back to 3.1 is a jar swap.** 3.1 keeps the purifiers, air monitors,
+  air sensors and wind sensors it doesn't know, with a warning, and 3.2 brings
+  them back.
+- **Without wind, the Nether and the End now feel a little warmer:** their
+  "feels like" used to take in a light breeze.
+- **EZdebug+ users need 0.2.1.** 0.2.0's debug vision fails near an air
+  monitor, air sensor or wind sensor. LiveExposure works unchanged, and feels
+  the wind through "feels like".
+
 ## ALPHA 3.1
 
 **Equipment tiers.** Every heat pump, air conditioner, furnace, boiler and

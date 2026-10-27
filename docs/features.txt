@@ -212,6 +212,48 @@ Weather (weather: in config.yml):
   Nether and the End ignore weather; snowy biomes get snow.
 - Natural water follows only 10% of the air's shift.
 - Outdoor wind (1.5 / 3 / 5 m/s clear / rain / thunder) lowers "feels like".
+  With the daily wind (3.2, below) the day's wind replaces the clear 1.5, and
+  rain and thunder add their difference from it.
+
+
+WIND (3.2)
+----------
+
+- WindModel (pure) draws each day's level from SplittableRandom seeded by the
+  world seed and day: the season calendar's day while it runs (so /hvac
+  season set redraws it at once and /time set never replays one), else
+  fullTime / 24000 (seasons off or paused). Weights calm 40, breezy 35,
+  windy 18, gale 7, with windy and gale scaled by the season's windiness
+  (spring 1.3, summer 0.7, autumn 1.3, winter 1.0; 1 without seasons) and
+  calm taking up the difference. The day's mean speed is a seeded point in
+  its level's range: calm 0-2, breezy 3-6, windy 7-12, gale 14-20 m/s.
+- Speed now = mean x (1 + gusts x noise), gusts 0.25, noise a seeded value
+  per in-game hour cosine-eased to the next, in [-1, 1]. Over the first 2
+  in-game hours of a day the mean smoothsteps from yesterday's. Never < 0.
+- WindService caches today's and yesterday's day per world and the speed per
+  tick, keyed by that day. Only NORMAL worlds have wind. /hvac wind set
+  holds a level for the rest of that day, in memory only; auto clears it.
+- Exposure at a spot = biome exposure (blended like downfall; built-in table,
+  wind.biomes overrides; unknown 1.0) x altitude (1 + (y - sea level) / 120,
+  at most 1.5), capped at 1.8, x (1 - underground factor). Thermostats save
+  it as outdoorWind (missing: 1.0).
+- Outdoor wind = (day's speed + rain and thunder extras) x exposure; it is
+  Outdoor.windMs. A reading's wind = that x (1 - influence) x (sky light /
+  15)^2, so walls and roofs shelter a spot. Feels like uses it.
+- Leak factor = min(maximum-infiltration 2, 1 + 0.05 x outdoor wind at the
+  thermostat or standalone space). It scales ThermalModel's idle drift and
+  active leak, HumidityModel's infiltration and AirQualityModel's
+  infiltration. Pools take none.
+- OutdoorAir: coarse x (1 + min(4, dust 1.5 x (1 - downfall) x (1 - wetness)
+  x (max(0, wind - 6) / 8)^2)); fine x max(0.6, 1 - 0.03 x wind); pollen x
+  min(1.8, 1 + 0.06 x wind). Rain washing applies after.
+- Levels read from a speed by the midpoints between ranges: 2.5, 6.5, 13.
+- Sensor.Kind.WIND is a LIGHTNING_ROD. HUD {wind} {wind_level}; placeholders
+  wind, wind_level, wind_speed, wind_ms, wind_kmh, wind_mph; speeds in km/h
+  with units C, mph with F, unless wind.units says otherwise.
+- API 1.5: Wind (speedMs, Level) on ClimateReading and OutdoorClimate,
+  Wind.Day, EzvacApi.windForecast(world, days), InstrumentView.Kind
+  WIND_SENSOR.
 
 
 HUMIDITY AND FEELS LIKE
@@ -280,6 +322,67 @@ DEHUMIDIFIERS
   near-players refresh rule as every other sign.
 - Hygrometers and thermo-hygrometers are point sensors like thermometers:
   humidity inside and outside, or temperature, humidity and feels-like.
+
+
+AIR QUALITY (3.2)
+-----------------
+
+- Every air system's room (saved on its thermostat as roomFine/Coarse/Pollen)
+  and every standalone unit's space (zoneFine/Coarse/Pollen on each unit)
+  holds three values: fine particles (PM2.5, ug/m3), coarse particles (PM2.5
+  to PM10, ug/m3; PM10 = fine + coarse) and pollen (grains/m3). A space not
+  yet simulated starts at the outdoor air. Pools have no air.
+- Each value follows dC/dt = infiltration (outdoor - C) + sources
+  - (settling + system filter + purifiers) C, solved exactly per step (an
+  exponential approach to equilibrium). Infiltration is
+  humidity.infiltration-per-hour. Settling per hour: fine 0.1, coarse 0.3,
+  pollen 0.5. A system's own filter (fine 0.15, coarse 0.5, pollen 0.8) works
+  only in a cycle its equipment delivered.
+- AQI is the US EPA index, the higher of the PM2.5 (2024 breakpoints) and
+  PM10 scores, 0-500, applied to the current value rather than a 24-hour
+  average. The dominant pollutant reads as Smoke (PM2.5) or Dust (PM10).
+  Pollen is not in the AQI; its level is Low/Moderate/High/Very high at 20,
+  80 and 200 grains/m3.
+- Outdoor air: a built-in table per biome (air-quality.biomes overrides it)
+  of dry-day fine, coarse and spring-peak pollen, blended across borders with
+  the climate and saved on the thermostat's cached profile
+  (outdoorFine/Coarse/Pollen). Pollen x season (linear between mid-seasons:
+  spring 1.0, summer 0.6, autumn 0.25, winter 0; summer's 0.6 without
+  seasons) x (1 - 0.85 wetness); particles x (1 - 0.6 wetness). Underground
+  pollen fades with the ground factor.
+- Sources: the airflow scan notes lit-able blocks in or around the air
+  (campfires, fire, lava, furnaces, smokers, blast furnaces, candles; at most
+  256 per space). Whether each burns is read every 200 ticks from loaded
+  chunks. Emission is per block at air-quality.reference-cells (1,500), scaled
+  by reference / max(cells, reference / 4). Torches and EZvac's own furnaces
+  and boilers never count.
+- Air purifier: an iron block on a tube coral block (the filter) with a sign
+  on the iron block, /hvac create purifier. Same zone rules as a
+  dehumidifier. No setpoint: a mode, Low, Medium, High (speeds 0.35, 0.65,
+  1.0 of its rate) or Auto (new purifiers; saved as mode). It runs whenever
+  it is on, has a usable filter and can read the air. Auto idles on Low,
+  steps to Medium past AQI 50 or at Moderate pollen, to High past AQI 100
+  or at High pollen, and steps down only 20 AQI under a step with pollen a
+  tenth under its level. Strength on High: fine 2.5, coarse 2.5, pollen 3.0
+  per hour, x min(1, reference / cells); purifiers in one space add up by
+  speed.
+- Filter (filterLife 1..0): wears by what the purifier captured (the exact
+  integral of its removal), scaled to the reference size and shared by speed
+  between the purifiers of a space, over air-quality.purifier.filter-capacity
+  (2,400; pollen weighted 0.5), plus running hours x speed over
+  maximum-life-days (60). At 0 it stops and its coral is set dead without
+  physics. The block is read every
+  cycle: fresh coral where a full filter was is a new filter; dead coral is
+  spent; anything else is "No filter". A part-used filter keeps its level.
+  BlockFadeEvent on a purifier's coral is cancelled. Breaking the coral never
+  removes the purifier (partRequired = false); the sign or iron block does.
+- Readings: spot readings blend room and outdoor air by influence like the
+  dew point (or a standalone zone's); /hvac info and /hvac temperature show
+  it, but thermostats don't, as real ones measure no air; air monitor signs
+  (Thermometer reads AIR) and cherry-button sensors (Sensor kind AIR); HUD
+  {aqi} {aqi_band} {pollen};
+  placeholders aqi, aqi_colored, aqi_band, pm25, pm10, pollen, pollen_count;
+  API 1.5 AirQuality. air-quality.enabled: false hides all of it.
 
 
 VENTS AND AIRFLOW
@@ -445,7 +548,8 @@ CLIMATE HUD AND PLACEHOLDERS
   packet-based scoreboard plugin such as TAB is installed (the action bar is
   used instead; see hud.sidebar.yield-to-plugins).
 - With PlaceholderAPI installed, %ezvac_temp%, %ezvac_feels_like%,
-  %ezvac_humidity%, %ezvac_weather%, %ezvac_bar%, %ezvac_system% (also
+  %ezvac_humidity%, %ezvac_aqi%, %ezvac_pollen%, %ezvac_weather%,
+  %ezvac_bar%, %ezvac_system% (also
   %ezvac_group%: the label of the serving system's thermostat, or Headless)
   and the rest
   expose the same values to other plugins. Without it, EZvac logs one
@@ -469,7 +573,7 @@ PERSISTENCE
 -----------
 
 All thermostats, equipment, pending cleanup, vents, thermometers, RPM monitors,
-settings panels, dehumidifiers and humidifiers live in one versioned
+settings panels, dehumidifiers, humidifiers and air purifiers live in one versioned
 plugins/EZvac/hvac.yml file (format 7 since 3.0: every device saves its
 system's key, equipment its tier, and meta.next-system the next system number;
 a 2.x file loads with each group name as its system's key and is kept as

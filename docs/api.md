@@ -2,12 +2,12 @@
 
 From ALPHA 2.1, other plugins can use what EZvac knows about the climate:
 the temperature and "feels like" anywhere and around every player, the
-outdoors, thermostats and their systems, dehumidifiers and humidifiers, the
-seasons, and events when things change. Addons can also add their own
+outdoors, thermostats and their systems, dehumidifiers, humidifiers and air
+purifiers, the air quality, the seasons, and events when things change. Addons can also add their own
 sections to EZvac's climate HUD. An addon is an ordinary Paper plugin that
 depends on EZvac.
 
-API version **1.4** reads only: nothing an addon does through it changes
+API version **1.5** reads only: nothing an addon does through it changes
 EZvac's climate or systems. Ways to change things (targets, power) will come
 in a later API version.
 
@@ -79,17 +79,37 @@ server runs.
 | `thermostatAt(position)`, `thermostatOf(world, system)` | The thermostat whose sign is at a position, or the thermostat of a system, by the system key a view or reading gives you (1.3) |
 | `thermostat(world, id)` | Deprecated in 1.3: labels can repeat, so it gives the lowest-placed thermostat with that label |
 | `linkTool()` | Whether an item is EZvac's link tool, and what it has selected: a thermostat and its system, or a sensor hub (1.3) |
-| `climateUnits()`, `climateUnits(world)` | Dehumidifiers and humidifiers: humidity, setpoint, state, power, a dehumidifier's tank |
+| `climateUnits()`, `climateUnits(world)` | Dehumidifiers, humidifiers and, since 1.5, air purifiers: humidity, setpoint, state, power, a dehumidifier's tank, a purifier's filter and the air it cleans (1.5) |
 | `equipment()`, `equipment(world)` | Heat pumps, air conditioners, furnaces, boilers and pool heat pumps: kind, system, on/off, running, mode, motor RPM (1.2), and tier (1.4): 1 single-stage, 2 two-stage, 3 variable |
 | `vents()`, `vents(world)` | Vents: system, and whether they blow air or water (1.2) |
-| `instruments()`, `instruments(world)` | Thermometers and hygrometers, sensors, sensor hubs (with the sensors they show), RPM monitors and settings panels (1.2) |
+| `instruments()`, `instruments(world)` | Thermometers and hygrometers, sensors, sensor hubs (with the sensors they show), RPM monitors and settings panels (1.2); air monitors, air sensors and wind sensors (1.5) |
 | `devices(world)` | Every device in a world, of every kind (1.2) |
 | `season(world)` | The season and its day, or empty where there are no seasons |
+| `windForecast(world, days)` | Today's wind and the next days', each a `Wind.Day` with its level and mean speed; empty where there is no wind (1.5) |
 | `units()` | Whether the server shows players °F or °C |
 
 A `ClimateReading` holds the temperature, feels-like, humidity (NaN in water),
 the outdoor temperature, whether the spot is in water, the weather, the
-season, and which system conditions the spot and how strongly.
+season, which system conditions the spot and how strongly, and since 1.5 its
+`airQuality()` and the `wind()` felt there. A `ThermostatView` has its room's
+`airQuality()` too, and an `OutdoorClimate` the `wind()` out in the open.
+
+A `Wind` (1.5) holds the speed in m/s (`kmh()` and `mph()` convert it) and its
+`Level`: `CALM`, `BREEZY`, `WINDY` or `GALE`. It is calm indoors, in water,
+where a system conditions the spot, outside the overworld and on servers with
+`wind.enabled: false`.
+
+An `AirQuality` (1.5) holds PM2.5 and PM10 in µg/m³, pollen in grains/m³, the
+AQI (0-500) with its `Band`, the `dominant()` pollutant (PM2.5 reads as smoke,
+PM10 as dust) and the `PollenLevel`. It is empty in water, before a room is
+first simulated, and on servers with `air-quality.enabled: false`. EZvac only
+measures the air; what it does to players is up to addons.
+
+> **Switch with a default branch.** 1.5 adds `ClimateUnitView.Kind.AIR_PURIFIER`,
+> two `ClimateUnitView.State`s and `InstrumentView.Kind.AIR_MONITOR`,
+> `AIR_SENSOR` and `WIND_SENSOR`. A `switch` over an EZvac enum with no `default` throws
+> `MatchException` at runtime when it meets one an addon was built without,
+> so give such switches a `default` branch.
 
 **Every temperature is Fahrenheit**, whatever the server's `units`. Records
 have `...C()` helpers, and `Temperatures` converts.
@@ -267,5 +287,7 @@ depend: [EZvac]
 - **Which EZvac has which API:** 1.0 came with ALPHA 2.1 Pilot 4, 1.1 with
   ALPHA 2.1 (HUD sections), 1.2 with ALPHA 2.2 (every device, and the device
   events), and 1.3 with ALPHA 3.0 (linked systems: `thermostatAt`,
-  `thermostatOf`, the link tool), and 1.4 with ALPHA 3.1 (`EquipmentView.tier()`).
+  `thermostatOf`, the link tool), 1.4 with ALPHA 3.1 (`EquipmentView.tier()`),
+  and 1.5 with ALPHA 3.2 (`AirQuality`, air purifiers, air monitors and air
+  sensors, `Wind` and wind sensors).
   Depend on the oldest EZvac whose API has what you use.

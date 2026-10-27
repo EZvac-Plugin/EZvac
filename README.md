@@ -14,21 +14,27 @@ biome and the weather.
   with variable-speed equipment, operating profiles and an ETA on the
   thermostat sign.
 - **Climate:** a realistic climate for every biome, seasons, colder air up
-  mountains and steady air deep underground, weather, humidity, a "feels
-  like" temperature, smooth transitions between biomes, and readings that
-  vary a little from spot to spot.
+  mountains and steady air deep underground, weather, daily wind, humidity,
+  a "feels like" temperature, smooth transitions between biomes, and
+  readings that vary a little from spot to spot.
 - **Dehumidifiers and humidifiers** that dry or moisten a room or a shed.
-- **Sensors:** thermometers, hygrometers, and button sensors that report to a
-  sensor hub sign.
+- **Air quality:** smoke, dust and pollen in every room, scored as the real
+  Air Quality Index, and air purifiers whose coral filters fill up.
+- **Sensors:** thermometers, hygrometers, air monitors, and button and
+  lightning-rod sensors that report to a sensor hub sign.
 - **Lit screens on every sign** and click-to-open control menus for setpoints.
 - **An on-screen HUD** and PlaceholderAPI placeholders.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
   power or items needed.
 
-> **Release status:** EZvac ALPHA 3.1 adds equipment tiers, shown as stars,
-> after real equipment: ★☆☆ single-stage, ★★☆ two-stage and ★★★
-> variable-speed. Better tiers are stronger and hold a room steadier; every
-> existing unit becomes ★★★, as it always ran.
+> **Release status:** EZvac ALPHA 3.2 adds air quality. Every room tracks
+> fine particles, dust and pollen, scored as the US EPA Air Quality Index:
+> campfires and fire make smoke, deserts and the Nether bring dust and ash,
+> and spring brings pollen. Air purifiers clean it, and their tube coral
+> filters fill and die. Every day also has its own wind, from Calm to a
+> Gale: it chills the outdoors, makes houses leakier, and raises dust storms
+> in the desert. ALPHA 3.1 added equipment tiers, shown as stars:
+> ★☆☆ single-stage, ★★☆ two-stage and ★★★ variable-speed.
 > ALPHA 3.0, *Linked systems*, dropped group names. You link equipment, vents
 > and signs to a thermostat with one link tool, thermostat names can repeat,
 > and a system that loses its thermostat waits, headless, for a new one.
@@ -58,9 +64,11 @@ biome and the weather.
 | [Equipment and thermostats](docs/equipment.md) | Thermostats, every kind of equipment and its casing, profiles, RPM monitors |
 | [Vents and airflow](docs/airflow.md) | Linking vents, how far air reaches, pools |
 | [Dehumidifiers and humidifiers](docs/dehumidifiers-and-humidifiers.md) | Building and using them, "Air too cold" |
+| [Air quality and air purifiers](docs/air-quality.md) | The AQI, pollen, smoke and dust, and purifiers with coral filters |
 | [Sensors and readings](docs/sensors.md) | Thermometers, hygrometers, sensors and sensor hubs |
 | [Screens and control menus](docs/screens-and-menus.md) | The screens on every sign, and the setpoint menus |
 | [Climate](docs/climate.md) | Outdoor temperature, weather, humidity, feels-like, variance |
+| [Wind](docs/wind.md) | Each day's wind, where it blows, and what it does |
 | [HUD and placeholders](docs/hud-and-placeholders.md) | `/hvac hud` and every `%ezvac_*%` placeholder |
 | [Configuration](docs/configuration.md) | Every `config.yml` setting, sounds |
 | [Commands and permissions](docs/commands.md) | Every command |

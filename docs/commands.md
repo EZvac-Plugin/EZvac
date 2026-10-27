@@ -7,9 +7,9 @@ block use the block you're looking at, within six blocks.
 
 | Permission | Default | Allows |
 | --- | --- | --- |
-| `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat targets and on/off, settings panels, dehumidifiers and humidifiers, sensor hubs, pressing sensors |
+| `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat targets and on/off, settings panels, dehumidifiers, humidifiers and air purifiers, sensor hubs, pressing sensors |
 | `ezvac.hud` | everyone | `/hvac hud` |
-| `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season, `stats` and `sync` |
+| `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season and the wind, `stats` and `sync` |
 
 ## For everyone (`ezvac.use`)
 
@@ -20,7 +20,8 @@ block use the block you're looking at, within six blocks.
 | `/hvac hud [on\|off]` | Shows or hides the on-screen HUD for yourself (`ezvac.hud`). With no argument it toggles; your choice is remembered |
 | `/hvac list` | The systems in your world, with mode, room and target temperature, and how many units are running |
 | `/hvac season` | The season and its day ("Summer, day 3 of 15"), and how much it warms or cools the outdoors where you stand |
-| `/hvac info` | Details of the device you're looking at: a thermostat (with its room's humidity and feels-like), equipment, a vent, a thermometer, an RPM monitor, a settings panel, a dehumidifier or humidifier, a sensor or a sensor hub |
+| `/hvac wind` | Today's wind ("Windy, about 22 km/h"), the wind where you stand and out in the open, and the next two days' (3.2) |
+| `/hvac info` | Details of the device you're looking at: a thermostat (with its room's humidity, feels-like and air), equipment, a vent, a thermometer, an RPM monitor, a settings panel, a dehumidifier, humidifier or air purifier, a sensor or a sensor hub |
 
 ### Using signs and sensors
 
@@ -30,6 +31,8 @@ block use the block you're looking at, within six blocks.
   sneak-right-click goes the other way.
 - **Dehumidifier / humidifier:** right-click opens its control menu (setpoint
   +5% / -5%, and on/off); sneak-right-click switches it on or off.
+- **Air purifier:** right-click opens its control menu (Low, Medium, High or
+  Auto, and on/off); sneak-right-click switches it on or off.
 - **Sensor hub:** right-click turns the page; sneak-right-click switches
   auto-flip on or off.
 - **Sensor:** right-click shows its reading in chat.
@@ -48,11 +51,13 @@ block use the block you're looking at, within six blocks.
 | `/hvac create thermometer [label]` | a sign | |
 | `/hvac create hygrometer [label]` | a sign | |
 | `/hvac create thermohygrometer [label]` | a sign | Also `thermohygro` |
+| `/hvac create airmonitor [label]` | a sign | Shows the AQI and pollen where it stands (3.2) |
 | `/hvac create rpmmonitor [label]` | a sign | Shows its system's equipment once linked |
 | `/hvac create settingspanel [label]` | a sign | One per system, once linked |
 | `/hvac create dehumidifier [label]` | its sign | Also `dehum`. A sign on an iron block that sits on a waxed copper grate |
 | `/hvac create humidifier [label]` | its sign | Also `hum`. A sign on the side of an iron block under a waxed cut copper slab |
-| `/hvac create sensor [label]` | a button | Stone, polished blackstone, mangrove or birch |
+| `/hvac create purifier [label]` | its sign | Also `airpurifier`. A sign on an iron block that sits on a tube coral block, its filter (3.2) |
+| `/hvac create sensor [label]` | a button, or a lightning rod | Stone, polished blackstone, mangrove, birch or cherry (air quality); a lightning rod reads the wind (3.2) |
 | `/hvac create sensor-hub [label]` | a sign | Also `sensorhub` |
 
 An equipment tier (`t1`, `t2` or `t3`) is optional: two-stage unless given.
@@ -63,6 +68,7 @@ typed temperature is in the server's `units`; add `F` or `C` (`72F`, `22C`) to
 use the other one. The pre-3.0 forms with a group name still work: the group
 is ignored, with a note. Build guides:
 [Equipment](equipment.md), [Dehumidifiers and humidifiers](dehumidifiers-and-humidifiers.md),
+[Air quality](air-quality.md),
 [Sensors](sensors.md).
 
 ## The link tool (`ezvac.admin`)
@@ -94,7 +100,7 @@ isn't found by name.
 | `/hvac thermostat info` | Room and target temperature, mode, what's linked, and whether it's on |
 | `/hvac equipment enable` / `disable` / `info` | The equipment you're looking at |
 | `/hvac equipment tier <t1\|t2\|t3>` | Changes its tier: ★☆☆ single-stage, ★★☆ two-stage, ★★★ variable (also `1`-`3`, `single`, `two-stage`, `variable`, `modulating`). See [Tiers](equipment.md#tiers) |
-| `/hvac rename <label>` | Renames the sign you're looking at: a thermostat, RPM monitor, settings panel, sensor hub, thermometer, sensor, or dehumidifier or humidifier sign |
+| `/hvac rename <label>` | Renames the sign you're looking at: a thermostat, RPM monitor, settings panel, sensor hub, thermometer, sensor, or dehumidifier, humidifier or air purifier sign |
 
 The control menu a thermostat's sign opens:
 
@@ -126,6 +132,18 @@ world with a sun has its own calendar (see [Climate](climate.md#seasons)).
 Outdoor temperatures take on the new season at once; rooms drift there over
 time, as they do when the weather changes. The commands act on your own world;
 from the console, add a world's name at the end (it defaults to the main world).
+
+## Wind
+
+Anyone can look with `/hvac wind`; setting it needs `ezvac.admin`. Only worlds
+with a sky have wind (see [Wind](wind.md)).
+
+| Command | Does |
+| --- | --- |
+| `/hvac wind set <calm\|breezy\|windy\|gale>` | Holds today's wind at that level until the day ends, or the season calendar moves. It isn't saved |
+| `/hvac wind set auto` | Lets the wind blow as it would again |
+
+As with the seasons, from the console add a world's name at the end.
 
 ## Removing and diagnostics (`ezvac.admin`)
 
