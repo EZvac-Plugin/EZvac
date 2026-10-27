@@ -31,13 +31,30 @@ class PlaceholderResolverTest {
                 // No air was measured here: air quality off, or before its first cycle.
                 Map.entry("aqi", "none"), Map.entry("aqi_colored", "none"), Map.entry("aqi_band", ""),
                 Map.entry("pm25", "none"), Map.entry("pm10", "none"), Map.entry("pollen", "none"),
-                Map.entry("pollen_count", "none")));
+                Map.entry("pollen_count", "none"),
+                // Nor any wind: in water, outside the overworld, or with wind off.
+                Map.entry("wind", "none"), Map.entry("wind_level", "none"), Map.entry("wind_speed", "none"),
+                Map.entry("wind_ms", "none"), Map.entry("wind_kmh", "none"), Map.entry("wind_mph", "none")));
         for (String key : PlaceholderResolver.KEYS) {
             String value = resolver.resolve(cooled, key);
             assertNotNull(value, key);
             if (key.equals("bar")) assertTrue(value.contains("▮▮▮▮▮") && value.contains("§"), value);
             else assertEquals(expected.get(key), value, key);
         }
+    }
+
+    @Test
+    void theWindKeysReadTheWind() {
+        ClimateSnapshot windy = cooled.withWind(10.0, "Windy", "22 mph");
+        assertEquals("Windy 22 mph", resolver.resolve(windy, "wind"));
+        assertEquals("Windy", resolver.resolve(windy, "wind_level"));
+        assertEquals("22 mph", resolver.resolve(windy, "wind_speed"));
+        assertEquals("10", resolver.resolve(windy, "wind_ms"));
+        assertEquals("36", resolver.resolve(windy, "wind_kmh"));
+        assertEquals("22", resolver.resolve(windy, "wind_mph"));
+        ClimateSnapshot calm = cooled.withWind(0.4, "Calm", "1 mph");
+        assertEquals("Calm", resolver.resolve(calm, "wind"), "a calm day shows no speed");
+        assertEquals("0", resolver.resolve(calm, "wind_ms"));
     }
 
     @Test

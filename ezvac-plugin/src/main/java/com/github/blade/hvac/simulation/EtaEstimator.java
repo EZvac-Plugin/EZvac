@@ -43,6 +43,13 @@ public final class EtaEstimator {
     public static OptionalLong estimateTicks(double roomF, double targetF, double outdoorF,
                                              OperatingMode mode, List<UnitSnapshot> units,
                                              OperatingProfile profile, HvacSettings settings) {
+        return estimateTicks(roomF, targetF, outdoorF, mode, units, profile, settings, 1.0);
+    }
+
+    /** The same, in a room the wind makes this much leakier (3.2), as the controller steps it. */
+    public static OptionalLong estimateTicks(double roomF, double targetF, double outdoorF,
+                                             OperatingMode mode, List<UnitSnapshot> units,
+                                             OperatingProfile profile, HvacSettings settings, double leakFactor) {
         if (!Double.isFinite(roomF) || !Double.isFinite(targetF) || !Double.isFinite(outdoorF))
             throw new IllegalArgumentException("ETA temperatures must be finite");
         Objects.requireNonNull(mode, "mode");
@@ -93,7 +100,7 @@ public final class EtaEstimator {
             double capacity = ThermalModel.aggregateIndependentCapacity(
                     fixedEquivalent, variableEquivalent, settings.maximumSystemCapacity());
             room = ThermalModel.step(room, targetF, outdoorF, mode, capacity,
-                    STEP_TICKS, settings).temperatureF();
+                    STEP_TICKS, settings, leakFactor).temperatureF();
             if (reached(room, targetF, mode)) return OptionalLong.of(elapsed);
         }
         return OptionalLong.empty();

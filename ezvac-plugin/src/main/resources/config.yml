@@ -171,7 +171,10 @@ weather:
   # Share of the day/night swing that full rain removes.
   swing-reduction: 0.6
   water-share: 0.1
-  # Outdoor wind in m/s, used for "feels like". Indoors there is none.
+  # Outdoor wind in m/s, used for "feels like". Indoors there is none. With
+  # the daily wind on (wind: below), wind-clear-ms is unused, and rain and
+  # thunder add (wind-rain-ms - wind-clear-ms) and (wind-thunder-ms -
+  # wind-rain-ms) on top of the day's wind.
   wind-clear-ms: 1.5
   wind-rain-ms: 3.0
   wind-thunder-ms: 5.0
@@ -305,8 +308,8 @@ air-quality:
       hysteresis: 20
     # What a filter holds, in µg/m³ caught at reference-cells (pollen
     # weighted by pollen-weight). The default lasts a few in-game days beside
-    # a campfire and about a month running in clean air. A full filter's
-    # coral dies; break it and place fresh tube coral.
+    # a campfire and about two months running on High in clean air. A full
+    # filter's coral dies; break it and place fresh tube coral.
     filter-capacity: 2400
     # A filter running nonstop on High in perfectly clean air still wears out
     # after this many in-game days; slower speeds wear it slower.
@@ -319,13 +322,60 @@ air-quality:
   #   my_pack:ash_wastes: { fine: 150, coarse: 200, pollen: 0 }
   biomes: {}
 
+# Wind (3.2). Each day of a world draws a level, Calm, Breezy, Windy or Gale,
+# from the world seed and the day, so it needs nothing saved and everyone
+# gets the same wind. It gusts through the day, and storms add to it. High
+# ground, the sea and open country are windier, forests sheltered; there is
+# none underground, indoors, or outside the overworld. Wind makes outside
+# feel colder, makes rooms leakier (they drift toward the outdoors faster,
+# and systems work harder), lifts dust in dry biomes, thins smoke and
+# spreads pollen. /hvac wind shows today's and the next days'.
+wind:
+  # false: the fixed weather.wind-clear-ms, and wind changes nothing else.
+  enabled: true
+  # How often each level comes up, as weights.
+  chances: { calm: 40, breezy: 35, windy: 18, gale: 7 }
+  # Each level's daily mean speed, in m/s on open, level ground.
+  speeds-ms:
+    calm: [0, 2]
+    breezy: [3, 6]
+    windy: [7, 12]
+    gale: [14, 20]
+  # How much each season scales the chance of a Windy or Gale day; Calm days
+  # take up the difference.
+  seasons: { spring: 1.3, summer: 0.7, autumn: 1.3, winter: 1.0 }
+  # How far the wind swings around the day's mean, as a share of it.
+  gusts: 0.25
+  # Extra air exchange per m/s of wind outside a room: at 0.05 a 20 m/s gale
+  # makes it twice as leaky.
+  infiltration-per-ms: 0.05
+  maximum-infiltration: 2.0
+  # How much dust a strong wind (over 6 m/s) lifts where the ground is dry:
+  # a gale in a desert is a dust storm.
+  dust: 1.5
+  # Share of the outdoor smoke (PM2.5) the wind thins out per m/s, down to
+  # 60% of it at most.
+  smoke-dispersal: 0.03
+  # Share the wind adds to the outdoor pollen per m/s, up to 1.8x.
+  pollen-spread: 0.06
+  # auto shows speeds in km/h with units C and mph with units F; or ms, kmh
+  # or mph.
+  units: auto
+  # Your own exposure per biome, over EZvac's: 1 is open ground, 0.5 a dense
+  # forest, 1.4 a mountain top, 0 no wind at all. For example:
+  #   minecraft:plains: 1.2
+  biomes: {}
+
 # On-screen climate HUD and PlaceholderAPI placeholders (ALPHA 1.8).
 # Players turn the HUD on or off for themselves with /hvac hud. Text uses
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:
 # {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {season} {season_day}
-# {aqi} {aqi_band} {pollen} {system} {thermostat} {mode} {target} {zone} {version}
+# {aqi} {aqi_band} {pollen} {wind} {wind_level} {system} {thermostat} {mode} {target}
+# {zone} {version}
 # {aqi} is the Air Quality Index in its band's colour; {aqi_band} is Good,
 # Moderate, Sensitive, Unhealthy, Very bad or Hazardous (3.2).
+# {wind} is the wind you feel, such as "Windy 22 km/h"; {wind_level} just the
+# word: Calm, Breezy, Windy or Gale (3.2).
 # {system} is the label of the thermostat whose air you are in (3.0); {group}, its
 # old name, still works.
 # In air, {bar} and {comfort} follow {feels}: humid heat reads hotter, wind colder.
@@ -353,6 +403,7 @@ hud:
       - "<gray>Humidity: <white>{humidity}"
       - "<gray>Air: {aqi} <white>{aqi_band} <gray>· Pollen <white>{pollen}"
       - "<gray>Outside: <white>{outdoor} <gray>{weather}"
+      - "<gray>Wind: <white>{wind}"
       - "<gray>Season: <white>{season} <gray>day {season_day}"
       - "{addons}"
       - ""

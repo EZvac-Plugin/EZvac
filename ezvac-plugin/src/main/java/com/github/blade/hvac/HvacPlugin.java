@@ -80,7 +80,8 @@ public final class HvacPlugin extends JavaPlugin {
             seasons = new SeasonService(getDataFolder(), climate.seasons(), getLogger()::warning);
             seasons.load();
             advanceSeasons();
-            outdoor = new OutdoorTemperatureService(climate, weather, seasons);
+            outdoor = new OutdoorTemperatureService(climate, weather, seasons,
+                    new WindService(climate.wind(), seasons));
             airflow = new AirflowService(registry, outdoor, settings);
             displays = new DisplayService(this, registry, airflow, outdoor, settings,
                     new ScreenService(this, getConfig().getBoolean("displays.screens", true)));
@@ -88,7 +89,8 @@ public final class HvacPlugin extends JavaPlugin {
             units = new ClimateUnitService(registry, airflow, outdoor, airQuality);
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
             audio = new HvacAudioService(settings, loadSounds(), registry);
-            hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()), seasons, climate.airQuality());
+            hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()), seasons, climate.airQuality(),
+                    climate.wind());
 
             HvacCommand commandHandler = new HvacCommand(this, registry, controller,
                     outdoor, airflow, displays, settings, hud, units);
@@ -166,6 +168,7 @@ public final class HvacPlugin extends JavaPlugin {
         HudSettings.addSeasonLine(current, added);
         HudSettings.addAddonsLine(current, added);
         HudSettings.addAirLine(current, added);
+        HudSettings.addWindLine(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());

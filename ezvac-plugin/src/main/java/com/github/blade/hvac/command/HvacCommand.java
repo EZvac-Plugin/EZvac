@@ -1,5 +1,7 @@
 package com.github.blade.hvac.command;
 
+import com.github.blade.hvac.config.WindSettings;
+import com.github.blade.hvac.simulation.WindModel;
 import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.api.event.ThermostatTargetChangeEvent;
 import com.github.blade.hvac.config.HvacSettings;
@@ -93,6 +95,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (subcommand.equals("season")) {
             try {
                 season(sender, args);
+            } catch (IllegalArgumentException exception) {
+                sender.sendMessage(red(exception.getMessage()));
+            }
+            return true;
+        }
+        if (subcommand.equals("wind")) {
+            try {
+                wind(sender, args);
             } catch (IllegalArgumentException exception) {
                 sender.sendMessage(red(exception.getMessage()));
             }
@@ -251,17 +261,19 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
             case "humidifier", "hum" -> createHumidifier(player, block, position, args);
             case "purifier", "airpurifier", "air-purifier" -> createPurifier(player, block, position, args);
-            case "sensor" -> {
+            case "sensor", "windsensor", "wind-sensor" -> {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
                     throw new IllegalArgumentException("Look at a stone button (temperature), a polished blackstone"
-                            + " button (humidity), a mangrove button (both), a birch button (weather) or a cherry"
-                            + " button (air quality).");
+                            + " button (humidity), a mangrove button (both), a birch button (weather), a cherry"
+                            + " button (air quality) or a lightning rod (wind).");
                 Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : "Sensor", reads);
                 registry.addSensor(sensor);
                 player.sendMessage(green("Created " + reads.description() + " sensor '" + sensor.label()
                         + "'. Link it to a sensor hub with /hvac link-tool."
-                        + (reads == Sensor.Kind.WEATHER ? " It needs open sky above it, like a rain gauge." : "")));
+                        + (reads == Sensor.Kind.WEATHER ? " It needs open sky above it, like a rain gauge." : "")
+                        + (reads == Sensor.Kind.WIND ? " Put it up high in the open: walls and roofs shelter it."
+                        : "")));
             }
             case "sensor-hub", "sensorhub" -> {
                 requireSign(block);
@@ -470,10 +482,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 gray(water ? " | Air: " : " | Outside: "),
                 white(temp(reading.outdoorF())
                         + (reading.weather().isEmpty() ? "" : " " + reading.weather()))));
-        if (!water)
-            player.sendMessage(join(gray("Feels like: "),
+        if (!water) {
+            Component feels = join(gray("Feels like: "),
                     white(temp(reading.feelsLikeF())),
-                    gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%")));
+                    gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%"));
+            if (windShown(player.getWorld()))
+                feels = feels.append(join(gray(" | Wind: "),
+                        white(WindText.describe(reading.windMs(), outdoor.climate().wind(), settings.units()))));
+            player.sendMessage(feels);
+        }
         if (!water && units.air().enabled() && reading.air().known())
             player.sendMessage(join(gray("Air: "), airLine(reading.air())));
         UUID world = player.getWorld().getUID();
@@ -563,6 +580,87 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             line = line.append(join(gray(" | Here: "), white(shift(outdoor.seasonShiftAt(player.getLocation())))));
         if (seasons.paused(id)) line = line.append(yellow(" (paused)"));
         sender.sendMessage(line);
+    }
+
+    /** Whether a world has wind to show: wind is on, and the world has a sky (3.2). */
+    private boolean windShown(World world) {
+        return outdoor.wind() != null && outdoor.wind().enabled() && WindService.hasWind(world);
+    }
+
+    /** How many days {@code /hvac wind} looks ahead, today included. */
+    private static final int FORECAST_DAYS = 3;
+
+    /**
+     * {@code /hvac wind [set <calm|breezy|windy|gale|auto>] [world]} (3.2):
+     * anyone may look at today's wind and the next days', admins may set
+     * today's. From the console the world can be named last; it defaults to
+     * the main world.
+     */
+    private void wind(CommandSender sender, String[] args) {
+        WindService wind = outdoor.wind();
+        List<String> rest = new ArrayList<>(Arrays.asList(args).subList(1, args.length));
+        World world = sender instanceof Player player ? player.getWorld() : plugin.getServer().getWorlds().get(0);
+        if (!rest.isEmpty()) {
+            World named = plugin.getServer().getWorld(rest.get(rest.size() - 1));
+            if (named != null) {
+                world = named;
+                rest.remove(rest.size() - 1);
+            }
+        }
+        if (wind == null || !wind.enabled()) {
+            sender.sendMessage(yellow("Wind is turned off on this server (wind.enabled in config.yml)."));
+            return;
+        }
+        if (!WindService.hasWind(world)) {
+            sender.sendMessage(yellow("'" + world.getName() + "' has no wind: only worlds with a sky do."));
+            return;
+        }
+        String action = rest.isEmpty() ? "info" : rest.get(0).toLowerCase(Locale.ROOT);
+        WindSettings.Units units = WindText.units(wind.settings(), settings.units());
+        switch (action) {
+            case "info" -> { }
+            case "set" -> {
+                if (!requireAdmin(sender)) return;
+                if (rest.size() < 2) throw new IllegalArgumentException("Usage: /hvac wind set <calm|breezy|windy|gale|auto>");
+                if (rest.get(1).equalsIgnoreCase("auto")) {
+                    wind.hold(world, null);
+                    sender.sendMessage(green("The wind in '" + world.getName() + "' blows as it would again: "
+                            + day(wind.day(world), units) + " today."));
+                    return;
+                }
+                WindModel.Level level = WindModel.Level.parse(rest.get(1));
+                if (level == null) throw new IllegalArgumentException("'" + rest.get(1)
+                        + "' is not a wind: calm, breezy, windy, gale, or auto.");
+                wind.hold(world, level);
+                sender.sendMessage(green("It is " + day(wind.day(world), units) + " in '" + world.getName()
+                        + "' until the day ends. /hvac wind set auto lets it blow as it would."));
+                return;
+            }
+            default -> throw new IllegalArgumentException("Usage: /hvac wind [set <calm|breezy|windy|gale|auto>]");
+        }
+        List<WindModel.Day> forecast = wind.forecast(world, FORECAST_DAYS);
+        Component line = join(gold("Wind"), gray(" | Today: "), white(day(forecast.get(0), units)));
+        if (wind.held(world)) line = line.append(yellow(" (set by an admin)"));
+        sender.sendMessage(line);
+        if (sender instanceof Player player && player.getWorld().equals(world)) {
+            AirflowService.TemperatureReading here =
+                    airflow.temperatureForBody(player.getLocation(), player.getEyeLocation());
+            sender.sendMessage(join(gray("Here: "),
+                    white(here.water() ? "in water" : WindText.describe(here.windMs(), wind.settings(),
+                            settings.units())),
+                    gray(" | Out in the open: "),
+                    white(WindText.describe(outdoor.climateAt(player.getLocation()).windMs(), wind.settings(),
+                            settings.units()))));
+        }
+        Component ahead = gray("Next days: ");
+        for (int index = 1; index < forecast.size(); index++)
+            ahead = ahead.append(white((index > 1 ? ", " : "") + forecast.get(index).level().displayName()));
+        sender.sendMessage(ahead);
+    }
+
+    /** "Windy, about 22 km/h". */
+    private static String day(WindModel.Day day, WindSettings.Units units) {
+        return day.level().displayName() + ", about " + WindText.speed(day.meanMs(), units);
     }
 
     /** "Summer, day 3 of 15". */
@@ -780,6 +878,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case HUMIDITY -> humidity;
             case BOTH -> temp(reading.localF()) + " | " + humidity + " | feels " + temp(reading.feelsLikeF());
             case AIR -> AirText.summary(reading.air(), units.air().settings());
+            case WIND -> WindText.describe(reading.windMs(), outdoor.climate().wind(), settings.units());
             case WEATHER -> throw new AssertionError("handled above");
         };
         String where = reading.conditioned() ? "system " + SystemNames.label(registry, reading.system()) : "no system";
@@ -948,9 +1047,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(join(aqua("/hvac hud [on|off]"), gray(" - show or hide the on-screen climate HUD")));
         sender.sendMessage(join(aqua("/hvac list | info"), gray(" - inspect systems or the targeted device")));
         sender.sendMessage(join(aqua("/hvac season"), gray(" - the season and how much it warms or cools outside")));
+        sender.sendMessage(join(aqua("/hvac wind"), gray(" - today's wind, the wind here, and the next days'")));
         if (!sender.hasPermission(ADMIN_PERMISSION)) return;
         sender.sendMessage(join(aqua("/hvac season set <season> [day] | next | pause | resume"),
                 gray(" - change the season")));
+        sender.sendMessage(join(aqua("/hvac wind set <calm|breezy|windy|gale|auto>"),
+                gray(" - set today's wind, until the day ends")));
         sender.sendMessage(join(aqua("/hvac create thermostat <label> [target]"), gray(" - register a sign")));
         sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace|boiler|poolheatpump [t1|t2|t3]"),
                 gray(" - register a dispenser, two-stage (t2) unless told")));
@@ -962,7 +1064,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac create humidifier [label]"), gray(" - sign on an iron block under a copper slab")));
         sender.sendMessage(join(aqua("/hvac create purifier [label]"), gray(" - sign on an iron block on tube coral")));
         sender.sendMessage(join(aqua("/hvac create sensor [label]"),
-                gray(" - a stone, polished blackstone, mangrove, birch or cherry button")));
+                gray(" - a stone, polished blackstone, mangrove, birch or cherry button, or a lightning rod")));
         sender.sendMessage(join(aqua("/hvac create sensor-hub [label]"), gray(" - a sign showing up to 9 sensors")));
         sender.sendMessage(join(aqua("/hvac link-tool"), gray(" - link devices to a thermostat, or sensors to a hub")));
         sender.sendMessage(join(aqua("/hvac thermostat set|enable|disable|info"), gray(" - the thermostat you look at")));
@@ -974,7 +1076,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(args[0], "help", "temperature", "hud", "list", "info",
-                "create", "thermostat", "equipment", "link-tool", "rename", "remove", "stats", "sync", "season");
+                "create", "thermostat", "equipment", "link-tool", "rename", "remove", "stats", "sync", "season",
+                "wind");
         if (args[0].equalsIgnoreCase("season")) {
             if (args.length == 2) return sender.hasPermission(ADMIN_PERMISSION)
                     ? filter(args[1], "set", "next", "pause", "resume") : List.of();
@@ -984,12 +1087,19 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     .filter(world -> world.getEnvironment() == World.Environment.NORMAL)
                     .map(World::getName).toArray(String[]::new));
         }
+        if (args[0].equalsIgnoreCase("wind")) {
+            if (args.length == 2) return sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "set") : List.of();
+            if (args.length == 3 && args[1].equalsIgnoreCase("set"))
+                return filter(args[2], "calm", "breezy", "windy", "gale", "auto");
+            return filter(args[args.length - 1], plugin.getServer().getWorlds().stream()
+                    .filter(WindService::hasWind).map(World::getName).toArray(String[]::new));
+        }
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
                         "thermohygrometer", "airmonitor", "rpmmonitor", "settingspanel", "dehumidifier",
-                        "humidifier", "purifier", "sensor", "sensor-hub");
+                        "humidifier", "purifier", "sensor", "windsensor", "sensor-hub");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");

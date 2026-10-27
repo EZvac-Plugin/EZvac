@@ -20,6 +20,20 @@ public final class ThermalModel {
     public static Result step(double roomF, double controlBoundaryF, double outdoorF,
                               OperatingMode mode, double capacity, long elapsedTicks,
                               HvacSettings settings) {
+        return step(roomF, controlBoundaryF, outdoorF, mode, capacity, elapsedTicks, settings, 1.0);
+    }
+
+    /**
+     * The same, in a room this much leakier than usual (3.2): wind outside
+     * pushes more outdoor air through it, so it drifts toward the outdoors
+     * faster, and leaks faster while equipment runs.
+     *
+     * @param leakFactor 1 in still air; at least 1
+     */
+    public static Result step(double roomF, double controlBoundaryF, double outdoorF,
+                              OperatingMode mode, double capacity, long elapsedTicks,
+                              HvacSettings settings, double leakFactor) {
+        double leak = Double.isFinite(leakFactor) ? Math.max(1.0, leakFactor) : 1.0;
         requireFinite("room temperature", roomF);
         requireFinite("control boundary", controlBoundaryF);
         requireFinite("outdoor temperature", outdoorF);
@@ -48,8 +62,8 @@ public final class ThermalModel {
             if (transitions > 24) throw new IllegalStateException("thermal integration did not converge");
 
             double equipmentRate = equipmentRate(current, boundary, outdoor, mode, capacity, settings);
-            double driftMagnitude = equipmentRate == 0.0
-                    ? settings.idleDriftFPerHour() : settings.activeLeakFPerHour();
+            double driftMagnitude = leak * (equipmentRate == 0.0
+                    ? settings.idleDriftFPerHour() : settings.activeLeakFPerHour());
             double outdoorRate = outdoorDirection(outdoor, current, equipmentRate) * driftMagnitude;
 
             // If a very low startup RPM cannot overcome the environmental

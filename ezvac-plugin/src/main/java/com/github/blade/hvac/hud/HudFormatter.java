@@ -204,6 +204,16 @@ public final class HudFormatter {
         return snapshot.air().known() ? AirText.band(snapshot.air()).shortName() : "";
     }
 
+    /** {@code Calm}, or {@code Windy 22 km/h} (3.2); the none-text where there is no wind to read. */
+    public String wind(ClimateSnapshot snapshot) {
+        return snapshot.windLevel().isEmpty() ? settings.noneText() : snapshot.wind();
+    }
+
+    /** Calm, Breezy, Windy or Gale; the none-text where there is no wind to read. */
+    public String windLevel(ClimateSnapshot snapshot) {
+        return snapshot.windLevel().isEmpty() ? settings.noneText() : snapshot.windLevel();
+    }
+
     public String pollen(ClimateSnapshot snapshot) {
         return snapshot.pollen().isEmpty() ? settings.noneText() : snapshot.pollen();
     }
@@ -246,6 +256,8 @@ public final class HudFormatter {
                 .replace("{aqi_band}", escape(aqiBand(snapshot)))
                 .replace("{aqi}", aqiMini(snapshot))
                 .replace("{pollen}", escape(pollen(snapshot)))
+                .replace("{wind_level}", escape(windLevel(snapshot)))
+                .replace("{wind}", escape(wind(snapshot)))
                 .replace("{weather}", escape(snapshot.weather()))
                 .replace("{season_day}", snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "")
                 .replace("{season}", escape(snapshot.season()))

@@ -1,5 +1,7 @@
 package com.github.blade.hvac.simulation;
 
+import com.github.blade.hvac.config.WindSettings;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,6 +22,15 @@ public final class OutdoorAir {
     public static final double SUMMER_POLLEN = 0.6;
     public static final double AUTUMN_POLLEN = 0.25;
     public static final double WINTER_POLLEN = 0.0;
+
+    /** Wind starts lifting dust above this speed, in m/s... */
+    public static final double DUST_FROM_MS = 6.0;
+    /** ...and lifts the most at this many times the biome's own coarse dust, a dust storm. */
+    public static final double MAXIMUM_DUST_LIFT = 4.0;
+    /** Wind thins the outdoor smoke to no less than this share of it. */
+    public static final double MINIMUM_SMOKE_LEFT = 0.6;
+    /** Wind spreads pollen to at most this many times the still-air count. */
+    public static final double MAXIMUM_POLLEN_SPREAD = 1.8;
 
     /**
      * A biome's air on a dry day: particles in µg/m³, and pollen in grains/m³
@@ -136,10 +147,33 @@ public final class OutdoorAir {
      * @param wetness      how hard it rains or snows here, 0 to 1
      */
     public static AirQualityModel.Air now(Baseline baseline, double pollenFactor, double wetness) {
+        return now(baseline, pollenFactor, wetness, 0.0, 0.0, null);
+    }
+
+    /**
+     * The air outdoors right now, in this wind (3.2). A strong wind lifts dust
+     * where the ground is dry, up to a dust storm in a desert gale; it thins
+     * the smoke out and carries more pollen about. Rain still washes it all
+     * out, and wet ground gives up no dust.
+     *
+     * @param windMs   the wind here
+     * @param downfall the biome's vanilla downfall, 0 (desert) to 1 (jungle): how dry its ground is
+     * @param wind     null, or wind switched off: no wind effects
+     */
+    public static AirQualityModel.Air now(Baseline baseline, double pollenFactor, double wetness, double windMs,
+                                          double downfall, WindSettings wind) {
         double wet = Double.isFinite(wetness) ? Math.max(0.0, Math.min(1.0, wetness)) : 0.0;
         double season = Double.isFinite(pollenFactor) ? Math.max(0.0, pollenFactor) : SUMMER_POLLEN;
         double particles = 1.0 - RAIN_WASHES_PARTICLES * wet;
-        return new AirQualityModel.Air(baseline.fine() * particles, baseline.coarse() * particles,
-                baseline.pollen() * season * (1.0 - RAIN_WASHES_POLLEN * wet));
+        double fine = baseline.fine(), coarse = baseline.coarse(), pollen = baseline.pollen() * season;
+        if (wind != null && wind.enabled() && windMs > 0.0) {
+            double dry = Double.isFinite(downfall) ? 1.0 - Math.max(0.0, Math.min(1.0, downfall)) : 0.0;
+            double gust = Math.max(0.0, windMs - DUST_FROM_MS) / 8.0;
+            coarse *= 1.0 + Math.min(MAXIMUM_DUST_LIFT, wind.dust() * dry * (1.0 - wet) * gust * gust);
+            fine *= Math.max(MINIMUM_SMOKE_LEFT, 1.0 - wind.smokeDispersal() * windMs);
+            pollen *= Math.min(MAXIMUM_POLLEN_SPREAD, 1.0 + wind.pollenSpread() * windMs);
+        }
+        return new AirQualityModel.Air(fine * particles, coarse * particles,
+                pollen * (1.0 - RAIN_WASHES_POLLEN * wet));
     }
 }

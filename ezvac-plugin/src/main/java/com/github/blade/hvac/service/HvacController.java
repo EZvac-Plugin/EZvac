@@ -160,12 +160,15 @@ public final class HvacController {
             case HEATING -> thermostat.targetF() + settings.heatingStopAboveF();
             case IDLE -> thermostat.targetF();
         };
+        // Wind outside makes a room leakier (3.2); a pool's water takes none.
+        OutdoorTemperatureService.Outdoor out = thermostat.pool() ? null : outdoor.cachedClimateFor(thermostat);
+        double leak = out == null ? 1.0 : outdoor.climate().wind().infiltrationFactor(out.windMs());
         ThermalModel.Result thermal = ThermalModel.step(thermostat.roomF(), boundary, outside,
-                intervalMode, capacity, elapsedTicks, settings);
+                intervalMode, capacity, elapsedTicks, settings, leak);
         thermostat.setRoomF(thermal.temperatureF());
-        if (!thermostat.pool()) {
-            updateHumidity(thermostat, intervalMode, capacity, elapsedTicks, packedOutputs);
-            updateAir(thermostat, capacity > 0.0, elapsedTicks);
+        if (out != null) {
+            updateHumidity(thermostat, out, leak, intervalMode, capacity, elapsedTicks, packedOutputs);
+            updateAir(thermostat, out, leak, capacity > 0.0, elapsedTicks);
         }
 
         boolean coolingAvailable = controllerLoaded && hasAvailableEquipment(
@@ -182,9 +185,9 @@ public final class HvacController {
     }
 
     /** Pools have no air of their own to hold moisture; every air system does. */
-    private void updateHumidity(Thermostat thermostat, OperatingMode mode, double capacity, long elapsedTicks,
+    private void updateHumidity(Thermostat thermostat, OutdoorTemperatureService.Outdoor out, double leak,
+                                OperatingMode mode, double capacity, long elapsedTicks,
                                 Map<UUID, LongOpenHashSet> packedOutputs) {
-        OutdoorTemperatureService.Outdoor out = outdoor.cachedClimateFor(thermostat);
         AirflowService.WaterExposure exposure = airflow.waterExposure(thermostat.system())
                 .excluding(packedOutputs.get(thermostat.system().worldId()));
         HumidityModel.Loads loads = new HumidityModel.Loads(
@@ -192,7 +195,7 @@ public final class HvacController {
                 exposure.waterCells().length == 0 ? Double.NaN : waterTemperature(thermostat, exposure),
                 units.scaleFor(thermostat.system()), units.humidifierScaleFor(thermostat.system()));
         HumidityModel.Result result = HumidityModel.step(thermostat.roomDewPointF(), thermostat.roomF(),
-                out.dewPointF(), loads, elapsedTicks, outdoor.climate());
+                out.dewPointF(), loads, elapsedTicks, outdoor.climate(), leak);
         thermostat.setRoomDewPointF(result.dewPointF());
         units.credit(thermostat.system(), result.dehumidifiedF());
     }
@@ -202,16 +205,16 @@ public final class HvacController {
      * adds smoke, the system's own filter cleans it while equipment runs, and
      * purifiers in the room clean it and fill their filters.
      */
-    private void updateAir(Thermostat thermostat, boolean equipmentRan, long elapsedTicks) {
+    private void updateAir(Thermostat thermostat, OutdoorTemperatureService.Outdoor out, double leak,
+                           boolean equipmentRan, long elapsedTicks) {
         AirQualityService air = units.air();
         if (!air.enabled()) return;
         SystemId system = thermostat.system();
-        OutdoorTemperatureService.Outdoor out = outdoor.cachedClimateFor(thermostat);
         AirQualityModel.Loads loads = new AirQualityModel.Loads(
                 air.sourcesFor(system, system.worldId(), airflow.mapSize(system)),
                 equipmentRan ? 1.0 : 0.0, units.purifierScaleFor(system));
         AirQualityModel.Result result = AirQualityModel.step(thermostat.roomAir(), out.air(), loads, elapsedTicks,
-                outdoor.climate().humidity().infiltrationPerHour(), air.settings());
+                outdoor.climate().humidity().infiltrationPerHour() * leak, air.settings());
         thermostat.setRoomAir(result.air());
         units.creditAir(system, result.captured(), elapsedTicks);
     }

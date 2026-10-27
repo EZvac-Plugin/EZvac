@@ -13,6 +13,7 @@ import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
 import com.github.blade.hvac.simulation.ThermalModel;
 import com.github.blade.hvac.simulation.WeatherModel;
+import com.github.blade.hvac.simulation.WindModel;
 import org.bukkit.Bukkit;
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
@@ -73,6 +74,8 @@ public final class OutdoorTemperatureService {
     private final WeatherService weather;
     /** Null outside a running server (tests): there are then no seasons. */
     private final SeasonService seasons;
+    /** Null outside a running server (tests): the wind is then the fixed weather.wind-clear-ms. */
+    private final WindService wind;
 
     /**
      * A biome's climate only ever needs looking up once. Data-pack biomes all
@@ -81,6 +84,7 @@ public final class OutdoorTemperatureService {
     private final Map<Biome, BiomeClimate.Climate> climateCache = new EnumMap<>(Biome.class);
     private final Map<Biome, Double> downfallCache = new EnumMap<>(Biome.class);
     private final Map<Biome, OutdoorAir.Baseline> airCache = new EnumMap<>(Biome.class);
+    private final Map<Biome, Double> windCache = new EnumMap<>(Biome.class);
     /**
      * Blended climate per 4x4 column of biome cells, per world, then per
      * 4-block height cell. Biomes almost never change, so each cell is worked
@@ -103,10 +107,19 @@ public final class OutdoorTemperatureService {
     }
 
     public OutdoorTemperatureService(ClimateSettings climate, WeatherService weather, SeasonService seasons) {
+        this(climate, weather, seasons, null);
+    }
+
+    public OutdoorTemperatureService(ClimateSettings climate, WeatherService weather, SeasonService seasons,
+                                     WindService wind) {
         this.climate = Objects.requireNonNull(climate, "climate");
         this.weather = weather;
         this.seasons = seasons;
+        this.wind = wind;
     }
+
+    /** Null outside a running server. */
+    public WindService wind() { return wind; }
 
     public ClimateSettings climate() { return climate; }
 
@@ -134,6 +147,17 @@ public final class OutdoorTemperatureService {
         if (cached != null) return cached;
         OutdoorAir.Baseline found = climate.airQuality().baseline(biome.getKey().toString());
         airCache.put(biome, found);
+        return found;
+    }
+
+    /** How much of the wind reaches the biome (3.2): the server's own figure, else EZvac's, else fully. */
+    private double windOf(Block block, Biome biome) {
+        if (biome == Biome.CUSTOM)
+            return customKey(block).map(key -> climate.wind().exposure(key.toString())).orElse(1.0);
+        Double cached = windCache.get(biome);
+        if (cached != null) return cached;
+        double found = climate.wind().exposure(biome.getKey().toString());
+        windCache.put(biome, found);
         return found;
     }
 
@@ -170,7 +194,10 @@ public final class OutdoorTemperatureService {
 
     private WeatherModel.Effect effect(World world, BiomeBlend.Blended local) {
         WeatherModel.Conditions conditions = weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
-        return WeatherModel.effect(local, conditions, climate.weather());
+        if (wind == null || !wind.enabled()) return WeatherModel.effect(local, conditions, climate.weather());
+        // The day's wind, rain and thunder adding to it, as much of it as reaches this spot (3.2).
+        return WeatherModel.effect(local, conditions, climate.weather(), wind.speedMs(world))
+                .windScaled(WindService.hasWind(world) ? local.windExposure() : 0.0);
     }
 
     /** The weather word for a spot: the kind of weather its surroundings mostly get. */
@@ -191,6 +218,8 @@ public final class OutdoorTemperatureService {
         BiomeBlend.Blended local = surroundingsAt(world, x, y, z);
         ClimateSettings.Altitude altitude = climate.altitude();
         local = local.warmer(-BiomeClimate.lapseF(y, altitude.fromY(), altitude.lapseFPerBlock()));
+        // Windier with height; underground takes the rest of it away below.
+        local = local.withWindExposure(WindModel.exposure(local.windExposure(), y, world.getSeaLevel(), 0.0));
         return BiomeClimate.underground(local, groundFactor(world, x, y, z));
     }
 
@@ -229,7 +258,7 @@ public final class OutdoorTemperatureService {
         Biome biome = block.getBiome();
         BiomeClimate.Climate own = climateOf(block, biome);
         return BiomeBlend.Blended.of(own.noonF(), own.midnightF(), downfall(block, biome),
-                precipitationAt(block, own), own.seasonalF(), airOf(block, biome));
+                precipitationAt(block, own), own.seasonalF(), airOf(block, biome), windOf(block, biome));
     }
 
     private BiomeBlend.Blended cell(World world, int cellX, int cellY, int cellZ, int radius) {
@@ -272,7 +301,7 @@ public final class OutdoorTemperatureService {
                 BiomeClimate.Climate own = climateOf(block, biome);
                 samples.add(new BiomeBlend.Sample(own.noonF(), own.midnightF(), downfall(block, biome),
                         precipitationAt(block, own), BiomeBlend.weight(distance, radius), own.seasonalF(),
-                        airOf(block, biome)));
+                        airOf(block, biome), windOf(block, biome)));
             }
         }
         BiomeBlend.Blended result = BiomeBlend.blend(samples);
@@ -459,7 +488,8 @@ public final class OutdoorTemperatureService {
     private AirQualityModel.Air outdoorAir(World world, BiomeBlend.Blended local, WeatherModel.Effect effect) {
         double pollen = seasons == null || world == null
                 ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactor(world.getUID());
-        return OutdoorAir.now(local.air(), pollen, effect.wetness());
+        return OutdoorAir.now(local.air(), pollen, effect.wetness(), effect.windMs(), local.downfall(),
+                climate.wind());
     }
 
     /** The outdoor air at this time of day and point of the year, weather included. */

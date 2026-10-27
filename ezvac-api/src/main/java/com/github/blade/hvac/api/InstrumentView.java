@@ -34,12 +34,14 @@ public record InstrumentView(Kind kind, String label, Position position, Optiona
         TEMPERATURE_SENSOR, HUMIDITY_SENSOR, TEMPERATURE_HUMIDITY_SENSOR, WEATHER_SENSOR,
         SENSOR_HUB, RPM_MONITOR, SETTINGS_PANEL,
         /** An air monitor sign and a cherry-button air sensor (1.5). */
-        AIR_MONITOR, AIR_SENSOR;
+        AIR_MONITOR, AIR_SENSOR,
+        /** A lightning-rod wind sensor (1.5). */
+        WIND_SENSOR;
 
-        /** True for the sensor buttons. */
+        /** True for the sensors: the buttons, and the lightning-rod wind sensor. */
         public boolean sensor() {
             return this == TEMPERATURE_SENSOR || this == HUMIDITY_SENSOR || this == TEMPERATURE_HUMIDITY_SENSOR
-                    || this == WEATHER_SENSOR || this == AIR_SENSOR;
+                    || this == WEATHER_SENSOR || this == AIR_SENSOR || this == WIND_SENSOR;
         }
     }
 }

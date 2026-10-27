@@ -11,12 +11,20 @@ package com.github.blade.hvac.api;
  * @param feelsLikeF    the apparent temperature, wind included
  * @param weather       Clear, Rain, Thunder or Snow; empty where weather never reaches
  * @param seasonShiftF  how much the season warms (positive) or cools (negative) the air here
+ * @param wind          the wind out in the open here (1.5)
  * @since 1.0
  */
 public record OutdoorClimate(double airF, double waterF, double humidity, double dewPointF, double feelsLikeF,
-                             String weather, double seasonShiftF) {
+                             String weather, double seasonShiftF, Wind wind) {
     public OutdoorClimate {
         weather = weather == null ? "" : weather;
+        wind = wind == null ? Wind.CALM : wind;
+    }
+
+    /** The outdoors without wind, as before API 1.5. */
+    public OutdoorClimate(double airF, double waterF, double humidity, double dewPointF, double feelsLikeF,
+                          String weather, double seasonShiftF) {
+        this(airF, waterF, humidity, dewPointF, feelsLikeF, weather, seasonShiftF, Wind.CALM);
     }
 
     public double airC() { return Temperatures.celsius(airF); }

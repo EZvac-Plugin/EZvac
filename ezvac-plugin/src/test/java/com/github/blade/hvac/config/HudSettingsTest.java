@@ -15,8 +15,9 @@ class HudSettingsTest {
         assertEquals(HudSettings.Style.SIDEBAR, value.style());
         assertEquals(10, value.updateTicks());
         assertFalse(value.celsius());
-        assertEquals(13, value.sidebarLines().size());
+        assertEquals(14, value.sidebarLines().size());
         assertTrue(value.sidebarLines().contains(HudSettings.AIR_LINE), "the air line (3.2)");
+        assertTrue(value.sidebarLines().contains(HudSettings.WIND_LINE), "the wind line (3.2)");
     }
 
     @Test
@@ -99,6 +100,7 @@ class HudSettingsTest {
         stock.remove(HudSettings.SEASON_LINE);
         stock.remove(HudSettings.ADDONS_LINE);
         stock.remove(HudSettings.AIR_LINE);
+        stock.remove(HudSettings.WIND_LINE);
         YamlConfiguration config = new YamlConfiguration();
         config.set("hud.sidebar.lines", stock);
         List<String> added = new java.util.ArrayList<>(List.of("seasons.enabled"));
@@ -106,6 +108,7 @@ class HudSettingsTest {
         List<String> withSeason = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
         withSeason.remove(HudSettings.ADDONS_LINE);
         withSeason.remove(HudSettings.AIR_LINE);
+        withSeason.remove(HudSettings.WIND_LINE);
         assertEquals(withSeason, config.getStringList("hud.sidebar.lines"));
         assertTrue(added.contains("hud.sidebar.lines"));
 
@@ -122,15 +125,18 @@ class HudSettingsTest {
 
     @Test
     void aStockSidebarGainsTheAirLineWhenAirQualityArrives() {
-        // A 3.1 config: everything but the air line.
+        // A 3.1 config: everything but the air and wind lines.
         List<String> stock = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
         stock.remove(HudSettings.AIR_LINE);
+        stock.remove(HudSettings.WIND_LINE);
         YamlConfiguration config = new YamlConfiguration();
         config.set("hud.sidebar.lines", stock);
         List<String> added = new java.util.ArrayList<>(List.of("air-quality.enabled"));
         HudSettings.addAirLine(config, added);
         List<String> lines = config.getStringList("hud.sidebar.lines");
-        assertEquals(HudSettings.defaults().sidebarLines(), lines);
+        List<String> withAir = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
+        withAir.remove(HudSettings.WIND_LINE);
+        assertEquals(withAir, lines);
         assertEquals(lines.indexOf("<gray>Humidity: <white>{humidity}") + 1, lines.indexOf(HudSettings.AIR_LINE),
                 "right under the humidity line");
         assertTrue(added.contains("hud.sidebar.lines"));
@@ -147,22 +153,50 @@ class HudSettingsTest {
     }
 
     @Test
+    void aStockSidebarGainsTheWindLineWhenTheWindArrives() {
+        // A 3.2 pilot config: air quality, but no wind yet.
+        List<String> stock = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
+        stock.remove(HudSettings.WIND_LINE);
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.sidebar.lines", stock);
+        List<String> added = new java.util.ArrayList<>(List.of("wind.enabled"));
+        HudSettings.addWindLine(config, added);
+        List<String> lines = config.getStringList("hud.sidebar.lines");
+        assertEquals(HudSettings.defaults().sidebarLines(), lines);
+        assertEquals(lines.indexOf("<gray>Outside: <white>{outdoor} <gray>{weather}") + 1,
+                lines.indexOf(HudSettings.WIND_LINE), "right under the outdoor line");
+        assertTrue(added.contains("hud.sidebar.lines"));
+
+        YamlConfiguration own = new YamlConfiguration();
+        own.set("hud.sidebar.lines", List.of("<gray>Here: <white>{temp}"));
+        HudSettings.addWindLine(own, new java.util.ArrayList<>(List.of("wind.enabled")));
+        assertEquals(List.of("<gray>Here: <white>{temp}"), own.getStringList("hud.sidebar.lines"),
+                "a sidebar the server made its own is left alone");
+        YamlConfiguration later = new YamlConfiguration();
+        later.set("hud.sidebar.lines", stock);
+        HudSettings.addWindLine(later, new java.util.ArrayList<>(List.of("air-quality.enabled")));
+        assertEquals(stock, later.getStringList("hud.sidebar.lines"), "only when the wind is new");
+    }
+
+    @Test
     void stockSidebarsGainTheAddonsLineWhenSectionsArrive() {
         // An ALPHA 2.0 config: no season line, no addons line, no air line, in air or water.
         List<String> air = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
         air.remove(HudSettings.SEASON_LINE);
         air.remove(HudSettings.ADDONS_LINE);
         air.remove(HudSettings.AIR_LINE);
+        air.remove(HudSettings.WIND_LINE);
         List<String> water = new java.util.ArrayList<>(HudSettings.defaults().water().sidebarLines());
         water.remove(HudSettings.ADDONS_LINE);
         YamlConfiguration config = new YamlConfiguration();
         config.set("hud.sidebar.lines", air);
         config.set("hud.water.sidebar.lines", water);
         List<String> added = new java.util.ArrayList<>(List.of("seasons.enabled", "hud.sections.hidden",
-                "air-quality.enabled"));
+                "air-quality.enabled", "wind.enabled"));
         HudSettings.addSeasonLine(config, added);
         HudSettings.addAddonsLine(config, added);
         HudSettings.addAirLine(config, added);
+        HudSettings.addWindLine(config, added);
         assertEquals(HudSettings.defaults().sidebarLines(), config.getStringList("hud.sidebar.lines"));
         assertEquals(HudSettings.defaults().water().sidebarLines(), config.getStringList("hud.water.sidebar.lines"));
         List<String> lines = HudSettings.defaults().sidebarLines();
@@ -174,11 +208,13 @@ class HudSettingsTest {
         List<String> pilot = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
         pilot.remove(HudSettings.ADDONS_LINE);
         pilot.remove(HudSettings.AIR_LINE);
+        pilot.remove(HudSettings.WIND_LINE);
         YamlConfiguration p4 = new YamlConfiguration();
         p4.set("hud.sidebar.lines", pilot);
         HudSettings.addAddonsLine(p4, new java.util.ArrayList<>(List.of("hud.sections.hidden")));
         List<String> withAddons = new java.util.ArrayList<>(HudSettings.defaults().sidebarLines());
         withAddons.remove(HudSettings.AIR_LINE);
+        withAddons.remove(HudSettings.WIND_LINE);
         assertEquals(withAddons, p4.getStringList("hud.sidebar.lines"));
 
         // A server's own layout is left alone, and nothing happens on later upgrades.
