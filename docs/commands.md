@@ -40,11 +40,11 @@ block use the block you're looking at, within six blocks.
 | --- | --- | --- |
 | `/hvac create thermostat <label> [target]` | a sign | Target 60-85 °F, default 72. Labels may repeat |
 | `/hvac create poolthermostat <label> [target]` | a sign | Also `pool`. Starts in the pool range: 75-104 °F, default 82 |
-| `/hvac create heatpump` | a dispenser | Cools and heats |
-| `/hvac create ac` | a dispenser | Cools |
-| `/hvac create furnace` | a dispenser | Heats, at full power |
-| `/hvac create boiler` | a dispenser | Heats a pool |
-| `/hvac create poolheatpump` | a dispenser | Also `poolhp`. Heats and cools a pool |
+| `/hvac create heatpump [t1\|t2\|t3]` | a dispenser | Cools and heats |
+| `/hvac create ac [t1\|t2\|t3]` | a dispenser | Cools |
+| `/hvac create furnace [t1\|t2\|t3]` | a dispenser | Heats, at full power |
+| `/hvac create boiler [t1\|t2\|t3]` | a dispenser | Heats a pool, at full power |
+| `/hvac create poolheatpump [t1\|t2\|t3]` | a dispenser | Also `poolhp`. Heats and cools a pool |
 | `/hvac create thermometer [label]` | a sign | |
 | `/hvac create hygrometer [label]` | a sign | |
 | `/hvac create thermohygrometer [label]` | a sign | Also `thermohygro` |
@@ -55,6 +55,7 @@ block use the block you're looking at, within six blocks.
 | `/hvac create sensor [label]` | a button | Stone, polished blackstone, mangrove or birch |
 | `/hvac create sensor-hub [label]` | a sign | Also `sensorhub` |
 
+An equipment tier (`t1`, `t2` or `t3`) is optional: two-stage unless given.
 Equipment, settings panels and RPM monitors are linked to a thermostat with the
 link tool, below. Holding the tool with a thermostat selected while you create
 one links it straight away. Labels are 1-32 letters, numbers, `_` or `-`. A
@@ -92,6 +93,7 @@ isn't found by name.
 | `/hvac thermostat enable` / `disable` | Switches the system on or off |
 | `/hvac thermostat info` | Room and target temperature, mode, what's linked, and whether it's on |
 | `/hvac equipment enable` / `disable` / `info` | The equipment you're looking at |
+| `/hvac equipment tier <t1\|t2\|t3>` | Changes its tier: ★☆☆ single-stage, ★★☆ two-stage, ★★★ variable (also `1`-`3`, `single`, `two-stage`, `variable`, `modulating`). See [Tiers](equipment.md#tiers) |
 | `/hvac rename <label>` | Renames the sign you're looking at: a thermostat, RPM monitor, settings panel, sensor hub, thermometer, sensor, or dehumidifier or humidifier sign |
 
 The control menu a thermostat's sign opens:

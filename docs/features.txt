@@ -110,12 +110,24 @@ THERMAL AND MOTOR PERFORMANCE
 - Variable compressors ramp from a 1,200 RPM minimum. The thermal simulator
   uses the capacity derived from actual ramped RPM, not merely the requested
   capacity or a cosmetic RPM display value.
-- Furnace blowers ramp to 1,100 RPM; furnace heat stays at full capacity.
-- Fixed furnace capacity and variable heat-pump capacity are accounted for
-  independently. A slowed heat pump never averages a furnace below 100%; both
-  contributions are added before the overall multi-unit diminishing-return cap.
-- Profiles never affect furnaces. Heat pumps and ACs share one system-level
-  profile command, including mixed AC/heat-pump cooling systems.
+- Furnaces and boilers are fixed-speed (EquipmentType.fixedSpeed): their
+  blowers or pumps ramp to 1,100 RPM and their heat stays at full capacity.
+  Before 3.1 boilers ran on the variable-speed curve by mistake.
+- Fixed and variable capacity are accounted for independently. A slowed heat
+  pump never averages a furnace below 100%; both contributions are added
+  before the overall multi-unit diminishing-return cap.
+- Profiles never affect furnaces or boilers. Variable units share one
+  system-level profile command, including mixed AC/heat-pump cooling systems.
+- Equipment tiers (3.1; model.Tier, saved as 1-3) are real equipment kinds.
+  PerformanceModel.stagedRequest asks each unit for what its tier can do:
+  single-stage 1 always; two-stage 1, or performance.tiers.two-stage.low-stage
+  (0.65) within the approach band; variable the requested-capacity curve
+  above, bit for bit. Compressors turn that into RPM on the usual curve;
+  furnaces and boilers burn at that share (at least minimum-capacity), their
+  blower at the same share of 1,100 RPM. Single-stage and two-stage units
+  deliver tiers.single-stage.capacity (0.70) and two-stage.capacity (0.85) of
+  it. Format 8 (3.1) marks every unit from an older file variable (Tier.LEGACY),
+  at full capacity. The ETA and the thermostat's load follow each unit's tier.
 - Very low startup RPM cannot create phantom heating/cooling or oscillate at an
   exact outdoor-temperature equilibrium.
 
@@ -353,7 +365,10 @@ DISPLAYS AND AUDIO
   Farther signs keep their last text and catch up within a second of someone
   coming near; nothing else depends on sign text.
 - Thermostat signs use a compact real-thermostat layout showing EZvac/ID,
-  current room temperature, COOL/HEAT/IDLE/OFF, setpoint, live capacity, the
+  current room temperature, COOL/HEAT/IDLE/OFF, setpoint, load (3.1: delivered
+  capacity over what the system's enabled units could deliver flat out in its
+  profile, both after the diminishing returns, so 0-100%; before 3.1 it was raw
+  capacity and passed 100%), the
   running/total units of its system (3.0; the group name before), and an
   approximate ETA while actively heating or cooling.
 - ETA is forward-simulated from the current equipment mix, actual RPM, future

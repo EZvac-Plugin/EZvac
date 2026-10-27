@@ -11,7 +11,7 @@ lines up.
 
 | Device | Shows |
 | --- | --- |
-| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature, what it's doing (`❄ Cooling to 70.0°F`, `♨ Heating to`, `● Holding`), a capacity bar, the ETA and the room's humidity, the outdoor temperature and season |
+| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature, what it's doing (`❄ Cooling to 70.0°F`, `♨ Heating to`, `● Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season |
 | Thermometer, hygrometer, thermo-hygrometer | The reading, feels-like, the outdoors, the weather and season |
 | Dehumidifier, humidifier | The humidity, the setpoint, its state, and a dehumidifier's tank |
 | Sensor hub | Up to five sensors at once; with more, it pages along with the sign |

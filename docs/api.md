@@ -7,7 +7,7 @@ seasons, and events when things change. Addons can also add their own
 sections to EZvac's climate HUD. An addon is an ordinary Paper plugin that
 depends on EZvac.
 
-API version **1.3** reads only: nothing an addon does through it changes
+API version **1.4** reads only: nothing an addon does through it changes
 EZvac's climate or systems. Ways to change things (targets, power) will come
 in a later API version.
 
@@ -38,7 +38,7 @@ never shade them into your jar.
     <dependency>
         <groupId>com.github.EZvac-Plugin.EZvac</groupId>
         <artifactId>ezvac-api</artifactId>
-        <version>ALPHA-3.0</version>
+        <version>ALPHA-3.1</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -48,7 +48,7 @@ never shade them into your jar.
 
 ```kotlin
 repositories { maven("https://jitpack.io") }
-dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-3.0") }
+dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-3.1") }
 ```
 
 In your `plugin.yml`, depend on EZvac so it loads first:
@@ -80,7 +80,7 @@ server runs.
 | `thermostat(world, id)` | Deprecated in 1.3: labels can repeat, so it gives the lowest-placed thermostat with that label |
 | `linkTool()` | Whether an item is EZvac's link tool, and what it has selected: a thermostat and its system, or a sensor hub (1.3) |
 | `climateUnits()`, `climateUnits(world)` | Dehumidifiers and humidifiers: humidity, setpoint, state, power, a dehumidifier's tank |
-| `equipment()`, `equipment(world)` | Heat pumps, air conditioners, furnaces, boilers and pool heat pumps: kind, system, on/off, running, mode, motor RPM (1.2) |
+| `equipment()`, `equipment(world)` | Heat pumps, air conditioners, furnaces, boilers and pool heat pumps: kind, system, on/off, running, mode, motor RPM (1.2), and tier (1.4): 1 single-stage, 2 two-stage, 3 variable |
 | `vents()`, `vents(world)` | Vents: system, and whether they blow air or water (1.2) |
 | `instruments()`, `instruments(world)` | Thermometers and hygrometers, sensors, sensor hubs (with the sensors they show), RPM monitors and settings panels (1.2) |
 | `devices(world)` | Every device in a world, of every kind (1.2) |
@@ -267,5 +267,5 @@ depend: [EZvac]
 - **Which EZvac has which API:** 1.0 came with ALPHA 2.1 Pilot 4, 1.1 with
   ALPHA 2.1 (HUD sections), 1.2 with ALPHA 2.2 (every device, and the device
   events), and 1.3 with ALPHA 3.0 (linked systems: `thermostatAt`,
-  `thermostatOf`, the link tool). Depend on the oldest EZvac whose API has what
-  you use.
+  `thermostatOf`, the link tool), and 1.4 with ALPHA 3.1 (`EquipmentView.tier()`).
+  Depend on the oldest EZvac whose API has what you use.

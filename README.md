@@ -25,12 +25,16 @@ biome and the weather.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
   power or items needed.
 
-> **Release status:** EZvac ALPHA 3.0, *Linked systems*, drops group names.
-> You link equipment, vents and signs to a thermostat with one link tool,
-> thermostat names can repeat, and a system that loses its thermostat waits,
-> headless, for a new one. Upgrading converts `hvac.yml` to a new format and
-> keeps the old file as a backup; there's no going back to 2.x without it.
-> ALPHA 2.2 let addons see every device. ALPHA 2.1, *Realism: EXTENDED*,
+> **Release status:** EZvac ALPHA 3.1 adds equipment tiers, shown as stars,
+> after real equipment: ★☆☆ single-stage, ★★☆ two-stage and ★★★
+> variable-speed. Better tiers are stronger and hold a room steadier; every
+> existing unit becomes ★★★, as it always ran.
+> ALPHA 3.0, *Linked systems*, dropped group names. You link equipment, vents
+> and signs to a thermostat with one link tool, thermostat names can repeat,
+> and a system that loses its thermostat waits, headless, for a new one.
+> Upgrading from 2.x converts `hvac.yml` to a new format and keeps the old
+> file as a backup; there's no going back to 2.x without it. ALPHA 2.2 let
+> addons see every device. ALPHA 2.1, *Realism: EXTENDED*,
 > gave every biome its own climate, with smooth transitions between them,
 > seasons on EZvac's own calendar, colder air up high and steady air
 > underground, lit screens and control menus on every sign, and Fahrenheit
@@ -38,7 +42,7 @@ biome and the weather.
 
 ## Quick install
 
-1. Download `EzVac-ALPHA-3.0.jar` from the
+1. Download `EzVac-ALPHA-3.1.jar` from the
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
 2. Put it in your server's `plugins` folder. You need Paper 1.21.1 or a fork
@@ -81,7 +85,7 @@ You need Java 21 and Maven 3.9 or newer.
 mvn clean package
 ```
 
-The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-3.0.jar`. `mvn verify` also runs
+The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-3.1.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

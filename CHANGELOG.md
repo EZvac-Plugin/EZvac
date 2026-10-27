@@ -2,6 +2,73 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 3.1
+
+**Equipment tiers.** Every heat pump, air conditioner, furnace, boiler and
+pool heat pump now has a tier, shown as stars, after the three kinds of real
+equipment: ★☆☆ single-stage, ★★☆ two-stage and ★★★ variable-speed. Every
+existing unit becomes ★★★ at the full capacity it always had, so heat pumps,
+ACs and pool heat pumps run exactly as before.
+
+### Added
+
+- **Tiers.**
+  - **Single-stage** runs flat out or not at all, so near its target it
+    overshoots, stops and starts again.
+  - **Two-stage** drops to a 65% low stage for the last stretch.
+  - **Variable-speed** eases down smoothly, to 40%, as every compressor did
+    until now. A variable furnace or boiler modulates.
+  - **The cheaper kinds are the budget models:** they deliver 70% and 85% of
+    a variable unit.
+
+  So the better the tier, the faster a room gets there and the steadier it
+  stays. Tiers mix freely in one system.
+- **`/hvac create heatpump|ac|furnace|boiler|poolheatpump [t1|t2|t3]`** sets
+  the tier (`1`-`3`, `single`, `two-stage`, `variable` and `modulating` work
+  too). **New units are two-stage** unless you name one.
+- **`/hvac equipment tier <t1|t2|t3>`** changes the tier of the unit you look
+  at.
+- **Stars everywhere a unit is shown:** `/hvac info`, RPM monitors, and the
+  messages when you create or change one.
+  - RPM monitors give each kind and tier its own row (`HP ★★★ ×2 2,950`),
+    shortened step by step so the stars always fit.
+  - `displays.stars.full` and `.empty` change the glyphs, for a resource pack
+    or Bedrock players.
+- **`performance.tiers` in config.yml** sets the budget tiers' capacity and
+  the two-stage low stage. Variable is the `variable-speed` curve, unchanged.
+  Your config.yml gains the new settings with their comments.
+- **API 1.4:** `EquipmentView.tier()`. The old constructor still works and
+  means variable, so addons build and run unchanged.
+
+### Changed
+
+- **Existing furnaces modulate.** As ★★★ units they give the same full heat,
+  then ease off near the target instead of overshooting it.
+- **Boilers are burners, like furnaces.** They were always documented as the
+  furnace's counterpart, but ran on the compressors' variable-speed curve.
+  They now burn, staged by their tier like a furnace. An existing boiler
+  becomes ★★★ modulating, so pools heat much as they did.
+- **The thermostat's meter shows load:** how hard the system is working,
+  0-100%, on the sign (`Set 72.0 F | 68%`) and as the screen's bar. It's what
+  the system delivers as a share of what its units could deliver flat out in
+  its current profile. It used to be raw capacity, which read 141% for two
+  units at full speed and up to 200% for more.
+- **RPM monitors** show `on` for a running furnace or boiler instead of its
+  fixed blower speed.
+
+### Upgrading from 3.0
+
+Stop the server, replace the jar and start it.
+- **The save moves to format 8.** Your 3.0 file is kept as
+  `hvac.yml.format7.bak`.
+- **Every unit becomes ★★★ variable, at full capacity.** 3.0 saved every
+  unit as tier 2, which now means two-stage.
+- **Compressors run exactly as before.** Furnaces now ease off near the
+  target, and boilers burn at full heat, then modulate.
+- **New units default to two-stage;** name `t3` for variable.
+- **Going back to 3.0** means restoring the format 7 backup: 3.0 refuses a
+  format 8 file.
+
 ## ALPHA 3.0
 
 **Linked systems.** Group names are gone. A system is now its thermostat

@@ -4,7 +4,7 @@
 
 You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
 
-1. Put `EzVac-ALPHA-3.0.jar` in the server's `plugins` folder.
+1. Put `EzVac-ALPHA-3.1.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 
@@ -26,6 +26,11 @@ covered by the test suite.
 > changed since the upgrade (see [Going back](#going-back)). Back up
 > `plugins/EZvac/` before you start 3.0.
 
+- **From 3.0 to 3.1,** the save moves to **format 8**, and your 3.0 file is
+  kept as `hvac.yml.format7.bak`. Every unit becomes ★★★ variable at full
+  capacity: compressors run exactly as before, and furnaces and boilers ease
+  off near the target. New units are two-stage unless you name `t3`. Going
+  back to 3.0 means restoring that backup.
 - **From 2.x to 3.0,** groups become linked systems:
   - every old group becomes a system with the same thermostat, equipment,
     vents, settings panel and RPM monitors, so nothing needs relinking;

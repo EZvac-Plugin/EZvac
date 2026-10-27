@@ -86,7 +86,7 @@ ETA 0:31 | 2/3
 | --- | --- |
 | 1 | The thermostat's name |
 | 2 | Room temperature and mode: `COOL`, `HEAT`, `IDLE` or `OFF` |
-| 3 | The target, and the system's live capacity while it runs |
+| 3 | The target, and while it runs the system's load: how hard it's working, 0-100% |
 | 4 | Time until the target is reached (`Ready` when idle), and how many of its units are running |
 
 - **Change the target** from the menu the sign opens on a right-click (+5, +1
@@ -95,6 +95,10 @@ ETA 0:31 | 2/3
 - **Sneak-right-click** the sign to switch the whole system off (the sign
   shows `System off`) and again to switch it back on. Units you switched off on
   their own stay off.
+- **The load** is what the system delivers now as a share of what its units
+  could deliver flat out, in its current profile. 100% means everything that
+  can run is at full speed, however many units it has and whatever their
+  tiers. Near the target it falls as the compressors slow down.
 - The ETA uses the same equipment, speeds, profile and outdoor load as the real
   controller.
 
@@ -115,12 +119,15 @@ Every piece of equipment is a **dispenser**. Look at it and register it, then
 link it to a thermostat with the link tool:
 
 ```text
-/hvac create heatpump
-/hvac create ac
-/hvac create furnace
-/hvac create boiler
-/hvac create poolheatpump       ("poolhp" works too)
+/hvac create heatpump [t1|t2|t3]
+/hvac create ac [t1|t2|t3]
+/hvac create furnace [t1|t2|t3]
+/hvac create boiler [t1|t2|t3]
+/hvac create poolheatpump [t1|t2|t3]       ("poolhp" works too)
 ```
+
+The tier is optional, and two-stage (`t2`) when you leave it out; see
+[Tiers](#tiers).
 
 | Equipment | Cools | Heats | Speed | Output while running | System |
 | --- | :-: | :-: | --- | --- | --- |
@@ -134,11 +141,43 @@ link it to a thermostat with the link tool:
   and redstone are ignored.
 - More units heat or cool faster, with diminishing returns (at most twice one
   unit).
-- Heat pumps and air conditioners slow down as the room nears its target.
-  Furnaces always run at full heat.
+- Near the target, equipment slows down as its tier allows: a variable unit
+  eases down, a two-stage one drops to its low stage, a single-stage one stays
+  flat out.
 - A pool heat pump can share a pool system with a boiler.
 
 <!-- screenshot: images/equipment-running.webp - an air conditioner (water) and a furnace (lava) running in their casings -->
+
+### Tiers
+
+Every piece of equipment has a tier, shown as stars: the three kinds of real
+HVAC units. More stars is better.
+
+| | ★☆☆ Single-stage | ★★☆ Two-stage | ★★★ Variable-speed |
+| --- | --- | --- | --- |
+| Near the target | stays flat out, then stops | drops to its low stage, 65% | eases down smoothly, to 40% |
+| Capacity flat out | 70% | 85% | 100% |
+| Furnaces and boilers | flat out or off | 65% low stage | modulating, 40-100% |
+
+- **Far from the target every tier runs flat out,** so how fast a room cools
+  or heats depends on capacity: the cheaper kinds are the budget models and
+  deliver less.
+- **Near the target is where they differ.** A single-stage unit keeps
+  blasting, overshoots, stops, and starts again when the room drifts back. A
+  two-stage unit finishes on its low stage. A variable unit throttles down to
+  the load and settles. So the better the tier, the steadier the room and the
+  fewer the starts.
+- **Every unit from before 3.1 is ★★★,** at the full capacity it always had:
+  compressors run exactly as before, and furnaces and boilers now modulate
+  near the target.
+- **New units are two-stage** unless you name a tier: `/hvac create heatpump t3`
+  (`t1`-`t3`, `1`-`3`, `single`, `two-stage`, `variable` and `modulating` all
+  work). Change it later by looking at the unit and running
+  `/hvac equipment tier <t1|t2|t3>`.
+- **Tiers mix freely** in one system: each unit runs as its own tier does.
+- **Where it shows:** `/hvac info`, RPM monitors, and the messages when you
+  create or change a unit. The numbers are in
+  [Configuration](configuration.md#performancetiers).
 
 ### The casing
 
@@ -203,17 +242,21 @@ the system gets the same speed. Furnaces stay at full heat in every profile.
 /hvac create rpmmonitor [label]     look at a sign, then link it
 ```
 
-A sign that shows the equipment of its system, one row per kind:
+A sign that shows the equipment of its system, one row per kind and tier:
 
 ```text
 EZvac | Fans 1/2
-Heat pump ×3 2,950
-Furnace off
-AC ×2 3,100
+HP ★★★ ×3 2,950
+Furnace ★★☆ off
+AC ★☆☆ ×2 3,100
 ```
 
-- **A row** is the kind, how many there are when more than one, and the
-  average speed of those running (`off` when none is). Green while any runs.
+- **A row** is the kind, its tier's stars, how many there are when more than
+  one, and the average speed of those running. Furnaces and boilers say `on`,
+  since they run at a fixed speed, and anything stopped says `off`. Green while
+  any runs.
+- **Long rows are shortened, not cut:** the kind first (`HP`), then the speed
+  (`2.9k`). The stars always fit.
 - **Three rows fit on a page.** Right-click turns the page; sneak-right-click
   switches auto-flip, which turns it every 5 seconds.
 - A system can have any number of monitors.
@@ -236,7 +279,7 @@ AC ×2 3,100
 /hvac list                                   systems in your world
 /hvac info                                   the device you're looking at
 /hvac thermostat set|enable|disable|info     look at the thermostat
-/hvac equipment enable|disable|info          look at the equipment
+/hvac equipment enable|disable|tier|info     look at the equipment
 /hvac rename <label>                         the sign you're looking at
 /hvac remove                                 the device you're looking at
 /hvac remove system [confirm]                a whole system, holding the link tool
