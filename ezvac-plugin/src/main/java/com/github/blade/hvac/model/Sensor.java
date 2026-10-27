@@ -11,8 +11,8 @@ import java.util.Objects;
  * A remote sensor: a button that measures the spot it is on, shown on any
  * number of sensor hubs. The button says what it measures, so a sensor is
  * never told: stone reads temperature, polished blackstone humidity, mangrove
- * both, birch the weather, and cherry the air quality (3.2). A lightning rod reads the wind (3.2). It reads
- * exactly as a thermometer sign at the
+ * both, birch the weather, cherry the air quality (3.2) and bamboo the wind (3.2). It reads exactly as a
+ * thermometer sign at the
  * same spot would; a weather sensor reads the sky above it, like a rain gauge.
  */
 public record Sensor(BlockKey position, String label, Kind reads) {
@@ -48,8 +48,7 @@ public record Sensor(BlockKey position, String label, Kind reads) {
             case MANGROVE_BUTTON -> Kind.BOTH;
             case BIRCH_BUTTON -> Kind.WEATHER;
             case CHERRY_BUTTON -> Kind.AIR;
-            // Not a button: a lightning rod is a wind vane on a roof (3.2).
-            case LIGHTNING_ROD -> Kind.WIND;
+            case BAMBOO_BUTTON -> Kind.WIND;
             default -> null;
         };
     }
@@ -62,7 +61,7 @@ public record Sensor(BlockKey position, String label, Kind reads) {
             case BOTH -> Material.MANGROVE_BUTTON;
             case WEATHER -> Material.BIRCH_BUTTON;
             case AIR -> Material.CHERRY_BUTTON;
-            case WIND -> Material.LIGHTNING_ROD;
+            case WIND -> Material.BAMBOO_BUTTON;
         };
     }
 

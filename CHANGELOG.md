@@ -71,8 +71,7 @@ up dust storms in the desert.
 - **`/hvac wind`** shows today's wind, the wind where you stand and the next
   days'. Admins can set today's with `/hvac wind set <calm|breezy|windy|gale>`
   until the day ends, and `auto` lets it blow as it would.
-- **A lightning rod is a wind sensor** for sensor hubs: `/hvac create sensor`
-  while looking at it.
+- **A bamboo button is a wind sensor** for sensor hubs.
 - **Air in commands:** `/hvac temperature` and `/hvac info` show the air.
   `/hvac info` gives PM2.5, PM10 and pollen in detail. Thermostat signs and
   screens don't: a real thermostat measures no air.

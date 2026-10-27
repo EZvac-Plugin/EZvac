@@ -47,7 +47,7 @@ A sensor is a **button**, and the button decides what it measures:
 | Mangrove button | Temperature and humidity |
 | Birch button | Weather: Clear, Rain, Thunder or Snow |
 | Cherry button | Air quality: the AQI (3.2) |
-| Lightning rod | Wind: `Gale 61km/h` (3.2). Not a button, but it works the same way |
+| Bamboo button | Wind: `Gale 61km/h` (3.2) |
 
 ### Build and link
 
