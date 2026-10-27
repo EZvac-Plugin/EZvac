@@ -46,6 +46,16 @@ biome and the weather.
 > underground, lit screens and control menus on every sign, and Fahrenheit
 > or Celsius server wide. See the [changelog](CHANGELOG.md).
 
+> **What's next:** ALPHA 3.2 is the last ALPHA. Before any official BETA 1.0
+> pilots, EZvac takes a short break from new releases while it gets some
+> runtime on private servers. BETA 1.0 will then move EZvac to the latest
+> Minecraft version.
+>
+> **Hotfixes only until then.** If ALPHA 3.2 needs hotfixes
+> (`ALPHA-3.2-HOTFIX1` and so on), they fix bugs and nothing else: no new
+> features, no changed behaviour, and the save stays format 8. Testers can
+> upgrade to any 3.2 hotfix, and back, without risk.
+
 ## Quick install
 
 1. Download `EzVac-ALPHA-3.1.jar` from the
