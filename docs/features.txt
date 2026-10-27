@@ -248,7 +248,7 @@ WIND (3.2)
   x (max(0, wind - 6) / 8)^2)); fine x max(0.6, 1 - 0.03 x wind); pollen x
   min(1.8, 1 + 0.06 x wind). Rain washing applies after.
 - Levels read from a speed by the midpoints between ranges: 2.5, 6.5, 13.
-- Sensor.Kind.WIND is a LIGHTNING_ROD. HUD {wind} {wind_level}; placeholders
+- Sensor.Kind.WIND is a BAMBOO_BUTTON. HUD {wind} {wind_level}; placeholders
   wind, wind_level, wind_speed, wind_ms, wind_kmh, wind_mph; speeds in km/h
   with units C, mph with F, unless wind.units says otherwise.
 - API 1.5: Wind (speedMs, Level) on ClimateReading and OutdoorClimate,

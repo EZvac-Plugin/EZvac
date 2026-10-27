@@ -261,12 +261,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
             case "humidifier", "hum" -> createHumidifier(player, block, position, args);
             case "purifier", "airpurifier", "air-purifier" -> createPurifier(player, block, position, args);
-            case "sensor", "windsensor", "wind-sensor" -> {
+            case "sensor" -> {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
                     throw new IllegalArgumentException("Look at a stone button (temperature), a polished blackstone"
                             + " button (humidity), a mangrove button (both), a birch button (weather), a cherry"
-                            + " button (air quality) or a lightning rod (wind).");
+                            + " button (air quality) or a bamboo button (wind).");
                 Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : "Sensor", reads);
                 registry.addSensor(sensor);
                 player.sendMessage(green("Created " + reads.description() + " sensor '" + sensor.label()
@@ -1064,7 +1064,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac create humidifier [label]"), gray(" - sign on an iron block under a copper slab")));
         sender.sendMessage(join(aqua("/hvac create purifier [label]"), gray(" - sign on an iron block on tube coral")));
         sender.sendMessage(join(aqua("/hvac create sensor [label]"),
-                gray(" - a stone, polished blackstone, mangrove, birch or cherry button, or a lightning rod")));
+                gray(" - a stone, polished blackstone, mangrove, birch, cherry or bamboo button")));
         sender.sendMessage(join(aqua("/hvac create sensor-hub [label]"), gray(" - a sign showing up to 9 sensors")));
         sender.sendMessage(join(aqua("/hvac link-tool"), gray(" - link devices to a thermostat, or sensors to a hub")));
         sender.sendMessage(join(aqua("/hvac thermostat set|enable|disable|info"), gray(" - the thermostat you look at")));
@@ -1099,7 +1099,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
                         "thermohygrometer", "airmonitor", "rpmmonitor", "settingspanel", "dehumidifier",
-                        "humidifier", "purifier", "sensor", "windsensor", "sensor-hub");
+                        "humidifier", "purifier", "sensor", "sensor-hub");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");

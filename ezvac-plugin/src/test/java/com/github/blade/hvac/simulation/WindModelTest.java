@@ -208,9 +208,10 @@ class WindModelTest {
     }
 
     @Test
-    void aLightningRodIsAWindSensor() {
-        assertEquals(Sensor.Kind.WIND, Sensor.forButton(Material.LIGHTNING_ROD));
-        assertEquals(Material.LIGHTNING_ROD, Sensor.button(Sensor.Kind.WIND));
+    void aBambooButtonIsAWindSensor() {
+        assertEquals(Sensor.Kind.WIND, Sensor.forButton(Material.BAMBOO_BUTTON));
+        assertEquals(Material.BAMBOO_BUTTON, Sensor.button(Sensor.Kind.WIND));
+        assertNull(Sensor.forButton(Material.LIGHTNING_ROD), "every sensor is a button");
     }
 
     @Test

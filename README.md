@@ -20,8 +20,8 @@ biome and the weather.
 - **Dehumidifiers and humidifiers** that dry or moisten a room or a shed.
 - **Air quality:** smoke, dust and pollen in every room, scored as the real
   Air Quality Index, and air purifiers whose coral filters fill up.
-- **Sensors:** thermometers, hygrometers, air monitors, and button and
-  lightning-rod sensors that report to a sensor hub sign.
+- **Sensors:** thermometers, hygrometers, air monitors, and button sensors
+  that report to a sensor hub sign.
 - **Lit screens on every sign** and click-to-open control menus for setpoints.
 - **An on-screen HUD** and PlaceholderAPI placeholders.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,

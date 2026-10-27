@@ -85,11 +85,10 @@ See [Air quality](air-quality.md) for the air itself.
 - **The HUD:** `{wind}` shows `Calm` or `Windy 22 km/h`, and `{wind_level}`
   just the word. A stock sidebar gains a wind line under the outdoor line.
   See [HUD and placeholders](hud-and-placeholders.md).
-- **A wind sensor** is a lightning rod: look at it and run
+- **A wind sensor** is a bamboo button: look at it and run
   `/hvac create sensor [label]`. On a sensor hub it reads `Roof Gale 61km/h`.
   It reads the wind at its own spot, so put it up high in the open: walls,
-  roofs and trees shelter it. Remember that a lightning rod also draws
-  lightning. See [Sensors](sensors.md).
+  roofs and trees shelter it. See [Sensors](sensors.md).
 
 Speeds show in km/h with `units: C` and mph with `units: F`; `wind.units`
 can pick m/s, km/h or mph instead.
