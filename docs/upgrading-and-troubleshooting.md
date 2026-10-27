@@ -26,6 +26,14 @@ covered by the test suite.
 > changed since the upgrade (see [Going back](#going-back)). Back up
 > `plugins/EZvac/` before you start 3.0.
 
+- **From 3.1 to 3.2,** swap the jar: the save stays **format 8**. Every
+  room's air starts at the outdoor level and settles from there; a room with
+  a lit campfire gets smoky within the in-game hour. The wind starts with
+  the day you upgrade on. Your config.yml gains `air-quality` and `wind`
+  with their comments, and a sidebar with the stock lines gains the air and
+  wind lines. Going back to 3.1 is a jar swap too: 3.1 keeps the air
+  purifiers, air monitors, air sensors and wind sensors it doesn't know as
+  preserved records, with a warning, and 3.2 brings them back.
 - **From 3.0 to 3.1,** the save moves to **format 8**, and your 3.0 file is
   kept as `hvac.yml.format7.bak`. Every unit becomes ★★★ variable at full
   capacity: compressors run exactly as before, and furnaces and boilers ease

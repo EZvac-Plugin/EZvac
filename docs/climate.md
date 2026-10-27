@@ -110,7 +110,8 @@ step. The outdoors at a spot is the average of the biomes around it, within
 - Everything that uses the outdoor temperature follows: rooms drifting with
   nothing running, ETAs, thermometers, sensors, the HUD and pools. Natural water
   barely reacts (10% of the air's change).
-- Wind (stronger in rain and thunder) makes the outdoors feel colder.
+- Wind makes the outdoors feel colder. Since 3.2 every day has its own wind,
+  from Calm to a Gale, and rain and thunder add to it: see [Wind](wind.md).
 
 ## Humidity
 
@@ -132,7 +133,9 @@ Moisture is simulated as a **dew point** and shown as **relative humidity**
 
 "Feels like" is the apparent temperature from temperature, humidity and wind:
 humid heat feels hotter, dry air and wind feel cooler. Indoors there is no
-wind; at the edge of a system's reach the outdoor wind blends in.
+wind; at the edge of a system's reach the outdoor wind blends in. Walls and
+roofs shelter a spot from it too (3.2): you feel the wind by how much sky
+reaches you. See [Wind](wind.md).
 
 The HUD's comfort word, bar and colour follow "feels like" in air, so a humid
 84 °F room reads *Hot*. In water they follow the water temperature.

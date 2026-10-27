@@ -218,10 +218,31 @@ climate.
 | `rain-cooling-f`, `thunder-cooling-f`, `snow-cooling-f` | 6, 9, 3 | How much each cools the daily average |
 | `swing-reduction` | 0.6 | Share of the day/night swing full rain takes away |
 | `water-share` | 0.1 | Share of the air's change natural water follows |
-| `wind-clear-ms`, `wind-rain-ms`, `wind-thunder-ms` | 1.5, 3, 5 | Outdoor wind for "feels like", in m/s |
+| `wind-clear-ms`, `wind-rain-ms`, `wind-thunder-ms` | 1.5, 3, 5 | Outdoor wind for "feels like", in m/s. With the daily wind on, `wind-clear-ms` is unused and rain and thunder add their difference from it to the day's wind |
 
 With `enabled: false` temperatures ignore the weather, but weather sensors
 still report the sky. More in [Climate](climate.md#weather).
+
+## wind
+
+The daily wind (3.2). See [Wind](wind.md).
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `enabled` | true | `false`: the fixed `weather.wind-clear-ms`, and wind changes nothing else |
+| `chances` | calm 40, breezy 35, windy 18, gale 7 | How often each level comes up, as weights |
+| `speeds-ms` | calm [0, 2], breezy [3, 6], windy [7, 12], gale [14, 20] | Each level's daily mean speed on open, level ground |
+| `seasons` | spring 1.3, summer 0.7, autumn 1.3, winter 1.0 | How much each season scales the chance of a Windy or Gale day; Calm takes up the difference |
+| `gusts` | 0.25 | How far the wind swings around the day's mean, as a share of it (0-0.9) |
+| `infiltration-per-ms` | 0.05 | Extra air exchange per m/s of wind outside a room: at 0.05 a 20 m/s gale doubles it |
+| `maximum-infiltration` | 2.0 | The most wind multiplies a room's air exchange by |
+| `dust` | 1.5 | How much dust a wind over 6 m/s lifts where the ground is dry |
+| `smoke-dispersal` | 0.03 | Share of the outdoor PM2.5 the wind thins out per m/s, at most 40% |
+| `pollen-spread` | 0.06 | Share the wind adds to the outdoor pollen per m/s, at most 1.8x |
+| `units` | auto | `auto` (km/h with `units: C`, mph with `units: F`), `ms`, `kmh` or `mph` |
+| `biomes` | `{}` | Your own exposure per biome: 1 open ground, 0.5 a dense forest, 1.4 a mountain top, 0 none. For example `minecraft:plains: 1.2` |
+
+A bad value makes its section fall back to the defaults, with a warning.
 
 ## humidity
 
@@ -259,6 +280,34 @@ still report the sky. More in [Climate](climate.md#weather).
 | `default-setpoint` | 45 | 40 | Setpoint of a new unit, % RH |
 | `presets` | 35-60 | 30-50 | The setpoint range the control menu reaches, from the lowest to the highest, in steps of 5 |
 | `hysteresis` | 2.0 | 2.0 | How far past the setpoint before it starts again, % RH |
+
+## air-quality
+
+Air quality and air purifiers (3.2); see [Air quality](air-quality.md). Rates
+are per in-game hour.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | true | false hides every air reading, and purifiers sit idle |
+| `reference-cells` | 1500 | The space size sources and purifiers are quoted for. A bigger space dilutes both; a small one concentrates smoke, up to 4x |
+| `settling` | fine 0.1, coarse 0.3, pollen 0.5 | Share of each kind that settles out of still air per hour |
+| `system-filter` | fine 0.15, coarse 0.5, pollen 0.8 | Share a system's own filter takes out per hour while its equipment runs |
+| `sources.campfire` | fine 20, coarse 8 | What a lit campfire or soul campfire adds per hour, µg/m³ at `reference-cells` |
+| `sources.fire` | fine 25, coarse 10 | Fire and soul fire |
+| `sources.lava` | fine 6, coarse 4 | Lava in or around the space |
+| `sources.furnace` | fine 4, coarse 2 | A lit furnace, smoker or blast furnace (never EZvac's own) |
+| `sources.candle` | fine 1, coarse 0 | A lit candle block |
+| `pollen-levels` | 20, 80, 200 | Grains/m³ where pollen turns Moderate, High and Very high |
+| `purifier.range`, `purifier.maximum-cells` | 30, 50000 | Reach and size of a purifier's own space, as for a dehumidifier |
+| `purifier.rate` | fine 2.5, coarse 2.5, pollen 3.0 | Share of each kind one purifier takes out per hour on High, at `reference-cells` |
+| `purifier.speeds` | low 0.35, medium 0.65, high 1.0 | How hard each fan speed cleans, as a share of `rate` |
+| `purifier.auto.medium-above-aqi`, `high-above-aqi` | 50, 100 | Auto steps up to Medium or High past these AQIs |
+| `purifier.auto.medium-pollen`, `high-pollen` | moderate, high | ...or at these pollen levels (`moderate`, `high`, `very-high` or `never`) |
+| `purifier.auto.hysteresis` | 20 | How far under a step the AQI must fall before Auto steps down |
+| `purifier.filter-capacity` | 2400 | What a filter holds, µg/m³ caught at `reference-cells`, pollen weighted. A few in-game days beside a campfire |
+| `purifier.maximum-life-days` | 60 | In-game days a filter lasts running nonstop on High in perfectly clean air; slower speeds last longer |
+| `purifier.pollen-weight` | 0.5 | How much a grain/m³ of pollen fills the filter against a µg/m³ of particles |
+| `biomes` | none | Your own outdoor air per biome: `minecraft:plains: { pollen: 40 }`. Values left out keep EZvac's |
 
 ## hud
 

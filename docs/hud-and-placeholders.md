@@ -8,7 +8,8 @@
 
 Keeps the climate where you stand on screen: the temperature, how warm it
 feels, a cold-to-hot bar with a comfort word (cold, cool, comfortable, warm,
-hot), the humidity, the outdoor temperature and weather, the season, and the system
+hot), the humidity, the air quality and pollen, the outdoor temperature and
+weather, the season, and the system
 conditioning that spot with its mode, its target and whether you're in its
 core or its edge.
 
@@ -52,6 +53,13 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_temp%` (`_temp_f`, `_temp_c`) | `72.4°F` |
 | `%ezvac_feels_like%` (`_feels_like_f`, `_feels_like_c`) | `74.1°F` |
 | `%ezvac_humidity%` | `48%` |
+| `%ezvac_aqi%`, `%ezvac_aqi_colored%` | `42`: the Air Quality Index (3.2), plain or in its band's colour |
+| `%ezvac_aqi_band%` | `Good` (`Moderate`, `Sensitive`, `Unhealthy`, `Very bad`, `Hazardous`) |
+| `%ezvac_pm25%`, `%ezvac_pm10%` | `6.4`, `18`: particles in µg/m³ |
+| `%ezvac_pollen%`, `%ezvac_pollen_count%` | `High`, `95`: the pollen level, and grains/m³ |
+| `%ezvac_wind%` | `Windy 22 km/h`, or `Calm` (3.2) |
+| `%ezvac_wind_level%`, `%ezvac_wind_speed%` | `Windy`, `22 km/h`: the level, and the speed in the server's units |
+| `%ezvac_wind_ms%`, `%ezvac_wind_kmh%`, `%ezvac_wind_mph%` | `6`, `22`, `14`: the speed as a whole number |
 | `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`; empty in dry biomes) |
 | `%ezvac_season%` | `Summer` (`Spring`, `Autumn`, `Winter`; empty where there are no seasons) |
 | `%ezvac_season_day%` | `3`, the day of that season |
@@ -79,9 +87,19 @@ range, and comfort bands are all under `hud:` (and `hud.water:` for water) in `c
 use [MiniMessage](https://docs.advntr.dev/minimessage/format.html) formatting
 and these tokens:
 
-`{temp}` `{feels}` `{humidity}` `{bar}` `{comfort}` `{outdoor}` `{weather}`
-`{season}` `{season_day}` `{system}` `{thermostat}` `{mode}` `{target}` `{zone}`
+`{temp}` `{feels}` `{humidity}` `{aqi}` `{aqi_band}` `{pollen}` `{wind}`
+`{wind_level}` `{bar}` `{comfort}` `{outdoor}` `{weather}` `{season}`
+`{season_day}` `{system}` `{thermostat}` `{mode}` `{target}` `{zone}`
 `{version}`
+
+`{aqi}` is the Air Quality Index in its band's colour (3.2). The air values
+read `none` where the air isn't measured: in water, or with `air-quality`
+switched off. A sidebar that still has the stock lines gains the air line
+when you upgrade to 3.2.
+
+`{wind}` is the wind you feel, `Calm` or `Windy 22 km/h`, and `{wind_level}`
+just the word (3.2). They read `none` in water, in the Nether and the End,
+and with `wind` switched off. A stock sidebar gains a wind line too.
 
 `{system}` is the label of the thermostat whose air you're in, or `Headless`;
 `{group}`, its name before 3.0, still works in existing configs.
