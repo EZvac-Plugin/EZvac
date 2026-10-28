@@ -106,6 +106,11 @@ Look at the sign and run:
 /hvac create purifier [label]          ("airpurifier" works too)
 ```
 
+Tube coral dies within seconds away from water, so you can also build it
+without the coral and make the purifier first: it waits with `No filter`.
+Then place the tube coral block under the iron block; from then on it stays
+alive (3.2 HOTFIX 1).
+
 Like the other standalone units it needs no system:
 - inside a system's room, it cleans that room;
 - anywhere else, it cleans the space around it, up to 30 blocks of airflow

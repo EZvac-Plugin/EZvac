@@ -357,7 +357,9 @@ AIR QUALITY (3.2)
   by reference / max(cells, reference / 4). Torches and EZvac's own furnaces
   and boilers never count.
 - Air purifier: an iron block on a tube coral block (the filter) with a sign
-  on the iron block, /hvac create purifier. Same zone rules as a
+  on the iron block, /hvac create purifier. From 3.2 HOTFIX 1 it can be made
+  over air (No filter) or dead coral (Filter spent); its stored filter life
+  stays 1, so the first fresh coral placed is a full filter. Same zone rules as a
   dehumidifier. No setpoint: a mode, Low, Medium, High (speeds 0.35, 0.65,
   1.0 of its rate) or Auto (new purifiers; saved as mode). It runs whenever
   it is on, has a usable filter and can read the air. Auto idles on Low,
