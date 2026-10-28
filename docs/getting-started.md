@@ -30,16 +30,19 @@ still part of the room. See [Vents and airflow](airflow.md).
 ### 2. The heat pump
 
 A heat pump is a **dispenser** in a closed casing. While it runs it puts a
-block of water in front of itself, so that cell has to be boxed in on every
-side or it spills. Glass makes a good window.
+block of water in the cell it faces, so that cell has to be boxed in or it
+spills. The usual build is a 3×3×3 cube, three layers of 3×3:
 
 ```text
- side view, looking at the dispenser's front:
+ bottom layer:              middle layer:              top layer:
 
- [casing][casing][casing]
- [casing][ water][casing]    <- appears while it runs
- [casing][casing][casing]
- (the dispenser sits behind the water cell, facing into it)
+ [casing][casing][casing]   [casing][casing][casing]   [casing][casing][casing]
+ [casing][ disp ][casing]   [casing][ water][casing]   [casing][casing][casing]
+ [casing][casing][casing]   [casing][glass ][casing]   [casing][casing][casing]
+
+ disp: the dispenser, facing up
+ water: left empty; the water appears there while it runs
+ glass: optional, any side of the middle layer, to watch it
 ```
 
 ![A heat pump casing](images/equipment-casing.webp)

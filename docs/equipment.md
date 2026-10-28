@@ -182,35 +182,38 @@ HVAC units. More stars is better.
 ### The casing
 
 While a unit runs, its dispenser puts a block of water (lava for a furnace) in
-the cell in front of itself, and takes it away when it stops. Equipment is
-meant to be built inside a closed casing, so that cell is boxed in on every
-open side and nothing spills.
+the cell it faces, and takes it away when it stops. Equipment is meant to be
+built inside a closed casing, so that cell is boxed in and nothing spills.
+
+The usual build is a 3×3×3 cube, three layers of 3×3, with the dispenser
+facing up in the middle of the bottom layer:
 
 ```text
- side view, looking at the dispenser's front:
+ bottom layer:              middle layer:              top layer:
 
- [casing][casing][casing]
- [casing][output][casing]    <- water, or lava for a furnace, while it runs
- [casing][casing][casing]
+ [casing][casing][casing]   [casing][casing][casing]   [casing][casing][casing]
+ [casing][ disp ][casing]   [casing][output][casing]   [casing][casing][casing]
+ [casing][casing][casing]   [casing][glass ][casing]   [casing][casing][casing]
 
- top view:
-
-         [casing]
- [casing][output][casing]
- [casing][ disp ][casing]
-         [casing]
+ disp: the dispenser, facing up
+ output: left empty; water (lava for a furnace) appears there while it runs
+ glass: optional, any side of the middle layer, to watch it
 ```
 
 ![A casing with a glass window](images/equipment-casing.webp)
 
-- Enclose the output cell above, below, left, right and in front. Glass works
-  as a window.
+- Fill all three layers with casing blocks, except the dispenser in the
+  middle of the bottom layer and the output cell above it, which stays empty.
+- One side of the middle layer can be glass, as in the picture, to see the
+  water or lava.
+- A dispenser can also face sideways or down: its output is then the cell it
+  faces, and that cell is the one to box in.
 - The output cell must be **empty** (air) for the unit to start.
 - Use non-flammable blocks around a furnace: its output is lava.
 - The casing can be anywhere: the room is reached through the vents you link,
   not through the equipment.
 - EZvac only ever removes the water or lava it placed itself. Fluid you put in
-  front of a dispenser is never taken over.
+  a dispenser's output cell is never taken over.
 - Two units facing the same cell take turns: one wins and the other waits.
 
 <!-- screenshot: a furnace casing, a pool heat pump and boiler beside a pool -->
