@@ -4,7 +4,7 @@
 
 You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
 
-1. Put `EzVac-ALPHA-3.1.jar` in the server's `plugins` folder.
+1. Put `EzVac-ALPHA-3.2-HOTFIX1.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 

@@ -58,7 +58,7 @@ biome and the weather.
 
 ## Quick install
 
-1. Download `EzVac-ALPHA-3.1.jar` from the
+1. Download `EzVac-ALPHA-3.2-HOTFIX1.jar` from the
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
 2. Put it in your server's `plugins` folder. You need Paper 1.21.1 or a fork
@@ -103,7 +103,7 @@ You need Java 21 and Maven 3.9 or newer.
 mvn clean package
 ```
 
-The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-3.1.jar`. `mvn verify` also runs
+The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-3.2-HOTFIX1.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
