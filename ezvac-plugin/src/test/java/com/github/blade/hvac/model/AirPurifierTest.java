@@ -165,6 +165,30 @@ class AirPurifierTest {
     }
 
     @Test
+    void oneMadeWithoutAFilterWaitsForItsFirstAndThatOneIsFresh() {
+        // 3.2 HOTFIX 1: coral dies away from water before the purifier is made, so it may be made first.
+        AirPurifier empty = purifier(Mode.AUTO);
+        assertFalse(empty.readFilter(Material.AIR));
+        assertEquals(ClimateUnit.State.NO_FILTER, empty.state());
+        empty.control(aqi(200), SETTINGS);
+        assertFalse(empty.running(), "no filter, no cleaning");
+        assertFalse(empty.readFilter(AirPurifier.FILTER), "its first filter isn't a replacement...");
+        assertEquals(1.0, empty.filter(), "...but it is fresh");
+        empty.control(aqi(200), SETTINGS);
+        assertTrue(empty.running());
+        AirPurifier restarted = AirPurifier.fromMap(purifier(Mode.AUTO).toMap());
+        restarted.readFilter(Material.AIR);
+        assertEquals(1.0, AirPurifier.fromMap(restarted.toMap()).filter(), "a restart before the coral goes in");
+
+        AirPurifier onDeadCoral = purifier(Mode.AUTO);
+        onDeadCoral.readFilter(AirPurifier.SPENT_FILTER);
+        assertEquals(ClimateUnit.State.FILTER_SPENT, onDeadCoral.state(), "made on a spent filter");
+        onDeadCoral.readFilter(Material.AIR);
+        assertTrue(onDeadCoral.readFilter(AirPurifier.FILTER), "fresh coral replaces it");
+        assertEquals(1.0, onDeadCoral.filter());
+    }
+
+    @Test
     void itIsKeptWithoutItsFilterAndHasNoSetpoint() {
         AirPurifier purifier = purifier(Mode.AUTO);
         assertFalse(purifier.partRequired());

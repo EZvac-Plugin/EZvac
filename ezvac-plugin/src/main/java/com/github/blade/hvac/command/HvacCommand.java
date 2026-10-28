@@ -341,12 +341,22 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 ? sign.getRelative(wall.getFacing().getOppositeFace()) : sign.getRelative(BlockFace.DOWN);
         if (iron.getType() != Material.IRON_BLOCK)
             throw new IllegalArgumentException("Put the sign on an iron block: on its side, or standing on top.");
+        // The filter can go in afterwards (3.2 HOTFIX 1): tube coral dies away from water within seconds,
+        // so a purifier can be made over an empty block, or over dead coral, and wait for a fresh one.
         Block filter = iron.getRelative(BlockFace.DOWN);
-        if (filter.getType() != AirPurifier.FILTER)
-            throw new IllegalArgumentException("The iron block must sit on a tube coral block: the filter.");
+        Material below = filter.getType();
+        if (below != AirPurifier.FILTER && below != AirPurifier.SPENT_FILTER && !below.isAir())
+            throw new IllegalArgumentException("Under the iron block goes its filter: a tube coral block, or"
+                    + " nothing yet, to place the coral afterwards.");
         String label = args.length >= 3 ? args[2] : "Purifier";
-        registerUnit(player, new AirPurifier(position, BlockKey.of(iron.getLocation()),
-                BlockKey.of(filter.getLocation()), label, AirPurifier.Mode.AUTO));
+        AirPurifier purifier = new AirPurifier(position, BlockKey.of(iron.getLocation()),
+                BlockKey.of(filter.getLocation()), label, AirPurifier.Mode.AUTO);
+        purifier.readFilter(below);
+        registerUnit(player, purifier);
+        if (purifier.installed() != AirPurifier.Filter.FRESH)
+            player.sendMessage(yellow("It waits for its filter: " + (below.isAir() ? "place" : "break the dead"
+                    + " coral and place") + " a tube coral block under the iron block. Placed there, the coral"
+                    + " stays alive."));
         if (!units.air().enabled())
             player.sendMessage(yellow("Air quality is switched off on this server (air-quality.enabled), so it"
                     + " will stay idle."));

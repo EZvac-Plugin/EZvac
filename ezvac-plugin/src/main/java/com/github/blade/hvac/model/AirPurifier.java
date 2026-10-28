@@ -19,7 +19,8 @@ import java.util.Map;
  * the air it reads. The filter fills with what it catches, faster the dirtier
  * the air; when it is full the coral dies. The player breaks the dead coral
  * and places a fresh tube coral block, and the purifier starts again with a
- * new filter.
+ * new filter. It can also be made with no filter in yet (3.2 HOTFIX 1), and
+ * the first tube coral placed under it is a fresh filter.
  */
 public final class AirPurifier extends ClimateUnit {
     public static final Material FILTER = Material.TUBE_CORAL_BLOCK;

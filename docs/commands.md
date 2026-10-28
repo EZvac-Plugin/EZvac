@@ -56,7 +56,7 @@ block use the block you're looking at, within six blocks.
 | `/hvac create settingspanel [label]` | a sign | One per system, once linked |
 | `/hvac create dehumidifier [label]` | its sign | Also `dehum`. A sign on an iron block that sits on a waxed copper grate |
 | `/hvac create humidifier [label]` | its sign | Also `hum`. A sign on the side of an iron block under a waxed cut copper slab |
-| `/hvac create purifier [label]` | its sign | Also `airpurifier`. A sign on an iron block that sits on a tube coral block, its filter (3.2) |
+| `/hvac create purifier [label]` | its sign | Also `airpurifier`. A sign on an iron block that sits on a tube coral block, its filter (3.2). The coral can be placed afterwards (3.2 HOTFIX 1) |
 | `/hvac create sensor [label]` | a button | Stone, polished blackstone, mangrove, birch, cherry (air quality) or bamboo (wind, 3.2) |
 | `/hvac create sensor-hub [label]` | a sign | Also `sensorhub` |
 

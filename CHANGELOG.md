@@ -2,6 +2,21 @@
 
 All notable changes to EZvac are recorded here.
 
+## ALPHA 3.2 HOTFIX 1
+
+A bug fix only. The save is unchanged (format 8), so this is a drop-in
+upgrade, and going back to 3.2 is a jar swap.
+
+### Fixed
+
+- **An air purifier was hard to build.** It could only be made on a living
+  tube coral block, and tube coral dies within seconds away from water, so
+  the coral was often dead before `/hvac create purifier` ran. Now:
+  - a purifier can be made with nothing under its iron block, or on dead
+    coral, and waits with `No filter` or `Filter spent`;
+  - the first tube coral block placed under it is a fresh filter, and it
+    stays alive there, as every filter does.
+
 ## ALPHA 3.2
 
 **Air quality.** Every room now knows what is in its air: fine particles
