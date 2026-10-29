@@ -50,6 +50,12 @@ Purpur **26.1 to 26.3**, and still on **1.21.1**. The save is unchanged
   same.
 - **A stock sidebar moves to the sections** when you upgrade; one you
   changed is left as it is.
+- **Fixed: a stock sidebar from 1.8 to 2.2 never got newer lines.** 3.0
+  renamed its `{group}` to `{system}`, after which those sidebars weren't
+  recognised as stock, so they missed the season, addons, air and wind
+  lines. Every release's stock sidebar now moves to the sections. A test
+  now upgrades every released `config.yml` to today's: nothing is missing,
+  nothing a server set changes, and nothing warns.
 - **An idle system says what it holds:** `{mode}` and `%ezvac_mode%` read
   `Holding 72.0°F` instead of `Idle`, as its screen does. The new
   `{system_mode}` token gives `Home: Holding 72.0°F`.

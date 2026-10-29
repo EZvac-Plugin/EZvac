@@ -46,6 +46,28 @@ public final class ConfigUpdater {
         return added;
     }
 
+    /**
+     * Everything a start does to bring an older config.yml up to date (BETA 1.0
+     * gathered it here, so a test can run the same steps on every release's
+     * file): the missing settings, then the values carried over from settings
+     * that replaced older ones, then the stock HUD layouts, step by step from
+     * the oldest. Nothing at all happens to a file that lacks nothing.
+     *
+     * @return the paths added or brought up to date, as {@link #addMissing} reports them
+     */
+    public static List<String> upgrade(YamlConfiguration target, YamlConfiguration defaults) {
+        List<String> added = addMissing(target, defaults);
+        if (added.isEmpty()) return added;
+        SoundSettings.carryOverHum(target, added);
+        TemperatureUnit.carryOver(target, added);
+        HudSettings.addSeasonLine(target, added);
+        HudSettings.addAddonsLine(target, added);
+        HudSettings.addAirLine(target, added);
+        HudSettings.addWindLine(target, added);
+        HudSettings.adoptSections(target, added);
+        return added;
+    }
+
     /** True when some parent of the path holds a plain value, which adding the path would overwrite. */
     private static boolean blockedByValue(ConfigurationSection target, String path) {
         int dot = path.indexOf('.');

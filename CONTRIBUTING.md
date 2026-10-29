@@ -86,6 +86,14 @@ supported. `RegistryCompatibilityTest` enforces the upgrade side using real
 `RegistryBehaviourTest` pins the registry rules other code depends on, such
 as which device wins a duplicate and what gets preserved.
 
+`ReleaseConfigUpgradeTest` does the same for `config.yml`: every release's
+bundled file, under `ezvac-plugin/src/test/resources/configs/<release>.yml`,
+upgraded the way a start does (`ConfigUpdater.upgrade`), must gain every
+current setting, keep every value it had, load without a warning, and end
+with today's stock sidebar if it had a stock one. Add the new release's
+file when it ships (`unzip -p EzVac-<release>.jar config.yml`). If a release
+changes a stock HUD layout, add the old one to `HudSettings.PAST_STOCK`.
+
 ## Testing against a real server
 
 Anything touching Bukkit APIs is not covered by the unit tests. For those

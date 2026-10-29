@@ -110,9 +110,9 @@ and with `wind` switched off. A stock sidebar gains a wind line too.
 `{system_mode}` (BETA 1.0) puts the system and what it's doing on one line,
 `Home: Holding 72.0°F`, and reads just `none` outside any system.
 
-When you upgrade to BETA 1.0, a sidebar that still has the 3.2 stock lines,
-in air or in water, moves to the sections. A sidebar you changed is left as
-it is.
+When you upgrade to BETA 1.0, a sidebar that still has the stock lines of
+any release since 1.8, in air or in water, moves to the sections. A sidebar
+you changed is left as it is.
 
 ### Addon sections
 
