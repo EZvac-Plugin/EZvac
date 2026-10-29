@@ -45,26 +45,102 @@ class ScreenTest {
 
     @Test
     void aScreenReadsTitleBigReadingAndLines() {
-        ScreenText screen = ScreenText.titled("main", "house").big("72.4°F")
-                .line("❄ Cooling to 70.0°F", NamedTextColor.AQUA)
+        ScreenText screen = ScreenText.titled("main", "house").tone(ScreenText.Tone.COOLING).big("72.4°F")
+                .line("Cooling to 70.0°F", NamedTextColor.AQUA)
                 .line(ScreenText.bar(0.6, 10, NamedTextColor.AQUA));
-        assertEquals(4, screen.used());
-        assertEquals(ScreenText.LINES, screen.lines());
-        assertEquals("main  · house\n72.4°F\n❄ Cooling to 70.0°F\n▮▮▮▮▮▮▯▯▯▯ 60%", plain(screen));
+        assertEquals(2, screen.used());
+        assertEquals(ScreenText.BODY_LINES, screen.bodyLines());
+        assertEquals("main  · house\n72.4°F\nCooling to 70.0°F\n▮▮▮▮▮▮▯▯▯▯ 60%", plain(screen));
+        assertEquals("72.4°F", text(screen.bigText()));
+    }
+
+    private static String text(net.kyori.adventure.text.Component component) {
+        return PlainTextComponentSerializer.plainText().serialize(component);
+    }
+
+    /** Pixels a screen line takes, counting a · as narrow as a full stop. */
+    private static int width(String line) {
+        return SignText.width(line.replace('·', '.'));
     }
 
     @Test
-    void everyScreenIsTheSameSize() {
+    void theHeaderCarriesTheNameAndEndsInTheToneGlyph() {
+        String cooling = text(ScreenText.titled("Living room", "").tone(ScreenText.Tone.COOLING).header());
+        assertTrue(cooling.startsWith("Living room ") && cooling.endsWith("❄"), cooling);
+        String plain = text(ScreenText.titled("Shed", "").header());
+        assertTrue(plain.startsWith("Shed") && plain.endsWith(" "), "a neutral header has no glyph: " + plain);
+        for (String header : java.util.List.of(cooling, plain)) {
+            int width = width(header);
+            assertTrue(width <= ScreenText.WIDTH && width > ScreenText.WIDTH - 2 * SignText.width(" "),
+                    () -> "the strip reaches the full width: " + width);
+        }
+        String longName = text(ScreenText.titled("A very long thermostat name indeed", "Pool")
+                .tone(ScreenText.Tone.HEATING).header());
+        assertTrue(longName.endsWith("♨") && width(longName) <= ScreenText.WIDTH, longName);
+    }
+
+    @Test
+    void everyScreenIsTheSameSizeAndNoLineIsPadded() {
         for (ScreenText screen : java.util.List.of(ScreenText.titled("main", "house").big("72.4°F"),
+                ScreenText.titled("hub", "").line("Attic: 71.0 F", NamedTextColor.WHITE),
                 ScreenText.titled("A much longer thermostat name", "").big("50%").line("Target 45%",
                         NamedTextColor.WHITE).line("x", NamedTextColor.WHITE).line("y", NamedTextColor.WHITE))) {
-            assertEquals(ScreenText.LINES, screen.lines());
-            String[] lines = PlainTextComponentSerializer.plainText().serialize(screen.text()).split("\n", -1);
-            assertEquals(ScreenText.LINES, lines.length, "padded with blank lines");
-            int title = SignText.width(lines[0].replace('·', '.'));
-            assertTrue(title <= ScreenText.WIDTH && title > ScreenText.WIDTH - SignText.width(" "),
-                    () -> "the title reaches the full width: " + title);
+            assertEquals(ScreenText.BODY_LINES, screen.bodyLines());
+            String[] lines = text(screen.body()).split("\n", -1);
+            assertEquals(ScreenText.BODY_LINES, lines.length, "padded with blank lines");
+            int widest = java.util.Arrays.stream(lines).mapToInt(ScreenTest::width).max().orElse(0);
+            assertTrue(widest < ScreenText.WIDTH && widest > ScreenText.WIDTH - 3 * SignText.width(" "),
+                    () -> "a blank line sets the panel just short of the wrap width: " + widest);
+            for (String line : lines)
+                assertTrue(line.isBlank() || line.equals(line.strip()), () -> "never padded: '" + line + "'");
         }
+    }
+
+    @Test
+    void theBigReadingLeavesTheTopOfTheBodyBlank() {
+        String[] lines = text(ScreenText.titled("main", "").big("72.4°F")
+                .line("Holding 72.0°F", NamedTextColor.GREEN).body()).split("\n", -1);
+        assertTrue(lines[0].isBlank() && lines[1].isBlank(), "the big reading is drawn over these");
+        assertEquals("Holding 72.0°F", lines[2]);
+    }
+
+    @Test
+    void aListAlwaysEndsInABlankLine() {
+        ScreenText full = ScreenText.titled("hub", "");
+        for (int i = 0; i < ScreenText.ROWS; i++) full.line("sensor " + i, NamedTextColor.WHITE);
+        String[] lines = text(full.body()).split("\n", -1);
+        assertEquals(ScreenText.BODY_LINES, lines.length);
+        assertTrue(lines[lines.length - 1].isBlank());
+    }
+
+    @Test
+    void aBusyScreenGrows() {
+        ScreenText screen = ScreenText.titled("hub", "");
+        for (int i = 0; i < ScreenText.ROWS + 2; i++) screen.line("sensor " + i, NamedTextColor.WHITE);
+        assertEquals(ScreenText.ROWS + 3, screen.bodyLines(), "and keeps its blank line");
+    }
+
+    @Test
+    void theStripSitsOnTopOfTheBodyAndBothAreCentredOnTheBoard() {
+        ScreenPlacement.Layout layout = ScreenPlacement.layout(ScreenPlacement.Mount.WALL, 0, 1,
+                ScreenText.BODY_LINES, true);
+        double pixel = 0.4 / 40;
+        double body = (ScreenText.BODY_LINES * 10 + 2) * pixel, header = 12 * pixel;
+        assertEquals(layout.body().y() + body, layout.header().y(), 1e-9, "the header starts where the body ends");
+        assertEquals(0.53, layout.body().y() + (body + header) / 2, 1e-9, "centred on the board");
+        assertEquals(layout.body().z(), layout.header().z(), 1e-9);
+        assertEquals(0.0f, layout.header().yaw(), 1e-4);
+    }
+
+    @Test
+    void theBigReadingFloatsOverTheBodysBlankRows() {
+        ScreenPlacement.Layout layout = ScreenPlacement.layout(ScreenPlacement.Mount.WALL, 0, 1,
+                ScreenText.BODY_LINES, true);
+        double pixel = 0.4 / 40, bodyTop = layout.body().y() + (ScreenText.BODY_LINES * 10 + 2) * pixel;
+        double bigCentre = layout.big().y() + 12 * pixel;
+        assertEquals(bodyTop - 11 * pixel, bigCentre, 1e-9, "centred on the two blank rows under the top");
+        assertTrue(layout.big().z() > layout.body().z(), "just in front of the body, towards the reader");
+        assertNull(ScreenPlacement.layout(ScreenPlacement.Mount.WALL, 0, 1, 6, false).big());
     }
 
     @Test
