@@ -92,6 +92,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(green("HVAC reconciliation queued."));
             return true;
         }
+        if (subcommand.equals("update")) {
+            if (!requireAdmin(sender)) return true;
+            if (plugin.updates() == null) sender.sendMessage(red("EZvac is still starting; try again in a moment."));
+            else plugin.updates().checkNow(sender);
+            return true;
+        }
         if (subcommand.equals("season")) {
             try {
                 season(sender, args);
@@ -1081,13 +1087,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac equipment enable|disable|tier|info"), gray(" - the unit you look at")));
         sender.sendMessage(join(aqua("/hvac rename <label>"), gray(" - rename the sign you look at")));
         sender.sendMessage(join(aqua("/hvac remove | remove system | stats | sync"), gray(" - remove, diagnose, reconcile")));
+        sender.sendMessage(join(aqua("/hvac update"), gray(" - check GitHub for a newer EZvac that runs here")));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(args[0], "help", "temperature", "hud", "list", "info",
                 "create", "thermostat", "equipment", "link-tool", "rename", "remove", "stats", "sync", "season",
-                "wind");
+                "wind", "update");
         if (args[0].equalsIgnoreCase("season")) {
             if (args.length == 2) return sender.hasPermission(ADMIN_PERMISSION)
                     ? filter(args[1], "set", "next", "pause", "resume") : List.of();

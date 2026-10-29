@@ -648,7 +648,7 @@ UPDATE CHECK
 
 - UpdateNotifier (BETA 1.0): off the main thread, 10 s after start-up and
   then every 6 hours, GETs api.github.com/repos/EZvac-Plugin/EZvac/releases
-  (30 newest). updates.check: false turns it off; a build whose version is
+  (100 newest). updates.check: false turns it off; a build whose version is
   not a release name (e.g. a SNAPSHOT) never checks.
 - ReleaseVersion orders releases: ALPHA before BETA, then the numbers, then
   a number's pilots (P1 < P2) before it and its hotfixes after it
@@ -660,6 +660,19 @@ UPDATE CHECK
 - A new one is logged once, and told to online players with ezvac.admin and
   to each one who joins (2 s later), with a link (updates.notify-admins).
   A failed check is logged once until a check succeeds.
+- Minecraft cutoffs: UpdateCheck.requirement() says what a release line
+  needs beyond 1.21.1; BETA 2.0 and later need 26.1 (compared by number,
+  1.21.11 < 26.1; an unreadable server version counts as new enough). A
+  check gives the newest newer release and the newest newer one that runs
+  on the server's Minecraft. When they differ, the message says what the
+  newest needs, links the 26.x move guide, and names the one that runs
+  here (or says the server has it). A cutoff only reaches servers through
+  releases built with it, so a future one goes in the releases before it.
+- /hvac update (ezvac.admin, chat or console, BETA 1.0): checks GitHub now,
+  even with updates.check: false; a list read in the last minute is reused
+  (GitHub allows 60 unauthenticated requests an hour). Players get
+  clickable links, the console the addresses. A development build says it
+  has nothing to compare against.
 
 
 PUBLIC API

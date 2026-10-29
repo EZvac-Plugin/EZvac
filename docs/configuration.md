@@ -55,7 +55,11 @@ releases.
 - **Pilots:** a server running a pilot hears about newer pilots and full
   releases. One running a full release only hears about full releases and
   their hotfixes.
-- **`check: false`** turns it off.
+- **A newer Minecraft:** when the newest release needs a newer Minecraft
+  than the server runs (BETA 2.x needs 26.1 or newer), the message says so,
+  and names the newest release that still runs on the server.
+- **`check: false`** turns the background checks off. `/hvac update` still
+  checks when an admin asks (see [Commands](commands.md#hvac-update)).
 
 A failed check (no internet, GitHub busy) is logged once and tried again 6
 hours later.

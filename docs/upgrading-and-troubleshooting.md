@@ -88,7 +88,9 @@ covered by the test suite.
 ### Moving to Minecraft 26.x
 
 BETA 1.0 runs on 1.21.x and on 26.1 to 26.3, so EZvac and the server can be
-updated in either order. BETA 2.x will drop all of 1.21.x, so plan the move:
+updated in either order. BETA 2.x will drop all of 1.21.x, so plan the move.
+`/hvac update` says whether the newest EZvac runs on your server's Minecraft,
+and which one does if it doesn't.
 
 1. **Back up the whole server:** the world folders (`world`, `world_nether`,
    `world_the_end`) and `plugins/EZvac/`.

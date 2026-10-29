@@ -9,7 +9,7 @@ block use the block you're looking at, within six blocks.
 | --- | --- | --- |
 | `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat targets and on/off, settings panels, dehumidifiers, humidifiers and air purifiers, sensor hubs, pressing sensors |
 | `ezvac.hud` | everyone | `/hvac hud` |
-| `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season and the wind, `stats` and `sync` |
+| `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season and the wind, `stats`, `sync` and `update` |
 
 ## For everyone (`ezvac.use`)
 
@@ -154,5 +154,26 @@ As with the seasons, from the console add a world's name at the end.
 | `/hvac stats` | Device totals and airflow statistics |
 | `/hvac hud sections` | The sections addons have added to the HUD, with the `{section:<id>}` token for each (see [HUD and placeholders](hud-and-placeholders.md#addon-sections)) |
 | `/hvac sync` | Applies block and world changes straight away instead of on the next update |
+| `/hvac update` | Checks GitHub for a newer EZvac now, and says whether it runs on this server's Minecraft (BETA 1.0, see below) |
 
 Breaking a device's block removes it too, and tells you what was removed.
+
+### `/hvac update`
+
+New in BETA 1.0. It reads GitHub's list of releases, from chat or the
+console, and says one of three things:
+
+- **You're on the latest EZvac.**
+- **A newer one is out, and it works on this server's Minecraft,** with a
+  link to the release.
+- **A newer one is out, but it needs a newer Minecraft.** BETA 2.x needs
+  Minecraft 26.1 or newer, so a 1.21.x server is told that, with a link to
+  [Moving to Minecraft 26.x](upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
+  It also names the newest EZvac that still runs on 1.21.x, or says the
+  server already has it.
+
+Like the update notifier, a server on a pilot hears about newer pilots too,
+and one on a full release only about full releases and hotfixes. It works
+even with `updates.check: false`, and asking again within a minute reuses
+the list it just read. A development build has nothing to compare against,
+and says so.
