@@ -182,8 +182,11 @@ HVAC units. More stars is better.
 ### The casing
 
 While a unit runs, its dispenser puts a block of water (lava for a furnace) in
-the cell it faces, and takes it away when it stops. Equipment is meant to be
-built inside a closed casing, so that cell is boxed in and nothing spills.
+the cell it faces, and takes it away when it stops. Since BETA 1.0 that water
+or lava stays in its cell: it never flows, lights fires or hardens into
+obsidian, so units built side by side in one casing never block each other,
+and a unit that starts before its casing is finished doesn't flood the build.
+The casing is how a unit is meant to look.
 
 The usual build is a 3×3×3 cube, three layers of 3×3, with the dispenser
 facing up in the middle of the bottom layer:
@@ -208,8 +211,11 @@ facing up in the middle of the bottom layer:
   water or lava.
 - A dispenser can also face sideways or down: its output is then the cell it
   faces, and that cell is the one to box in.
-- The output cell must be **empty** (air) for the unit to start.
-- Use non-flammable blocks around a furnace: its output is lava.
+- The output cell must be **empty** for the unit to start: air, or water or
+  lava only flowing through, which the unit replaces. A water or lava
+  source in it is left alone, since it may be yours.
+- A furnace's lava lights nothing around it, but it still burns anyone who
+  touches it.
 - The casing can be anywhere: the room is reached through the vents you link,
   not through the equipment.
 - EZvac only ever removes the water or lava it placed itself. Fluid you put in

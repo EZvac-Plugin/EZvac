@@ -148,8 +148,10 @@ on a biome border), and 2.1 samples them again if you come back.
 
 **Equipment doesn't start.**
 - The cell the dispenser faces (above it, in the usual casing) must be
-  **empty** (air): the unit puts its water or lava there. Clear it, and make
-  sure the dispenser faces into its casing. See
+  **empty**: air, or water or lava only flowing through. The unit puts its
+  water or lava there. A source block in it, such as one left by a
+  bucket or, before BETA 1.0, formed by units' water running together,
+  stops it: clear it, and make sure the dispenser faces into its casing. See
   [Equipment](equipment.md#the-casing).
 - `/hvac info` on the dispenser shows whether it's enabled and which system
   it's in. "A headless system" means no thermostat controls it: link it to one
