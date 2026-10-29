@@ -53,9 +53,9 @@ Purpur **26.1 to 26.3**, and still on **1.21.1**. The save is unchanged
 - **An idle system says what it holds:** `{mode}` and `%ezvac_mode%` read
   `Holding 72.0°F` instead of `Idle`, as its screen does. The new
   `{system_mode}` token gives `Home: Holding 72.0°F`.
-- **Moderate pollen reads `Med`** on the HUD and in `%ezvac_pollen%`, so a
-  moderate day no longer widens the sidebar. Screens and commands still say
-  Moderate.
+- **Pollen levels are shorter** on the HUD and in `%ezvac_pollen%`: `Med`
+  and `V.High` instead of Moderate and Very high, so no level widens the
+  sidebar. Screens and commands keep the full words.
 
 ### Update notifications
 

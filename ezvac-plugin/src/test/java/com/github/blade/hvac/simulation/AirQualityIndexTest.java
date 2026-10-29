@@ -75,6 +75,8 @@ class AirQualityIndexTest {
         assertEquals("Med", PollenLevel.MODERATE.hudName(), "so the sidebar doesn't widen");
         assertEquals("Moderate", PollenLevel.MODERATE.displayName(), "screens and commands keep the word");
         assertEquals("High", PollenLevel.HIGH.hudName());
+        assertEquals("V.High", PollenLevel.VERY_HIGH.hudName());
+        assertEquals("Very high", PollenLevel.VERY_HIGH.displayName());
         assertEquals("Low", PollenLevel.LOW.hudName());
     }
 }
