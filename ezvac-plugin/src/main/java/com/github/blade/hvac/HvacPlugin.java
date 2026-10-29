@@ -17,6 +17,7 @@ import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.integration.placeholderapi.PlaceholderApiBridge;
 import com.github.blade.hvac.listener.HvacListener;
 import com.github.blade.hvac.service.*;
+import com.github.blade.hvac.update.UpdateNotifier;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.World;
@@ -58,6 +59,7 @@ public final class HvacPlugin extends JavaPlugin {
     private List<com.github.blade.hvac.model.ClimateUnit> runningUnits = List.of();
     private BukkitTask bubbleTask;
     private ClimateHudService hud;
+    private UpdateNotifier updates;
     /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
     private Runnable placeholderUnregister;
     private AirQualityService airQuality;
@@ -126,6 +128,12 @@ public final class HvacPlugin extends JavaPlugin {
             requestImmediateSync();
             String legacy = legacyServerWarning(getServer().getMinecraftVersion());
             if (legacy != null) getLogger().warning(legacy);
+            if (getConfig().getBoolean("updates.check", true)) {
+                updates = new UpdateNotifier(this, getPluginMeta().getVersion(),
+                        getConfig().getBoolean("updates.notify-admins", true));
+                getServer().getPluginManager().registerEvents(updates, this);
+                updates.start();
+            }
             getLogger().info("EZvac enabled: " + registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.vents().size() + " vent(s), "
@@ -239,6 +247,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (api != null) api.clear();
         if (placeholderUnregister != null) placeholderUnregister.run();
         if (hud != null) hud.shutdown();
+        if (updates != null) updates.stop();
         if (controllerTask != null) controllerTask.cancel();
         if (airflowTask != null) airflowTask.cancel();
         if (bubbleTask != null) bubbleTask.cancel();

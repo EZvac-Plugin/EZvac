@@ -5,6 +5,16 @@
 # this says. The temperatures in this file stay in F (their keys end in -f).
 units: F
 
+# Checks GitHub for a newer EZvac release (BETA 1.0), in the background: at
+# start-up, then every 6 hours. A newer one is logged, and players with
+# ezvac.admin hear about it when they join, with a link. A server running a
+# pilot also hears about newer pilots; one running a full release only about
+# full releases and their hotfixes. It only reads GitHub's public list of
+# releases.
+updates:
+  check: true
+  notify-admins: true
+
 controller:
   period-ticks: 20
   save-period-ticks: 600
