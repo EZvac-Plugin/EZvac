@@ -6,7 +6,13 @@ All notable changes to EZvac are recorded here.
 
 **The first BETA: EZvac on Minecraft 26.x.** One jar runs on Paper and
 Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
-(format 8), so it's a drop-in upgrade from ALPHA 3.2 on either version.
+(format 8), so your devices carry over from ALPHA 3.2 on either version.
+
+**Heating and cooling now go by building size.** A big build may heat and
+cool more slowly than before and need more units, or more vents to reach
+all of it. `sizing.enabled: false`, or **Building size** in quick settings,
+keeps the old behaviour. See
+[Size-based heating and cooling](#size-based-heating-and-cooling).
 
 ### Minecraft 26.x
 
@@ -31,86 +37,19 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
 - **Pale oak and poplar** signs, hanging signs and trapdoors work like
   every other wood.
 
-### Screens
-
-- **Every screen is redesigned as a status strip.** A header with the
-  device's name is coloured by what it's doing: blue and ❄ cooling, orange
-  and ♨ heating, green holding, grey off, amber when it needs you, and the
-  AQI's colour on air monitors and purifiers. Under it, an opaque panel shows
-  the main reading big and centred.
-- **The sign behind a screen is blank,** so only the screen shows. On 26.x
-  the sign's text showed through the screen. A server with Bedrock players
-  (Geyser) should set `displays.screens: false`, so the signs carry the text.
-
-### HUD
-
-- **The sidebar is organised in sections:** Here (temperature, feels-like,
-  comfort, humidity, air), Outside (temperature and weather, wind, season)
-  and System (the system and what it's doing, airflow), each under its
-  heading. The pool sidebar has Water, Outside and Pool. The look is the
-  same.
-- **A stock sidebar moves to the sections** when you upgrade; one you
-  changed is left as it is.
-- **Fixed: a stock sidebar from 1.8 to 2.2 never got newer lines.** 3.0
-  renamed its `{group}` to `{system}`, after which those sidebars weren't
-  recognised as stock, so they missed the season, addons, air and wind
-  lines. Every release's stock sidebar now moves to the sections. A test
-  now upgrades every released `config.yml` to today's: nothing is missing,
-  nothing a server set changes, and nothing warns.
-- **An idle system says what it holds:** `{mode}` and `%ezvac_mode%` read
-  `Holding 72.0°F` instead of `Idle`, as its screen does. The new
-  `{system_mode}` token gives `Home: Holding 72.0°F`.
-- **Airflow shows its strength:** `Airflow: Strength 100%`, in green, in a
-  vent's core, and less towards the edge of its reach, in gold under 50%.
-  It used to say `Core` or `62% leakage`, which read as the opposite of what
-  it meant and clashed with a building's leaks (see Size-based heating and
-  cooling). `Outside` is unchanged; pools read `Circulation: Strength 62%`.
-  `%ezvac_zone%` gives the same text, and `%ezvac_influence%` is still the
-  number. `/hvac temperature` says `Strength: 62%` instead of `Zone:`.
-- **Pollen levels are shorter** on the HUD and in `%ezvac_pollen%`: `Med`
-  and `V.High` instead of Moderate and Very high, so no level widens the
-  sidebar. Screens and commands keep the full words.
-
-### Fixed
-
-- **Equipment water and lava stay in their cells.** A unit's water could
-  flow into the output cell of a unit beside it in the same casing, and
-  stop it from starting; and a unit linked before its casing was finished
-  flooded the build. Now a unit's water or lava never flows, a furnace's
-  lava lights no fires and doesn't harden into obsidian beside water, and a
-  unit starts over water or lava that is only flowing through its cell. A
-  source block left over from before still has to be cleared once.
-
-### Update notifications
-
-- **EZvac tells you when a newer version is on GitHub.** It checks in the
-  background at start-up and every 6 hours, logs a newer release with a
-  link, and tells players with `ezvac.admin` when they join.
-- **A server on a pilot** hears about newer pilots and full releases. **One
-  on a full release** only hears about full releases and their hotfixes.
-- **`/hvac update` checks now** (`ezvac.admin`, chat or console). It says
-  you're on the latest, or names the newer release and whether it runs on
-  this server's Minecraft. A 1.21.x server is told that BETA 2.x needs
-  Minecraft 26.1 or newer, with a link to the upgrade guide, and which
-  newer release still runs on 1.21.x. See
-  [Commands](docs/commands.md#hvac-update).
-- **The notifier says the same,** so a 1.21.x server isn't just told to
-  install a BETA 2.x it can't run.
-- `updates.check: false` in `config.yml` turns the background checks off;
-  `/hvac update` still works. See
-  [Configuration](docs/configuration.md#updates).
-
 ### Size-based heating and cooling
 
 - **A bigger building needs more equipment.** One ★★★ unit heats or cools
   1,860 blocks of air at the normal pace: a floor of about 465 blocks, 4
   blocks high. A ★★ unit counts as 0.85 of one, a ★ as 0.70, and units add
-  up. A building of 11,160 blocks of air needs six. Before, one unit cooled any building with enough
-  vents.
+  up. A building of 11,160 blocks of air needs six. Before, one unit cooled
+  any building with enough vents.
 - **Too few units is slower,** and the thermostat's screen says
   **Undersized 1/3**. A small room is quicker, up to twice the pace.
-  `/hvac info` shows the size, the openings and what a system has of what
-  it needs. See [Sizing](docs/equipment.md#sizing).
+  `/hvac info` on a thermostat shows the size, the openings and what a
+  system has of what it needs. `/hvac stats sizes`, and **Sizes** on the
+  Statistics page of quick settings, list every system, the worst sized
+  first. See [Sizing](docs/equipment.md#sizing).
 - **Pools** need one ★★★ heater per 1,500 blocks of water.
 - **Openings leak:** an open door, a window or a hole to the sky lets the
   outdoors in. Air also goes only 3 blocks past a roof's edge, so a vent in
@@ -137,15 +76,83 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
   left with no unit to heat or cool says "Units off" rather than heating
   with no ETA.
 - **Climate systems:** switch air quality, pollen, wind, the seasons and
-  building size off and on without a restart. EZvac keeps heating and cooling; the effect just
-  stops shaping the climate. Pollen can now be switched off on its own
-  (`air-quality.pollen`).
+  building size off and on without a restart. EZvac keeps heating and
+  cooling; the effect just stops shaping the climate. Pollen can now be
+  switched off on its own (`air-quality.pollen`).
 - **Backups:** back the registry up now, or automatically every 4, 8, 12,
   24 or 48 hours or every week of real time, to `plugins/EZvac/backups/`.
   The newest 10 automatic ones are kept. See
   [Restoring a backup](docs/upgrading-and-troubleshooting.md#restoring-a-backup).
-- **Statistics** and **Updates** pages: what `/hvac stats` and
-  `/hvac update` say, and the update check's two switches.
+- **Statistics** and **Updates** pages: what `/hvac stats` (with every
+  system's size) and `/hvac update` say, and the update check's two
+  switches.
+
+### Screens
+
+- **Every screen is redesigned as a status strip.** A header with the
+  device's name is coloured by what it's doing: blue and ❄ cooling, orange
+  and ♨ heating, green holding, grey off, amber when it needs you, and the
+  AQI's colour on air monitors and purifiers. Under it, an opaque panel shows
+  the main reading big and centred.
+- **The sign behind a screen is blank,** so only the screen shows. On 26.x
+  the sign's text showed through the screen. A server with Bedrock players
+  (Geyser) should set `displays.screens: false`, so the signs carry the text.
+
+### HUD
+
+- **The sidebar is organised in sections:** Here (temperature, feels-like,
+  comfort, humidity, air), Outside (temperature and weather, wind, season)
+  and System (the system and what it's doing, airflow), each under its
+  heading. The pool sidebar has Water, Outside and Pool. The look is the
+  same.
+- **A stock sidebar moves to the sections** when you upgrade; one you
+  changed is left as it is.
+- **An idle system says what it holds:** `{mode}` and `%ezvac_mode%` read
+  `Holding 72.0°F` instead of `Idle`, as its screen does. The new
+  `{system_mode}` token gives `Home: Holding 72.0°F`.
+- **Airflow shows its strength:** `Airflow: Strength 100%` in green in a
+  vent's core, less towards the edge of its reach, gold under 50%, and
+  `Outside` beyond it. It used to say `Core` or `62% leakage`, which read as
+  the opposite of what it meant. Pools say `Circulation: Strength 62%`;
+  `%ezvac_zone%` and `/hvac temperature` say the same.
+- **Pollen levels are shorter** on the HUD and in `%ezvac_pollen%`: `Med`
+  and `V.High` instead of Moderate and Very high, so no level widens the
+  sidebar. Screens and commands keep the full words.
+
+### Update notifications
+
+- **EZvac tells you when a newer version is on GitHub.** It checks in the
+  background at start-up and every 6 hours, logs a newer release with a
+  link, and tells players with `ezvac.admin` when they join.
+- **A server on a pilot** hears about newer pilots and full releases. **One
+  on a full release** only hears about full releases and their hotfixes.
+- **`/hvac update` checks now** (`ezvac.admin`, chat or console). It says
+  you're on the latest, or names the newer release and whether it runs on
+  this server's Minecraft. A 1.21.x server is told that BETA 2.x needs
+  Minecraft 26.1 or newer, with a link to the upgrade guide, and which
+  newer release still runs on 1.21.x. See
+  [Commands](docs/commands.md#hvac-update).
+- **The notifier says the same,** so a 1.21.x server isn't just told to
+  install a BETA 2.x it can't run.
+- `updates.check: false` in `config.yml` turns the background checks off;
+  `/hvac update` still works. See
+  [Configuration](docs/configuration.md#updates).
+
+### Fixed
+
+- **Equipment water and lava stay in their cells.** A unit's water could
+  flow into the output cell of a unit beside it in the same casing, and
+  stop it from starting; and a unit linked before its casing was finished
+  flooded the build. Now a unit's water or lava never flows, a furnace's
+  lava lights no fires and doesn't harden into obsidian beside water, and a
+  unit starts over water or lava that is only flowing through its cell. A
+  source block left over from before still has to be cleared once.
+- **A stock sidebar from 1.8 to 2.2 never got newer lines.** 3.0 renamed
+  its `{group}` to `{system}`, after which those sidebars weren't recognised
+  as stock, so they missed the season, addons, air and wind lines. Every
+  release's stock sidebar now moves to the sections. A test now upgrades
+  every released `config.yml` to today's: nothing is missing, nothing a
+  server set changes, and nothing warns.
 
 ### Also
 
