@@ -10,6 +10,7 @@ import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.service.RegistryBackups;
+import com.github.blade.hvac.simulation.SizingModel;
 import com.github.blade.hvac.update.UpdateNotifier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -65,10 +66,12 @@ public final class QuickSettingsMenu implements Listener {
     static final int DEVICES = 11, CLIMATE = 12, BACKUPS = 13, STATISTICS = 14, UPDATES = 15;
     /** The device kinds in the second row: the five sources, a gap, the three room units; their switches beneath. */
     static final int[] DEVICE_SLOTS = {9, 10, 11, 12, 13, 15, 16, 17};
-    /** Air quality, pollen, wind and seasons, with their switches beneath. */
-    static final int AIR = 10, POLLEN = 12, WIND = 14, SEASONS = 16;
+    /** Air quality, pollen, wind, seasons and building size, with their switches beneath. */
+    static final int AIR = 9, POLLEN = 11, WIND = 13, SEASONS = 15, SIZING = 17;
     static final int BACK_UP_NOW = 11, AUTOMATIC = 13, BACKUP_INFO = 15;
-    static final int DEVICE_COUNTS = 10, SYSTEM_COUNTS = 12, AIRFLOW = 14, SAVED = 16, REFRESH = 22;
+    static final int DEVICE_COUNTS = 10, SYSTEM_COUNTS = 11, SIZES = 13, AIRFLOW = 15, SAVED = 16, REFRESH = 22;
+    /** The systems the sizes item lists at most, the worst sized first. */
+    private static final int LISTED_SYSTEMS = 10;
     static final int RUNNING = 10, CHECK_NOW = 12, BACKGROUND = 14, TELL_ADMINS = 16;
     private static final String ADMIN = "ezvac.admin";
 
@@ -134,9 +137,10 @@ public final class QuickSettingsMenu implements Listener {
         inventory.setItem(DEVICES, section(Material.DISPENSER, "Devices",
                 off == 0 ? "Every kind is on" : off + " kind(s) switched off", "Switch device kinds on or off"));
         int systemsOff = (switches.airQuality() ? 0 : 1) + (switches.pollen() ? 0 : 1) + (switches.wind() ? 0 : 1)
-                + (switches.seasons() ? 0 : 1);
+                + (switches.seasons() ? 0 : 1) + (switches.sizing() ? 0 : 1);
         inventory.setItem(CLIMATE, section(Material.SUNFLOWER, "Climate systems",
-                systemsOff == 0 ? "All on" : systemsOff + " switched off", "Air quality, pollen, wind, seasons"));
+                systemsOff == 0 ? "All on" : systemsOff + " switched off",
+                "Air quality, pollen, wind, seasons, size"));
         inventory.setItem(BACKUPS, section(Material.CHEST, "Backups",
                 "Automatic: " + RegistryBackups.describe(backups.intervalHours()), "Back up the registry"));
         inventory.setItem(STATISTICS, section(Material.BOOK, "Statistics",
@@ -182,6 +186,9 @@ public final class QuickSettingsMenu implements Listener {
         placeSwitch(inventory, SEASONS, Material.OAK_SAPLING, "Seasons", switches.seasons(), List.of(
                 gray("Seasonal warmth, cold and pollen"), gray("Off: no seasonal effect; the calendar keeps counting"),
                 clickTo(switches.seasons())));
+        placeSwitch(inventory, SIZING, Material.BRICKS, "Building size", switches.sizing(), List.of(
+                gray("A unit heats or cools what fits its size:"), gray("one three-star unit per 5,000 sq ft"),
+                gray("Off: any size, as before BETA 1.0"), clickTo(switches.sizing())));
     }
 
     private void drawBackups(Inventory inventory) {
@@ -223,6 +230,7 @@ public final class QuickSettingsMenu implements Listener {
                 gray("Thermometers: " + registry.thermometers().size()),
                 gray("RPM monitors: " + registry.rpmMonitors().size()),
                 gray("Sensors: " + registry.sensors().size() + ", hubs: " + registry.sensorHubs().size()))));
+        inventory.setItem(SIZES, item(Material.BRICKS, Component.text("Sizes", NamedTextColor.AQUA), sizeLines()));
         AirflowService.Figures figures = airflow.figures();
         inventory.setItem(AIRFLOW, item(Material.COMPASS, Component.text("Airflow", NamedTextColor.AQUA), List.of(
                 gray("Cells mapped: " + figures.cachedCells()),
@@ -356,6 +364,12 @@ public final class QuickSettingsMenu implements Listener {
                 switches.setSeasons(!switches.seasons());
                 logChange(player, "switched the seasons " + (switches.seasons() ? "on" : "off"));
             }
+            case SIZING -> {
+                switches.setSizing(!switches.sizing());
+                // The outdoor reach changes every air system's map.
+                airflow.invalidateAllSystems();
+                logChange(player, "switched building size " + (switches.sizing() ? "on" : "off"));
+            }
             default -> {
                 return;
             }
@@ -412,6 +426,35 @@ public final class QuickSettingsMenu implements Listener {
         } else return false;
         click(player, true);
         return false;
+    }
+
+    /**
+     * Each system's size and what it has of the units it needs, heating and
+     * cooling, the worst sized first (BETA 1.0).
+     */
+    private List<Component> sizeLines() {
+        if (!switches.sizing()) return List.of(gray("Building size is off:"), gray("any size heats as before"));
+        List<com.github.blade.hvac.service.HvacController.SizeLine> lines = plugin.controller().sizeLines();
+        if (lines.isEmpty()) return List.of(gray("No systems yet"));
+        List<Component> out = new ArrayList<>();
+        out.add(gray("Has/needs, in three-star units"));
+        for (int i = 0; i < Math.min(LISTED_SYSTEMS, lines.size()); i++)
+            out.add(Component.text(sizeText(lines.get(i)), lines.get(i).worst() < 1.0 ? NamedTextColor.GOLD
+                    : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        if (lines.size() > LISTED_SYSTEMS) out.add(gray("and " + (lines.size() - LISTED_SYSTEMS) + " more"));
+        return out;
+    }
+
+    /** {@code Home1: 4,800 air · cool 1/2.6 · heat 2/2.6}, or that it isn't mapped yet. */
+    public static String sizeText(com.github.blade.hvac.service.HvacController.SizeLine line) {
+        if (line.cooling() == null) return line.name() + ": not mapped yet";
+        StringBuilder text = new StringBuilder(line.name() + ": " + String.format(java.util.Locale.US, "%,d",
+                line.cooling().size()) + (line.cooling().water() ? " water" : " air"));
+        if (!line.cooling().water() && line.cooling().openings() > 0)
+            text.append(", ").append(line.cooling().openings()).append(" open");
+        if (line.cooling().installed() > 0.0) text.append(" · cool ").append(line.cooling().ratio());
+        if (line.heating().installed() > 0.0) text.append(" · heat ").append(line.heating().ratio());
+        return text.toString();
     }
 
     private void logChange(Player player, String what) {

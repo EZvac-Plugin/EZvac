@@ -4,6 +4,8 @@ import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.ServerSwitches;
+import com.github.blade.hvac.config.SizingSettings;
+import com.github.blade.hvac.simulation.SizingModel;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.HumidityModel;
@@ -41,6 +43,9 @@ public final class HvacController {
     private final AirflowService airflow;
     private final HvacSettings settings;
     private final ClimateUnitService units;
+    private SizingSettings sizing = SizingSettings.defaults();
+    /** Each system's room at the start of the cycle, so neighbours pull on each other in no order (BETA 1.0). */
+    private Map<SystemId, Double> cycleStartF = Map.of();
 
     public HvacController(HvacPlugin plugin, HvacRegistry registry,
                           OutdoorTemperatureService outdoor, AirflowService airflow,
@@ -51,6 +56,76 @@ public final class HvacController {
         this.airflow = Objects.requireNonNull(airflow, "airflow");
         this.settings = Objects.requireNonNull(settings, "settings");
         this.units = Objects.requireNonNull(units, "units");
+    }
+
+    public void setSizing(SizingSettings sizing) { this.sizing = Objects.requireNonNull(sizing, "sizing"); }
+
+    public SizingSettings sizing() { return sizing; }
+
+    /**
+     * What a system's size scales its units by (BETA 1.0), or NaN with
+     * building size off or before it is mapped: the behaviour from before.
+     */
+    public double sizeFactor(SystemId system) {
+        if (!sizing.enabled()) return Double.NaN;
+        AirflowService.Shape shape = mapped(system);
+        return shape == null ? Double.NaN : SizingModel.factor(shape.owned(), shape.water(), sizing);
+    }
+
+    /** How much more than a sealed room a system leaks through its openings (BETA 1.0); 1 for water or with sizing off. */
+    public double openness(SystemId system) {
+        if (!sizing.enabled()) return 1.0;
+        AirflowService.Shape shape = mapped(system);
+        return shape == null || shape.water() ? 1.0 : SizingModel.openness(shape.openings(), shape.owned(), sizing);
+    }
+
+    /**
+     * A system's shape once its air is mapped, or null. A walk whose vents
+     * are all in unloaded chunks finishes with no blocks; that is "not mapped
+     * yet", not a tiny room to speed up.
+     */
+    private AirflowService.Shape mapped(SystemId system) {
+        AirflowService.Shape shape = airflow.shape(system);
+        return shape == null || shape.owned() <= 0 ? null : shape;
+    }
+
+    /**
+     * How a system measures up for a mode (BETA 1.0), or null with building
+     * size off or before it is mapped.
+     */
+    public SizingModel.Assessment assess(SystemId system, OperatingMode mode) {
+        if (!sizing.enabled()) return null;
+        AirflowService.Shape shape = mapped(system);
+        if (shape == null) return null;
+        return SizingModel.assess(shape.owned(), shape.water(), shape.openings(), registry.equipmentFor(system), mode,
+                settings, sizing);
+    }
+
+    /** One system's sizing, for listings: its name, both modes, and how short it falls at worst (1 = sized). */
+    public record SizeLine(String name, Thermostat thermostat, SizingModel.Assessment cooling,
+                           SizingModel.Assessment heating, double worst) {}
+
+    /**
+     * Every system with a thermostat, the worst sized first (BETA 1.0); one
+     * not yet mapped has null assessments and comes last. Empty with
+     * building size off.
+     */
+    public List<SizeLine> sizeLines() {
+        List<SizeLine> lines = new ArrayList<>();
+        if (!sizing.enabled()) return lines;
+        for (Thermostat thermostat : registry.thermostats()) {
+            if (registry.thermostatFor(thermostat.system()) != thermostat) continue;
+            SizingModel.Assessment cooling = assess(thermostat.system(), OperatingMode.COOLING);
+            SizingModel.Assessment heating = assess(thermostat.system(), OperatingMode.HEATING);
+            double worst = Double.MAX_VALUE;
+            if (cooling != null)
+                for (SizingModel.Assessment sized : List.of(cooling, heating))
+                    if (sized.installed() > 0.0)
+                        worst = Math.min(worst, sized.installed() / Math.max(0.001, sized.required()));
+            lines.add(new SizeLine(thermostat.id(), thermostat, cooling, heating, worst));
+        }
+        lines.sort(Comparator.comparingDouble(SizeLine::worst));
+        return lines;
     }
 
     /** The server's air quality settings, for the API's views (3.2). */
@@ -78,6 +153,10 @@ public final class HvacController {
         // snapshot is invariant across the loop instead of rebuilt per device.
         Set<BlockKey> managedOutputs = managedOutputs();
         Map<UUID, LongOpenHashSet> packedOutputs = AirflowService.packByWorld(managedOutputs);
+        Map<SystemId, Double> startF = new HashMap<>();
+        for (Thermostat thermostat : thermostats)
+            if (registry.thermostatFor(thermostat.system()) == thermostat) startF.put(thermostat.system(), thermostat.roomF());
+        cycleStartF = startF;
         for (Thermostat thermostat : thermostats) {
             OperatingMode before = thermostat.mode();
             try {
@@ -140,9 +219,10 @@ public final class HvacController {
             }
         }
         Map<SystemId, Double> equivalent = new HashMap<>();
+        // With building size on (BETA 1.0) units add up in full, scaled by the size of what they heat.
         deliveries.forEach((system, delivery) -> equivalent.put(system,
-                ThermalModel.aggregateIndependentCapacity(delivery.fixedEquivalent(),
-                        delivery.variableEquivalent(), settings.maximumSystemCapacity())));
+                SizingModel.combine(delivery.fixedEquivalent(), delivery.variableEquivalent(),
+                        sizeFactor(system), settings)));
         return equivalent;
     }
 
@@ -161,12 +241,14 @@ public final class HvacController {
             case HEATING -> thermostat.targetF() + settings.heatingStopAboveF();
             case IDLE -> thermostat.targetF();
         };
-        // Wind outside makes a room leakier (3.2); a pool's water takes none.
+        // Wind outside makes a room leakier (3.2), and so do its openings to the sky (BETA 1.0);
+        // a pool's water takes neither.
         OutdoorTemperatureService.Outdoor out = thermostat.pool() ? null : outdoor.cachedClimateFor(thermostat);
-        double leak = out == null ? 1.0 : outdoor.climate().wind().infiltrationFactor(out.windMs());
+        double leak = out == null ? 1.0
+                : outdoor.climate().wind().infiltrationFactor(out.windMs()) * openness(thermostat.system());
         ThermalModel.Result thermal = ThermalModel.step(thermostat.roomF(), boundary, outside,
                 intervalMode, capacity, elapsedTicks, settings, leak);
-        thermostat.setRoomF(thermal.temperatureF());
+        thermostat.setRoomF(thermal.temperatureF() + neighbourPull(thermostat, authoritative, elapsedTicks));
         if (out != null) {
             updateHumidity(thermostat, out, leak, intervalMode, capacity, elapsedTicks, packedOutputs);
             updateAir(thermostat, out, leak, capacity > 0.0, elapsedTicks);
@@ -208,6 +290,26 @@ public final class HvacController {
             if (unit.enabled() && unit.type().supports(mode) && ServerSwitches.deviceOff(DeviceKind.of(unit.type())))
                 return true;
         return false;
+    }
+
+    /**
+     * How far the systems whose air touches this one's pull its room this
+     * cycle (BETA 1.0), worked out from every room's temperature at the start
+     * of the cycle, so it doesn't matter which updates first.
+     */
+    private double neighbourPull(Thermostat thermostat, boolean authoritative, long elapsedTicks) {
+        if (!authoritative || !sizing.enabled()) return 0.0;
+        AirflowService.Shape shape = airflow.shape(thermostat.system());
+        if (shape == null || shape.contacts().isEmpty()) return 0.0;
+        Double fromF = cycleStartF.get(thermostat.system());
+        if (fromF == null) return 0.0;
+        double pulled = 0.0;
+        for (Map.Entry<SystemId, Integer> neighbour : shape.contacts().entrySet()) {
+            Double towardF = cycleStartF.get(neighbour.getKey());
+            if (towardF != null)
+                pulled += SizingModel.pull(neighbour.getValue(), shape.owned(), fromF, towardF, elapsedTicks, sizing);
+        }
+        return pulled;
     }
 
     /** Pools have no air of their own to hold moisture; every air system does. */

@@ -50,6 +50,17 @@ public final class EtaEstimator {
     public static OptionalLong estimateTicks(double roomF, double targetF, double outdoorF,
                                              OperatingMode mode, List<UnitSnapshot> units,
                                              OperatingProfile profile, HvacSettings settings, double leakFactor) {
+        return estimateTicks(roomF, targetF, outdoorF, mode, units, profile, settings, leakFactor, Double.NaN);
+    }
+
+    /**
+     * The same for a system whose size scales its units by {@code sizeFactor}
+     * (BETA 1.0; NaN with building size off), as the controller steps it.
+     */
+    public static OptionalLong estimateTicks(double roomF, double targetF, double outdoorF,
+                                             OperatingMode mode, List<UnitSnapshot> units,
+                                             OperatingProfile profile, HvacSettings settings, double leakFactor,
+                                             double sizeFactor) {
         if (!Double.isFinite(roomF) || !Double.isFinite(targetF) || !Double.isFinite(outdoorF))
             throw new IllegalArgumentException("ETA temperatures must be finite");
         Objects.requireNonNull(mode, "mode");
@@ -97,8 +108,7 @@ public final class EtaEstimator {
                 variableRpms[index] = rpm;
                 variableEquivalent += settings.tierCapacity(tier) * PerformanceModel.variableCapacityFromRpm(rpm, settings);
             }
-            double capacity = ThermalModel.aggregateIndependentCapacity(
-                    fixedEquivalent, variableEquivalent, settings.maximumSystemCapacity());
+            double capacity = SizingModel.combine(fixedEquivalent, variableEquivalent, sizeFactor, settings);
             room = ThermalModel.step(room, targetF, outdoorF, mode, capacity,
                     STEP_TICKS, settings, leakFactor).temperatureF();
             if (reached(room, targetF, mode)) return OptionalLong.of(elapsed);

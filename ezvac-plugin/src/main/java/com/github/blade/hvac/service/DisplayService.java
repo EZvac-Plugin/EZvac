@@ -10,6 +10,7 @@ import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.EtaEstimator;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
+import com.github.blade.hvac.simulation.SizingModel;
 import com.github.blade.hvac.simulation.ThermalModel;
 import net.kyori.adventure.text.Component;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -42,6 +43,15 @@ public final class DisplayService {
      * every controller cycle. Mode changes recompute immediately.
      */
     private final Map<BlockKey, CachedEta> etaCache = new HashMap<>();
+    /**
+     * Fresh ETA forecasts per server tick at most (BETA 1.0). Many systems
+     * changing mode at once (a device kind switched off, or a thousand
+     * identical rooms reaching their target together) otherwise forecast all
+     * in one tick; past this, a sign keeps its last ETA until its next refresh.
+     */
+    static final int ETA_FORECASTS_PER_TICK = 64;
+    private int etaTick = Integer.MIN_VALUE;
+    private int etaForecasts;
 
     private record CachedEta(OperatingMode mode, boolean enabled, OptionalLong eta) {}
 
@@ -248,7 +258,9 @@ public final class DisplayService {
             if (unit.type().fixedSpeed()) fullFixed += full;
             else fullVariable += full;
         }
-        double load = PerformanceModel.load(fixedEquivalent, variableEquivalent, fullFixed, fullVariable, settings);
+        double sizeFactor = plugin.controller() == null ? Double.NaN : plugin.controller().sizeFactor(thermostat.system());
+        double load = PerformanceModel.load(fixedEquivalent, variableEquivalent, fullFixed, fullVariable, sizeFactor,
+                settings);
         int percent = (int) Math.round(load * 100.0);
         List<EtaEstimator.UnitSnapshot> snapshots = running.stream()
                 .map(unit -> new EtaEstimator.UnitSnapshot(unit.type(), unit.motorRpm(), unit.tier())).toList();
@@ -261,8 +273,12 @@ public final class DisplayService {
         List<EquipmentUnit> units = registry.equipmentFor(thermostat.system());
         long working = units.stream().filter(EquipmentUnit::running).count();
         String linked = units.isEmpty() ? footer : footer + " | " + working + "/" + units.size();
-        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s",
-                thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id());
+        // Too small a system for what it heats says so while it works (BETA 1.0).
+        SizingModel.Assessment sized = thermostat.enabled() && thermostat.mode() != OperatingMode.IDLE
+                && plugin.controller() != null ? plugin.controller().assess(thermostat.system(), thermostat.mode()) : null;
+        String undersized = sized != null && sized.undersized() ? undersizedLine(sized) : "";
+        String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s|%s",
+                thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id(), undersized);
         render(thermostat.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
             NamedTextColor color = waiting != null ? NamedTextColor.RED
@@ -292,6 +308,7 @@ public final class DisplayService {
                         .line(ScreenText.bar(load, 10, NamedTextColor.GOLD));
                 case IDLE -> screen.tone(ScreenText.Tone.HOLDING).line("Holding " + target, NamedTextColor.GREEN);
             }
+            if (!undersized.isEmpty()) screen.line(undersized, NamedTextColor.GOLD);
             String humidity = thermostat.hasRoomDewPoint() ? Math.round(Psychrometrics.relativeHumidity(
                     thermostat.roomF(), thermostat.roomDewPointF())) + "% RH" : "";
             String status = thermostat.enabled() && thermostat.mode() != OperatingMode.IDLE
@@ -327,12 +344,21 @@ public final class DisplayService {
                 && cached.enabled() == thermostat.enabled()) {
             return cached.eta();
         }
+        int tick = plugin.getServer().getCurrentTick();
+        if (tick != etaTick) {
+            etaTick = tick;
+            etaForecasts = 0;
+        }
+        if (++etaForecasts > ETA_FORECASTS_PER_TICK) return cached == null ? OptionalLong.empty() : cached.eta();
         OperatingProfile profile = registry.profileFor(thermostat.system());
         // A windy day makes the room leakier, as the controller steps it (3.2); a pool's water takes none.
+        HvacController controller = plugin.controller();
         double leak = thermostat.pool() ? 1.0
-                : outdoor.climate().wind().infiltrationFactor(outdoor.cachedClimateFor(thermostat).windMs());
+                : outdoor.climate().wind().infiltrationFactor(outdoor.cachedClimateFor(thermostat).windMs())
+                * (controller == null ? 1.0 : controller.openness(thermostat.system()));
         OptionalLong eta = EtaEstimator.estimateTicks(thermostat.roomF(), thermostat.targetF(),
-                outdoor.driftBaselineFor(thermostat), thermostat.mode(), snapshots, profile, settings, leak);
+                outdoor.driftBaselineFor(thermostat), thermostat.mode(), snapshots, profile, settings, leak,
+                controller == null ? Double.NaN : controller.sizeFactor(thermostat.system()));
         etaCache.put(thermostat.position(), new CachedEta(thermostat.mode(), thermostat.enabled(), eta));
         return eta;
     }
@@ -546,6 +572,17 @@ public final class DisplayService {
                 .big(panel.profile().name())
                 .line("Click: next", NamedTextColor.GRAY)
                 .line("Sneak: back", NamedTextColor.GRAY));
+    }
+
+    /**
+     * {@code Undersized 1/2.6}: what a system has of the units its size needs
+     * (BETA 1.0). Past a hundred units' worth that is too wide for one line,
+     * so it says the share instead: {@code Undersized 94%}.
+     */
+    static String undersizedLine(SizingModel.Assessment sized) {
+        String line = "Undersized " + sized.ratio();
+        if (SignText.width(line) <= ScreenText.WIDTH) return line;
+        return "Undersized " + Math.round(100.0 * sized.installed() / Math.max(0.001, sized.required())) + "%";
     }
 
     /** A thermostat whose call waits on units switched off in /hvac quicksettings (BETA 1.0). */

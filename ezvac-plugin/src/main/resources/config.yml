@@ -54,6 +54,8 @@ temperature:
   heating-f-per-minecraft-hour: 5.0
   idle-drift-f-per-minecraft-hour: 1.25
   active-leak-f-per-minecraft-hour: 0.50
+  # The most a system delivers, in units of one variable-speed unit in a
+  # house its size; with sizing on, applied after its size scales it.
   maximum-group-capacity: 2.0
 
 # Heat pumps and air conditioners slow down inside the approach band. Their
@@ -89,6 +91,29 @@ airflow:
   maximum-range: 30
   nodes-per-tick: 4000
   maximum-cells-per-system: 200000
+
+# Size-based heating and cooling (BETA 1.0). Units heat or cool the air their
+# system reaches: one three-star unit is sized for cells-per-unit blocks of
+# air, about 5,000 sq ft of floor over 4-block-tall levels. A two-star unit
+# counts 0.85 of one, a one-star 0.70, and units add up. A bigger system needs
+# more of them or is slower, and its screen says Undersized; a smaller one is
+# quicker, up to maximum-speed-up times. Pools count water: pool-cells-per-unit
+# blocks per heater. Air reaches only outdoor-reach blocks past a roof's edge;
+# each block of opening to the sky (an open door, window or hole) makes a room
+# leak more, opening-leak per opening block per 1,000 blocks of air, up to
+# maximum-openness times a sealed room. Systems whose air touches even out
+# through it (neighbour-exchange); a wall or a closed door insulates.
+# enabled: false keeps the behaviour from before BETA 1.0; /hvac quicksettings
+# switches it while the server runs.
+sizing:
+  enabled: true
+  cells-per-unit: 1860
+  pool-cells-per-unit: 1500
+  maximum-speed-up: 2.0
+  outdoor-reach: 3
+  opening-leak: 1.1
+  maximum-openness: 6.0
+  neighbour-exchange: 10.0
 
 audio:
   enabled: true

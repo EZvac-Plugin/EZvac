@@ -4,15 +4,19 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.*;
 import it.unimi.dsi.fastutil.longs.Long2ByteMap;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import com.github.blade.hvac.config.ClimateSettings;
+import com.github.blade.hvac.config.SizingSettings;
 import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.Microvariance;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.ThermalModel;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
+import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Tag;
@@ -115,7 +119,8 @@ public final class AirflowService {
      */
     public record ZoneReading(ClimateUnit unit, int distance, double influence) {}
 
-    private record Node(int x, int y, int z, int distance) {}
+    /** @param outdoor steps since the air left a roof (size-based heating, BETA 1.0); 0 under one */
+    private record Node(int x, int y, int z, int distance, int outdoor) {}
 
     private static final class Rebuild {
         final AirflowTarget target;
@@ -131,6 +136,22 @@ public final class AirflowService {
         /** Campfires, fire, lava and the like in or around the air (3.2); burning or not is read later. */
         final LongOpenHashSet smokeCells = new LongOpenHashSet();
         boolean capped;
+        /**
+         * Size-based heating (BETA 1.0): an air system's walk goes only
+         * {@code reach} blocks past a roof's edge into open sky, and counts
+         * the openings it leaves through.
+         */
+        boolean plume;
+        int reach;
+        /** Each walked column's highest solid block, looked up once per rebuild. */
+        final Long2IntOpenHashMap roofs = new Long2IntOpenHashMap();
+        /**
+         * Blocks of open sky beside one under a roof: doorways, windows, holes.
+         * A set, so a doorway counts the same whichever way the walk reaches it first.
+         */
+        final LongOpenHashSet openings = new LongOpenHashSet();
+        int minimumX = Integer.MAX_VALUE, maximumX = Integer.MIN_VALUE;
+        int minimumZ = Integer.MAX_VALUE, maximumZ = Integer.MIN_VALUE;
         // Chunk lookups dominate the walk, and a breadth-first frontier stays
         // within a chunk for long runs. The cache is cleared every tick so a
         // reference can never outlive the chunk's residency.
@@ -145,6 +166,25 @@ public final class AirflowService {
             this.range = range;
             this.maximumCells = maximumCells;
             distances.defaultReturnValue(ABSENT);
+            roofs.defaultReturnValue(Integer.MIN_VALUE);
+        }
+
+        /** Open sky is above the highest motion-blocking block; leaves don't count as a roof. */
+        int roofAt(World world, int x, int z) {
+            long column = ((long) x << 32) ^ (z & 0xFFFFFFFFL);
+            int roof = roofs.get(column);
+            if (roof == Integer.MIN_VALUE) {
+                roof = world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES);
+                roofs.put(column, roof);
+            }
+            return roof;
+        }
+
+        void track(int x, int z) {
+            if (x < minimumX) minimumX = x;
+            if (x > maximumX) maximumX = x;
+            if (z < minimumZ) minimumZ = z;
+            if (z > maximumZ) maximumZ = z;
         }
 
         void clearChunkCache() {
@@ -190,6 +230,22 @@ public final class AirflowService {
     private final Map<AirflowTarget, Long2ByteMap> completed = new HashMap<>();
     private final Map<AirflowTarget, WaterExposure> exposures = new HashMap<>();
     private final Map<AirflowTarget, long[]> smoke = new HashMap<>();
+    /** Size-based heating (BETA 1.0): what each air or water system's walk found besides its map. */
+    private final Map<SystemId, Raw> raws = new HashMap<>();
+    /** Each system's owned size, openings and contacts, worked out after its map and its neighbours'. */
+    private final Map<SystemId, Shape> shapes = new HashMap<>();
+    private final LinkedHashSet<SystemId> shapeQueue = new LinkedHashSet<>();
+    private ShapeJob shapeJob;
+    /**
+     * Which systems' maps span each 32-block square, per world, so finding the
+     * systems a map could meet looks only nearby: a server-wide scan for every
+     * remapped system made a mass remap one long tick.
+     */
+    private final Map<UUID, Long2ObjectOpenHashMap<Set<SystemId>>> shapeGrid = new HashMap<>();
+    private static final int SHAPE_GRID_SHIFT = 5;
+    /** What starting a shape counts against the tick's budget, beside the blocks it measures. */
+    private static final int SHAPE_START_COST = 64;
+    private SizingSettings sizing = SizingSettings.defaults();
     private final LinkedHashSet<AirflowTarget> dirty = new LinkedHashSet<>();
     private final Map<AirflowTarget, Long> dirtySince = new HashMap<>();
     private final Map<AirflowTarget, Long> dirtyFirst = new HashMap<>();
@@ -206,6 +262,13 @@ public final class AirflowService {
         this.settings = Objects.requireNonNull(settings, "settings");
         for (ClimateVent vent : registry.vents()) dirty.add(vent.system());
         for (ClimateUnit unit : registry.climateUnits()) dirty.add(ZoneId.of(unit));
+    }
+
+    public void setSizing(SizingSettings sizing) { this.sizing = Objects.requireNonNull(sizing, "sizing"); }
+
+    /** Remaps every system, as when building size is switched on or off: the plume changes every map. */
+    public void invalidateAllSystems() {
+        for (ClimateVent vent : registry.vents()) invalidate(vent.system());
     }
 
     public void invalidate(AirflowTarget target) {
@@ -361,12 +424,14 @@ public final class AirflowService {
         completed.remove(target);
         exposures.remove(target);
         smoke.remove(target);
+        if (target instanceof SystemId system) dropShape(system);
         if (active != null && active.target.equals(target)) active = null;
     }
 
     /** Called each server tick; no invocation can inspect more than the configured node budget. */
     public void tick() {
         ticks++;
+        workOnShapes(settings.airflowNodesPerTick());
         int budget = settings.airflowNodesPerTick();
         int started = 0;
         while (budget > 0) {
@@ -380,6 +445,7 @@ public final class AirflowService {
                     completed.remove(target);
                     exposures.remove(target);
                     smoke.remove(target);
+                    if (target instanceof SystemId system) dropShape(system);
                     continue;
                 }
             }
@@ -396,6 +462,9 @@ public final class AirflowService {
                         active.waterCells.toLongArray()));
                 if (active.smokeCells.isEmpty()) smoke.remove(active.target);
                 else smoke.put(active.target, active.smokeCells.toLongArray());
+                if (active.target instanceof SystemId system)
+                    mapped(system, new Raw(system.worldId(), active.water, active.openings.size(), active.minimumX,
+                            active.maximumX, active.minimumZ, active.maximumZ));
                 visitedCells += active.distances.size();
                 completedRebuilds++;
                 if (active.capped) cappedRebuilds++;
@@ -447,7 +516,7 @@ public final class AirflowService {
         Rebuild rebuild = new Rebuild(zone, false, rangeOf(climateUnit), maximumCells);
         rebuild.clearChunkCache();
         for (int[] direction : DIRECTIONS)
-            enqueue(rebuild, world, unit.x() + direction[0], unit.y() + direction[1], unit.z() + direction[2], 0);
+            enqueue(rebuild, world, unit.x() + direction[0], unit.y() + direction[1], unit.z() + direction[2], 0, -1);
         return rebuild;
     }
 
@@ -466,11 +535,13 @@ public final class AirflowService {
         }
         if (!hasVent) return null;
         Rebuild rebuild = new Rebuild(system, water, settings.airflowMaximumRange(), settings.airflowMaximumCells());
+        rebuild.plume = !water && sizing.enabled();
+        rebuild.reach = sizing.outdoorReach();
         rebuild.clearChunkCache();
         for (BlockKey pos : seeds) {
             int x = pos.x(), y = pos.y(), z = pos.z();
             for (int[] direction : DIRECTIONS)
-                enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0);
+                enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0, -1);
         }
         return rebuild;
     }
@@ -489,12 +560,13 @@ public final class AirflowService {
             int next = node.distance + 1;
             for (int[] direction : DIRECTIONS)
                 enqueue(rebuild, world, node.x + direction[0], node.y + direction[1],
-                        node.z + direction[2], next);
+                        node.z + direction[2], next, node.outdoor);
         }
         return processed;
     }
 
-    private void enqueue(Rebuild rebuild, World world, int x, int y, int z, int distance) {
+    /** @param parentOutdoor the step it came from's outdoor count; -1 beside a vent or unit */
+    private void enqueue(Rebuild rebuild, World world, int x, int y, int z, int distance, int parentOutdoor) {
         if (rebuild.distances.size() >= rebuild.maximumCells) {
             rebuild.capped = true;
             return;
@@ -502,7 +574,11 @@ public final class AirflowService {
         if (y < world.getMinHeight() || y >= world.getMaxHeight()) return;
         long key = pack(x, y, z);
         byte previous = rebuild.distances.get(key);
-        if (previous != ABSENT && previous <= distance) return;
+        if (previous != ABSENT && previous <= distance) {
+            // Already reached; still an opening if it's open sky and this step comes from under a roof.
+            if (rebuild.plume && parentOutdoor == 0 && y > rebuild.roofAt(world, x, z)) rebuild.openings.add(key);
+            return;
+        }
         Chunk chunk = rebuild.chunkAt(world, x >> 4, z >> 4);
         if (chunk == null) return;
         Block block = chunk.getBlock(x & 15, y, z & 15);
@@ -525,8 +601,16 @@ public final class AirflowService {
             if ((type == Material.FIRE || type == Material.SOUL_FIRE)
                     && rebuild.smokeCells.size() < MAXIMUM_SMOKE_CELLS) rebuild.smokeCells.add(key);
         }
+        int outdoorStep = 0;
+        if (rebuild.plume && y > rebuild.roofAt(world, x, z)) {
+            // Out under open sky: the air goes only so far before the outdoors swallows it.
+            outdoorStep = Math.max(0, parentOutdoor) + 1;
+            if (outdoorStep > rebuild.reach) return;
+            if (parentOutdoor == 0) rebuild.openings.add(key);
+        }
         rebuild.distances.put(key, (byte) distance);
-        rebuild.queue.addLast(new Node(x, y, z, distance));
+        rebuild.track(x, z);
+        rebuild.queue.addLast(new Node(x, y, z, distance, outdoorStep));
     }
 
     static boolean isAirPath(Block block) {
@@ -851,6 +935,239 @@ public final class AirflowService {
             }
         }
         return best == null ? null : new Nearest(best, bestDistance);
+    }
+
+    // ---- Size-based heating (BETA 1.0): who owns which air, and where systems touch ----
+
+    /**
+     * What a system's walk found besides its map: its medium, its openings to
+     * the sky, and the columns it spans, to find the systems it could meet.
+     */
+    record Raw(UUID worldId, boolean water, int openings, int minimumX, int maximumX, int minimumZ, int maximumZ) {
+        /** Whether two systems' maps could share a block or a face. */
+        boolean meets(Raw other) {
+            return worldId.equals(other.worldId) && water == other.water
+                    && minimumX <= other.maximumX + 1 && other.minimumX <= maximumX + 1
+                    && minimumZ <= other.maximumZ + 1 && other.minimumZ <= maximumZ + 1;
+        }
+
+        boolean holdsColumn(int x, int z) {
+            return x >= minimumX - 1 && x <= maximumX + 1 && z >= minimumZ - 1 && z <= maximumZ + 1;
+        }
+    }
+
+    /**
+     * A system's size for heating and cooling: the blocks of air (or water)
+     * it owns, a block reached by several systems going to the nearest, ties
+     * to the lower id, as readings already do; its openings to the sky; and
+     * how many faces of its air touch each neighbour's.
+     */
+    public record Shape(int owned, int openings, Map<SystemId, Integer> contacts, boolean water) {
+        public Shape {
+            contacts = Map.copyOf(contacts);
+        }
+    }
+
+    private record Neighbour(SystemId system, Long2ByteMap map, Raw raw) {}
+
+    private static final class ShapeJob {
+        final SystemId system;
+        final Long2ByteMap map;
+        final Raw raw;
+        final List<Neighbour> neighbours;
+        final LongIterator cells;
+        int owned;
+        final Map<SystemId, Integer> contacts = new HashMap<>();
+
+        ShapeJob(SystemId system, Long2ByteMap map, Raw raw, List<Neighbour> neighbours) {
+            this.system = system;
+            this.map = map;
+            this.raw = raw;
+            this.neighbours = neighbours;
+            this.cells = map.keySet().iterator();
+        }
+    }
+
+    /** The system's shape, or null while it has no map. Until its shape is first worked out, its whole map. */
+    public Shape shape(SystemId system) {
+        Long2ByteMap map = completed.get(system);
+        if (map == null) return null;
+        Shape shape = shapes.get(system);
+        if (shape != null) return shape;
+        Raw raw = raws.get(system);
+        return new Shape(map.size(), raw == null ? 0 : raw.openings(), Map.of(), raw != null && raw.water());
+    }
+
+    /** A system's new map: it and every system its map could meet, before or now, are worked out again. */
+    private void mapped(SystemId system, Raw raw) {
+        Raw before = raws.put(system, raw);
+        if (before != null) index(system, before, false);
+        index(system, raw, true);
+        shapeQueue.add(system);
+        queueNeighbours(system, raw);
+        if (before != null) queueNeighbours(system, before);
+    }
+
+    private void dropShape(SystemId system) {
+        Raw before = raws.remove(system);
+        if (before != null) index(system, before, false);
+        shapes.remove(system);
+        shapeQueue.remove(system);
+        if (shapeJob != null && shapeJob.system.equals(system)) shapeJob = null;
+        if (before != null) queueNeighbours(system, before);
+    }
+
+    private void queueNeighbours(SystemId system, Raw raw) {
+        for (SystemId other : nearby(raw)) {
+            Raw theirs = raws.get(other);
+            if (!other.equals(system) && theirs != null && theirs.meets(raw)) shapeQueue.add(other);
+        }
+    }
+
+    private void index(SystemId system, Raw raw, boolean add) {
+        Long2ObjectOpenHashMap<Set<SystemId>> grid = shapeGrid.computeIfAbsent(raw.worldId(),
+                ignored -> new Long2ObjectOpenHashMap<>());
+        for (int cellX = raw.minimumX() >> SHAPE_GRID_SHIFT; cellX <= raw.maximumX() >> SHAPE_GRID_SHIFT; cellX++)
+            for (int cellZ = raw.minimumZ() >> SHAPE_GRID_SHIFT; cellZ <= raw.maximumZ() >> SHAPE_GRID_SHIFT; cellZ++) {
+                long key = HvacRegistry.cellKey(cellX, cellZ);
+                if (add) grid.computeIfAbsent(key, ignored -> new HashSet<>()).add(system);
+                else {
+                    Set<SystemId> here = grid.get(key);
+                    if (here != null && here.remove(system) && here.isEmpty()) grid.remove(key);
+                }
+            }
+    }
+
+    /** The systems whose maps span a square this one's columns (one block wider) touch. */
+    private Set<SystemId> nearby(Raw raw) {
+        Long2ObjectOpenHashMap<Set<SystemId>> grid = shapeGrid.get(raw.worldId());
+        if (grid == null) return Set.of();
+        Set<SystemId> found = new HashSet<>();
+        for (int cellX = (raw.minimumX() - 1) >> SHAPE_GRID_SHIFT; cellX <= (raw.maximumX() + 1) >> SHAPE_GRID_SHIFT; cellX++)
+            for (int cellZ = (raw.minimumZ() - 1) >> SHAPE_GRID_SHIFT; cellZ <= (raw.maximumZ() + 1) >> SHAPE_GRID_SHIFT; cellZ++) {
+                Set<SystemId> here = grid.get(HvacRegistry.cellKey(cellX, cellZ));
+                if (here != null) found.addAll(here);
+            }
+        return found;
+    }
+
+    /** Works out queued shapes, this many blocks a tick at most, so a big meeting area never stalls a tick. */
+    private void workOnShapes(int budget) {
+        while (budget > 0) {
+            if (shapeJob == null) {
+                Iterator<SystemId> next = shapeQueue.iterator();
+                if (!next.hasNext()) return;
+                SystemId system = next.next();
+                next.remove();
+                budget -= SHAPE_START_COST;
+                shapeJob = startShape(system);
+                if (shapeJob == null) continue;
+            }
+            ShapeJob job = shapeJob;
+            if (completed.get(job.system) != job.map) {
+                // Remapped since it started: the new map queued it again.
+                shapeJob = null;
+                continue;
+            }
+            while (budget > 0 && job.cells.hasNext()) {
+                budget--;
+                measure(job, job.cells.nextLong());
+            }
+            if (!job.cells.hasNext()) {
+                shapes.put(job.system, new Shape(job.owned, job.raw.openings(), job.contacts, job.raw.water()));
+                shapeJob = null;
+            }
+        }
+    }
+
+    /** Null when the system has no map; a system no other can meet is done at once. */
+    private ShapeJob startShape(SystemId system) {
+        Long2ByteMap map = completed.get(system);
+        Raw raw = raws.get(system);
+        if (map == null || raw == null) {
+            shapes.remove(system);
+            return null;
+        }
+        List<Neighbour> neighbours = new ArrayList<>();
+        for (SystemId other : nearby(raw)) {
+            Raw theirs = raws.get(other);
+            if (other.equals(system) || theirs == null || !theirs.meets(raw)) continue;
+            Long2ByteMap otherMap = completed.get(other);
+            if (otherMap != null) neighbours.add(new Neighbour(other, otherMap, theirs));
+        }
+        // A deterministic order, so ties and counts never depend on a hash set's iteration.
+        neighbours.sort(Comparator.comparing(Neighbour::system));
+        if (neighbours.isEmpty()) {
+            shapes.put(system, new Shape(map.size(), raw.openings(), Map.of(), raw.water()));
+            return null;
+        }
+        return new ShapeJob(system, map, raw, neighbours);
+    }
+
+    /** One block of the system's map: whether it owns it, and which neighbours' air its faces touch. */
+    private static void measure(ShapeJob job, long key) {
+        int x = unpackX(key), y = unpackY(key), z = unpackZ(key);
+        if (!owns(job, key, job.map.get(key), x, z)) return;
+        job.owned++;
+        boolean nearAny = false;
+        for (Neighbour neighbour : job.neighbours)
+            if (neighbour.raw.holdsColumn(x, z)) { nearAny = true; break; }
+        if (!nearAny) return;
+        for (int[] direction : DIRECTIONS) {
+            int nx = x + direction[0], ny = y + direction[1], nz = z + direction[2];
+            SystemId owner = ownerOf(job, pack(nx, ny, nz), nx, nz);
+            if (owner != null && !owner.equals(job.system)) job.contacts.merge(owner, 1, Integer::sum);
+        }
+    }
+
+    private static boolean owns(ShapeJob job, long key, byte own, int x, int z) {
+        for (Neighbour neighbour : job.neighbours) {
+            if (!neighbour.raw.holdsColumn(x, z)) continue;
+            byte theirs = neighbour.map.get(key);
+            if (theirs == ABSENT) continue;
+            if (theirs < own || (theirs == own && neighbour.system.compareTo(job.system) < 0)) return false;
+        }
+        return true;
+    }
+
+    /** Who owns a block: the nearest system whose map holds it, ties to the lower id; null when none does. */
+    private static SystemId ownerOf(ShapeJob job, long key, int x, int z) {
+        SystemId best = null;
+        int bestDistance = Integer.MAX_VALUE;
+        byte own = job.map.get(key);
+        if (own != ABSENT) {
+            best = job.system;
+            bestDistance = own;
+        }
+        for (Neighbour neighbour : job.neighbours) {
+            if (!neighbour.raw.holdsColumn(x, z)) continue;
+            byte theirs = neighbour.map.get(key);
+            if (theirs == ABSENT) continue;
+            if (theirs < bestDistance || (theirs == bestDistance && neighbour.system.compareTo(best) < 0)) {
+                best = neighbour.system;
+                bestDistance = theirs;
+            }
+        }
+        return best;
+    }
+
+    /** Test support: a finished map with what its walk found, worked out as a rebuild would leave it. */
+    void putMappedSystem(SystemId system, Long2ByteMap map, boolean water, int openings) {
+        completed.put(system, map);
+        int minimumX = Integer.MAX_VALUE, maximumX = Integer.MIN_VALUE;
+        int minimumZ = Integer.MAX_VALUE, maximumZ = Integer.MIN_VALUE;
+        for (long key : map.keySet()) {
+            minimumX = Math.min(minimumX, unpackX(key));
+            maximumX = Math.max(maximumX, unpackX(key));
+            minimumZ = Math.min(minimumZ, unpackZ(key));
+            maximumZ = Math.max(maximumZ, unpackZ(key));
+        }
+        mapped(system, new Raw(system.worldId(), water, openings, minimumX, maximumX, minimumZ, maximumZ));
+    }
+
+    /** Test support: works out every queued shape. */
+    void settleShapes() {
+        while (!shapeQueue.isEmpty() || shapeJob != null) workOnShapes(Integer.MAX_VALUE);
     }
 
     /** Test support: installs a finished airflow map as if a rebuild had produced it. */

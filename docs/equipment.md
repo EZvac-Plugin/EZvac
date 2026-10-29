@@ -179,6 +179,44 @@ HVAC units. More stars is better.
   create or change a unit. The numbers are in
   [Configuration](configuration.md#performancetiers).
 
+### Sizing
+
+New in BETA 1.0. Equipment heats or cools the air its system reaches, so a
+bigger building needs more of it.
+
+- **One ★★★ unit per 5,000 sq ft of floor,** counting every level, with
+  levels of 4 blocks of air. That's about **1,860 blocks of air** per unit.
+  A ★★ unit counts as 0.85 of one and a ★ unit as 0.70.
+- **Units add up:** a 30,000 sq ft building needs six ★★★ units, or more of
+  the cheaper tiers. Sized right, a system reaches its target as fast as one
+  unit in a normal house always has, a few minutes on a hot or cold day.
+- **Too few is slower:** with a third of what it needs, a system heats or
+  cools at about a third of the pace. On a very hot or cold day it may never
+  get there. Its screen then says **Undersized 1/3**: what it has of what it
+  needs, in ★★★ units.
+- **A small room is quicker,** up to twice the pace.
+- **Pools** count water instead: one ★★★ pool heater per 1,500 blocks of
+  water.
+- **The size is the air the system's vents actually reach,** in whatever
+  shape: tall halls, stairwells, several floors. A bigger building also needs
+  vents spread through it, since one vent reaches 30 blocks
+  ([How far air reaches](airflow.md#how-far-air-reaches)).
+- **Openings leak:** an open door, a window or a hole to the sky lets the
+  outdoors in. One open front door slows a sized house by about a third to a
+  half, and a building with open walls can hardly be heated or cooled at all.
+  See [Roofs and the outdoors](airflow.md#roofs-and-the-outdoors).
+- **Neighbouring systems** whose air touches, through an open doorway or a
+  shared open space, even out with each other. A wall or a closed door keeps
+  them apart.
+- **`/hvac info`** on a thermostat shows the size in blocks and sq ft, the
+  openings, what it has of what it needs for cooling and heating, and any
+  system its air touches.
+
+`sizing.enabled: false`, or **Building size** in
+[quick settings](screens-and-menus.md#climate-systems), turns this off: any
+size then heats and cools as before BETA 1.0. The numbers are in
+[Configuration](configuration.md#sizing).
+
 ### The casing
 
 While a unit runs, its dispenser puts a block of water (lava for a furnace) in

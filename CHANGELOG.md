@@ -93,6 +93,30 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
   `/hvac update` still works. See
   [Configuration](docs/configuration.md#updates).
 
+### Size-based heating and cooling
+
+- **A bigger building needs more equipment.** One ★★★ unit heats or cools
+  5,000 sq ft of floor (about 1,860 blocks of air) at the normal pace; a ★★
+  unit counts as 0.85 of one, a ★ as 0.70, and units add up. A 30,000 sq ft
+  building needs six. Before, one unit cooled any building with enough
+  vents.
+- **Too few units is slower,** and the thermostat's screen says
+  **Undersized 1/3**. A small room is quicker, up to twice the pace.
+  `/hvac info` shows the size, the openings and what a system has of what
+  it needs. See [Sizing](docs/equipment.md#sizing).
+- **Pools** need one ★★★ heater per 1,500 blocks of water.
+- **Openings leak:** an open door, a window or a hole to the sky lets the
+  outdoors in. Air also goes only 3 blocks past a roof's edge, so a vent in
+  the open makes a small bubble, not a field. See
+  [Roofs and the outdoors](docs/airflow.md#roofs-and-the-outdoors).
+- **Neighbouring systems** whose air touches even out with each other; a
+  wall or a closed door keeps them apart.
+- **`/hvac sync`** also maps every system's air again, for builds made with
+  `/fill` or WorldEdit.
+- **Upgrading:** a big build may now need more units, or more vents to
+  reach all of it. `sizing.enabled: false`, or **Building size** in quick
+  settings, keeps the old behaviour.
+
 ### Quick settings
 
 - **`/hvac quicksettings`** (or `/hvac qs`, `ezvac.admin`) opens one menu for
@@ -105,8 +129,8 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
   can be made. Switched back on, each runs again as it was set. A thermostat
   left with no unit to heat or cool says "Units off" rather than heating
   with no ETA.
-- **Climate systems:** switch air quality, pollen, wind and the seasons off
-  and on without a restart. EZvac keeps heating and cooling; the effect just
+- **Climate systems:** switch air quality, pollen, wind, the seasons and
+  building size off and on without a restart. EZvac keeps heating and cooling; the effect just
   stops shaping the climate. Pollen can now be switched off on its own
   (`air-quality.pollen`).
 - **Backups:** back the registry up now, or automatically every 4, 8, 12,
@@ -119,8 +143,8 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
 ### Also
 
 - **The HUD's version line** shows BETA versions short: `B1.0_P1`.
-- **Your config.yml** gains the `updates`, `devices` and `backups` sections
-  and `air-quality.pollen`, with their comments.
+- **Your config.yml** gains the `updates`, `devices`, `backups` and
+  `sizing` sections and `air-quality.pollen`, with their comments.
 
 ## ALPHA 3.2 HOTFIX 1
 

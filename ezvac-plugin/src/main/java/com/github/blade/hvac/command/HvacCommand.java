@@ -14,6 +14,7 @@ import com.github.blade.hvac.service.*;
 import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
+import com.github.blade.hvac.simulation.SizingModel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -82,6 +83,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         String subcommand = args[0].toLowerCase(Locale.ROOT);
         if (subcommand.equals("stats")) {
             if (!requireAdmin(sender)) return true;
+            if (args.length >= 2 && args[1].equalsIgnoreCase("sizes")) {
+                sizes(sender);
+                return true;
+            }
             sender.sendMessage(join(gold("EZvac: "), gray(registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.settingsPanels().size() + " settings panel(s), " + airflow.stats())));
@@ -89,8 +94,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         if (subcommand.equals("sync")) {
             if (!requireAdmin(sender)) return true;
+            // Blocks changed without events (/fill, WorldEdit) leave maps stale until remapped (BETA 1.0).
+            plugin.airflow().invalidateAllSystems();
             plugin.requestImmediateSync();
-            sender.sendMessage(green("HVAC reconciliation queued."));
+            sender.sendMessage(green("HVAC reconciliation queued; every system's air is mapped again."));
             return true;
         }
         if (subcommand.equals("update")) {
@@ -919,6 +926,64 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         return linkTool.isTool(item);
     }
 
+    /** /hvac stats sizes (BETA 1.0): every system's size and what it has of what it needs, the worst sized first. */
+    private void sizes(CommandSender sender) {
+        if (!plugin.controller().sizing().enabled()) {
+            sender.sendMessage(gray("Building size is off (/hvac quicksettings): any size heats and cools as before."));
+            return;
+        }
+        List<HvacController.SizeLine> lines = plugin.controller().sizeLines();
+        if (lines.isEmpty()) {
+            sender.sendMessage(gray("No systems yet."));
+            return;
+        }
+        sender.sendMessage(join(gold("System sizes: "), gray("what each has of what it needs, in three-star units")));
+        for (HvacController.SizeLine line : lines)
+            sender.sendMessage(Component.text(" " + com.github.blade.hvac.gui.QuickSettingsMenu.sizeText(line),
+                    line.worst() < 1.0 ? NamedTextColor.GOLD : NamedTextColor.GRAY));
+    }
+
+    /** How the system measures up (BETA 1.0): its size, what it needs and has, its openings and neighbours. */
+    private void showSize(Player player, Thermostat thermostat) {
+        if (!plugin.controller().sizing().enabled()) {
+            player.sendMessage(gray("Building size is off (/hvac quicksettings): any size heats and cools as before."));
+            return;
+        }
+        SizingModel.Assessment cooling = plugin.controller().assess(thermostat.system(), OperatingMode.COOLING);
+        SizingModel.Assessment heating = plugin.controller().assess(thermostat.system(), OperatingMode.HEATING);
+        if (cooling == null) {
+            player.sendMessage(gray("Size: not mapped yet. It's worked out from the air its vents reach."));
+            return;
+        }
+        String size = String.format(Locale.US, "%,d", cooling.size());
+        player.sendMessage(join(gray("Size: "), white(cooling.water() ? size + " blocks of water"
+                : size + " blocks of air (about " + String.format(Locale.US, "%,d", cooling.squareFeet()) + " sq ft)"),
+                gray(cooling.water() ? "" : " | Openings: "), white(cooling.water() ? ""
+                        : cooling.openings() + (cooling.openings() == 0 ? "" : String.format(Locale.US,
+                        " (leaks x%.1f)", cooling.openness())))));
+        List<Component> parts = new ArrayList<>();
+        for (SizingModel.Assessment sized : List.of(cooling, heating)) {
+            if (sized.installed() <= 0.0) continue;
+            if (!parts.isEmpty()) parts.add(gray(" | "));
+            parts.add(gray(sized == cooling ? "Cooling: has " : "Heating: has "));
+            parts.add(Component.text(sized.ratio().replace("/", " of "), sized.undersized()
+                    ? NamedTextColor.GOLD : NamedTextColor.WHITE));
+        }
+        if (!parts.isEmpty()) {
+            parts.add(gray(" three-star units' worth it needs"));
+            player.sendMessage(join(parts.toArray(Component[]::new)));
+        }
+        AirflowService.Shape shape = airflow.shape(thermostat.system());
+        if (shape != null && !shape.contacts().isEmpty()) {
+            List<String> touching = new ArrayList<>();
+            shape.contacts().entrySet().stream().sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                    .forEach(contact -> touching.add(SystemNames.label(registry, contact.getKey()) + " ("
+                            + contact.getValue() + (contact.getValue() == 1 ? " face)" : " faces)")));
+            player.sendMessage(join(gray("Its air touches: "), white(String.join(", ", touching)),
+                    gray(" and evens out with it")));
+        }
+    }
+
     private void showThermostat(Player player, Thermostat thermostat) {
         player.sendMessage(join(gold(thermostat.pool() ? "Pool thermostat " : "Thermostat "), white(thermostat.id()),
                 gray(" | Linked: "), white(SystemNames.contents(registry.members(thermostat.system())))));
@@ -926,6 +991,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 + temp(thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
                 gray(" | Profile: "), white(registry.profileFor(thermostat.system()).name()),
                 gray(" | "), white(thermostat.enabled() ? "enabled" : "disabled")));
+        showSize(player, thermostat);
         if (thermostat.enabled() && thermostat.waitingOnUnits() != null)
             player.sendMessage(yellow("It needs " + (thermostat.waitingOnUnits() == OperatingMode.HEATING ? "heat"
                     : "cooling") + ", but its units that could give it are switched off server-wide"
@@ -1110,6 +1176,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac equipment enable|disable|tier|info"), gray(" - the unit you look at")));
         sender.sendMessage(join(aqua("/hvac rename <label>"), gray(" - rename the sign you look at")));
         sender.sendMessage(join(aqua("/hvac remove | remove system | stats | sync"), gray(" - remove, diagnose, reconcile")));
+        sender.sendMessage(join(aqua("/hvac stats sizes"), gray(" - every system's size, and what it has of what it needs")));
         sender.sendMessage(join(aqua("/hvac update"), gray(" - check GitHub for a newer EZvac that runs here")));
         sender.sendMessage(join(aqua("/hvac quicksettings"),
                 gray(" - switch devices and climate systems, backups, statistics, updates")));
@@ -1145,6 +1212,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");
+                case "stats" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "sizes") : List.of();
                 case "hud" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "on", "off", "sections")
                         : filter(args[1], "on", "off");
                 default -> List.of();

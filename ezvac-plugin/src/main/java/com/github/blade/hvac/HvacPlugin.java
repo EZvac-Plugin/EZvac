@@ -18,6 +18,7 @@ import com.github.blade.hvac.listener.HvacListener;
 import com.github.blade.hvac.service.*;
 import com.github.blade.hvac.update.UpdateNotifier;
 import com.github.blade.hvac.config.ServerSwitches;
+import com.github.blade.hvac.config.SizingSettings;
 import com.github.blade.hvac.gui.QuickSettingsMenu;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -92,11 +93,14 @@ public final class HvacPlugin extends JavaPlugin {
             outdoor = new OutdoorTemperatureService(climate, weather, seasons,
                     new WindService(climate.wind(), seasons));
             airflow = new AirflowService(registry, outdoor, settings);
+            SizingSettings sizing = SizingSettings.load(getConfig(), getLogger()::warning);
+            airflow.setSizing(sizing);
             displays = new DisplayService(this, registry, airflow, outdoor, settings,
                     new ScreenService(this, getConfig().getBoolean("displays.screens", true)));
             airQuality = new AirQualityService(airflow, climate.airQuality());
             units = new ClimateUnitService(registry, airflow, outdoor, airQuality);
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
+            controller.setSizing(sizing);
             audio = new HvacAudioService(settings, loadSounds(), registry);
             hud = new ClimateHudService(this, airflow, HudSettings.load(getConfig()), seasons, climate.airQuality(),
                     climate.wind());
@@ -359,6 +363,7 @@ public final class HvacPlugin extends JavaPlugin {
         });
     }
     public OutdoorTemperatureService outdoor() { return outdoor; }
+    public AirflowService airflow() { return airflow; }
 
     /** Each world with a sun looks at its clock, so its calendar moves on as the days pass. */
     private void advanceSeasons() {
