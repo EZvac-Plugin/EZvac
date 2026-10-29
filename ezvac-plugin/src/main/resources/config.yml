@@ -150,10 +150,10 @@ audio:
     vent-airflow: ["block.conduit.ambient 0.3 0.5"]
 
 # Floating screens in front of EZvac's signs (2.1): a dark, lit panel
-# with more room than a sign's four lines. The sign stays behind it, so
-# clicking works as before and players whose client can't show screens (such
-# as Bedrock players through Geyser) still read the sign. Screens are never
-# saved with the world. false shows the plain signs only.
+# with more room than a sign's four lines. The sign stays behind it, blank,
+# so clicking works as before. Screens are never saved with the world.
+# false shows the plain signs only, which are no longer supported (BETA 1.0):
+# they get no new lines and may be removed in a later release.
 displays:
   screens: true
   # How equipment tiers are drawn (3.1): full stars for the tier, empty ones

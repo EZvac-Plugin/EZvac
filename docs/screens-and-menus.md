@@ -41,9 +41,6 @@ All screens are the same size, so a wall of devices lines up.
 
 - **The sign behind is blank** (BETA 1.0), so only the screen shows.
   Clicking the sign works exactly as before.
-- **Bedrock players** coming in through Geyser can't see screens. On a
-  server with them, set `displays.screens: false`: the signs then show
-  everything, as before.
 - Screens light themselves, so they're readable at night.
 - Like signs, screens update when someone is nearby, and only when what they
   show has changed.
@@ -52,8 +49,10 @@ All screens are the same size, so a wall of devices lines up.
   EZvac leaves nothing floating behind.
 - Placed on wall signs, standing signs and hanging signs alike.
 
-Turn them off with `displays.screens: false` in `config.yml`; the signs alone
-then show everything, as they did before screens.
+**Plain signs are no longer supported** (BETA 1.0). `displays.screens: false`
+in `config.yml` still turns screens off and shows the old four-line signs, but
+they get none of the new lines (such as **Undersized**) and may be removed in a
+later release. Bedrock players coming in through Geyser can't see screens.
 
 ## Control menus
 
