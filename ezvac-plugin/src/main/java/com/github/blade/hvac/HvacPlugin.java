@@ -20,6 +20,8 @@ import com.github.blade.hvac.update.UpdateNotifier;
 import com.github.blade.hvac.config.ServerSwitches;
 import com.github.blade.hvac.config.SizingSettings;
 import com.github.blade.hvac.gui.QuickSettingsMenu;
+import com.github.blade.hvac.gui.ForecastMenu;
+import com.github.blade.hvac.config.WeatherStationSettings;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.World;
@@ -65,6 +67,10 @@ public final class HvacPlugin extends JavaPlugin {
     private ServerSwitches switches;
     private RegistryBackups backups;
     private QuickSettingsMenu quickSettings;
+    private WeatherStationService weatherStations;
+    private ForecastMenu forecastMenu;
+    private BukkitTask stationTask;
+    private BukkitTask sparkTask;
     /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
     private Runnable placeholderUnregister;
     private AirQualityService airQuality;
@@ -97,6 +103,10 @@ public final class HvacPlugin extends JavaPlugin {
             airflow.setSizing(sizing);
             displays = new DisplayService(this, registry, airflow, outdoor, settings,
                     new ScreenService(this, getConfig().getBoolean("displays.screens", true)));
+            weatherStations = new WeatherStationService(this, registry, outdoor, climate,
+                    WeatherStationSettings.load(getConfig(), getLogger()::warning));
+            weatherStations.setDisplays(displays);
+            displays.setWeatherStations(weatherStations);
             airQuality = new AirQualityService(airflow, climate.airQuality());
             units = new ClimateUnitService(registry, airflow, outdoor, airQuality);
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
@@ -116,6 +126,9 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(hud, this);
             menus = new ControlMenus(this, registry, displays, settings, climate);
             getServer().getPluginManager().registerEvents(menus, this);
+            forecastMenu = new ForecastMenu(this, registry, weatherStations, displays, commandHandler::isTool);
+            getServer().getPluginManager().registerEvents(forecastMenu, this);
+            getServer().getPluginManager().registerEvents(weatherStations, this);
             registerApi();
             api.setLinkTool(commandHandler.linkTool());
             hud.start();
@@ -132,6 +145,9 @@ public final class HvacPlugin extends JavaPlugin {
                     () -> runController(settings.controllerPeriodTicks()),
                     settings.controllerPeriodTicks(), settings.controllerPeriodTicks());
             airflowTask = getServer().getScheduler().runTaskTimer(this, airflow::tick, 1L, 1L);
+            // Weather stations measure at sunrise and sunset; the check is one comparison per world.
+            stationTask = getServer().getScheduler().runTaskTimer(this, weatherStations::tick, 40L, 40L);
+            sparkTask = getServer().getScheduler().runTaskTimer(this, weatherStations::watch, 20L, 20L);
             bubbleTask = getServer().getScheduler().runTaskTimer(this,
                     () -> audio.bubble(runningUnits), HvacAudioService.BUBBLE_PERIOD_TICKS,
                     HvacAudioService.BUBBLE_PERIOD_TICKS);
@@ -252,6 +268,9 @@ public final class HvacPlugin extends JavaPlugin {
     public void onDisable() {
         if (menus != null) menus.closeAll();
         if (quickSettings != null) quickSettings.closeAll();
+        if (forecastMenu != null) forecastMenu.closeAll();
+        if (stationTask != null) stationTask.cancel();
+        if (sparkTask != null) sparkTask.cancel();
         if (backups != null) backups.stop();
         getServer().getServicesManager().unregisterAll(this);
         if (api != null) api.clear();
@@ -341,6 +360,8 @@ public final class HvacPlugin extends JavaPlugin {
     public HvacController controller() { return controller; }
     public UpdateNotifier updates() { return updates; }
     public QuickSettingsMenu quickSettings() { return quickSettings; }
+    public WeatherStationService weatherStations() { return weatherStations; }
+    public ForecastMenu forecastMenu() { return forecastMenu; }
 
     /**
      * Offers EZvac's public API to other plugins (2.1) and connects

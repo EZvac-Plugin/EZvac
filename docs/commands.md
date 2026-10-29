@@ -12,7 +12,7 @@ updates). Tab completion only offers commands you can run (BETA 1.0).
 
 | Permission | Default | Allows |
 | --- | --- | --- |
-| `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat targets and on/off, settings panels, dehumidifiers, humidifiers and air purifiers, sensor hubs, pressing sensors |
+| `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, `/hvac forecast`, and using signs: thermostat targets and on/off, settings panels, dehumidifiers, humidifiers and air purifiers, sensor hubs, weather stations' forecasts, pressing sensors |
 | `ezvac.hud` | everyone | `/hvac hud` |
 | `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season and the wind, `stats`, `sync`, `update` and `quicksettings` |
 
@@ -26,6 +26,7 @@ updates). Tab completion only offers commands you can run (BETA 1.0).
 | `/hvac list` | The systems in your world, with mode, room and target temperature, and how many units are running |
 | `/hvac season` | The season and its day ("Summer, day 3 of 15"), and how much it warms or cools the outdoors where you stand |
 | `/hvac wind` | Today's wind ("Windy, about 22 km/h"), the wind where you stand and out in the open, and the next two days' (3.2) |
+| `/hvac forecast` | The next seven days from the weather stations within 400 blocks, nearest first (BETA 1.0, see [Weather stations](weather-stations.md)). Also `weatherfc` |
 | `/hvac info` | Details of the device you're looking at: a thermostat (with its room's humidity, feels-like and air), equipment, a vent, a thermometer, an RPM monitor, a settings panel, a dehumidifier, humidifier or air purifier, a sensor or a sensor hub |
 
 ### Using signs and sensors
@@ -69,6 +70,7 @@ these in game.
 | `/hvac create purifier [label]` | its sign | Also `airpurifier`. A sign on an iron block that sits on a tube coral block, its filter (3.2). The coral can be placed afterwards (3.2 HOTFIX 1) |
 | `/hvac create sensor [label]` | a button | Stone, polished blackstone, mangrove, birch, cherry (air quality) or bamboo (wind, 3.2) |
 | `/hvac create sensor-hub [label]` | a sign | Also `sensorhub` |
+| `/hvac create weatherstation [label]` | the wall sign on its tower | Also `station`. The tower must be whole: see [Weather stations](weather-stations.md) (BETA 1.0) |
 
 An equipment tier (`t1`, `t2` or `t3`) is optional: two-stage unless given.
 Equipment, settings panels and RPM monitors are linked to a thermostat with the

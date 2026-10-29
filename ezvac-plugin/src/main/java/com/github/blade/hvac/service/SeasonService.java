@@ -165,6 +165,33 @@ public final class SeasonService {
         return OutdoorAir.pollenSeasonFactor(world.calendar.ticks(world.fullTime), settings.daysPerSeason());
     }
 
+    /**
+     * The air's season factor this many days from now (BETA 1.0, for weather
+     * station forecasts); today's is {@link #airFactor}. 0 where there are no
+     * seasons or they are off. A paused calendar stays where it is.
+     */
+    public double airFactorIn(UUID worldId, int days) {
+        World world = worlds.get(worldId);
+        if (world == null || !world.clockSeen || !settings.enabled()) return 0.0;
+        if (days == 0 || world.calendar.paused()) return world.air;
+        return Seasons.factor(ticks(worldId) + days * 24_000L, settings.daysPerSeason());
+    }
+
+    /** Pollen's season factor this many days from now (BETA 1.0); summer's where there are no seasons. */
+    public double pollenFactorIn(UUID worldId, int days) {
+        World world = worlds.get(worldId);
+        if (world == null || !world.clockSeen || !settings.enabled()) return OutdoorAir.SUMMER_POLLEN;
+        long ahead = world.calendar.paused() ? 0L : days * 24_000L;
+        return OutdoorAir.pollenSeasonFactor(world.calendar.ticks(world.fullTime) + ahead, settings.daysPerSeason());
+    }
+
+    /** The day of its season this many days from now, for a forecast's day names (BETA 1.0). */
+    public int dayOfSeasonIn(UUID worldId, int days) {
+        World world = worlds.get(worldId);
+        long ahead = world == null || world.calendar.paused() ? 0L : days * 24_000L;
+        return Seasons.dayOfSeason(ticks(worldId) + ahead, settings.daysPerSeason());
+    }
+
     /** The same for natural water, a few days behind the air. */
     public double waterFactor(UUID worldId) {
         World world = worlds.get(worldId);

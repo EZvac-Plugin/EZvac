@@ -6,6 +6,7 @@ import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.DeviceKind;
 import com.github.blade.hvac.model.EquipmentUnit;
 import com.github.blade.hvac.model.Thermostat;
+import com.github.blade.hvac.model.WeatherStation;
 import com.github.blade.hvac.service.AirflowService;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
@@ -65,8 +66,8 @@ public final class QuickSettingsMenu implements Listener {
 
     /** The main page's sections, in the middle row. */
     static final int DEVICES = 11, CLIMATE = 12, BACKUPS = 13, STATISTICS = 14, UPDATES = 15;
-    /** The device kinds in the second row: the five sources, a gap, the three room units; their switches beneath. */
-    static final int[] DEVICE_SLOTS = {9, 10, 11, 12, 13, 15, 16, 17};
+    /** The device kinds in the second row: the five sources, the three room units, weather stations; switches beneath. */
+    static final int[] DEVICE_SLOTS = {9, 10, 11, 12, 13, 14, 15, 16, 17};
     /** Air quality, pollen, wind, seasons and building size, with their switches beneath. */
     static final int AIR = 9, POLLEN = 11, WIND = 13, SEASONS = 15, SIZING = 17;
     static final int BACK_UP_NOW = 11, AUTOMATIC = 13, BACKUP_INFO = 15;
@@ -342,6 +343,8 @@ public final class QuickSettingsMenu implements Listener {
         plugin.requestImmediateSync();
         for (ClimateUnit unit : registry.climateUnits())
             if (DeviceKind.of(unit.kind()) == kind) displays.refreshClimateUnit(unit, true);
+        if (kind == DeviceKind.WEATHER_STATION)
+            for (WeatherStation station : registry.weatherStations()) displays.refreshWeatherStation(station, true);
     }
 
     private void clickClimate(Player player, int slot) {
@@ -464,11 +467,14 @@ public final class QuickSettingsMenu implements Listener {
     }
 
     private long count(DeviceKind kind) {
+        if (kind == DeviceKind.WEATHER_STATION) return registry.weatherStations().size();
         return registry.equipment().stream().filter(unit -> DeviceKind.of(unit.type()) == kind).count()
                 + registry.climateUnits().stream().filter(unit -> DeviceKind.of(unit.kind()) == kind).count();
     }
 
     private long running(DeviceKind kind) {
+        if (kind == DeviceKind.WEATHER_STATION)
+            return registry.weatherStations().stream().filter(station -> station.enabled() && station.intact()).count();
         return registry.equipment().stream().filter(unit -> DeviceKind.of(unit.type()) == kind)
                 .filter(EquipmentUnit::running).count()
                 + registry.climateUnits().stream().filter(unit -> DeviceKind.of(unit.kind()) == kind)

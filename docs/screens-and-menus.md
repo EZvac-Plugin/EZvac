@@ -38,6 +38,7 @@ All screens are the same size, so a wall of devices lines up.
 | Sensor hub | Up to five sensors at once; with more, it pages along with the sign |
 | RPM monitor | The RPM, a capacity bar and how many units are running |
 | Settings panel | The profile, and how to change it |
+| Weather station | The outdoor temperature around it big, today's weather, high and low, and wind, then what's certain today or tomorrow's weather; the header coloured by today's sky (BETA 1.0, see [Weather stations](weather-stations.md)) |
 
 - **The sign behind is blank** (BETA 1.0), so only the screen shows.
   Clicking the sign works exactly as before.
@@ -108,7 +109,8 @@ the bottom-left corner to return and **Close** in the bottom-right.
 
 One switch for each kind that changes the climate: heat pumps, air
 conditioners, furnaces, boilers, pool heat pumps, dehumidifiers, humidifiers
-and air purifiers. Each shows how many the server has and how many run.
+and air purifiers, and one for [weather stations](weather-stations.md). Each
+shows how many the server has and how many run.
 
 - **Switched off,** every device of that kind stops, and equipment takes its
   water or lava away, as at any stop. Its sign reads **Off server-wide**, and
@@ -122,6 +124,8 @@ and air purifiers. Each shows how many the server has and how many run.
   Existing ones can still be linked and removed.
 - **Switched back on,** each runs again as it was set: a device someone had
   switched off itself stays off.
+- **Weather stations** switched off show **Off server-wide**, and
+  `/hvac forecast` says forecasts are off.
 
 In `config.yml` this is [`devices.disabled`](configuration.md#devices).
 

@@ -6,8 +6,8 @@ import java.util.Locale;
 
 /**
  * The kinds of device that change the climate, which /hvac quicksettings can
- * switch off server-wide (BETA 1.0). Thermostats, sensors, monitors and
- * panels only read or set it, so they aren't here.
+ * switch off server-wide (BETA 1.0), and weather stations. Thermostats,
+ * sensors, monitors and panels only read or set it, so they aren't here.
  */
 public enum DeviceKind {
     HEAT_PUMP("heat-pump", "Heat pump", "Heat pumps", Material.DISPENSER),
@@ -17,7 +17,8 @@ public enum DeviceKind {
     POOL_HEAT_PUMP("pool-heat-pump", "Pool heat pump", "Pool heat pumps", Material.PRISMARINE),
     DEHUMIDIFIER("dehumidifier", "Dehumidifier", "Dehumidifiers", Material.IRON_BARS),
     HUMIDIFIER("humidifier", "Humidifier", "Humidifiers", Material.CUT_COPPER_SLAB),
-    AIR_PURIFIER("air-purifier", "Air purifier", "Air purifiers", Material.TUBE_CORAL_BLOCK);
+    AIR_PURIFIER("air-purifier", "Air purifier", "Air purifiers", Material.TUBE_CORAL_BLOCK),
+    WEATHER_STATION("weather-station", "Weather station", "Weather stations", Material.LIGHTNING_ROD);
 
     private final String configName;
     private final String displayName;

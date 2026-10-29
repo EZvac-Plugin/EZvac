@@ -8,6 +8,7 @@ import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.AirQualityIndex;
 import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.EtaEstimator;
+import com.github.blade.hvac.simulation.Forecast;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.SizingModel;
@@ -67,6 +68,10 @@ public final class DisplayService {
 
     public ScreenService screens() { return screens; }
 
+    private WeatherStationService stations;
+
+    public void setWeatherStations(WeatherStationService stations) { this.stations = stations; }
+
     /**
      * How far from a player, in chunks, signs keep being rewritten: four
      * chunks, 64 blocks and a little more, well past where sign text can be
@@ -98,6 +103,8 @@ public final class DisplayService {
             if (watched(watched, unit.position())) refreshClimateUnit(unit, force);
         for (SensorHub hub : registry.sensorHubs())
             if (watched(watched, hub.position())) refreshSensorHub(hub, force);
+        for (WeatherStation station : registry.weatherStations())
+            if (watched(watched, station.position())) refreshWeatherStation(station, force);
     }
 
     /** Every sign device, so the screens of devices that are gone can be taken down. */
@@ -109,6 +116,7 @@ public final class DisplayService {
         registry.settingsPanels().forEach(device -> positions.add(device.position()));
         registry.climateUnits().forEach(device -> positions.add(device.position()));
         registry.sensorHubs().forEach(device -> positions.add(device.position()));
+        registry.weatherStations().forEach(device -> positions.add(device.position()));
         return positions;
     }
 
@@ -155,6 +163,67 @@ public final class DisplayService {
                 Sensor sensor = registry.sensorAt(key);
                 if (sensor != null) screen.line(read(sensor).line(ScreenText.WIDTH), NamedTextColor.WHITE);
             }
+            return screen;
+        });
+    }
+
+    /** A weather station's header colour and glyph, by today's sky (BETA 1.0). */
+    static ScreenText.Tone tone(Forecast.Sky sky) {
+        return switch (sky) {
+            case CLEAR -> new ScreenText.Tone(0x1F5F9F, "☀");
+            case RAIN -> new ScreenText.Tone(0x34506B, "☂");
+            case SNOW -> new ScreenText.Tone(0x4F6A85, "❄");
+            case THUNDER -> new ScreenText.Tone(0x4B3A6B, "⚡");
+        };
+    }
+
+    /**
+     * A weather station's screen (BETA 1.0): the outdoor temperature of its
+     * area big, today's sky, high and low and wind, then what is known for
+     * certain today or else tomorrow's sky. Off, damaged or switched off
+     * server-wide, it says so instead.
+     */
+    public void refreshWeatherStation(WeatherStation station, boolean force) {
+        if (stations == null) return;
+        TemperatureUnit units = settings.units();
+        boolean serverOff = !WeatherStationService.switchedOn();
+        List<Forecast.Day> days = serverOff || !station.enabled() || !station.intact() ? List.of()
+                : stations.forecast(station);
+        double nowF = stations.nowF(station);
+        boolean snow = station.area() != null && station.area().snowShare() > station.area().rainShare();
+        String state = serverOff ? OFF_SERVER_WIDE : !station.enabled() ? "Off" : !station.intact() ? "Damaged"
+                : days.isEmpty() ? "Measuring" : "";
+        Forecast.Day today = days.isEmpty() ? null : days.get(0);
+        Forecast.Day tomorrow = days.size() > 1 ? days.get(1) : null;
+        String windLine = today == null || today.wind() == null ? ""
+                : WindText.sign(today.windMs(), outdoor.climate().wind(), units);
+        String fingerprint = String.join("|", station.label(), state, StationText.temperature(nowF, units),
+                today == null ? "" : StationText.sky(today, snow) + StationText.highLow(today, units) + today.note(),
+                tomorrow == null ? "" : StationText.sky(tomorrow, snow), windLine);
+        render(station.position(), fingerprint, force, lines -> {
+            lines.set(0, station.label(), NamedTextColor.AQUA);
+            if (today == null) {
+                lines.set(1, state, NamedTextColor.GRAY);
+                return;
+            }
+            lines.set(1, StationText.temperature(nowF, units), NamedTextColor.WHITE);
+            lines.set(2, StationText.sky(today, snow), NamedTextColor.YELLOW);
+            lines.set(3, StationText.highLow(today, units), NamedTextColor.GRAY);
+        }, () -> {
+            ScreenText screen = ScreenText.titled(station.label(), "Weather");
+            if (today == null) {
+                if (!state.equals("Measuring")) screen.tone(state.equals("Damaged") ? ScreenText.Tone.ALERT
+                        : ScreenText.Tone.OFF);
+                screen.line(state, state.equals("Damaged") ? NamedTextColor.GOLD : NamedTextColor.GRAY);
+                if (state.equals("Damaged")) screen.line("Rebuild its tower", NamedTextColor.GRAY);
+                return screen;
+            }
+            screen.tone(tone(today.sky())).big(StationText.temperature(nowF, units))
+                    .line(StationText.sky(today, snow), NamedTextColor.WHITE)
+                    .line(StationText.highLow(today, units), NamedTextColor.GRAY);
+            if (!windLine.isEmpty()) screen.line(windLine, NamedTextColor.GRAY);
+            if (!today.note().isEmpty()) screen.line(today.note(), NamedTextColor.GOLD);
+            else if (tomorrow != null) screen.line(StationText.tomorrow(tomorrow, snow), NamedTextColor.AQUA);
             return screen;
         });
     }

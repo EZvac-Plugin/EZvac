@@ -384,6 +384,17 @@ are per in-game hour.
 | `purifier.pollen-weight` | 0.5 | How much a grain/m³ of pollen fills the filter against a µg/m³ of particles |
 | `biomes` | none | Your own outdoor air per biome: `minecraft:plains: { pollen: 40 }`. Values left out keep EZvac's |
 
+## weather-stations
+
+New in BETA 1.0. See [Weather stations](weather-stations.md).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `range` | 400 | How near a player must be to a station to see its forecast with `/hvac forecast`, in blocks |
+| `area-radius` | 100 | How far each way a station measures the outdoor climate, in blocks |
+| `area-height` | 20 | How far above itself it measures, in blocks |
+| `sparks` | true | Sparks at the rods of a station that is on, when a player is within 32 blocks |
+
 ## hud
 
 | Setting | Default | Meaning |

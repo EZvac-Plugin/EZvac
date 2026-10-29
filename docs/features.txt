@@ -774,6 +774,49 @@ QUICK SETTINGS
   (updates.check); setNotifyAdmins() (updates.notify-admins).
 
 
+WEATHER STATIONS
+- BETA 1.0. A tower (StationShape): a waxed copper cross round an iron block,
+  iron, the waxed cut copper with the wall sign, then three iron blocks with
+  waxed lightning rods right, left, right as seen facing the sign (the mirror
+  image counts). Any waxed copper colour; plain rods only where waxed ones
+  don't exist (1.21.1). Rods must point out sideways.
+- /hvac create weatherstation [label] on the sign; Overworld-type worlds only;
+  a broken tower is refused with the first missing block and where it goes.
+  Saved in hvac.yml weatherStations (label, enabled, strikes, last area).
+- Measures EZvac's outdoor climate only (OutdoorTemperatureService.blendedAt),
+  never airflow or rooms: spots every 16 blocks out to area-radius (100), at
+  its height, half of area-height (20) and the top, loaded chunks only; the
+  blends are averaged into its Area. Measured on creation and at each
+  sunrise and sunset (half-day of fullTime), checked every 40 ticks.
+- Forecast (simulation/Forecast): 7 days, days change at sunrise. High/low:
+  the area's noon/midnight plus that day's season shift (seasonShiftIn), with
+  WeatherModel.effect at the day's rain and thunder chance. Wind: WindService
+  forecast (seeded, exact) times the area's exposure. Pollen: the season's
+  factor that day. Rain/thunder: 400 runs of Minecraft's clocks forward from
+  the world's (rain 12000-24000 on / 12000-180000 off, thunder 3600-15600 /
+  12000-180000, /weather clear holding them off), seeded by world seed and
+  half-day; a day counts with >= 1200 ticks of it. Thunder only while it
+  rains. Today/tomorrow's note is the current spell's end, certain. Dry areas
+  (rain+snow share < 0.1) never get rain; snowier ones get snow.
+- Forecasts are cached per station; dropped at the half-day and on weather
+  and thunder changes (then redrawn).
+- Screen: temperature big (whole degrees), sky, Hi/Lo, wind, then the note
+  or tomorrow ("Tmrw: Rain 40%"); header tone by today's sky. Off, Damaged
+  (rebuild its tower), Off server-wide or Measuring instead.
+- /hvac forecast (ezvac.use; alias weatherfc): stations within range (400) in
+  the player's world, working and measured, nearest first, up to 5 along the
+  top of a 27-slot menu; the chosen one's 7 days in slots 10-16. Clicking a
+  station sign: admins get its menu (on/off, record, forecast), others the
+  forecast.
+- Every second, stations with a player within 32 blocks recheck their tower
+  (/fill and WorldEdit fire no events) and, when working and sparks are on,
+  spawn ELECTRIC_SPARK at random rod tips. Breaks, places and explosions
+  near a tower recheck it a tick later; /hvac sync rechecks all.
+- LightningStrikeEvent within 2 blocks of the sign column, from 2 below to 5
+  above it, counts a strike (saved).
+- DeviceKind.WEATHER_STATION in quick settings: off server-wide stops them,
+  blocks creation and /hvac forecast.
+
 PUBLIC API
 ----------
 
