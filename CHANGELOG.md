@@ -57,6 +57,16 @@ Purpur **26.1 to 26.3**, and still on **1.21.1**. The save is unchanged
   and `V.High` instead of Moderate and Very high, so no level widens the
   sidebar. Screens and commands keep the full words.
 
+### Fixed
+
+- **Equipment water and lava stay in their cells.** A unit's water could
+  flow into the output cell of a unit beside it in the same casing, and
+  stop it from starting; and a unit linked before its casing was finished
+  flooded the build. Now a unit's water or lava never flows, a furnace's
+  lava lights no fires and doesn't harden into obsidian beside water, and a
+  unit starts over water or lava that is only flowing through its cell. A
+  source block left over from before still has to be cleared once.
+
 ### Update notifications
 
 - **EZvac tells you when a newer version is on GitHub.** It checks in the

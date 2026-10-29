@@ -182,6 +182,35 @@ public final class HvacListener implements Listener {
         if (registry.climateUnitAt(BlockKey.of(event.getBlock().getLocation())) != null) event.setCancelled(true);
     }
 
+    /**
+     * A unit's water or lava stays in its output cell (BETA 1.0): it never
+     * flows, so it can't block a neighbouring unit's output or spill out of
+     * an unfinished casing, and no new source blocks form from it.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onOutputFlow(BlockFromToEvent event) {
+        if (registry.noOwnedOutputs()) return;
+        if (registry.isOwnedOutput(BlockKey.of(event.getBlock().getLocation()))) event.setCancelled(true);
+    }
+
+    /** A furnace's lava lights nothing around it (BETA 1.0). */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onOutputIgnite(BlockIgniteEvent event) {
+        if (registry.noOwnedOutputs() || event.getCause() != BlockIgniteEvent.IgniteCause.LAVA
+                || event.getIgnitingBlock() == null) return;
+        if (registry.isOwnedOutput(BlockKey.of(event.getIgnitingBlock().getLocation()))) event.setCancelled(true);
+    }
+
+    /**
+     * A furnace's lava doesn't harden into obsidian or cobblestone when water
+     * touches it (BETA 1.0), such as a heat pump's beside it in one casing.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onOutputHarden(BlockFormEvent event) {
+        if (registry.noOwnedOutputs() || event.getBlock().getType() != Material.LAVA) return;
+        if (registry.isOwnedOutput(BlockKey.of(event.getBlock().getLocation()))) event.setCancelled(true);
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onClimateUnitBucket(PlayerBucketFillEvent event) {
         if (!registry.hasClimateUnits()) return;

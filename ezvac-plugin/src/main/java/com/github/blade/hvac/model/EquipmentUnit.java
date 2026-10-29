@@ -6,6 +6,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.Levelled;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -143,8 +144,9 @@ public final class EquipmentUnit {
         if (output == null) return false;
         Location outputLocation = output.location();
         if (outputLocation == null) return false;
-        Material material = outputLocation.getBlock().getType();
-        boolean usable = material.isAir() || (managedFluidAtOutput
+        Block block = outputLocation.getBlock();
+        Material material = block.getType();
+        boolean usable = clearable(material, material.isAir(), fluidLevel(block)) || (managedFluidAtOutput
                 && (material == Material.WATER || material == Material.LAVA));
         if (ownedOutput == null) return usable;
         if (ownedOutput.equals(output)) return material == type.outputMaterial() || material.isAir();
@@ -177,16 +179,36 @@ public final class EquipmentUnit {
             }
             setOwnedOutput(null); // externally replaced; never claim it implicitly
         }
-        if (!front.getType().isAir()) {
+        if (!clearable(front.getType(), front.getType().isAir(), fluidLevel(front))) {
             running = false;
             operatingMode = OperatingMode.IDLE;
             return wasRunning ? Actuation.STOPPED : Actuation.UNCHANGED;
         }
-        front.setType(type.outputMaterial(), true);
+        // Owned before it is placed, so the listeners that hold an output in its cell know it
+        // already when placing it touches off the fluid's first update: lava beside water
+        // hardens at once otherwise (BETA 1.0).
         setOwnedOutput(output);
+        front.setType(type.outputMaterial(), true);
         running = true;
         operatingMode = requestedMode;
         return wasRunning ? Actuation.UNCHANGED : Actuation.STARTED;
+    }
+
+    /**
+     * Whether a unit may put its output in a cell holding this: air, or water
+     * or lava that is only flowing through (BETA 1.0). Flowing fluid is never
+     * a block anyone placed, only the spread of a source somewhere else, such
+     * as a unit's output from before its flow was held. A source block is
+     * still left alone: it may be a player's.
+     */
+    static boolean clearable(Material material, boolean air, int fluidLevel) {
+        if (air) return true;
+        return (material == Material.WATER || material == Material.LAVA) && fluidLevel > 0;
+    }
+
+    /** A fluid block's level: 0 for a source, more for flowing or falling fluid; 0 for anything else. */
+    private static int fluidLevel(Block block) {
+        return block.getBlockData() instanceof Levelled levelled ? levelled.getLevel() : 0;
     }
 
     public Actuation stop() {

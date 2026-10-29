@@ -674,6 +674,12 @@ public final class HvacRegistry {
         return new HashSet<>(unitsByOwnedOutput.keySet());
     }
 
+    /** True while no unit owns an output, so fluid events can be skipped without a lookup. */
+    public boolean noOwnedOutputs() { return unitsByOwnedOutput.isEmpty(); }
+
+    /** True when some unit owns this block as its output: the water or lava EZvac placed. */
+    public boolean isOwnedOutput(BlockKey key) { return unitsByOwnedOutput.containsKey(key); }
+
     /** Grid shift for {@link #ventCells}; a cell spans {@code 1 << shift} blocks. */
     int ventCellShift() { return ventCellShift; }
 

@@ -51,6 +51,14 @@ SYSTEM MODEL
   output. Furnaces use lava.
 - Only the exact output source created and recorded by EZvac is retracted.
   Player fluid is never adopted merely because it is in front of a dispenser.
+- An owned output is held in its cell (BETA 1.0): HvacListener cancels
+  BlockFromToEvent from it (no flow, so no blocking a neighbouring unit's
+  cell, no spill, no new sources), BlockIgniteEvent with cause LAVA from it,
+  and BlockFormEvent turning it to obsidian or cobblestone. A unit owns its
+  cell before placing the fluid, so the placement's own first update is
+  held too. A cell with water or lava that is only flowing (level > 0) counts
+  as empty for starting (EquipmentUnit.clearable); a source is still never
+  adopted.
 - Shared output blocks have one deterministic winner. Losing units stop and
   release their output before the winner starts.
 - Rotated dispensers clean their previous owned output before claiming the new
