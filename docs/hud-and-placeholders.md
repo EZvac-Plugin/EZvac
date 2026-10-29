@@ -10,8 +10,9 @@ Keeps the climate where you stand on screen: the temperature, how warm it
 feels, a cold-to-hot bar with a comfort word (cold, cool, comfortable, warm,
 hot), the humidity, the air quality and pollen, the outdoor temperature and
 weather, the season, and the system
-conditioning that spot with its mode, its target and whether you're in its
-core or its edge.
+conditioning that spot with its mode, its target and its airflow strength:
+**Strength 100%** in green in a vent's core, less towards the edge of its
+reach (gold under 50%), and **Outside** where no system reaches.
 
 - It's off by default for each player, and EZvac remembers each player's
   choice across restarts. With no argument the command toggles it.
@@ -72,7 +73,7 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_comfort%` | `Comfortable` |
 | `%ezvac_system%`, `%ezvac_thermostat%` | `Home`, `Home`: the thermostat whose air you're in (`%ezvac_group%`, its pre-3.0 name, still works). A system that lost its thermostat shows `Headless` |
 | `%ezvac_mode%`, `%ezvac_target%` | `Cooling to 70.0°F` (`Holding 70.0°F` when idle, BETA 1.0; `Idle` before), `70.0°F` |
-| `%ezvac_zone%`, `%ezvac_influence%`, `%ezvac_conditioned%` | `Core`, `100`, `true` |
+| `%ezvac_zone%`, `%ezvac_influence%`, `%ezvac_conditioned%` | `Strength 100%`, `100`, `true` |
 | `%ezvac_medium%` | `air` or `water` |
 
 Values are refreshed for each player every half second (`hud.update-ticks`),

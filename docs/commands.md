@@ -16,7 +16,7 @@ block use the block you're looking at, within six blocks.
 | Command | Does |
 | --- | --- |
 | `/hvac help` | Lists the commands you can use |
-| `/hvac temperature` (`temp`) | The temperature where you stand, the outdoor temperature and weather, the humidity and "feels like" in air, and which system reaches you (core or edge, and how far along its airflow). In water: the water temperature and the air above |
+| `/hvac temperature` (`temp`) | The temperature where you stand, the outdoor temperature and weather, the humidity and "feels like" in air, and which system reaches you, how far along its airflow and its strength there (100% in the core). In water: the water temperature and the air above |
 | `/hvac hud [on\|off]` | Shows or hides the on-screen HUD for yourself (`ezvac.hud`). With no argument it toggles; your choice is remembered |
 | `/hvac list` | The systems in your world, with mode, room and target temperature, and how many units are running |
 | `/hvac season` | The season and its day ("Summer, day 3 of 15"), and how much it warms or cools the outdoors where you stand |
