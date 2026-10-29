@@ -26,7 +26,7 @@ permissions:
 
 env:
   MODRINTH_PROJECT: dCv4gYwb  # modrinth.com/plugin/ezvac-plugin
-  GAME_VERSIONS: '["1.21", "1.21.1"]'
+  GAME_VERSIONS: '["1.21.1", "26.1", "26.1.1", "26.1.2", "26.2", "26.3"]'
   LOADERS: '["paper", "purpur"]'
   # Modrinth asks API clients to say who they are.
   USER_AGENT: EZvac-Plugin/EZvac release publisher (github.com/EZvac-Plugin/EZvac)

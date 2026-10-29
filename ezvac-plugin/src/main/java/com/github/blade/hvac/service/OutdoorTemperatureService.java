@@ -26,7 +26,6 @@ import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -78,13 +77,14 @@ public final class OutdoorTemperatureService {
     private final WindService wind;
 
     /**
-     * A biome's climate only ever needs looking up once. Data-pack biomes all
-     * share CUSTOM, so they are not cached.
+     * A biome's climate only ever needs looking up once. On 1.21.1 data-pack
+     * biomes all share CUSTOM, so they are not cached; from 26.1 each is its
+     * own Biome. Not EnumMaps: from 26.1 Biome is no longer an enum.
      */
-    private final Map<Biome, BiomeClimate.Climate> climateCache = new EnumMap<>(Biome.class);
-    private final Map<Biome, Double> downfallCache = new EnumMap<>(Biome.class);
-    private final Map<Biome, OutdoorAir.Baseline> airCache = new EnumMap<>(Biome.class);
-    private final Map<Biome, Double> windCache = new EnumMap<>(Biome.class);
+    private final Map<Biome, BiomeClimate.Climate> climateCache = new HashMap<>();
+    private final Map<Biome, Double> downfallCache = new HashMap<>();
+    private final Map<Biome, OutdoorAir.Baseline> airCache = new HashMap<>();
+    private final Map<Biome, Double> windCache = new HashMap<>();
     /**
      * Blended climate per 4x4 column of biome cells, per world, then per
      * 4-block height cell. Biomes almost never change, so each cell is worked
@@ -161,7 +161,11 @@ public final class OutdoorTemperatureService {
         return found;
     }
 
-    /** A data-pack biome's id, where Paper can tell it. */
+    /**
+     * A data-pack biome's id, where Paper can tell it. 1.21.1 only knows it
+     * through its unsafe values. 26.1 removed those: there a data-pack biome
+     * is its own Biome, with its own key, and never reaches this.
+     */
     private static Optional<NamespacedKey> customKey(Block block) {
         try {
             return Optional.ofNullable(Bukkit.getUnsafe().getBiomeKey(block.getWorld(),
@@ -182,7 +186,7 @@ public final class OutdoorTemperatureService {
         return block.getTemperature() < BiomeClimate.SNOW_BELOW ? Precipitation.SNOW : Precipitation.RAIN;
     }
 
-    /** Vanilla's downfall, the biome value behind rain and grass colour. Data-pack biomes all share CUSTOM, so they are not cached. */
+    /** Vanilla's downfall, the biome value behind rain and grass colour. CUSTOM (1.21.1's data-pack biomes) is not cached. */
     private double downfall(Block block, Biome biome) {
         if (biome == Biome.CUSTOM) return block.getHumidity();
         Double cached = downfallCache.get(biome);
