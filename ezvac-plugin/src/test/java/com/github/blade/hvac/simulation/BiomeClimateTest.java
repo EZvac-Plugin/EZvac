@@ -28,6 +28,27 @@ class BiomeClimateTest {
         }
     }
 
+    /** Biomes after 1.21.1, which the 1.21.1 API EZvac builds against doesn't list (BETA 1.0). */
+    @Test
+    void theBiomesSince1211HaveAClimateAirAndWind() {
+        for (String id : List.of("pale_garden", "dappled_forest", "sulfur_caves")) {
+            assertNotNull(of(id), id);
+            assertNotNull(OutdoorAir.builtIn("minecraft:" + id), id);
+            assertNotNull(WindModel.builtInExposure("minecraft:" + id), id);
+        }
+        assertTrue(of("pale_garden").noonF() < of("dark_forest").noonF(), "a touch cooler than a dark forest");
+        assertEquals(0.0, WindModel.builtInExposure("minecraft:sulfur_caves"), "no wind in a cave");
+        assertEquals(0.0, swing(of("sulfur_caves")), "steady, as caves are");
+    }
+
+    @Test
+    void sulfurCavesAreHazyForSensitiveGroups() {
+        OutdoorAir.Baseline air = OutdoorAir.builtIn("minecraft:sulfur_caves");
+        int aqi = Math.max(AirQualityIndex.pm25(air.fine()), AirQualityIndex.pm10(air.coarse()));
+        assertEquals(AirQualityIndex.Band.SENSITIVE, AirQualityIndex.Band.of(aqi), "AQI " + aqi);
+        assertTrue(AirQualityIndex.pm25(air.fine()) > AirQualityIndex.pm10(air.coarse()), "it reads as smoke");
+    }
+
     @Test
     void dryLandsSwingWidelyAndWaterBarelyMoves() {
         assertTrue(swing(of("desert")) > 30, "a desert's clear nights get cold");

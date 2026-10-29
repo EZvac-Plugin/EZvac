@@ -43,7 +43,10 @@ public final class BiomeClimate {
         return new Climate(noon, midnight, seasonal, Precipitation.NONE);
     }
 
-    /** Every vanilla 1.21.1 biome. Mountain biomes are given at sea level; altitude cools them where they stand. */
+    /**
+     * Every vanilla biome up to 26.3. Mountain biomes are given at sea level;
+     * altitude cools them where they stand.
+     */
     private static final Map<String, Climate> BUILT_IN = Map.ofEntries(
             // Oceans and shores: water keeps the air mild, by day and through the year.
             Map.entry("ocean", rain(66, 60, 10)),
@@ -71,6 +74,10 @@ public final class BiomeClimate {
             Map.entry("birch_forest", rain(66, 46, 18)),
             Map.entry("old_growth_birch_forest", rain(66, 46, 18)),
             Map.entry("dark_forest", rain(64, 50, 16)),
+            // BETA 1.0: the pale garden is a dark forest drained of colour, a touch
+            // cooler; the dappled forest is cooler and drier than a forest.
+            Map.entry("pale_garden", rain(62, 48, 16)),
+            Map.entry("dappled_forest", rain(66, 46, 18)),
             Map.entry("swamp", rain(80, 60, 14)),
             // Tropics: hot and humid, with almost no seasons.
             Map.entry("mangrove_swamp", rain(86, 74, 6)),
@@ -105,6 +112,8 @@ public final class BiomeClimate {
             Map.entry("dripstone_caves", rain(58, 58, 0)),
             Map.entry("lush_caves", rain(64, 64, 0)),
             Map.entry("deep_dark", rain(52, 52, 0)),
+            // Sulfur caves are warmed by their lava lakes and springs.
+            Map.entry("sulfur_caves", rain(64, 64, 0)),
             // The Nether and the End have no sun and no seasons.
             Map.entry("nether_wastes", dry(112, 112, 0)),
             Map.entry("soul_sand_valley", dry(98, 98, 0)),

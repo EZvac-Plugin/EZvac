@@ -168,15 +168,16 @@ public final class WindModel {
         put(1.15, "plains", "sunflower_plains", "savanna", "savanna_plateau", "desert", "badlands",
                 "eroded_badlands", "wooded_badlands", "snowy_plains", "ice_spikes", "meadow");
         // Woods.
-        put(0.75, "forest", "birch_forest", "taiga", "snowy_taiga", "flower_forest", "cherry_grove", "grove");
+        put(0.75, "forest", "birch_forest", "taiga", "snowy_taiga", "flower_forest", "cherry_grove", "grove",
+                "dappled_forest");
         put(0.7, "swamp", "mangrove_swamp");
         // Dense woods.
         put(0.5, "dark_forest", "jungle", "sparse_jungle", "bamboo_jungle", "old_growth_pine_taiga",
-                "old_growth_spruce_taiga", "old_growth_birch_forest");
+                "old_growth_spruce_taiga", "old_growth_birch_forest", "pale_garden");
         // Caves, the Nether and the End have no wind.
-        put(0.0, "dripstone_caves", "lush_caves", "deep_dark", "nether_wastes", "crimson_forest", "warped_forest",
-                "soul_sand_valley", "basalt_deltas", "the_end", "end_highlands", "end_midlands", "small_end_islands",
-                "end_barrens", "the_void");
+        put(0.0, "dripstone_caves", "lush_caves", "deep_dark", "sulfur_caves", "nether_wastes", "crimson_forest",
+                "warped_forest", "soul_sand_valley", "basalt_deltas", "the_end", "end_highlands", "end_midlands",
+                "small_end_islands", "end_barrens", "the_void");
     }
 
     /** EZvac's own exposure for a biome id ({@code minecraft:jungle}), or null. */
