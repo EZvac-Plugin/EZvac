@@ -38,6 +38,20 @@ class WeatherStationTest {
     }
 
     @Test
+    void itsAreaSurvivesHvacYml() throws Exception {
+        // The registry reads each device back as its section's values: a nested map is then a section.
+        WeatherStation station = new WeatherStation(SIGN, "Harbour");
+        station.setArea(new WeatherStation.Area(80.0, 60.0, 0.4, 1.0, 0.0, 10.0, 6.0, 10.0, 60.0, 0.8));
+        org.bukkit.configuration.file.YamlConfiguration saved = new org.bukkit.configuration.file.YamlConfiguration();
+        saved.set("weatherStations.item0", station.toMap());
+        org.bukkit.configuration.file.YamlConfiguration loaded = new org.bukkit.configuration.file.YamlConfiguration();
+        loaded.loadFromString(saved.saveToString());
+        Map<String, Object> values = new java.util.LinkedHashMap<>(
+                loaded.getConfigurationSection("weatherStations.item0").getValues(false));
+        assertEquals(station.area(), WeatherStation.fromMap(values).area());
+    }
+
+    @Test
     void aBrokenAreaIsMeasuredAgainRatherThanFailingTheLoad() {
         Map<String, Object> map = new java.util.LinkedHashMap<>(new WeatherStation(SIGN, "Harbour").toMap());
         map.put("area", Map.of("noonF", "warm"));
