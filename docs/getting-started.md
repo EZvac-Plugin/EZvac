@@ -6,7 +6,7 @@ its own. It takes about five minutes in game.
 ## Install
 
 You need Paper or Purpur for Minecraft **26.1 to 26.3**, on Java 25 (Paper's
-own requirement). Minecraft 1.21.1 on Java 21 still works in BETA 1.x, with a
+own requirement). Minecraft 1.21.x on Java 21 still works in BETA 1.x, with a
 warning, but BETA 2.x will drop it.
 
 1. Put `EzVac-BETA-1.0-P1.jar` in your server's `plugins` folder.

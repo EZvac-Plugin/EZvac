@@ -5,7 +5,7 @@
 
 
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
-26.1 to 26.3 and its forks, including Purpur. It still runs on 1.21.1 until
+26.1 to 26.3 and its forks, including Purpur. It still runs on 1.21.x until
 BETA 2.x. Build heat pumps, air conditioners and
 furnaces out of dispensers, link vents to a room, and a sign thermostat keeps
 it at the temperature you set, while the outdoors follows the time of day, the
@@ -29,7 +29,7 @@ biome and the weather.
   power or items needed.
 
 > **Release status:** EZvac **BETA 1.0 Pilot 1** is the first BETA. It
-> runs on Minecraft 26.1 to 26.3 (Paper or Purpur), and still on 1.21.1
+> runs on Minecraft 26.1 to 26.3 (Paper or Purpur), and still on 1.21.x
 > until BETA 2.x. Every screen is redesigned as a status strip coloured by
 > what the device is doing. The pale garden, the dappled forest and the
 > sulfur caves get their own climate and air, and admins are told when a
@@ -59,9 +59,10 @@ biome and the weather.
 > a pilot is told about newer pilots; one running a full release only about
 > full releases.
 >
-> **1.21.1 is on its way out.** BETA 1.x still runs on Minecraft 1.21.1 and
-> says so at start-up, but **BETA 2.x will drop it entirely**. Update your
-> server to 26.1 or newer before then; see
+> **1.21.x is on its way out.** BETA 1.x still runs on Minecraft 1.21.x
+> (tested on 1.21.1; 1.21.2 to 1.21.11 should work but aren't tested yet) and
+> says so at start-up, but **BETA 2.x will drop 1.21.x entirely**: it needs
+> Minecraft 26.1 or newer. Update your server before then; see
 > [Upgrading](docs/upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
 
 ## Quick install
@@ -70,7 +71,7 @@ biome and the weather.
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
 2. Put it in your server's `plugins` folder. You need Paper 26.1 to 26.3 or
-   a fork such as Purpur, on Java 25. 1.21.1 on Java 21 still works until
+   a fork such as Purpur, on Java 25. 1.21.x on Java 21 still works until
    BETA 2.x.
 3. Start the server, then follow [Getting started](docs/getting-started.md) to
    build your first system.

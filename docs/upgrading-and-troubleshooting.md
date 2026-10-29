@@ -3,8 +3,9 @@
 ## Installing
 
 You need Paper or Purpur for Minecraft **26.1 to 26.3**, on Java 25 (Paper's
-own requirement). Minecraft 1.21.1 on Java 21 still works in BETA 1.x, with a
-warning, but BETA 2.x will drop it.
+own requirement). Minecraft 1.21.x on Java 21 still works in BETA 1.x, with a
+warning, but BETA 2.x will drop it: it needs 26.1 or newer. BETA 1.x is
+tested on 1.21.1; 1.21.2 to 1.21.11 should work but aren't tested yet.
 
 1. Put `EzVac-BETA-1.0-P1.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
@@ -22,8 +23,8 @@ Your `plugins/EZvac/hvac.yml` is read as it is: every release's save file is
 covered by the test suite.
 
 - **From 3.2 to BETA 1.0,** swap the jar: the save stays **format 8**, on
-  1.21.1 and on 26.x alike. Your config.yml gains `updates`. Going back to
-  3.2 is a jar swap too, as long as the server is still on 1.21.1.
+  1.21.x and on 26.x alike. Your config.yml gains `updates`. Going back to
+  3.2 is a jar swap too, as long as the server is still on 1.21.x.
 
 > **2.x to 3.0 is a one-way upgrade.** 3.0 converts `hvac.yml` to **format
 > 7** the first time it saves. Your 2.x file is kept as
@@ -86,8 +87,8 @@ covered by the test suite.
 
 ### Moving to Minecraft 26.x
 
-BETA 1.0 runs on 1.21.1 and on 26.1 to 26.3, so EZvac and the server can be
-updated in either order. BETA 2.x will drop 1.21.1, so plan the move:
+BETA 1.0 runs on 1.21.x and on 26.1 to 26.3, so EZvac and the server can be
+updated in either order. BETA 2.x will drop all of 1.21.x, so plan the move:
 
 1. **Back up the whole server:** the world folders (`world`, `world_nether`,
    `world_the_end`) and `plugins/EZvac/`.
@@ -106,8 +107,8 @@ device and airflow path intact.
 
 Addons: EZdebug+ 0.2.1 and LiveExposure 0.2.0 work on 26.x unchanged.
 
-**Going back to 1.21.1** means restoring the world backup. That's a
-Minecraft limit, not an EZvac one: a 26.x world can't be opened by 1.21.1.
+**Going back to 1.21.x** means restoring the world backup. That's a
+Minecraft limit, not an EZvac one: a 26.x world can't be opened by 1.21.x.
 
 ### Going back
 

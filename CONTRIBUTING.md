@@ -1,7 +1,7 @@
 # Contributing to EZvac
 
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
-1.21.1 and its forks, including Purpur. Contributions are welcome — bug
+26.1 to 26.3 (and 1.21.x until BETA 2.x) and its forks, including Purpur. Contributions are welcome — bug
 reports, fixes, documentation, and features alike.
 
 ## Licensing of contributions
@@ -21,10 +21,10 @@ ALPHA 1.5 and everything after it is MIT.
 ## Requirements
 
 - Java 21 or newer to build. EZvac builds against the Paper 1.21.1 API, and
-  the same jar runs on Paper 26.1 to 26.3 (on Java 25) until BETA 2.x drops
-  1.21.1
+  the same jar runs on Paper 26.1 to 26.3 (on Java 25) and on 1.21.x until
+  BETA 2.x drops 1.21.x
 - A Paper or Purpur server to try it on: 26.x, and 1.21.1 while BETA 1.x
-  supports it
+  supports 1.21.x
 - Maven 3.9 or newer
 
 ## Build and test
