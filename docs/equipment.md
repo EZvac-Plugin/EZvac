@@ -184,10 +184,10 @@ HVAC units. More stars is better.
 New in BETA 1.0. Equipment heats or cools the air its system reaches, so a
 bigger building needs more of it.
 
-- **One ★★★ unit per 5,000 sq ft of floor,** counting every level, with
-  levels of 4 blocks of air. That's about **1,860 blocks of air** per unit.
-  A ★★ unit counts as 0.85 of one and a ★ unit as 0.70.
-- **Units add up:** a 30,000 sq ft building needs six ★★★ units, or more of
+- **One ★★★ unit per 1,860 blocks of air,** counting every level: a floor
+  of about 465 blocks, 4 blocks high. A ★★ unit counts as 0.85 of one and a
+  ★ unit as 0.70.
+- **Units add up:** a building of 11,160 blocks of air needs six ★★★ units, or more of
   the cheaper tiers. Sized right, a system reaches its target as fast as one
   unit in a normal house always has, a few minutes on a hot or cold day.
 - **Too few is slower:** with a third of what it needs, a system heats or
@@ -208,7 +208,7 @@ bigger building needs more of it.
 - **Neighbouring systems** whose air touches, through an open doorway or a
   shared open space, even out with each other. A wall or a closed door keeps
   them apart.
-- **`/hvac info`** on a thermostat shows the size in blocks and sq ft, the
+- **`/hvac info`** on a thermostat shows the size in blocks, the
   openings, what it has of what it needs for cooling and heating, and any
   system its air touches.
 

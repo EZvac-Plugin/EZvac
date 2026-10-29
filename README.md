@@ -36,7 +36,7 @@ biome and the weather.
 > newer EZvac is out. `/hvac quicksettings` gives owners one menu to switch
 > device kinds, air quality, pollen, wind and the seasons on or off, and to
 > back the registry up. Heating and cooling now go by building size: one
-> three-star unit per 5,000 sq ft, so big builds need more equipment. Your
+> three-star unit per 1,860 blocks of air, so big builds need more equipment. Your
 > save carries over unchanged.
 >
 > ALPHA 3.2 added air quality. Every room tracks

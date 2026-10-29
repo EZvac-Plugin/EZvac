@@ -104,9 +104,6 @@ public final class SizingModel {
 
         /** {@code 1/2.6}: what it has of what it needs. */
         public String ratio() { return number(installed) + "/" + number(Math.max(required, 0.1)); }
-
-        /** About how many square feet of floor its air is, over 4-block levels (air systems). */
-        public long squareFeet() { return Math.round(size / 4.0 * 10.7639 / 100.0) * 100L; }
     }
 
     public static Assessment assess(int size, boolean water, int openings, Iterable<EquipmentUnit> units,

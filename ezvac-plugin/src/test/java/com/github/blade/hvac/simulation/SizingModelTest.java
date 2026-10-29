@@ -19,15 +19,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SizingModelTest {
     private static final SizingSettings SIZING = SizingSettings.defaults();
     private static final HvacSettings SETTINGS = HvacSettings.defaults();
-    /** One three-star unit's worth: 5,000 sq ft of floor over 4-block levels. */
+    /** One three-star unit's worth: a floor of about 465 blocks, 4 blocks high. */
     private static final int HOUSE = 1860;
 
     @Test
-    void oneThreeStarUnitPerFiveThousandSquareFeet() {
-        // 5,000 sq ft is about 465 m², 465 floor blocks, 4 blocks of air each.
-        assertEquals(1860, Math.round(5000 / 10.7639 * 4), 5);
+    void oneThreeStarUnitPer1860BlocksOfAir() {
         assertEquals(1.0, SizingModel.required(HOUSE, false, SIZING), 1e-9);
-        assertEquals(6.0, SizingModel.required(6 * HOUSE, false, SIZING), 1e-9, "a 30,000 sq ft building needs six");
+        assertEquals(6.0, SizingModel.required(6 * HOUSE, false, SIZING), 1e-9, "six times the air needs six");
         assertEquals(2.0, SizingModel.required(3000, true, SIZING), 1e-9, "pools: 1,500 water blocks a heater");
         assertEquals(1.0, SizingModel.factor(HOUSE, false, SIZING), 1e-9);
         assertEquals(0.5, SizingModel.factor(2 * HOUSE, false, SIZING), 1e-9);
@@ -75,7 +73,7 @@ class SizingModelTest {
         assertEquals(before, sized, "the reference house keeps today's ETA");
         assertTrue(sized < 6 * 20 * 60, "and it's reasonable on a hot day: " + sized / 1200.0 + " min");
         assertEquals(sized, eta(6 * HOUSE, 0, 6, 95.0, OperatingMode.COOLING, 85.0, 72.0),
-                "six units in 30,000 sq ft keep that pace");
+                "six units in six times the air keep that pace");
         long heating = eta(HOUSE, 0, 1, 20.0, OperatingMode.HEATING, 60.0, 72.0);
         assertTrue(heating < 6 * 20 * 60, "a sized house heats in good time on a cold day: " + heating / 1200.0);
     }
@@ -86,7 +84,7 @@ class SizingModelTest {
         long triple = eta(3 * HOUSE, 0, 1, 95.0, OperatingMode.COOLING, 85.0, 72.0);
         assertTrue(triple > 3 * sized, "a third the push and the same leak: " + triple / (double) sized);
         assertEquals(Long.MAX_VALUE, eta(8 * HOUSE, 0, 1, 95.0, OperatingMode.COOLING, 85.0, 72.0),
-                "one unit can't cool 40,000 sq ft against a hot day");
+                "one unit can't cool eight times its air against a hot day");
     }
 
     @Test
@@ -147,6 +145,5 @@ class SizingModelTest {
         assertEquals("0.9/2.6", new SizingModel.Assessment(4836, false, 0, 2.6, 0.85, 0.38, 1.0).ratio());
         assertEquals("13/108", new SizingModel.Assessment(200_000, false, 0, 107.5, 12.5, 0.01, 1.0).ratio());
         assertFalse(new SizingModel.Assessment(HOUSE, false, 0, 1.0, 1.0, 1.0, 1.0).undersized());
-        assertEquals(5000, new SizingModel.Assessment(HOUSE, false, 0, 1.0, 1.0, 1.0, 1.0).squareFeet());
     }
 }

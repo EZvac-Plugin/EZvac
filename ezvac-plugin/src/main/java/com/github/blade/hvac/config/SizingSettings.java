@@ -7,8 +7,8 @@ import java.util.function.Consumer;
 /**
  * Size-based heating and cooling (BETA 1.0), read from {@code sizing} in
  * config.yml. A unit heats or cools the air its system reaches: one
- * variable-speed unit is sized for {@code cellsPerUnit} blocks of air, 5,000
- * sq ft of floor over 4-block-tall levels.
+ * variable-speed unit is sized for {@code cellsPerUnit} blocks of air, a floor
+ * of about 465 blocks, 4 blocks high.
  *
  * @param enabled           false: the behaviour from before BETA 1.0, whatever a system's size
  * @param cellsPerUnit      blocks of air one variable-speed unit heats or cools at the normal pace

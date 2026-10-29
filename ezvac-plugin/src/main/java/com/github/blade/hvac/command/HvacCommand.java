@@ -957,7 +957,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         String size = String.format(Locale.US, "%,d", cooling.size());
         player.sendMessage(join(gray("Size: "), white(cooling.water() ? size + " blocks of water"
-                : size + " blocks of air (about " + String.format(Locale.US, "%,d", cooling.squareFeet()) + " sq ft)"),
+                : size + " blocks of air"),
                 gray(cooling.water() ? "" : " | Openings: "), white(cooling.water() ? ""
                         : cooling.openings() + (cooling.openings() == 0 ? "" : String.format(Locale.US,
                         " (leaks x%.1f)", cooling.openness())))));

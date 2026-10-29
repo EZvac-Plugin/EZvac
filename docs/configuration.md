@@ -165,7 +165,7 @@ New in BETA 1.0; see [Sizing](equipment.md#sizing).
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `enabled` | true | false: any size heats and cools as before BETA 1.0. Quick settings switches it while the server runs |
-| `cells-per-unit` | 1860 | Blocks of air one ★★★ unit heats or cools at the normal pace: 5,000 sq ft of floor over 4-block levels |
+| `cells-per-unit` | 1860 | Blocks of air one ★★★ unit heats or cools at the normal pace: a floor of about 465 blocks, 4 blocks high |
 | `pool-cells-per-unit` | 1500 | Blocks of water one ★★★ pool heater warms at the normal pace |
 | `maximum-speed-up` | 2.0 | The most a smaller system is sped up by |
 | `outdoor-reach` | 3 | Blocks the air reaches past a roof's edge, into open sky |
