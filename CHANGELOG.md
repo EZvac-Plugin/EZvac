@@ -95,8 +95,11 @@ keeps the old behaviour. See
   AQI's colour on air monitors and purifiers. Under it, an opaque panel shows
   the main reading big and centred.
 - **The sign behind a screen is blank,** so only the screen shows. On 26.x
-  the sign's text showed through the screen. A server with Bedrock players
-  (Geyser) should set `displays.screens: false`, so the signs carry the text.
+  the sign's text showed through the screen.
+- **Plain signs are no longer supported.** `displays.screens: false` still
+  shows the old four-line signs, but they get none of the new lines (such as
+  **Undersized**) and may be removed in a later release. Bedrock players
+  through Geyser can't see screens.
 
 ### HUD
 

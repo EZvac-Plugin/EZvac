@@ -221,7 +221,7 @@ audio:
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
-| `screens` | true | A floating screen in front of every EZvac sign; false shows the plain signs only |
+| `screens` | true | A floating screen in front of every EZvac sign; false shows the plain signs only, which are no longer supported (BETA 1.0): they get no new lines and may be removed |
 | `stars.full`, `stars.empty` | `★`, `☆` | How equipment tiers are drawn: ★★☆ is Standard. Change them for a resource pack, or for Bedrock players through Geyser |
 
 See [Screens and control menus](screens-and-menus.md).
