@@ -109,6 +109,14 @@ class HudFormatterTest {
     }
 
     @Test
+    void aSystemWaitingOnUnitsSwitchedOffSaysSo() {
+        ClimateSnapshot waiting = new ClimateSnapshot(60.0, 40.0, 1.0, 3, "Home1", "main", ClimateSnapshot.UNITS_OFF,
+                72.0, true, false);
+        assertEquals("Units off", plain(format.render("{mode}", waiting)), "not heating, and not holding 72");
+        assertEquals("Home1: Units off", plain(format.render("{system_mode}", waiting)));
+    }
+
+    @Test
     void versionsShortenForTheTitle() {
         assertEquals("A1.8", HudFormatter.shortVersion("ALPHA-1.8"));
         assertEquals("A1.8_H1", HudFormatter.shortVersion("ALPHA-1.8-HOTFIX1"));

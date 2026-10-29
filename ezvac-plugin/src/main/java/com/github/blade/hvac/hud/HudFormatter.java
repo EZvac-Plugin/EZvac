@@ -170,6 +170,8 @@ public final class HudFormatter {
     /** "Cooling to 70.0°F", "Idle", or the none text where nothing conditions the air. */
     public String mode(ClimateSnapshot snapshot) {
         if (snapshot.mode() == null) return settings.noneText();
+        // Waiting on units switched off server-wide (BETA 1.0), it heats and cools nothing.
+        if (snapshot.mode().equals(ClimateSnapshot.UNITS_OFF)) return "Units off";
         String mode = capitalize(snapshot.mode());
         if (Double.isNaN(snapshot.targetF())) return mode;
         // Idle at the target is holding it (BETA 1.0), as the thermostat's screen says.

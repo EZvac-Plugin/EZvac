@@ -183,6 +183,31 @@ public final class HvacController {
                 authoritative && controllerLoaded && thermostat.enabled(),
                 coolingAvailable, heatingAvailable, elapsedTicks, settings);
         thermostat.setControlState(control.mode(), control.ticksInMode());
+        thermostat.setWaitingOnUnits(waitingOnUnits(thermostat, controllerLoaded && authoritative,
+                coolingAvailable, heatingAvailable));
+    }
+
+    /**
+     * What an idle system would be doing if its units weren't switched off
+     * server-wide (BETA 1.0): the room is past where it would start, nothing
+     * can do it, and some of its units could but for that switch. Null
+     * otherwise, so its sign and HUD can say why it waits.
+     */
+    private OperatingMode waitingOnUnits(Thermostat thermostat, boolean controlling, boolean coolingAvailable,
+                                         boolean heatingAvailable) {
+        if (!controlling || !thermostat.enabled() || thermostat.mode() != OperatingMode.IDLE) return null;
+        if (!coolingAvailable && thermostat.roomF() > thermostat.targetF() + settings.coolingStartAboveF()
+                && hasUnitOffServerWide(thermostat.system(), OperatingMode.COOLING)) return OperatingMode.COOLING;
+        if (!heatingAvailable && thermostat.roomF() < thermostat.targetF() - settings.heatingStartBelowF()
+                && hasUnitOffServerWide(thermostat.system(), OperatingMode.HEATING)) return OperatingMode.HEATING;
+        return null;
+    }
+
+    private boolean hasUnitOffServerWide(SystemId system, OperatingMode mode) {
+        for (EquipmentUnit unit : registry.equipmentFor(system))
+            if (unit.enabled() && unit.type().supports(mode) && ServerSwitches.deviceOff(DeviceKind.of(unit.type())))
+                return true;
+        return false;
     }
 
     /** Pools have no air of their own to hold moisture; every air system does. */
@@ -256,6 +281,8 @@ public final class HvacController {
     private boolean hasAvailableEquipment(SystemId system, OperatingMode mode,
                                           Set<BlockKey> managedOutputs) {
         for (EquipmentUnit unit : registry.equipmentFor(system)) {
+            // A kind switched off server-wide (BETA 1.0) can't answer a call, so the system doesn't make one.
+            if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
             BlockKey output = unit.outputPosition();
             if (output != null && unit.canStart(mode, managedOutputs.contains(output))) return true;
         }

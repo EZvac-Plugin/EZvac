@@ -102,7 +102,9 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
 - **Devices:** switch a kind off server-wide (heat pumps, air conditioners,
   furnaces, boilers, pool heat pumps, dehumidifiers, humidifiers, air
   purifiers). They stop, their signs read "Off server-wide", and no new one
-  can be made. Switched back on, each runs again as it was set.
+  can be made. Switched back on, each runs again as it was set. A thermostat
+  left with no unit to heat or cool says "Units off" rather than heating
+  with no ETA.
 - **Climate systems:** switch air quality, pollen, wind and the seasons off
   and on without a restart. EZvac keeps heating and cooling; the effect just
   stops shaping the climate. Pollen can now be switched off on its own

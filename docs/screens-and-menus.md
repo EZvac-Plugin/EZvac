@@ -114,6 +114,11 @@ and air purifiers. Each shows how many the server has and how many run.
 - **Switched off,** every device of that kind stops, and equipment takes its
   water or lava away, as at any stop. Its sign reads **Off server-wide**, and
   `/hvac info` says why.
+- **Its thermostat waits:** a system whose only units for heat (or cooling)
+  are switched off doesn't call for them. Its screen reads **Needs heat** and
+  **Units off server-wide** instead of an ETA, the HUD says **Units off**,
+  and `/hvac info` on the thermostat says why. A system with another kind
+  that can do the job carries on with that.
 - **No new one can be made:** `/hvac create` says that kind is switched off.
   Existing ones can still be linked and removed.
 - **Switched back on,** each runs again as it was set: a device someone had
