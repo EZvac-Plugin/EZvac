@@ -159,6 +159,10 @@ keeps the old behaviour. See
 
 ### Also
 
+- **`/hvac help` is shorter:** players see only their own commands, and
+  admins get two more pages, `/hvac help build` and `/hvac help server`,
+  each one chat screen. Tab completion only offers commands you can run.
+  No command changed. See [Commands](docs/commands.md).
 - **The HUD's version line** shows BETA versions short: `B1.0_P1`.
 - **Your config.yml** gains the `updates`, `devices`, `backups` and
   `sizing` sections and `air-quality.pollen`, with their comments.

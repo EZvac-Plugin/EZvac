@@ -3,6 +3,11 @@
 Every command starts with `/hvac`; `/climate` works too. Commands that act on a
 block use the block you're looking at, within six blocks.
 
+`/hvac help` lists the commands you can use. Admins also get two pages, each
+one chat screen: `/hvac help build` (creating, linking and changing devices)
+and `/hvac help server` (quick settings, statistics, seasons, wind and
+updates). Tab completion only offers commands you can run (BETA 1.0).
+
 ## Permissions
 
 | Permission | Default | Allows |
@@ -15,7 +20,7 @@ block use the block you're looking at, within six blocks.
 
 | Command | Does |
 | --- | --- |
-| `/hvac help` | Lists the commands you can use |
+| `/hvac help` | Lists the commands you can use. Admins: `/hvac help build` and `/hvac help server` |
 | `/hvac temperature` (`temp`) | The temperature where you stand, the outdoor temperature and weather, the humidity and "feels like" in air, and which system reaches you, how far along its airflow and its strength there (100% in the core). In water: the water temperature and the air above |
 | `/hvac hud [on\|off]` | Shows or hides the on-screen HUD for yourself (`ezvac.hud`). With no argument it toggles; your choice is remembered |
 | `/hvac list` | The systems in your world, with mode, room and target temperature, and how many units are running |
@@ -37,7 +42,12 @@ block use the block you're looking at, within six blocks.
   auto-flip on or off.
 - **Sensor:** right-click shows its reading in chat.
 
-## Creating devices (`ezvac.admin`)
+## Building (`ezvac.admin`)
+
+Creating, linking, changing and removing devices. `/hvac help build` lists
+these in game.
+
+### Creating devices
 
 | Command | Look at | Notes |
 | --- | --- | --- |
@@ -71,7 +81,7 @@ is ignored, with a note. Build guides:
 [Air quality](air-quality.md),
 [Sensors](sensors.md).
 
-## The link tool (`ezvac.admin`)
+### The link tool
 
 **`/hvac link-tool`** gives the link tool, a glinting stick. `/hvac duct-tool`,
 `/hvac sensor-tool` and `/hvac tool` give it too, and the duct and sensor tools
@@ -88,7 +98,7 @@ from before 3.0 work as link tools.
 A system is all air or all water, and the vents must match its equipment. See
 [Equipment](equipment.md#the-link-tool) and [Vents and airflow](airflow.md).
 
-## Thermostats and equipment (`ezvac.admin`)
+### Thermostats and equipment
 
 These act on the device you're looking at: labels may repeat, so a thermostat
 isn't found by name.
@@ -118,7 +128,30 @@ humidity, and a lever that switches the system on or off.
 EZvac signs can't be edited; before 2.1, a thermostat's target was
 typed on line 3 of its sign.
 
-## Seasons
+### Removing devices
+
+| Command | Does |
+| --- | --- |
+| `/hvac remove` | Removes the device you're looking at. Equipment takes its water or lava away (later, if that chunk isn't loaded). Removing a settings panel returns its system to Normal; removing a thermostat leaves its system headless; removing a sensor takes it off every hub |
+| `/hvac remove system` | Holding the link tool, looking at any part of a system: says what it would remove. `/hvac remove system confirm` within 15 seconds removes every device of it. The blocks stay |
+
+Breaking a device's block removes it too, and tells you what was removed.
+
+## Running the server (`ezvac.admin`)
+
+Settings and checks for the whole server. `/hvac help server` lists these in
+game.
+
+| Command | Does |
+| --- | --- |
+| `/hvac quicksettings` (`qs`) | Opens the [quick settings](screens-and-menus.md#quick-settings) menu: device kinds and climate systems on or off, registry backups, statistics and updates (BETA 1.0) |
+| `/hvac stats` | Device totals and airflow statistics |
+| `/hvac stats sizes` | Every system's size and openings, and what it has of the units it needs for cooling and heating, the worst sized first (BETA 1.0, see [Sizing](equipment.md#sizing)) |
+| `/hvac sync` | Applies block and world changes straight away instead of on the next update, and maps every system's air again: run it after building with `/fill` or WorldEdit, which don't tell EZvac |
+| `/hvac update` | Checks GitHub for a newer EZvac now, and says whether it runs on this server's Minecraft (BETA 1.0, see below) |
+| `/hvac hud sections` | The sections addons have added to the HUD, with the `{section:<id>}` token for each (see [HUD and placeholders](hud-and-placeholders.md#addon-sections)) |
+
+### Seasons
 
 Anyone can look with `/hvac season`; changing it needs `ezvac.admin`. Each
 world with a sun has its own calendar (see [Climate](climate.md#seasons)).
@@ -133,7 +166,7 @@ Outdoor temperatures take on the new season at once; rooms drift there over
 time, as they do when the weather changes. The commands act on your own world;
 from the console, add a world's name at the end (it defaults to the main world).
 
-## Wind
+### Wind
 
 Anyone can look with `/hvac wind`; setting it needs `ezvac.admin`. Only worlds
 with a sky have wind (see [Wind](wind.md)).
@@ -144,21 +177,6 @@ with a sky have wind (see [Wind](wind.md)).
 | `/hvac wind set auto` | Lets the wind blow as it would again |
 
 As with the seasons, from the console add a world's name at the end.
-
-## Removing and diagnostics (`ezvac.admin`)
-
-| Command | Does |
-| --- | --- |
-| `/hvac remove` | Removes the device you're looking at. Equipment takes its water or lava away (later, if that chunk isn't loaded). Removing a settings panel returns its system to Normal; removing a thermostat leaves its system headless; removing a sensor takes it off every hub |
-| `/hvac remove system` | Holding the link tool, looking at any part of a system: says what it would remove. `/hvac remove system confirm` within 15 seconds removes every device of it. The blocks stay |
-| `/hvac stats` | Device totals and airflow statistics |
-| `/hvac stats sizes` | Every system's size and openings, and what it has of the units it needs for cooling and heating, the worst sized first (BETA 1.0, see [Sizing](equipment.md#sizing)) |
-| `/hvac hud sections` | The sections addons have added to the HUD, with the `{section:<id>}` token for each (see [HUD and placeholders](hud-and-placeholders.md#addon-sections)) |
-| `/hvac sync` | Applies block and world changes straight away instead of on the next update, and maps every system's air again: run it after building with `/fill` or WorldEdit, which don't tell EZvac |
-| `/hvac update` | Checks GitHub for a newer EZvac now, and says whether it runs on this server's Minecraft (BETA 1.0, see below) |
-| `/hvac quicksettings` (`qs`) | Opens the [quick settings](screens-and-menus.md#quick-settings) menu: device kinds and climate systems on or off, registry backups, statistics and updates (BETA 1.0) |
-
-Breaking a device's block removes it too, and tells you what was removed.
 
 ### `/hvac update`
 

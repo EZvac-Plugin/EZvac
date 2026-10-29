@@ -78,7 +78,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (args.length == 0 || args[0].equalsIgnoreCase("help")) {
-            help(sender);
+            helpPage(args.length >= 2 ? args[1] : "", sender.hasPermission(HUD_PERMISSION),
+                    sender.hasPermission(ADMIN_PERMISSION)).forEach(sender::sendMessage);
             return true;
         }
         String subcommand = args[0].toLowerCase(Locale.ROOT);
@@ -1147,51 +1148,77 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         return false;
     }
 
-    private static void help(CommandSender sender) {
-        sender.sendMessage(gold("EZvac commands"));
-        sender.sendMessage(join(aqua("/hvac temperature"), gray(" - read local/outdoor temperature")));
-        if (sender.hasPermission(HUD_PERMISSION))
-            sender.sendMessage(join(aqua("/hvac hud [on|off]"), gray(" - show or hide the on-screen climate HUD")));
-        sender.sendMessage(join(aqua("/hvac list | info"), gray(" - inspect systems or the targeted device")));
-        sender.sendMessage(join(aqua("/hvac season"), gray(" - the season and how much it warms or cools outside")));
-        sender.sendMessage(join(aqua("/hvac wind"), gray(" - today's wind, the wind here, and the next days'")));
-        if (!sender.hasPermission(ADMIN_PERMISSION)) return;
-        sender.sendMessage(join(aqua("/hvac season set <season> [day] | next | pause | resume"),
-                gray(" - change the season")));
-        sender.sendMessage(join(aqua("/hvac wind set <calm|breezy|windy|gale|auto>"),
-                gray(" - set today's wind, until the day ends")));
-        sender.sendMessage(join(aqua("/hvac create thermostat <label> [target]"), gray(" - register a sign")));
-        sender.sendMessage(join(aqua("/hvac create heatpump|ac|furnace|boiler|poolheatpump [t1|t2|t3]"),
-                gray(" - register a dispenser, two-stage (t2) unless told")));
-        sender.sendMessage(join(aqua("/hvac create thermometer|hygrometer|thermohygrometer|airmonitor [label]"),
-                gray(" - register a point-sensor sign")));
-        sender.sendMessage(join(aqua("/hvac create rpmmonitor | settingspanel [label]"),
-                gray(" - a sign for a system's equipment, or its profile")));
-        sender.sendMessage(join(aqua("/hvac create dehumidifier [label]"), gray(" - sign on an iron block on a grate")));
-        sender.sendMessage(join(aqua("/hvac create humidifier [label]"), gray(" - sign on an iron block under a copper slab")));
-        sender.sendMessage(join(aqua("/hvac create purifier [label]"), gray(" - sign on an iron block on tube coral")));
-        sender.sendMessage(join(aqua("/hvac create sensor [label]"),
-                gray(" - a stone, polished blackstone, mangrove, birch, cherry or bamboo button")));
-        sender.sendMessage(join(aqua("/hvac create sensor-hub [label]"), gray(" - a sign showing up to 9 sensors")));
-        sender.sendMessage(join(aqua("/hvac link-tool"), gray(" - link devices to a thermostat, or sensors to a hub")));
-        sender.sendMessage(join(aqua("/hvac thermostat set|enable|disable|info"), gray(" - the thermostat you look at")));
-        sender.sendMessage(join(aqua("/hvac equipment enable|disable|tier|info"), gray(" - the unit you look at")));
-        sender.sendMessage(join(aqua("/hvac rename <label>"), gray(" - rename the sign you look at")));
-        sender.sendMessage(join(aqua("/hvac remove | remove system | stats | sync"), gray(" - remove, diagnose, reconcile")));
-        sender.sendMessage(join(aqua("/hvac stats sizes"), gray(" - every system's size, and what it has of what it needs")));
-        sender.sendMessage(join(aqua("/hvac update"), gray(" - check GitHub for a newer EZvac that runs here")));
-        sender.sendMessage(join(aqua("/hvac quicksettings"),
-                gray(" - switch devices and climate systems, backups, statistics, updates")));
+    /**
+     * The help (BETA 1.0): a short index anyone sees, and for admins a page on
+     * building ({@code build}) and one on running the server ({@code server}),
+     * each short enough for one chat screen. Anything else gives the index.
+     */
+    static List<Component> helpPage(String page, boolean hud, boolean admin) {
+        List<Component> lines = new ArrayList<>();
+        String which = admin ? page.toLowerCase(Locale.ROOT) : "";
+        switch (which) {
+            case "build" -> {
+                lines.add(gold("EZvac commands: building"));
+                lines.add(help("/hvac create thermostat|poolthermostat <label> [target]", "a sign"));
+                lines.add(help("/hvac create heatpump|ac|furnace|boiler|poolheatpump [t1|t2|t3]",
+                        "a dispenser, two-stage (t2) unless told"));
+                lines.add(help("/hvac create thermometer|hygrometer|thermohygrometer|airmonitor|rpmmonitor"
+                        + "|settingspanel|sensor-hub [label]", "a sign"));
+                lines.add(help("/hvac create dehumidifier|humidifier|purifier [label]", "the sign on its iron block"));
+                lines.add(help("/hvac create sensor [label]", "a button"));
+                lines.add(help("/hvac link-tool", "link devices to a thermostat, or sensors to a hub"));
+                lines.add(help("/hvac thermostat set|enable|disable", "the thermostat you look at"));
+                lines.add(help("/hvac equipment enable|disable|tier", "the unit you look at"));
+                lines.add(help("/hvac rename <label>", "the sign you look at"));
+                lines.add(help("/hvac remove [system]", "the device you look at, or its whole system"));
+            }
+            case "server" -> {
+                lines.add(gold("EZvac commands: running the server"));
+                lines.add(help("/hvac quicksettings", "devices, climate systems, backups, statistics, updates"));
+                lines.add(help("/hvac stats [sizes]", "device totals, or every system's size"));
+                lines.add(help("/hvac sync", "map every system's air again, after /fill or WorldEdit"));
+                lines.add(help("/hvac update", "check GitHub for a newer EZvac that runs here"));
+                lines.add(help("/hvac season set <season> [day] | next | pause | resume", "change the season"));
+                lines.add(help("/hvac wind set <calm|breezy|windy|gale|auto>", "set today's wind, until the day ends"));
+                lines.add(help("/hvac hud sections", "the HUD sections addons have added"));
+            }
+            default -> {
+                lines.add(gold("EZvac commands"));
+                lines.add(help("/hvac temperature", "the temperature here, and which system reaches you"));
+                if (hud) lines.add(help("/hvac hud [on|off]", "show or hide the on-screen climate HUD"));
+                lines.add(help("/hvac info", "the device you look at"));
+                lines.add(help("/hvac list", "the systems in this world"));
+                lines.add(help("/hvac season", "the season and how much it warms or cools outside"));
+                lines.add(help("/hvac wind", "today's wind, the wind here, and the next days'"));
+                if (admin) {
+                    lines.add(help("/hvac help build", "creating, linking and changing devices"));
+                    lines.add(help("/hvac help server", "quick settings, statistics, seasons, wind, updates"));
+                }
+            }
+        }
+        return lines;
+    }
+
+    private static Component help(String command, String what) {
+        return join(aqua(command), gray(" - " + what));
+    }
+
+    /** The first word's completions: only what the sender can run. */
+    static List<String> subcommands(boolean hud, boolean admin) {
+        List<String> words = new ArrayList<>(List.of("help", "temperature", "list", "info", "season", "wind"));
+        if (hud) words.add("hud");
+        if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove",
+                "stats", "sync", "update", "quicksettings"));
+        return words;
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
-        if (args.length == 1) return filter(args[0], "help", "temperature", "hud", "list", "info",
-                "create", "thermostat", "equipment", "link-tool", "rename", "remove", "stats", "sync", "season",
-                "wind", "update", "quicksettings");
+        boolean admin = sender.hasPermission(ADMIN_PERMISSION);
+        if (args.length == 1)
+            return filter(args[0], subcommands(sender.hasPermission(HUD_PERMISSION), admin).toArray(String[]::new));
         if (args[0].equalsIgnoreCase("season")) {
-            if (args.length == 2) return sender.hasPermission(ADMIN_PERMISSION)
-                    ? filter(args[1], "set", "next", "pause", "resume") : List.of();
+            if (args.length == 2) return admin ? filter(args[1], "set", "next", "pause", "resume") : List.of();
             if (args.length == 3 && args[1].equalsIgnoreCase("set"))
                 return filter(args[2], "spring", "summer", "autumn", "winter");
             return filter(args[args.length - 1], plugin.getServer().getWorlds().stream()
@@ -1199,12 +1226,16 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     .map(World::getName).toArray(String[]::new));
         }
         if (args[0].equalsIgnoreCase("wind")) {
-            if (args.length == 2) return sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "set") : List.of();
+            if (args.length == 2) return admin ? filter(args[1], "set") : List.of();
             if (args.length == 3 && args[1].equalsIgnoreCase("set"))
                 return filter(args[2], "calm", "breezy", "windy", "gale", "auto");
             return filter(args[args.length - 1], plugin.getServer().getWorlds().stream()
                     .filter(WindService::hasWind).map(World::getName).toArray(String[]::new));
         }
+        if (args.length == 2 && args[0].equalsIgnoreCase("help")) return admin ? filter(args[1], "build", "server") : List.of();
+        if (args.length == 2 && args[0].equalsIgnoreCase("hud"))
+            return admin ? filter(args[1], "on", "off", "sections") : filter(args[1], "on", "off");
+        if (!admin) return List.of();
         if (args.length == 2) {
             return switch (args[0].toLowerCase(Locale.ROOT)) {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
@@ -1214,9 +1245,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");
-                case "stats" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "sizes") : List.of();
-                case "hud" -> sender.hasPermission(ADMIN_PERMISSION) ? filter(args[1], "on", "off", "sections")
-                        : filter(args[1], "on", "off");
+                case "stats" -> filter(args[1], "sizes");
                 default -> List.of();
             };
         }
