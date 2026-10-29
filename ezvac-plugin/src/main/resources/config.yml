@@ -425,7 +425,9 @@ wind:
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:
 # {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {season} {season_day}
 # {aqi} {aqi_band} {pollen} {wind} {wind_level} {system} {thermostat} {mode} {target}
-# {zone} {version}
+# {zone} {mode_icon} {version}
+# {mode_icon} is what the system is doing as an icon (BETA 1.0): ♨ heating,
+# ❄ cooling, ● holding, ⚠ its units are switched off, ○ outside any system.
 # {aqi} is the Air Quality Index in its band's colour; {aqi_band} is Good,
 # Moderate, Sensitive, Unhealthy, Very bad or Hazardous (3.2).
 # {wind} is the wind you feel, such as "Windy 22 km/h"; {wind_level} just the
@@ -450,23 +452,23 @@ hud:
     # EZvac never takes over a sidebar another plugin or the server is using;
     # servers with their own scoreboard plugin can use the placeholders instead.
     title: "<gradient:#3999fb:#f69500><bold>Climate</bold></gradient> <dark_gray>-</dark_gray> <gray>EZvac"
-    # In sections since BETA 1.0: Here, Outside and System. {system_mode} is
-    # the system and what it's doing ("Home1: Holding 72.0°F"), or the
-    # none-text outside any system.
+    # In sections since BETA 1.0: Here, Outside and System, each under an
+    # accent heading. {system_mode} is the system and what it's doing
+    # ("Home1: Holding 72.0°F"), or the none-text outside any system.
     lines:
-      - "<aqua>Here"
-      - "<gray> Temp: <white>{temp} <gray>feels <white>{feels}"
+      - "<aqua>▍<white>Here <dark_gray>──────────"
+      - " <white>{temp} <gray>feels <white>{feels}"
       - " {bar} {comfort}"
-      - "<gray> Humidity: <white>{humidity}"
-      - "<gray> Air: {aqi} <white>{aqi_band} <gray>· Pollen <white>{pollen}"
-      - "<aqua>Outside"
-      - "<gray> Temp: <white>{outdoor} <gray>{weather}"
-      - "<gray> Wind: <white>{wind}"
-      - "<gray> Season: <white>{season} <gray>day {season_day}"
+      - "<gray> Humidity <white>{humidity}"
+      - "<gray> Air {aqi} <white>{aqi_band} <dark_gray>· <gray>✿ <white>{pollen}"
+      - "<aqua>▍<white>Outside <dark_gray>────────"
+      - " <white>{outdoor} <gray>{weather}"
+      - "<gray> Wind <white>{wind}"
+      - "<gray> {season}, day {season_day}"
       - "{addons}"
-      - "<aqua>System"
-      - " {system_mode}"
-      - "<gray> Airflow: <white>{zone}"
+      - "<aqua>▍<white>System <dark_gray>─────────"
+      - " {mode_icon} {system_mode}"
+      - "<gray> Airflow <white>{zone}"
       # {version} is the short EZvac version: A1.8, or A1.8_H1 for a hotfix.
       # <font:uniform> is Minecraft's narrower built-in font, for a quieter footer.
       - "<dark_gray><font:uniform>Version: {version}</font>"
@@ -484,6 +486,12 @@ hud:
     # such as [liveexposure:body].
     hidden: []
   bar:
+    # gauge (BETA 1.0): one line coloured from cold to hot along the scale,
+    # with the marker where it feels. blocks: filled and empty glyphs, the
+    # bar from before.
+    style: gauge
+    gauge: "━"
+    marker: "◆"
     length: 10
     filled: "▮"
     empty: "▯"
@@ -503,15 +511,15 @@ hud:
   water:
     sidebar:
       lines:
-        - "<aqua>Water"
-        - "<gray> Temp: <white>{temp}"
+        - "<aqua>▍<white>Water <dark_gray>──────────"
+        - " <white>{temp}"
         - " {bar} {comfort}"
-        - "<aqua>Outside"
-        - "<gray> Air: <white>{outdoor} <gray>{weather}"
+        - "<aqua>▍<white>Outside <dark_gray>────────"
+        - "<gray> Air <white>{outdoor} <gray>{weather}"
         - "{addons}"
-        - "<aqua>Pool"
-        - " {system_mode}"
-        - "<gray> Circulation: <white>{zone}"
+        - "<aqua>▍<white>Pool <dark_gray>───────────"
+        - " {mode_icon} {system_mode}"
+        - "<gray> Circulation <white>{zone}"
         - "<dark_gray><font:uniform>Version: {version}</font>"
     actionbar:
       format: "<aqua>Water</aqua> <white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{system}"

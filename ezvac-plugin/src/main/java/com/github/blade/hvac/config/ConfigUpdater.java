@@ -65,6 +65,7 @@ public final class ConfigUpdater {
         HudSettings.addAirLine(target, added);
         HudSettings.addWindLine(target, added);
         HudSettings.adoptSections(target, added);
+        HudSettings.adoptAccents(target, added);
         return added;
     }
 

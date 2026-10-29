@@ -20,7 +20,7 @@ class PlaceholderResolverTest {
         Map<String, String> expected = new TreeMap<>(Map.ofEntries(
                 Map.entry("temp", "72.5°F"), Map.entry("temp_f", "72.5°F"), Map.entry("temp_c", "22.5°C"),
                 Map.entry("outdoor", "88.0°F"), Map.entry("outdoor_f", "88.0°F"),
-                Map.entry("outdoor_c", "31.1°C"), Map.entry("bar_plain", "▮▮▮▮▮▯▯▯▯▯"),
+                Map.entry("outdoor_c", "31.1°C"), Map.entry("bar_plain", "━━━━━◆━━━━"),
                 Map.entry("comfort", "Comfortable"), Map.entry("system", "house"), Map.entry("group", "house"),
                 Map.entry("thermostat", "main"), Map.entry("mode", "Cooling to 70.0°F"),
                 Map.entry("target", "70.0°F"), Map.entry("influence", "60"),
@@ -38,7 +38,7 @@ class PlaceholderResolverTest {
         for (String key : PlaceholderResolver.KEYS) {
             String value = resolver.resolve(cooled, key);
             assertNotNull(value, key);
-            if (key.equals("bar")) assertTrue(value.contains("▮▮▮▮▮") && value.contains("§"), value);
+            if (key.equals("bar")) assertTrue(value.contains("◆") && value.contains("━") && value.contains("§"), value);
             else assertEquals(expected.get(key), value, key);
         }
     }

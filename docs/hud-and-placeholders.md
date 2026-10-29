@@ -7,7 +7,7 @@
 ```
 
 Keeps the climate where you stand on screen: the temperature, how warm it
-feels, a cold-to-hot bar with a comfort word (cold, cool, comfortable, warm,
+feels, a cold-to-hot gauge with a comfort word (cold, cool, comfortable, warm,
 hot), the humidity, the air quality and pollen, the outdoor temperature and
 weather, the season, and the system
 conditioning that spot with its mode, its target and its airflow strength:
@@ -26,9 +26,15 @@ reach (gold under 50%), and **Outside** where no system reaches.
 
 - **Sidebar** (default): a scoreboard sidebar with the score numbers hidden,
   in three sections since BETA 1.0: **Here** (the temperature and feels-like,
-  the comfort bar, humidity and air), **Outside** (the temperature and
-  weather, wind and season) and **System** (the system and what it's doing,
-  and the airflow).
+  the comfort gauge, humidity and air), **Outside** (the temperature and
+  weather, wind and season) and **System** (what the system is doing, and the
+  airflow). Each section has an accent heading with a rule under it.
+- **The gauge** (BETA 1.0) runs from cold to hot in the comfort colours,
+  blue through green to red, with a white ◆ where it feels. `hud.bar.style:
+  blocks` brings back the ▮▯ bar from before.
+- **The system's line** starts with what it's doing: ♨ heating, ❄ cooling,
+  ● holding, ⚠ waiting on units switched off server-wide, ○ outside any
+  system.
 - **Action bar:** one line above the hotbar.
 - **Boss bar:** a bar whose fill and colour follow the temperature.
 
@@ -69,7 +75,7 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_season%` | `Summer` (`Spring`, `Autumn`, `Winter`; empty where there are no seasons) |
 | `%ezvac_season_day%` | `3`, the day of that season |
 | `%ezvac_outdoor%` (`_outdoor_f`, `_outdoor_c`) | `88.0°F` |
-| `%ezvac_bar%` / `%ezvac_bar_plain%` | `▮▮▮▮▮▯▯▯▯▯` (coloured / plain) |
+| `%ezvac_bar%` / `%ezvac_bar_plain%` | `━━━━━◆━━━━` (coloured / plain; `▮▮▮▮▮▯▯▯▯▯` with `bar.style: blocks`) |
 | `%ezvac_comfort%` | `Comfortable` |
 | `%ezvac_system%`, `%ezvac_thermostat%` | `Home`, `Home`: the thermostat whose air you're in (`%ezvac_group%`, its pre-3.0 name, still works). A system that lost its thermostat shows `Headless` |
 | `%ezvac_mode%`, `%ezvac_target%` | `Cooling to 70.0°F` (`Holding 70.0°F` when idle, BETA 1.0; `Idle` before), `70.0°F` |
@@ -94,8 +100,8 @@ and these tokens:
 
 `{temp}` `{feels}` `{humidity}` `{aqi}` `{aqi_band}` `{pollen}` `{wind}`
 `{wind_level}` `{bar}` `{comfort}` `{outdoor}` `{weather}` `{season}`
-`{season_day}` `{system}` `{thermostat}` `{mode}` `{system_mode}` `{target}`
-`{zone}` `{version}`
+`{season_day}` `{system}` `{thermostat}` `{mode}` `{system_mode}` `{mode_icon}`
+`{target}` `{zone}` `{version}`
 
 `{aqi}` is the Air Quality Index in its band's colour (3.2). The air values
 read `none` where the air isn't measured: in water, or with `air-quality`
@@ -110,10 +116,12 @@ and with `wind` switched off. A stock sidebar gains a wind line too.
 `{group}`, its name before 3.0, still works in existing configs.
 `{system_mode}` (BETA 1.0) puts the system and what it's doing on one line,
 `Home: Holding 72.0°F`, and reads just `none` outside any system.
+`{mode_icon}` (BETA 1.0) is what it's doing as a coloured icon: ♨, ❄, ●, ⚠ or
+○.
 
 When you upgrade to BETA 1.0, a sidebar that still has the stock lines of
-any release since 1.8, in air or in water, moves to the sections. A sidebar
-you changed is left as it is.
+any release since 1.8, in air or in water, moves to the sections, with their
+accent headings. A sidebar you changed is left as it is.
 
 ### Addon sections
 

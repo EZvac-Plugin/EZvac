@@ -112,6 +112,12 @@ public final class HudFormatter {
     public String barPlain(ClimateSnapshot snapshot) { return barPlain(snapshot.comfortF(), medium(snapshot)); }
 
     private String barPlain(double fahrenheit, HudSettings.Medium medium) {
+        if (settings.barStyle() == HudSettings.BarStyle.GAUGE) {
+            int marker = markerAt(fahrenheit, medium);
+            StringBuilder out = new StringBuilder();
+            for (int i = 0; i < settings.barLength(); i++) out.append(i == marker ? settings.barMarker() : settings.barGauge());
+            return out.toString();
+        }
         int filled = filledSegments(fahrenheit, medium);
         return settings.barFilled().repeat(filled) + settings.barEmpty().repeat(settings.barLength() - filled);
     }
@@ -120,6 +126,7 @@ public final class HudFormatter {
     public String barMini(double fahrenheit) { return barMini(fahrenheit, air); }
 
     private String barMini(double fahrenheit, HudSettings.Medium medium) {
+        if (settings.barStyle() == HudSettings.BarStyle.GAUGE) return gaugeMini(fahrenheit, medium);
         int filled = filledSegments(fahrenheit, medium);
         StringBuilder out = new StringBuilder();
         if (filled > 0)
@@ -129,6 +136,33 @@ public final class HudFormatter {
             out.append("<color:").append(settings.barEmptyColor()).append('>')
                     .append(escape(settings.barEmpty().repeat(settings.barLength() - filled))).append("</color>");
         return out.toString();
+    }
+
+    /**
+     * The gauge (BETA 1.0): each segment in the comfort colour of the
+     * temperature it stands for, from the cold end to the hot one, and a
+     * white marker where it feels.
+     */
+    private String gaugeMini(double fahrenheit, HudSettings.Medium medium) {
+        int length = settings.barLength();
+        int marker = markerAt(fahrenheit, medium);
+        StringBuilder out = new StringBuilder();
+        String open = null;
+        for (int i = 0; i < length; i++) {
+            String color = i == marker ? "#ffffff"
+                    : band(medium.barColdF() + (medium.barHotF() - medium.barColdF()) * (i + 0.5) / length, medium).color();
+            if (!color.equals(open)) {
+                if (open != null) out.append("</color>");
+                out.append("<color:").append(color).append('>');
+                open = color;
+            }
+            out.append(escape(i == marker ? settings.barMarker() : settings.barGauge()));
+        }
+        return out.append("</color>").toString();
+    }
+
+    private int markerAt(double fahrenheit, HudSettings.Medium medium) {
+        return (int) Math.round(fraction(fahrenheit, medium) * (settings.barLength() - 1));
     }
 
     /** A bar of the HUD's glyphs and length filled to {@code fraction} (clamped) in {@code color}: for addon meters. */
@@ -187,6 +221,20 @@ public final class HudFormatter {
     private String systemModeMini(ClimateSnapshot snapshot) {
         if (snapshot.system() == null) return "<gray>" + escape(settings.noneText());
         return "<gray>" + escape(snapshot.system()) + ": <white>" + escape(mode(snapshot));
+    }
+
+    /**
+     * What the system is doing as an icon (BETA 1.0): ♨ heating, ❄ cooling,
+     * ● holding, ⚠ waiting on units switched off, ○ outside any system.
+     */
+    private static String modeIconMini(ClimateSnapshot snapshot) {
+        if (snapshot.mode() == null) return "<dark_gray>○</dark_gray>";
+        return switch (snapshot.mode()) {
+            case "HEATING" -> "<gold>♨</gold>";
+            case "COOLING" -> "<aqua>❄</aqua>";
+            case ClimateSnapshot.UNITS_OFF -> "<red>⚠</red>";
+            default -> "<green>●</green>";
+        };
     }
 
     /** "45%", or the none text in water or where humidity is unknown. */
@@ -293,6 +341,7 @@ public final class HudFormatter {
                 .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
                 .replace("{system_mode}", systemModeMini(snapshot))
+                .replace("{mode_icon}", modeIconMini(snapshot))
                 .replace("{system}", escape(system(snapshot)))
                 .replace("{group}", escape(system(snapshot)))
                 .replace("{thermostat}", escape(thermostat(snapshot)))
