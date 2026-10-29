@@ -210,7 +210,8 @@ public final class DisplayService {
             lines.set(2, StationText.sky(today, snow), NamedTextColor.YELLOW);
             lines.set(3, StationText.highLow(today, units), NamedTextColor.GRAY);
         }, () -> {
-            ScreenText screen = ScreenText.titled(station.label(), "Weather");
+            // No "belongs to" tag: the label needs the room, and the sky's glyph says what it is.
+            ScreenText screen = ScreenText.titled(station.label(), "");
             if (today == null) {
                 if (!state.equals("Measuring")) screen.tone(state.equals("Damaged") ? ScreenText.Tone.ALERT
                         : ScreenText.Tone.OFF);

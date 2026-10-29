@@ -129,6 +129,9 @@ cancelled.
 | `DeviceAddedEvent` | A device is created: with `/hvac create`, or a vent with the link tool (1.2) |
 | `DeviceRemovedEvent` | A device is gone: broken (`BROKEN`), removed with `/hvac remove` or unlinked with the link tool (`COMMAND`), or found missing (`MISSING`) (1.2) |
 
+Weather stations (BETA 1.0) aren't part of API 1.5: they fire neither event
+and don't appear among the devices.
+
 EZvac only builds an event while some plugin listens to it, so it costs
 nothing on servers without addons.
 

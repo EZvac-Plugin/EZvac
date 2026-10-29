@@ -189,7 +189,7 @@ public final class Forecast {
                 weather, wind == null ? weather.windClearMs() : wind.meanMs());
         return new Day(ahead, effect.noonF(blended.noonF(), blended.midnightF()),
                 effect.midnightF(blended.noonF(), blended.midnightF()), rainChance, thunderChance, sky,
-                wind == null ? null : wind.level(), wind == null ? 0.0 : wind.meanMs() * area.windExposure(),
+                wind == null ? null : wind.level(), wind == null ? 0.0 : wind.meanMs(),
                 pollen, note);
     }
 }
