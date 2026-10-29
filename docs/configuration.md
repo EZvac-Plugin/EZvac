@@ -396,7 +396,7 @@ are per in-game hour.
 | `sidebar.yield-to-plugins` | TAB, … | Scoreboard plugins the sidebar steps aside for |
 | `actionbar.format`, `bossbar.format` | | The one-line formats |
 | `sections.hidden` | [] | Addon HUD sections never to show, by id, such as `liveexposure:body` ([addon sections](hud-and-placeholders.md#addon-sections)) |
-| `bar` | | `length`, `filled` and `empty` symbols, `empty-color`, and the `cold-f`/`hot-f` ends of the bar |
+| `bar` | | `style`: `gauge` (BETA 1.0, the default: one line coloured cold to hot, with its `gauge` and `marker` symbols) or `blocks` (the `filled` and `empty` symbols and `empty-color`, as before); its `length`, and the `cold-f`/`hot-f` ends |
 | `comfort` | | The `cold`, `cool`, `comfortable`, `warm` and `hot` bands, each with its `label`, `color` and `below-f`/`above-f` |
 | `water` | | The same settings used while the player is in water |
 

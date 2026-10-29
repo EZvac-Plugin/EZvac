@@ -110,6 +110,12 @@ keeps the old behaviour. See
   same.
 - **A stock sidebar moves to the sections** when you upgrade; one you
   changed is left as it is.
+- **A fancier sidebar:** each section has an accent heading with a rule,
+  the comfort bar is a gauge running blue through green to red with a ◆
+  where it feels, and the system's line starts with an icon for what it's
+  doing (♨ heating, ❄ cooling, ● holding). The new `{mode_icon}` token gives
+  the icon; `hud.bar.style: blocks` brings back the old bar, which addon
+  meters keep.
 - **An idle system says what it holds:** `{mode}` and `%ezvac_mode%` read
   `Holding 72.0°F` instead of `Idle`, as its screen does. The new
   `{system_mode}` token gives `Home: Holding 72.0°F`.

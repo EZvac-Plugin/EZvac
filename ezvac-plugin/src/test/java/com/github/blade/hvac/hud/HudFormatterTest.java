@@ -17,6 +17,14 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class HudFormatterTest {
     private final HudFormatter format = new HudFormatter(HudSettings.defaults());
+    /** The bar from before BETA 1.0: hud.bar.style: blocks. */
+    private final HudFormatter blocks = new HudFormatter(HudSettings.load(blocksConfig()));
+
+    private static YamlConfiguration blocksConfig() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.bar.style", "blocks");
+        return config;
+    }
 
     private static String plain(net.kyori.adventure.text.Component component) {
         return PlainTextComponentSerializer.plainText().serialize(component);
@@ -29,13 +37,13 @@ class HudFormatterTest {
     @Test
     void theSeasonLineShowsOnlyWhereThereAreSeasons() {
         List<String> lines = HudSettings.defaults().sidebarLines();
-        String seasonLine = "<gray> Season: <white>{season} <gray>day {season_day}";
+        String seasonLine = "<gray> {season}, day {season_day}";
         assertTrue(lines.contains(seasonLine));
         assertFalse(format.shownLines(lines, cooled(72.0)).contains(seasonLine));
         assertEquals(lines.size() - 1, format.shownLines(lines, cooled(72.0)).size());
         ClimateSnapshot summer = cooled(72.0).inSeason("Summer", 3);
         assertSame(lines, format.shownLines(lines, summer));
-        assertEquals(" Season: Summer day 3", plain(format.render(seasonLine, summer)));
+        assertEquals(" Summer, day 3", plain(format.render(seasonLine, summer)));
     }
 
     @Test
@@ -49,12 +57,45 @@ class HudFormatterTest {
 
     @Test
     void theBarFillsFromColdToHotAndClampsAtBothEnds() {
-        assertEquals("▯▯▯▯▯▯▯▯▯▯", format.barPlain(50.0));
-        assertEquals("▯▯▯▯▯▯▯▯▯▯", format.barPlain(-40.0));
-        assertEquals("▮▮▮▮▮▯▯▯▯▯", format.barPlain(72.5));
-        assertEquals("▮▮▮▮▮▮▮▮▮▮", format.barPlain(95.0));
-        assertEquals("▮▮▮▮▮▮▮▮▮▮", format.barPlain(200.0));
+        assertEquals("▯▯▯▯▯▯▯▯▯▯", blocks.barPlain(50.0));
+        assertEquals("▯▯▯▯▯▯▯▯▯▯", blocks.barPlain(-40.0));
+        assertEquals("▮▮▮▮▮▯▯▯▯▯", blocks.barPlain(72.5));
+        assertEquals("▮▮▮▮▮▮▮▮▮▮", blocks.barPlain(95.0));
+        assertEquals("▮▮▮▮▮▮▮▮▮▮", blocks.barPlain(200.0));
         assertEquals(0.0, format.fraction(Double.NaN));
+    }
+
+    @Test
+    void theGaugeMarksWhereItFeelsAndClampsAtBothEnds() {
+        assertEquals("◆━━━━━━━━━", format.barPlain(50.0));
+        assertEquals("◆━━━━━━━━━", format.barPlain(-40.0));
+        assertEquals("━━━━━◆━━━━", format.barPlain(72.5));
+        assertEquals("━━━━━━━━━◆", format.barPlain(95.0));
+        assertEquals("━━━━━━━━━◆", format.barPlain(200.0));
+    }
+
+    @Test
+    void theGaugeRunsColdToHotInTheComfortColours() {
+        String gauge = format.barMini(72.5);
+        // 50-95 F in ten steps: cold, cool, comfortable, warm and hot in turn, the marker white.
+        assertTrue(gauge.startsWith("<color:#5ab0ff>━━</color><color:#8fd3ff>━━</color><color:#6ee07a>━</color>"
+                + "<color:#ffffff>◆</color>"), gauge);
+        assertTrue(gauge.endsWith("<color:#ff5c5c>━━</color>"), gauge);
+        assertEquals(10, plain(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(gauge)).length());
+        assertTrue(format.barLegacy(72.5).contains("§"), "legacy colours for placeholder consumers");
+    }
+
+    @Test
+    void theModeIconSaysWhatTheSystemIsDoing() {
+        assertEquals("<aqua>❄</aqua>", format.fill("{mode_icon}", cooled(72.0)));
+        assertEquals("<gold>♨</gold>", format.fill("{mode_icon}",
+                new ClimateSnapshot(66.0, 40.0, 1.0, 3, "house", "main", "HEATING", 72.0, true, false)));
+        assertEquals("<green>●</green>", format.fill("{mode_icon}",
+                new ClimateSnapshot(72.0, 70.0, 1.0, 3, "house", "main", "IDLE", 72.0, true, false)));
+        assertEquals("<red>⚠</red>", format.fill("{mode_icon}",
+                new ClimateSnapshot(66.0, 40.0, 1.0, 3, "house", "main", ClimateSnapshot.UNITS_OFF, 72.0, true, false)));
+        assertEquals("<dark_gray>○</dark_gray>", format.fill("{mode_icon}",
+                new ClimateSnapshot(88.0, 88.0, 0.0, -1, null, null, null, Double.NaN, false, false)));
     }
 
     @Test
@@ -75,16 +116,17 @@ class HudFormatterTest {
 
     @Test
     void theColouredBarUsesTheComfortColourAndKeepsItsGlyphs() {
-        assertTrue(format.barMini(72.5).startsWith("<color:#6ee07a>▮▮▮▮▮</color>"));
-        assertTrue(format.barLegacy(72.5).contains("▮▮▮▮▮"));
-        assertTrue(format.barLegacy(72.5).contains("§"), "legacy colours for placeholder consumers");
+        assertTrue(blocks.barMini(72.5).startsWith("<color:#6ee07a>▮▮▮▮▮</color>"));
+        assertTrue(blocks.barLegacy(72.5).contains("▮▮▮▮▮"));
+        assertTrue(blocks.barLegacy(72.5).contains("§"), "legacy colours for placeholder consumers");
     }
 
     @Test
     void templatesFillEveryToken() {
         String line = plain(format.render(
                 "{temp}|{bar}|{comfort}|{outdoor}|{group}|{thermostat}|{mode}|{target}|{zone}", cooled(72.5)));
-        assertEquals("72.5°F|▮▮▮▮▮▯▯▯▯▯|Comfortable|88.0°F|house|main|Cooling to 70.0°F|70.0°F|Strength 60%", line);
+        assertEquals("72.5°F|" + format.barPlain(cooled(72.5))
+                + "|Comfortable|88.0°F|house|main|Cooling to 70.0°F|70.0°F|Strength 60%", line);
     }
 
     @Test
@@ -175,8 +217,10 @@ class HudFormatterTest {
     void theWaterBarSpansThePoolRange() {
         ClimateSnapshot cold = new ClimateSnapshot(60.0, 70.0, 0, -1, null, null, null, Double.NaN, false, true);
         ClimateSnapshot hot = new ClimateSnapshot(104.0, 70.0, 0, -1, null, null, null, Double.NaN, false, true);
-        assertEquals("▯▯▯▯▯▯▯▯▯▯", format.barPlain(cold));
-        assertEquals("▮▮▮▮▮▮▮▮▮▮", format.barPlain(hot));
+        assertEquals("▯▯▯▯▯▯▯▯▯▯", blocks.barPlain(cold));
+        assertEquals("▮▮▮▮▮▮▮▮▮▮", blocks.barPlain(hot));
+        assertEquals("◆━━━━━━━━━", format.barPlain(cold));
+        assertEquals("━━━━━━━━━◆", format.barPlain(hot));
     }
 
     @Test

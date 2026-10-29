@@ -16,9 +16,11 @@ class HudSettingsTest {
         assertEquals(10, value.updateTicks());
         assertFalse(value.celsius());
         assertEquals(14, value.sidebarLines().size());
-        // In sections since BETA 1.0.
-        assertEquals(List.of("<aqua>Here", "<aqua>Outside", "<aqua>System"), value.sidebarLines().stream()
-                .filter(line -> line.startsWith("<aqua>")).toList());
+        // In sections since BETA 1.0, each under an accent heading.
+        assertEquals(List.of("Here", "Outside", "System"), value.sidebarLines().stream()
+                .filter(line -> line.startsWith("<aqua>▍<white>"))
+                .map(line -> line.substring("<aqua>▍<white>".length(), line.indexOf(" <dark_gray>"))).toList());
+        assertEquals(HudSettings.BarStyle.GAUGE, value.barStyle());
         assertTrue(value.sidebarLines().stream().anyMatch(line -> line.contains("{aqi}")), "the air (3.2)");
         assertTrue(value.sidebarLines().stream().anyMatch(line -> line.contains("{wind}")), "the wind (3.2)");
     }
@@ -240,6 +242,27 @@ class HudSettingsTest {
     }
 
     @Test
+    void aPreviewSidebarMovesToTheAccentHeadings() {
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("hud.sidebar.lines", HudSettings.PREVIEW_SECTIONED);
+        config.set("hud.water.sidebar.lines", HudSettings.PREVIEW_WATER_SECTIONED);
+        List<String> added = new java.util.ArrayList<>();
+        HudSettings.adoptAccents(config, added);
+        assertEquals(HudSettings.SECTIONED, config.getStringList("hud.sidebar.lines"));
+        assertEquals(HudSettings.WATER_SECTIONED, config.getStringList("hud.water.sidebar.lines"));
+        assertEquals(List.of("hud.sidebar.lines", "hud.water.sidebar.lines"), added);
+        YamlConfiguration own = new YamlConfiguration();
+        own.set("hud.sidebar.lines", List.of("<aqua>Here"));
+        HudSettings.adoptAccents(own, new java.util.ArrayList<>());
+        assertEquals(List.of("<aqua>Here"), own.getStringList("hud.sidebar.lines"), "its own sidebar is left alone");
+        YamlConfiguration blocks = new YamlConfiguration();
+        blocks.set("hud.bar.style", "blocks");
+        assertEquals(HudSettings.BarStyle.BLOCKS, HudSettings.load(blocks).barStyle());
+        blocks.set("hud.bar.style", "dots");
+        assertThrows(IllegalArgumentException.class, () -> HudSettings.load(blocks));
+    }
+
+    @Test
     void aStockSidebarMovesToSectionsOnTheFirstBetaStart() {
         YamlConfiguration config = new YamlConfiguration();
         config.set("hud.sidebar.lines", HudSettings.STOCK_32);
@@ -249,7 +272,7 @@ class HudSettingsTest {
         assertEquals(HudSettings.defaults().sidebarLines(), config.getStringList("hud.sidebar.lines"));
         assertEquals(HudSettings.defaults().water().sidebarLines(), config.getStringList("hud.water.sidebar.lines"));
         assertTrue(added.containsAll(List.of("hud.sidebar.lines", "hud.water.sidebar.lines")));
-        assertEquals("<aqua>Here", HudSettings.defaults().sidebarLines().get(0));
+        assertTrue(HudSettings.defaults().sidebarLines().get(0).startsWith("<aqua>▍<white>Here"));
 
         YamlConfiguration own = new YamlConfiguration();
         own.set("hud.sidebar.lines", List.of("<gray>Here: <white>{temp}"));

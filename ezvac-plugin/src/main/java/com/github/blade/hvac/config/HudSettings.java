@@ -30,6 +30,9 @@ public record HudSettings(
         String barFilled,
         String barEmpty,
         String barEmptyColor,
+        BarStyle barStyle,
+        String barGauge,
+        String barMarker,
         double barColdF,
         double barHotF,
         Band cold,
@@ -50,6 +53,22 @@ public record HudSettings(
             String normalized = value.trim().toUpperCase(Locale.ROOT).replace("_", "").replace("-", "");
             for (Style style : values()) if (style.name().equals(normalized)) return style;
             throw new IllegalArgumentException("hud.style must be sidebar, actionbar or bossbar");
+        }
+    }
+
+    /**
+     * How {@code {bar}} is drawn. GAUGE (BETA 1.0): one line coloured from
+     * cold to hot along the scale, with a marker where it feels. BLOCKS: the
+     * filled and empty glyphs from before.
+     */
+    public enum BarStyle {
+        GAUGE, BLOCKS;
+
+        static BarStyle parse(String value, BarStyle fallback) {
+            if (value == null) return fallback;
+            String normalized = value.trim().toUpperCase(Locale.ROOT);
+            for (BarStyle style : values()) if (style.name().equals(normalized)) return style;
+            throw new IllegalArgumentException("hud.bar.style must be gauge or blocks");
         }
     }
 
@@ -106,6 +125,9 @@ public record HudSettings(
         Objects.requireNonNull(bossBarFormat, "bossbar format");
         Objects.requireNonNull(barFilled, "bar filled glyph");
         Objects.requireNonNull(barEmpty, "bar empty glyph");
+        Objects.requireNonNull(barStyle, "bar style");
+        Objects.requireNonNull(barGauge, "bar gauge glyph");
+        Objects.requireNonNull(barMarker, "bar marker glyph");
         Objects.requireNonNull(noneText, "none text");
         Objects.requireNonNull(water, "water medium");
         hiddenSections = Objects.requireNonNull(hiddenSections, "hidden sections").stream()
@@ -116,7 +138,7 @@ public record HudSettings(
         if (sidebarLines.isEmpty() || sidebarLines.size() > 15)
             throw new IllegalArgumentException("hud.sidebar.lines must have 1 to 15 lines");
         if (barLength < 1 || barLength > 40) throw new IllegalArgumentException("hud.bar.length must be 1 to 40");
-        if (barFilled.isEmpty() || barEmpty.isEmpty())
+        if (barFilled.isEmpty() || barEmpty.isEmpty() || barGauge.isEmpty() || barMarker.isEmpty())
             throw new IllegalArgumentException("hud.bar glyphs must not be empty");
         if (TextColor.fromHexString(barEmptyColor) == null)
             throw new IllegalArgumentException("hud.bar.empty-color must be #RRGGBB");
@@ -261,10 +283,10 @@ public record HudSettings(
             "<dark_gray><font:uniform>Version: {version}</font>");
 
     /**
-     * The stock sidebar since BETA 1.0, in sections: Here, Outside and
-     * System, each under its heading, with its lines indented a space.
+     * The stock sidebar of the BETA 1.0 Pilot 1 previews: plain section
+     * headings. Never released; a server that ran a preview moves on from it.
      */
-    private static final List<String> SECTIONED = List.of(
+    static final List<String> PREVIEW_SECTIONED = List.of(
             "<aqua>Here",
             "<gray> Temp: <white>{temp} <gray>feels <white>{feels}",
             " {bar} {comfort}",
@@ -280,8 +302,8 @@ public record HudSettings(
             "<gray> Airflow: <white>{zone}",
             "<dark_gray><font:uniform>Version: {version}</font>");
 
-    /** The stock water sidebar since BETA 1.0. */
-    private static final List<String> WATER_SECTIONED = List.of(
+    /** The stock water sidebar of the BETA 1.0 Pilot 1 previews. */
+    static final List<String> PREVIEW_WATER_SECTIONED = List.of(
             "<aqua>Water",
             "<gray> Temp: <white>{temp}",
             " {bar} {comfort}",
@@ -291,6 +313,40 @@ public record HudSettings(
             "<aqua>Pool",
             " {system_mode}",
             "<gray> Circulation: <white>{zone}",
+            "<dark_gray><font:uniform>Version: {version}</font>");
+
+    /**
+     * The stock sidebar since BETA 1.0, in sections: Here, Outside and
+     * System, each under an accent heading with a rule, its lines indented
+     * a space. The system's line starts with what it's doing as an icon.
+     */
+    static final List<String> SECTIONED = List.of(
+            "<aqua>▍<white>Here <dark_gray>──────────",
+            " <white>{temp} <gray>feels <white>{feels}",
+            " {bar} {comfort}",
+            "<gray> Humidity <white>{humidity}",
+            "<gray> Air {aqi} <white>{aqi_band} <dark_gray>· <gray>✿ <white>{pollen}",
+            "<aqua>▍<white>Outside <dark_gray>────────",
+            " <white>{outdoor} <gray>{weather}",
+            "<gray> Wind <white>{wind}",
+            "<gray> {season}, day {season_day}",
+            ADDONS_LINE,
+            "<aqua>▍<white>System <dark_gray>─────────",
+            " {mode_icon} {system_mode}",
+            "<gray> Airflow <white>{zone}",
+            "<dark_gray><font:uniform>Version: {version}</font>");
+
+    /** The stock water sidebar since BETA 1.0. */
+    static final List<String> WATER_SECTIONED = List.of(
+            "<aqua>▍<white>Water <dark_gray>──────────",
+            " <white>{temp}",
+            " {bar} {comfort}",
+            "<aqua>▍<white>Outside <dark_gray>────────",
+            "<gray> Air <white>{outdoor} <gray>{weather}",
+            ADDONS_LINE,
+            "<aqua>▍<white>Pool <dark_gray>───────────",
+            " {mode_icon} {system_mode}",
+            "<gray> Circulation <white>{zone}",
             "<dark_gray><font:uniform>Version: {version}</font>");
 
     /**
@@ -363,6 +419,15 @@ public record HudSettings(
         adopt(config, "hud.water.sidebar.lines", PAST_WATER_STOCK, WATER_SECTIONED, added);
     }
 
+    /**
+     * A sidebar still on a Pilot 1 preview's stock layout moves to the one
+     * with accent headings, whenever EZvac starts. Any other is left alone.
+     */
+    public static void adoptAccents(YamlConfiguration config, List<String> added) {
+        adopt(config, "hud.sidebar.lines", List.of(PREVIEW_SECTIONED), SECTIONED, added);
+        adopt(config, "hud.water.sidebar.lines", List.of(PREVIEW_WATER_SECTIONED), WATER_SECTIONED, added);
+    }
+
     private static void adopt(YamlConfiguration config, String path, List<List<String>> stock,
                               List<String> sectioned, List<String> added) {
         if (!stock.contains(config.getStringList(path))) return;
@@ -379,7 +444,7 @@ public record HudSettings(
                 "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{humidity}"
                         + " <dark_gray>|</dark_gray> <gray>{system}",
                 "<white>{temp}</white> <gray>feels {feels} -</gray> {comfort} <dark_gray>|</dark_gray> <gray>{system}",
-                10, "▮", "▯", "#4a4a4a", 50.0, 95.0,
+                10, "▮", "▯", "#4a4a4a", BarStyle.GAUGE, "━", "◆", 50.0, 95.0,
                 new Band(60.0, "Cold", "#5ab0ff"),
                 new Band(68.0, "Cool", "#8fd3ff"),
                 new Band(0.0, "Comfortable", "#6ee07a"),
@@ -426,6 +491,9 @@ public record HudSettings(
                 hud.getString("bar.filled", d.barFilled),
                 hud.getString("bar.empty", d.barEmpty),
                 hud.getString("bar.empty-color", d.barEmptyColor),
+                BarStyle.parse(hud.getString("bar.style"), d.barStyle),
+                hud.getString("bar.gauge", d.barGauge),
+                hud.getString("bar.marker", d.barMarker),
                 hud.getDouble("bar.cold-f", d.barColdF),
                 hud.getDouble("bar.hot-f", d.barHotF),
                 band(hud, "comfort.cold", "below-f", d.cold),
