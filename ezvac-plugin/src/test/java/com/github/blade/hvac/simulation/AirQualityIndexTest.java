@@ -69,4 +69,12 @@ class AirQualityIndexTest {
         assertEquals(PollenLevel.HIGH, PollenLevel.parse(" HIGH "));
         assertNull(PollenLevel.parse("never"));
     }
+
+    @Test
+    void theHudSaysMedForAModerateDay() {
+        assertEquals("Med", PollenLevel.MODERATE.hudName(), "so the sidebar doesn't widen");
+        assertEquals("Moderate", PollenLevel.MODERATE.displayName(), "screens and commands keep the word");
+        assertEquals("High", PollenLevel.HIGH.hudName());
+        assertEquals("Low", PollenLevel.LOW.hudName());
+    }
 }

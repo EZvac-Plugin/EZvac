@@ -82,6 +82,9 @@ public final class AirQualityIndex {
         PollenLevel(String displayName) { this.displayName = displayName; }
         public String displayName() { return displayName; }
 
+        /** The HUD's shorter word (BETA 1.0): Med, so a moderate day doesn't widen the sidebar. */
+        public String hudName() { return this == MODERATE ? "Med" : displayName; }
+
         public static PollenLevel of(double grains, AirQualitySettings.PollenLevels levels) {
             if (!(grains >= levels.moderate())) return LOW;
             if (grains < levels.high()) return MODERATE;
