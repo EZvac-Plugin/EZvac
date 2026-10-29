@@ -20,8 +20,11 @@ ALPHA 1.5 and everything after it is MIT.
 
 ## Requirements
 
-- Paper 1.21.1 (or a Paper fork such as Purpur)
-- Java 21
+- Java 21 or newer to build. EZvac builds against the Paper 1.21.1 API, and
+  the same jar runs on Paper 26.1 to 26.3 (on Java 25) until BETA 2.x drops
+  1.21.1
+- A Paper or Purpur server to try it on: 26.x, and 1.21.1 while BETA 1.x
+  supports it
 - Maven 3.9 or newer
 
 ## Build and test
@@ -31,7 +34,7 @@ mvn clean package
 ```
 
 This compiles, runs the test suite, and writes the plugin to
-`ezvac-plugin/target/EzVac-ALPHA-3.2-HOTFIX1.jar` (and the API on its own to
+`ezvac-plugin/target/EzVac-BETA-1.0-P1.jar` (and the API on its own to
 `ezvac-api/target/`). Without Maven installed, `./mvnw` (or `mvnw.cmd` on
 Windows) downloads Maven 3.9.9 and runs it the same way.
 
@@ -86,8 +89,9 @@ as which device wins a duplicate and what gets preserved.
 ## Testing against a real server
 
 Anything touching Bukkit APIs is not covered by the unit tests. For those
-changes, run the plugin on a local Paper 1.21.1 server (or Purpur) before
-opening a pull request, and say in the PR what you exercised.
+changes, run the plugin on a local Paper 26.x server (or Purpur) before
+opening a pull request, and on 1.21.1 too if the change touches the server
+API, and say in the PR what you exercised.
 
 Two lessons worth repeating, both of which caught real bugs:
 
@@ -138,7 +142,7 @@ allocates), and boxed collections keyed by coordinates.
 - Keep the change focused; separate refactors from behaviour changes.
 - Match the surrounding style — this codebase favours explicit phases, small
   methods, and comments that explain *why*.
-- Say what you tested. "Ran on Paper 1.21.1 with N thermostats" is worth more
+- Say what you tested. "Ran on Paper 26.3 with N thermostats" is worth more
   than a green checkmark.
 - If you change behaviour that players can observe, update `docs/features.txt`,
   the `docs/` page that covers it (a new command also goes in

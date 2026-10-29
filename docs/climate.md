@@ -21,10 +21,12 @@ shown alongside:
 | Swamp | 80 °F | 60 °F | 14 °F | 94 °F | 66 °F |
 | Plains | 72 °F | 50 °F | 18 °F | 90 °F | 54 °F |
 | Forest | 68 °F | 48 °F | 18 °F | 86 °F | 50 °F |
+| Dappled forest | 66 °F | 46 °F | 18 °F | 84 °F | 48 °F |
+| Pale garden | 62 °F | 48 °F | 16 °F | 78 °F | 46 °F |
 | Ocean | 66 °F | 60 °F | 10 °F | 76 °F | 56 °F |
 | Taiga | 52 °F | 32 °F | 24 °F | 76 °F | 28 °F |
 | Snowy plains | 28 °F | 8 °F | 26 °F | 54 °F | 2 °F |
-| Caves (lush, dripstone, deep dark) | 64, 58, 52 °F | same | none | | |
+| Caves (lush, sulfur, dripstone, deep dark) | 64, 64, 58, 52 °F | same | none | | |
 | Nether | 96-120 °F | same | none | | |
 | End | 30 °F | 30 °F | none | | |
 

@@ -37,6 +37,29 @@ Before 2.1 only the HUD could show Celsius, through `hud.units`. A config that
 had `hud.units: C` starts with `units: C` when it's updated, and `hud.units` is
 no longer read.
 
+## updates
+
+```yaml
+updates:
+  check: true
+  notify-admins: true
+```
+
+New in BETA 1.0. EZvac checks GitHub for a newer release in the background:
+once at start-up, then every 6 hours. It only reads GitHub's public list of
+releases.
+
+- **A newer one is logged,** with a link.
+- **`notify-admins`:** players with `ezvac.admin` are also told when they
+  join, with a link they can click.
+- **Pilots:** a server running a pilot hears about newer pilots and full
+  releases. One running a full release only hears about full releases and
+  their hotfixes.
+- **`check: false`** turns it off.
+
+A failed check (no internet, GitHub busy) is logged once and tried again 6
+hours later.
+
 ## controller
 
 When the thermostat acts.
