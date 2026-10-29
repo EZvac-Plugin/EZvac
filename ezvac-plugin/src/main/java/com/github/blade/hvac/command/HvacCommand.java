@@ -5,6 +5,7 @@ import com.github.blade.hvac.simulation.WindModel;
 import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.api.event.ThermostatTargetChangeEvent;
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.config.ServerSwitches;
 import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.integration.api.ApiEvents;
@@ -136,6 +137,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "link-tool", "linktool", "duct-tool", "ducttool", "tool", "sensor-tool", "sensortool" ->
                         { if (requireAdmin(player)) linkTool.give(player); }
                 case "remove" -> { if (requireAdmin(player)) remove(player, args); }
+                case "quicksettings", "qs" -> { if (requireAdmin(player)) plugin.quickSettings().open(player); }
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
             }
         } catch (IllegalArgumentException exception) {
@@ -300,6 +302,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
      * sign standing on top of it.
      */
     private void createDehumidifier(Player player, Block sign, BlockKey position, String[] args) {
+        requireSwitchedOn(DeviceKind.DEHUMIDIFIER);
         requireSign(sign);
         Block iron = sign.getBlockData() instanceof WallSign wall
                 ? sign.getRelative(wall.getFacing().getOppositeFace()) : sign.getRelative(BlockFace.DOWN);
@@ -322,6 +325,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
      * on top, controlled by a wall sign on the iron block.
      */
     private void createHumidifier(Player player, Block sign, BlockKey position, String[] args) {
+        requireSwitchedOn(DeviceKind.HUMIDIFIER);
         requireSign(sign);
         if (!(sign.getBlockData() instanceof WallSign wall))
             throw new IllegalArgumentException("Put the sign on the side of the iron block.");
@@ -342,6 +346,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
      * the sign on it, standing on a tube coral block, which is its filter.
      */
     private void createPurifier(Player player, Block sign, BlockKey position, String[] args) {
+        requireSwitchedOn(DeviceKind.AIR_PURIFIER);
         requireSign(sign);
         Block iron = sign.getBlockData() instanceof WallSign wall
                 ? sign.getRelative(wall.getFacing().getOppositeFace()) : sign.getRelative(BlockFace.DOWN);
@@ -382,7 +387,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 + " sneak-click to switch it on or off."));
     }
 
+    /** Kinds switched off in /hvac quicksettings can't be made (BETA 1.0). */
+    private static void requireSwitchedOn(DeviceKind kind) {
+        if (ServerSwitches.deviceOff(kind)) throw new IllegalArgumentException(kind.refusal());
+    }
+
     private void createEquipment(Player player, Block block, String[] args, EquipmentType type) {
+        requireSwitchedOn(DeviceKind.of(type));
         if (block.getType() != Material.DISPENSER)
             throw new IllegalArgumentException("Look directly at a dispenser.");
         // The word after the kind is a tier (3.1); before 3.0 it was a group, now ignored.
@@ -542,7 +553,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
         }
         if (!seasons.settings().enabled()) {
-            sender.sendMessage(yellow("Seasons are turned off on this server (seasons.enabled in config.yml)."));
+            sender.sendMessage(yellow("Seasons are switched off on this server (/hvac quicksettings, or seasons.enabled in"
+                    + " config.yml)."));
             return;
         }
         if (world.getEnvironment() != World.Environment.NORMAL || !seasons.tracks(world.getUID())) {
@@ -624,7 +636,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
         }
         if (wind == null || !wind.enabled()) {
-            sender.sendMessage(yellow("Wind is turned off on this server (wind.enabled in config.yml)."));
+            sender.sendMessage(yellow("Wind is switched off on this server (/hvac quicksettings, or wind.enabled in"
+                    + " config.yml)."));
             return;
         }
         if (!WindService.hasWind(world)) {
@@ -956,6 +969,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private void showClimateUnit(Player player, ClimateUnit unit) {
+        if (unit.offServerWide())
+            player.sendMessage(yellow(DeviceKind.of(unit.kind()).plural() + " are switched off server-wide"
+                    + " (/hvac quicksettings); this one runs again when they're switched back on."));
         if (unit instanceof AirPurifier purifier) {
             showPurifier(player, purifier);
             return;
@@ -990,6 +1006,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         ? "FIXED" : registry.profileFor(unit.system()).name()),
                 gray(" | Output: "), white(unit.hasOwnedOutput() ? "owned" : "none"),
                 gray(" | "), white(unit.enabled() ? "enabled" : "disabled")));
+        if (ServerSwitches.deviceOff(DeviceKind.of(unit.type())))
+            player.sendMessage(yellow(DeviceKind.of(unit.type()).plural() + " are switched off server-wide"
+                    + " (/hvac quicksettings); this one runs again when they're switched back on."));
     }
 
     private Block target(Player player) {
@@ -1088,13 +1107,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         sender.sendMessage(join(aqua("/hvac rename <label>"), gray(" - rename the sign you look at")));
         sender.sendMessage(join(aqua("/hvac remove | remove system | stats | sync"), gray(" - remove, diagnose, reconcile")));
         sender.sendMessage(join(aqua("/hvac update"), gray(" - check GitHub for a newer EZvac that runs here")));
+        sender.sendMessage(join(aqua("/hvac quicksettings"),
+                gray(" - switch devices and climate systems, backups, statistics, updates")));
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) return filter(args[0], "help", "temperature", "hud", "list", "info",
                 "create", "thermostat", "equipment", "link-tool", "rename", "remove", "stats", "sync", "season",
-                "wind", "update");
+                "wind", "update", "quicksettings");
         if (args[0].equalsIgnoreCase("season")) {
             if (args.length == 2) return sender.hasPermission(ADMIN_PERMISSION)
                     ? filter(args[1], "set", "next", "pause", "resume") : List.of();

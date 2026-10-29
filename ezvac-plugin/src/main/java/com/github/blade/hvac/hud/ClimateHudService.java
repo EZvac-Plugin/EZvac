@@ -215,7 +215,7 @@ public final class ClimateHudService implements Listener {
     private ClimateSnapshot capture(Player player, AirflowService.TemperatureReading reading) {
         ClimateSnapshot snapshot = captureClimate(reading);
         if (air != null && air.enabled() && reading.air().known())
-            snapshot = snapshot.withAir(reading.air(), AirText.pollen(reading.air(), air).hudName());
+            snapshot = snapshot.withAir(reading.air(), AirText.pollenHudName(reading.air(), air));
         if (wind != null && wind.enabled() && !reading.water() && WindService.hasWind(player.getWorld())) {
             WindSettings.Units units = WindText.units(wind,
                     format.settings().celsius() ? TemperatureUnit.C : TemperatureUnit.F);

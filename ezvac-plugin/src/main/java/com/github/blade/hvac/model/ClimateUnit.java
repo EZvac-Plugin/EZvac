@@ -1,5 +1,6 @@
 package com.github.blade.hvac.model;
 
+import com.github.blade.hvac.config.ServerSwitches;
 import com.github.blade.hvac.config.ClimateSettings;
 import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.ThermalModel;
@@ -78,6 +79,12 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
     public void setLabel(String label) { this.label = Thermostat.validateId(label); }
     public int setpoint() { return setpoint; }
     public boolean powered() { return powered; }
+
+    /** Powered, and its kind not switched off server-wide (BETA 1.0): what it runs on. */
+    public boolean switchedOn() { return powered && !offServerWide(); }
+
+    /** Its kind is switched off in /hvac quicksettings; its own on/off is kept for when it comes back. */
+    public boolean offServerWide() { return ServerSwitches.deviceOff(DeviceKind.of(kind())); }
     public boolean running() { return running; }
     public double zoneDewPointF() { return zoneDewPointF; }
     public SystemId servedSystem() { return servedSystem; }
@@ -97,7 +104,7 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
     public boolean partRequired() { return true; }
 
     public State state() {
-        if (!powered) return State.OFF;
+        if (!switchedOn()) return State.OFF;
         return running ? State.RUNNING : State.IDLE;
     }
 

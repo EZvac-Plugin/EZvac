@@ -490,7 +490,8 @@ public final class OutdoorTemperatureService {
 
     /** The outdoor air right now: the biome's, its season's pollen, and rain washing it out (3.2). */
     private AirQualityModel.Air outdoorAir(World world, BiomeBlend.Blended local, WeatherModel.Effect effect) {
-        double pollen = seasons == null || world == null
+        // Pollen switched off (BETA 1.0): none outdoors, so none comes in.
+        double pollen = !climate.airQuality().pollen() ? 0.0 : seasons == null || world == null
                 ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactor(world.getUID());
         return OutdoorAir.now(local.air(), pollen, effect.wetness(), effect.windMs(), local.downfall(),
                 climate.wind());

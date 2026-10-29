@@ -340,29 +340,7 @@ public final class HvacRegistry {
         // A slow disk must never queue a second write against the same files.
         // Leaving the registry dirty lets the next periodic save retry.
         if (!synchronous && writeInProgress) return;
-        YamlConfiguration configuration = new YamlConfiguration();
-        configuration.set("meta.format", FORMAT_VERSION);
-        configuration.set("meta.next-system", nextSystem);
-        write(configuration, "thermostats", thermostats.values(), Thermostat::position, Thermostat::toMap);
-        write(configuration, "equipment", equipment.values(), EquipmentUnit::position, EquipmentUnit::toMap);
-        write(configuration, "cleanup", pendingCleanup, EquipmentUnit::position, EquipmentUnit::toMap);
-        write(configuration, "vents", vents.values(), ClimateVent::position, ClimateVent::toMap);
-        write(configuration, "thermometers", thermometers.values(), Thermometer::position, Thermometer::toMap);
-        write(configuration, "rpmMonitors", rpmMonitors.values(), RpmMonitor::position, RpmMonitor::toMap);
-        write(configuration, "settingsPanels", settingsPanels.values(),
-                SettingsPanel::position, SettingsPanel::toMap);
-        write(configuration, "dehumidifiers", dehumidifiers.values(),
-                Dehumidifier::position, Dehumidifier::toMap);
-        write(configuration, "humidifiers", humidifiers.values(),
-                Humidifier::position, Humidifier::toMap);
-        write(configuration, "purifiers", purifiers.values(), AirPurifier::position, AirPurifier::toMap);
-        write(configuration, "sensors", sensors.values(), Sensor::position, Sensor::toMap);
-        write(configuration, "sensorHubs", sensorHubs.values(), SensorHub::position, SensorHub::toMap);
-        for (Map.Entry<String, List<Map<String, Object>>> entry : preservedRecords.entrySet()) {
-            int index = sectionSize(configuration, entry.getKey());
-            for (Map<String, Object> record : entry.getValue())
-                configuration.set(entry.getKey() + ".preserved" + index++, record);
-        }
+        YamlConfiguration configuration = snapshot();
 
         dirty = false;
         if (!backUpBeforeUpgradeSave()) {
@@ -389,6 +367,38 @@ public final class HvacRegistry {
                 }
             }
         });
+    }
+
+    /**
+     * Everything hvac.yml holds, as it is now: what a save writes, and what a
+     * backup (BETA 1.0) copies. Main thread only; the result is the caller's
+     * to dump anywhere.
+     */
+    public YamlConfiguration snapshot() {
+        YamlConfiguration configuration = new YamlConfiguration();
+        configuration.set("meta.format", FORMAT_VERSION);
+        configuration.set("meta.next-system", nextSystem);
+        write(configuration, "thermostats", thermostats.values(), Thermostat::position, Thermostat::toMap);
+        write(configuration, "equipment", equipment.values(), EquipmentUnit::position, EquipmentUnit::toMap);
+        write(configuration, "cleanup", pendingCleanup, EquipmentUnit::position, EquipmentUnit::toMap);
+        write(configuration, "vents", vents.values(), ClimateVent::position, ClimateVent::toMap);
+        write(configuration, "thermometers", thermometers.values(), Thermometer::position, Thermometer::toMap);
+        write(configuration, "rpmMonitors", rpmMonitors.values(), RpmMonitor::position, RpmMonitor::toMap);
+        write(configuration, "settingsPanels", settingsPanels.values(),
+                SettingsPanel::position, SettingsPanel::toMap);
+        write(configuration, "dehumidifiers", dehumidifiers.values(),
+                Dehumidifier::position, Dehumidifier::toMap);
+        write(configuration, "humidifiers", humidifiers.values(),
+                Humidifier::position, Humidifier::toMap);
+        write(configuration, "purifiers", purifiers.values(), AirPurifier::position, AirPurifier::toMap);
+        write(configuration, "sensors", sensors.values(), Sensor::position, Sensor::toMap);
+        write(configuration, "sensorHubs", sensorHubs.values(), SensorHub::position, SensorHub::toMap);
+        for (Map.Entry<String, List<Map<String, Object>>> entry : preservedRecords.entrySet()) {
+            int index = sectionSize(configuration, entry.getKey());
+            for (Map<String, Object> record : entry.getValue())
+                configuration.set(entry.getKey() + ".preserved" + index++, record);
+        }
+        return configuration;
     }
 
     /**

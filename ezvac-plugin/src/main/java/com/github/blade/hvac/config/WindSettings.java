@@ -47,6 +47,10 @@ public record WindSettings(boolean enabled, Chances chances, Speeds speeds, Seas
         biomes = Map.copyOf(biomes == null ? Map.of() : biomes);
     }
 
+    /** On a running server, what /hvac quicksettings says (BETA 1.0); config.yml's value otherwise. */
+    @Override
+    public boolean enabled() { return ServerSwitches.wind(enabled); }
+
     /** How speeds are shown: AUTO follows the temperature unit, km/h with °C and mph with °F. */
     public enum Units {
         AUTO, MS, KMH, MPH;
@@ -134,7 +138,7 @@ public record WindSettings(boolean enabled, Chances chances, Speeds speeds, Seas
 
     /** The extra air exchange a room gets from this much wind outside it. */
     public double infiltrationFactor(double windMs) {
-        if (!enabled || !(windMs > 0.0)) return 1.0;
+        if (!enabled() || !(windMs > 0.0)) return 1.0;
         return Math.min(maximumInfiltration, 1.0 + infiltrationPerMs * windMs);
     }
 

@@ -1,7 +1,9 @@
 # Screens and control menus
 
 From 2.1, EZvac's signs get a floating **screen**, and thermostats,
-dehumidifiers and humidifiers open a **control menu** when clicked.
+dehumidifiers and humidifiers open a **control menu** when clicked. Since
+BETA 1.0, admins also have a [quick settings](#quick-settings) menu for the
+whole server.
 
 ## Screens
 
@@ -85,3 +87,76 @@ humidifier). The lever switches it off or on.
 - EZvac signs can't be edited. Before 2.1 a thermostat's target was
   typed on line 3 of its sign; the menu replaces that.
 - Nothing can be taken out of or put into a menu.
+
+## Quick settings
+
+New in BETA 1.0. `/hvac quicksettings` (or `/hvac qs`) opens a menu for the
+settings that shape the whole server, so an owner can choose how much of
+EZvac runs without editing `config.yml` or restarting. It needs
+`ezvac.admin`.
+
+The main page has five sections. Each opens its own page, with **Back** in
+the bottom-left corner to return and **Close** in the bottom-right.
+
+- **Every change applies at once** and is written to `config.yml`, comments
+  and all, so the file and the menu always agree. Editing the file by hand
+  still works; it takes effect at the next start.
+- **Every change is logged,** with who made it, for example
+  `bladestech switched heat pumps off server-wide (/hvac quicksettings).`
+- A switch is an icon with a lime or red dye under it: click either.
+
+### Devices
+
+One switch for each kind that changes the climate: heat pumps, air
+conditioners, furnaces, boilers, pool heat pumps, dehumidifiers, humidifiers
+and air purifiers. Each shows how many the server has and how many run.
+
+- **Switched off,** every device of that kind stops, and equipment takes its
+  water or lava away, as at any stop. Its sign reads **Off server-wide**, and
+  `/hvac info` says why.
+- **No new one can be made:** `/hvac create` says that kind is switched off.
+  Existing ones can still be linked and removed.
+- **Switched back on,** each runs again as it was set: a device someone had
+  switched off itself stays off.
+
+In `config.yml` this is [`devices.disabled`](configuration.md#devices).
+
+### Climate systems
+
+| Switch | Off means |
+| --- | --- |
+| **Air quality** | No air readings, and air purifiers sit idle. Pollen goes with it |
+| **Pollen** | No pollen outdoors or in, and readings say pollen is "Off". The AQI never counted pollen, so it doesn't change |
+| **Wind** | No daily wind, no drafts through openings and no wind chill: "feels like" only has the weather's light breeze |
+| **Seasons** | No seasonal warmth, cold or pollen. The calendar keeps counting, so switched back on, it's the season the date has reached |
+
+EZvac keeps heating, cooling and drying with any of them off. They're
+`air-quality.enabled`, `air-quality.pollen`, `wind.enabled` and
+`seasons.enabled` in `config.yml`.
+
+### Backups
+
+- **Back up now** copies the registry (`hvac.yml`, with `seasons.yml` beside
+  it) to `plugins/EZvac/backups/`, as `hvac-<date>_<time>-manual.yml`. A
+  backup made by hand is kept until you delete it.
+- **Automatic** steps through Off, every 4, 8, 12, 24 or 48 hours, and every
+  week. It counts real time, through restarts: a server that was down longer
+  than the interval backs up a minute after it starts. Only the newest 10
+  automatic backups are kept (`backups.keep`).
+- The third item shows the newest backup, how long ago it was made, and how
+  many there are.
+
+To restore one, see
+[Restoring a backup](upgrading-and-troubleshooting.md#restoring-a-backup).
+
+### Statistics
+
+What `/hvac stats` reports, written out: each kind of device with how many
+run, the thermostats and other signs, the airflow figures, and when
+`hvac.yml` was last saved. **Refresh** reads them again.
+
+### Updates
+
+This server's EZvac and Minecraft, **Check now** (the same as `/hvac update`,
+answered in chat), and switches for the background checks and for telling
+admins when they join (`updates.check` and `updates.notify-admins`).

@@ -303,7 +303,7 @@ public final class ControlMenus implements Listener {
     }
 
     /** A button click, or a dull note when it couldn't go any further. */
-    private static void click(Player player, boolean worked) {
+    static void click(Player player, boolean worked) {
         player.playSound(player, worked ? Sound.UI_BUTTON_CLICK : Sound.BLOCK_NOTE_BLOCK_BASS, 0.5f,
                 worked ? 1.2f : 0.7f);
     }
@@ -318,11 +318,11 @@ public final class ControlMenus implements Listener {
                 List.of(gray(on ? "Click to switch it off" : "Click to switch it on")));
     }
 
-    private static Component gray(String text) {
+    static Component gray(String text) {
         return Component.text(text, NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false);
     }
 
-    private static ItemStack item(Material material, Component name, List<Component> lore) {
+    static ItemStack item(Material material, Component name, List<Component> lore) {
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(name.decoration(TextDecoration.ITALIC, false));

@@ -181,6 +181,10 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
      * @param waterLagDays  how many days natural water lags the air's seasons
      */
     public record Seasons(boolean enabled, int daysPerSeason, double strength, double waterLagDays) {
+        /** On a running server, what /hvac quicksettings says (BETA 1.0); config.yml's value otherwise. */
+        @Override
+        public boolean enabled() { return ServerSwitches.seasons(enabled); }
+
         public Seasons {
             if (daysPerSeason < 1 || daysPerSeason > 365)
                 throw new IllegalArgumentException("seasons.days-per-season must be 1-365");
@@ -191,7 +195,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
         }
 
         /** The share of a biome's seasonal swing that applies, 0 when seasons are off. */
-        public double effectiveStrength() { return enabled ? strength : 0.0; }
+        public double effectiveStrength() { return enabled() ? strength : 0.0; }
     }
 
     /**

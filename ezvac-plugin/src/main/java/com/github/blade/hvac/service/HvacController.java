@@ -3,6 +3,7 @@ package com.github.blade.hvac.service;
 import com.github.blade.hvac.HvacPlugin;
 import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.HvacSettings;
+import com.github.blade.hvac.config.ServerSwitches;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.HumidityModel;
@@ -273,6 +274,8 @@ public final class HvacController {
             Thermostat controller = registry.thermostatFor(unit.system());
             if (controller == null || !isControllerLoaded(controller) || !controller.enabled()
                     || controller.mode() == OperatingMode.IDLE || !unit.type().supports(controller.mode())) continue;
+            // A kind switched off server-wide (BETA 1.0) is never picked, so it stops like any unit not needed.
+            if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
             BlockKey output = unit.outputPosition();
             if (output != null && unit.canStart(controller.mode(), managedOutputs.contains(output))
                     && reserved.add(output)) selected.add(unit);

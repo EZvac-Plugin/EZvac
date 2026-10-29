@@ -33,7 +33,9 @@ biome and the weather.
 > until BETA 2.x. Every screen is redesigned as a status strip coloured by
 > what the device is doing. The pale garden, the dappled forest and the
 > sulfur caves get their own climate and air, and admins are told when a
-> newer EZvac is out. Your save carries over unchanged.
+> newer EZvac is out. `/hvac quicksettings` gives owners one menu to switch
+> device kinds, air quality, pollen, wind and the seasons on or off, and to
+> back the registry up. Your save carries over unchanged.
 >
 > ALPHA 3.2 added air quality. Every room tracks
 > fine particles, dust and pollen, scored as the US EPA Air Quality Index:
@@ -86,7 +88,7 @@ biome and the weather.
 | [Dehumidifiers and humidifiers](docs/dehumidifiers-and-humidifiers.md) | Building and using them, "Air too cold" |
 | [Air quality and air purifiers](docs/air-quality.md) | The AQI, pollen, smoke and dust, and purifiers with coral filters |
 | [Sensors and readings](docs/sensors.md) | Thermometers, hygrometers, sensors and sensor hubs |
-| [Screens and control menus](docs/screens-and-menus.md) | The screens on every sign, and the setpoint menus |
+| [Screens and control menus](docs/screens-and-menus.md) | The screens on every sign, the setpoint menus, and quick settings |
 | [Climate](docs/climate.md) | Outdoor temperature, weather, humidity, feels-like, variance |
 | [Wind](docs/wind.md) | Each day's wind, where it blows, and what it does |
 | [HUD and placeholders](docs/hud-and-placeholders.md) | `/hvac hud` and every `%ezvac_*%` placeholder |

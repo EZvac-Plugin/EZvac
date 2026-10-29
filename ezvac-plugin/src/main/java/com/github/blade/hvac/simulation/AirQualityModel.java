@@ -115,7 +115,9 @@ public final class AirQualityModel {
                 settling.fine() + filter.fine() * system, purifier.fine() * purifiers, hours);
         double[] coarse = species(from.coarse(), outdoor.coarse(), sources.coarse(), infiltrationPerHour,
                 settling.coarse() + filter.coarse() * system, purifier.coarse() * purifiers, hours);
-        double[] pollen = species(from.pollen(), outdoor.pollen(), sources.pollen(), infiltrationPerHour,
+        // Pollen switched off (BETA 1.0) clears what a space held at once, rather than settling out.
+        double[] pollen = !settings.pollen() ? new double[] {0.0, 0.0}
+                : species(from.pollen(), outdoor.pollen(), sources.pollen(), infiltrationPerHour,
                 settling.pollen() + filter.pollen() * system, purifier.pollen() * purifiers, hours);
         return new Result(new Air(fine[0], coarse[0], pollen[0]), new Air(fine[1], coarse[1], pollen[1]));
     }

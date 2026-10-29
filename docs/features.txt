@@ -675,6 +675,44 @@ UPDATE CHECK
   has nothing to compare against.
 
 
+QUICK SETTINGS
+--------------
+
+- /hvac quicksettings (qs; ezvac.admin, players; BETA 1.0): a chest menu,
+  27 slots for the main page (sections in slots 11-15, Close in 26), 36 for
+  each subpage (Back in 27, Close in 35). A switch is an icon in the second
+  row with a lime or red dye beneath it; either toggles it. Clicks are
+  cancelled, the permission is checked on every click, and the menus close
+  when EZvac stops. Every change is logged with the player's name.
+- ServerSwitches holds the live state, read from config.yml at start-up and
+  written back (config.set + saveConfig, comments kept) on each change.
+  While installed, AirQualitySettings.enabled(), WindSettings.enabled() and
+  ClimateSettings.Seasons.enabled() answer from it instead of their own
+  field, so every existing check follows at once; without it (tests) they
+  answer config.yml's value. AirQualitySettings.pollen() is
+  enabled() and air-quality.pollen.
+- Device kinds (DeviceKind: the five equipment types and the three climate
+  units) in devices.disabled: HvacController never picks a disabled kind,
+  so it stops (retracting its output) like any unit not needed; a climate
+  unit's switchedOn() is powered() and not off server-wide, and its control
+  and state use it. Its own powered/enabled flag is untouched, so switching
+  the kind back on resumes it. /hvac create of a disabled kind is refused;
+  its sign reads "Off server-wide"; /hvac info says so.
+- Pollen off: the outdoor pollen factor is 0, and AirQualityModel.step sets a
+  space's pollen to 0 at once; pollen labels read "Off" (AirText.pollenName,
+  pollenHudName). Purifiers' Auto never steps up for pollen.
+- RegistryBackups: HvacRegistry.snapshot() (split out of save) on the main
+  thread, then off it the YAML is written to a .tmp file, moved into
+  backups/hvac-<yyyy-MM-dd_HH-mm-ss>-<manual|auto>.yml and read back;
+  seasons.yml is copied beside it as seasons-<same>.yml. backups.auto-every-
+  hours (0, 4, 8, 12, 24, 48, 168) is checked once a minute against the
+  newest automatic backup's file time, so restarts don't reset it. After an
+  automatic one, all but the newest backups.keep (10) automatic ones are
+  deleted with their seasons files; manual ones never are.
+- UpdateNotifier.setChecking() starts or stops the background checks live
+  (updates.check); setNotifyAdmins() (updates.notify-admins).
+
+
 PUBLIC API
 ----------
 
@@ -729,6 +767,7 @@ PERMISSIONS
   signs: thermostat targets and power (control menu), settings panels,
   dehumidifiers and humidifiers, sensor hubs.
 - ezvac.hud (default true): show the on-screen climate HUD with /hvac hud.
-- ezvac.admin (default op): create, change, link, remove, sync, and stats.
+- ezvac.admin (default op): create, change, link, remove, sync, stats,
+  update and quicksettings.
 
 See commands.md for the full command reference.

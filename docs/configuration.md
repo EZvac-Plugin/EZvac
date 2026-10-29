@@ -64,6 +64,38 @@ releases.
 A failed check (no internet, GitHub busy) is logged once and tried again 6
 hours later.
 
+## devices
+
+```yaml
+devices:
+  disabled: []
+```
+
+New in BETA 1.0. Device kinds switched off server-wide: `heat-pump`,
+`air-conditioner`, `furnace`, `boiler`, `pool-heat-pump`, `dehumidifier`,
+`humidifier` and `air-purifier`. Devices of a kind listed here stop, and no
+new one can be made; taken off the list, each runs again as it was set. A
+name that is no kind is pointed out at start-up and ignored.
+
+[Quick settings](screens-and-menus.md#devices) switches them while the server
+runs, and writes the list here.
+
+## backups
+
+```yaml
+backups:
+  auto-every-hours: 0
+  keep: 10
+```
+
+New in BETA 1.0. Backups of the registry go to `plugins/EZvac/backups/`.
+
+- **`auto-every-hours`:** 0 is off, or 4, 8, 12, 24, 48 or 168 (a week). It
+  counts real time, through restarts. Any other value counts as off.
+- **`keep`:** how many automatic backups are kept; older ones are deleted.
+  Backups made by hand in [quick settings](screens-and-menus.md#backups) are
+  never deleted.
+
 ## controller
 
 When the thermostat acts.
@@ -316,6 +348,7 @@ are per in-game hour.
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `enabled` | true | false hides every air reading, and purifiers sit idle |
+| `pollen` | true | false: no pollen outdoors or in, and readings say pollen is "Off" (BETA 1.0) |
 | `reference-cells` | 1500 | The space size sources and purifiers are quoted for. A bigger space dilutes both; a small one concentrates smoke, up to 4x |
 | `settling` | fine 0.1, coarse 0.3, pollen 0.5 | Share of each kind that settles out of still air per hour |
 | `system-filter` | fine 0.15, coarse 0.5, pollen 0.8 | Share a system's own filter takes out per hour while its equipment runs |

@@ -878,11 +878,26 @@ public final class AirflowService {
     }
 
     public String stats() {
+        Figures figures = figures();
+        return "vents=" + figures.vents() + ", cachedCells=" + figures.cachedCells()
+                + ", dirty=" + figures.waiting() + ", rebuilding=" + figures.rebuilding()
+                + ", completed=" + figures.completed() + ", visited=" + figures.visited()
+                + ", capped=" + figures.capped();
+    }
+
+    /**
+     * What /hvac stats reports, for the quick settings menu (BETA 1.0): vents,
+     * cells mapped, spaces waiting to be mapped, whether one is being mapped,
+     * and since start-up the maps finished, cells visited and maps that hit
+     * the size cap.
+     */
+    public record Figures(int vents, int cachedCells, int waiting, boolean rebuilding, long completed,
+                          long visited, long capped) {}
+
+    public Figures figures() {
         int cells = completed.values().stream().mapToInt(Long2ByteMap::size).sum();
-        return "vents=" + registry.vents().size() + ", cachedCells=" + cells
-                + ", dirty=" + dirty.size() + ", rebuilding=" + (active != null)
-                + ", completed=" + completedRebuilds + ", visited=" + visitedCells
-                + ", capped=" + cappedRebuilds;
+        return new Figures(registry.vents().size(), cells, dirty.size(), active != null, completedRebuilds,
+                visitedCells, cappedRebuilds);
     }
 
     static long pack(int x, int y, int z) {
