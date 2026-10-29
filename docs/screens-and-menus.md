@@ -30,7 +30,7 @@ All screens are the same size, so a wall of devices lines up.
 
 | Device | Shows |
 | --- | --- |
-| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season |
+| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season. While it works with too few units for its size, a gold **Undersized 1/3** line: what it has of what it needs, in ★★★ units (BETA 1.0) |
 | Thermometer, hygrometer, thermo-hygrometer | The reading, feels-like, the outdoors, the weather and season |
 | Air monitor | The AQI, its band, what's behind it, pollen |
 | Dehumidifier, humidifier | The humidity, the setpoint, its state, and a dehumidifier's tank |

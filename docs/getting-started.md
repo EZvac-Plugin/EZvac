@@ -99,10 +99,17 @@ equipment or a sign, it's linked straight away.
 Air spreads from each vent through the room: full strength for 15 blocks of
 airflow, fading out by 30.
 
+One ★★★ heat pump is enough for **1,860 blocks of air**, a floor of about
+465 blocks, 4 blocks high. A bigger build needs more units, or it heats and
+cools more slowly and its thermostat says **Undersized**. See
+[Sizing](equipment.md#sizing).
+
 ### 5. Check it
 
 - Stand in the room and run `/hvac temperature` to read the temperature,
   humidity and which system reaches you.
+- Look at the thermostat and run `/hvac info` to see how big the room is
+  and whether it has enough units.
 - `/hvac hud` keeps the climate where you stand on screen. See
   [HUD and placeholders](hud-and-placeholders.md).
 - To change the target, right-click the thermostat sign and use its menu, or
