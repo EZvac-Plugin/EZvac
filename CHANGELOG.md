@@ -41,6 +41,19 @@ Purpur **26.1 to 26.3**, and still on **1.21.1**. The save is unchanged
   the sign's text showed through the screen. A server with Bedrock players
   (Geyser) should set `displays.screens: false`, so the signs carry the text.
 
+### HUD
+
+- **The sidebar is organised in sections:** Here (temperature, feels-like,
+  comfort, humidity, air), Outside (temperature and weather, wind, season)
+  and System (the system and what it's doing, airflow), each under its
+  heading. The pool sidebar has Water, Outside and Pool. The look is the
+  same.
+- **A stock sidebar moves to the sections** when you upgrade; one you
+  changed is left as it is.
+- **An idle system says what it holds:** `{mode}` and `%ezvac_mode%` read
+  `Holding 72.0°F` instead of `Idle`, as its screen does. The new
+  `{system_mode}` token gives `Home: Holding 72.0°F`.
+
 ### Update notifications
 
 - **EZvac tells you when a newer version is on GitHub.** It checks in the

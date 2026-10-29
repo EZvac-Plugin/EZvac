@@ -29,13 +29,13 @@ class HudFormatterTest {
     @Test
     void theSeasonLineShowsOnlyWhereThereAreSeasons() {
         List<String> lines = HudSettings.defaults().sidebarLines();
-        String seasonLine = "<gray>Season: <white>{season} <gray>day {season_day}";
+        String seasonLine = "<gray> Season: <white>{season} <gray>day {season_day}";
         assertTrue(lines.contains(seasonLine));
         assertFalse(format.shownLines(lines, cooled(72.0)).contains(seasonLine));
         assertEquals(lines.size() - 1, format.shownLines(lines, cooled(72.0)).size());
         ClimateSnapshot summer = cooled(72.0).inSeason("Summer", 3);
         assertSame(lines, format.shownLines(lines, summer));
-        assertEquals("Season: Summer day 3", plain(format.render(seasonLine, summer)));
+        assertEquals(" Season: Summer day 3", plain(format.render(seasonLine, summer)));
     }
 
     @Test
@@ -95,9 +95,17 @@ class HudFormatterTest {
     }
 
     @Test
+    void theSystemAndWhatItsDoingShareALine() {
+        ClimateSnapshot cooling = new ClimateSnapshot(74.0, 88.0, 1.0, 3, "Home1", "main", "COOLING", 70.0, true, false);
+        assertEquals("Home1: Cooling to 70.0°F", plain(format.render("{system_mode}", cooling)));
+        ClimateSnapshot outside = new ClimateSnapshot(60.0, 60.0, 0.0, -1, null, null, null, Double.NaN, false, false);
+        assertEquals("none", plain(format.render("{system_mode}", outside)), "never none: none");
+    }
+
+    @Test
     void coreAndIdleRenderPlainly() {
         ClimateSnapshot idleCore = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "house", "main", "IDLE", 70.0, true, false);
-        assertEquals("Idle|Core", plain(format.render("{mode}|{zone}", idleCore)));
+        assertEquals("Holding 70.0°F|Core", plain(format.render("{mode}|{zone}", idleCore)));
     }
 
     @Test

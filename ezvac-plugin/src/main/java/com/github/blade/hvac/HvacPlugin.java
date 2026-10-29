@@ -190,6 +190,7 @@ public final class HvacPlugin extends JavaPlugin {
         HudSettings.addAddonsLine(current, added);
         HudSettings.addAirLine(current, added);
         HudSettings.addWindLine(current, added);
+        HudSettings.adoptSections(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
