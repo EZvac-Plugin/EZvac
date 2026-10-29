@@ -406,20 +406,23 @@ hud:
     # EZvac never takes over a sidebar another plugin or the server is using;
     # servers with their own scoreboard plugin can use the placeholders instead.
     title: "<gradient:#3999fb:#f69500><bold>Climate</bold></gradient> <dark_gray>-</dark_gray> <gray>EZvac"
+    # In sections since BETA 1.0: Here, Outside and System. {system_mode} is
+    # the system and what it's doing ("Home1: Holding 72.0°F"), or the
+    # none-text outside any system.
     lines:
-      - "<gray>Here: <white>{temp}"
-      - "<gray>Feels like: <white>{feels}"
-      - "{bar} {comfort}"
-      - "<gray>Humidity: <white>{humidity}"
-      - "<gray>Air: {aqi} <white>{aqi_band} <gray>· Pollen <white>{pollen}"
-      - "<gray>Outside: <white>{outdoor} <gray>{weather}"
-      - "<gray>Wind: <white>{wind}"
-      - "<gray>Season: <white>{season} <gray>day {season_day}"
+      - "<aqua>Here"
+      - "<gray> Temp: <white>{temp} <gray>feels <white>{feels}"
+      - " {bar} {comfort}"
+      - "<gray> Humidity: <white>{humidity}"
+      - "<gray> Air: {aqi} <white>{aqi_band} <gray>· Pollen <white>{pollen}"
+      - "<aqua>Outside"
+      - "<gray> Temp: <white>{outdoor} <gray>{weather}"
+      - "<gray> Wind: <white>{wind}"
+      - "<gray> Season: <white>{season} <gray>day {season_day}"
       - "{addons}"
-      - ""
-      - "<gray>System: <white>{system}"
-      - "<gray>Mode: <white>{mode}"
-      - "<gray>Airflow: <white>{zone}"
+      - "<aqua>System"
+      - " {system_mode}"
+      - "<gray> Airflow: <white>{zone}"
       # {version} is the short EZvac version: A1.8, or A1.8_H1 for a hotfix.
       # <font:uniform> is Minecraft's narrower built-in font, for a quieter footer.
       - "<dark_gray><font:uniform>Version: {version}</font>"
@@ -456,14 +459,15 @@ hud:
   water:
     sidebar:
       lines:
-        - "<gray>Water: <white>{temp}"
-        - "{bar} {comfort}"
-        - "<gray>Air: <white>{outdoor} <gray>{weather}"
+        - "<aqua>Water"
+        - "<gray> Temp: <white>{temp}"
+        - " {bar} {comfort}"
+        - "<aqua>Outside"
+        - "<gray> Air: <white>{outdoor} <gray>{weather}"
         - "{addons}"
-        - ""
-        - "<gray>Pool: <white>{system}"
-        - "<gray>Mode: <white>{mode}"
-        - "<gray>Circulation: <white>{zone}"
+        - "<aqua>Pool"
+        - " {system_mode}"
+        - "<gray> Circulation: <white>{zone}"
         - "<dark_gray><font:uniform>Version: {version}</font>"
     actionbar:
       format: "<aqua>Water</aqua> <white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{system}"

@@ -622,6 +622,19 @@ previous file is kept as config.yml.before-<version>.bak.
 - Loaded missing blocks are pruned; unloaded blocks are retained.
 
 
+HUD SECTIONS (BETA 1.0)
+-----------------------
+
+- The stock sidebar is in sections: <aqua> headings Here, Outside and System
+  (Water, Outside and Pool for water), their lines indented a space; 14 lines.
+  {system_mode} gives "<system>: <mode>", or the none-text outside a system.
+- {mode} for an idle system with a target is "Holding <target>" (was "Idle").
+- HudSettings.adoptSections: on the first BETA start (config.yml gained
+  updates.*), a sidebar equal to the 3.2 stock list (STOCK_32, or
+  WATER_STOCK_32) becomes the sectioned one; the 2.1-3.2 steps that bring an
+  older stock sidebar up to date compare against STOCK_32 and run first.
+
+
 UPDATE CHECK
 ------------
 

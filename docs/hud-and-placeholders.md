@@ -23,7 +23,11 @@ core or its edge.
 
 `hud.style` in `config.yml` picks how it's shown:
 
-- **Sidebar** (default): a scoreboard sidebar with the score numbers hidden.
+- **Sidebar** (default): a scoreboard sidebar with the score numbers hidden,
+  in three sections since BETA 1.0: **Here** (the temperature and feels-like,
+  the comfort bar, humidity and air), **Outside** (the temperature and
+  weather, wind and season) and **System** (the system and what it's doing,
+  and the airflow).
 - **Action bar:** one line above the hotbar.
 - **Boss bar:** a bar whose fill and colour follow the temperature.
 
@@ -67,7 +71,7 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_bar%` / `%ezvac_bar_plain%` | `▮▮▮▮▮▯▯▯▯▯` (coloured / plain) |
 | `%ezvac_comfort%` | `Comfortable` |
 | `%ezvac_system%`, `%ezvac_thermostat%` | `Home`, `Home`: the thermostat whose air you're in (`%ezvac_group%`, its pre-3.0 name, still works). A system that lost its thermostat shows `Headless` |
-| `%ezvac_mode%`, `%ezvac_target%` | `Cooling to 70.0°F`, `70.0°F` |
+| `%ezvac_mode%`, `%ezvac_target%` | `Cooling to 70.0°F` (`Holding 70.0°F` when idle, BETA 1.0; `Idle` before), `70.0°F` |
 | `%ezvac_zone%`, `%ezvac_influence%`, `%ezvac_conditioned%` | `Core`, `100`, `true` |
 | `%ezvac_medium%` | `air` or `water` |
 
@@ -89,8 +93,8 @@ and these tokens:
 
 `{temp}` `{feels}` `{humidity}` `{aqi}` `{aqi_band}` `{pollen}` `{wind}`
 `{wind_level}` `{bar}` `{comfort}` `{outdoor}` `{weather}` `{season}`
-`{season_day}` `{system}` `{thermostat}` `{mode}` `{target}` `{zone}`
-`{version}`
+`{season_day}` `{system}` `{thermostat}` `{mode}` `{system_mode}` `{target}`
+`{zone}` `{version}`
 
 `{aqi}` is the Air Quality Index in its band's colour (3.2). The air values
 read `none` where the air isn't measured: in water, or with `air-quality`
@@ -103,6 +107,12 @@ and with `wind` switched off. A stock sidebar gains a wind line too.
 
 `{system}` is the label of the thermostat whose air you're in, or `Headless`;
 `{group}`, its name before 3.0, still works in existing configs.
+`{system_mode}` (BETA 1.0) puts the system and what it's doing on one line,
+`Home: Holding 72.0°F`, and reads just `none` outside any system.
+
+When you upgrade to BETA 1.0, a sidebar that still has the 3.2 stock lines,
+in air or in water, moves to the sections. A sidebar you changed is left as
+it is.
 
 ### Addon sections
 

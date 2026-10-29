@@ -143,7 +143,7 @@ public record HudSettings(
     public static void addSeasonLine(YamlConfiguration config, List<String> added) {
         if (added.stream().noneMatch(path -> path.startsWith("seasons."))) return;
         List<String> lines = config.getStringList("hud.sidebar.lines");
-        List<String> stock = new ArrayList<>(defaults().sidebarLines());
+        List<String> stock = new ArrayList<>(STOCK_32);
         stock.remove(SEASON_LINE);
         stock.remove(ADDONS_LINE);
         stock.remove(AIR_LINE);    // arrives after, in addAirLine
@@ -167,7 +167,7 @@ public record HudSettings(
     public static void addAirLine(YamlConfiguration config, List<String> added) {
         if (added.stream().noneMatch(path -> path.startsWith("air-quality."))) return;
         List<String> lines = config.getStringList("hud.sidebar.lines");
-        List<String> stock = new ArrayList<>(defaults().sidebarLines());
+        List<String> stock = new ArrayList<>(STOCK_32);
         stock.remove(AIR_LINE);
         stock.remove(WIND_LINE);   // arrives after, in addWindLine
         if (!lines.equals(stock) || !lines.contains(HUMIDITY_LINE)) return;
@@ -188,7 +188,7 @@ public record HudSettings(
     public static void addWindLine(YamlConfiguration config, List<String> added) {
         if (added.stream().noneMatch(path -> path.startsWith("wind."))) return;
         List<String> lines = config.getStringList("hud.sidebar.lines");
-        List<String> stock = new ArrayList<>(defaults().sidebarLines());
+        List<String> stock = new ArrayList<>(STOCK_32);
         stock.remove(WIND_LINE);
         if (!lines.equals(stock) || !lines.contains(OUTSIDE_LINE)) return;
         List<String> withWind = new ArrayList<>(lines);
@@ -209,11 +209,11 @@ public record HudSettings(
      */
     public static void addAddonsLine(YamlConfiguration config, List<String> added) {
         if (added.stream().noneMatch(path -> path.startsWith("hud.sections"))) return;
-        List<String> beforeAir = new ArrayList<>(defaults().sidebarLines());
+        List<String> beforeAir = new ArrayList<>(STOCK_32);
         beforeAir.remove(AIR_LINE);    // arrives after, in addAirLine
         beforeAir.remove(WIND_LINE);   // and in addWindLine
         addAddonsLine(config, "hud.sidebar.lines", beforeAir, SEASON_LINE, added);
-        addAddonsLine(config, "hud.water.sidebar.lines", defaultWater().sidebarLines(), WATER_AIR_LINE, added);
+        addAddonsLine(config, "hud.water.sidebar.lines", WATER_STOCK_32, WATER_AIR_LINE, added);
     }
 
     private static void addAddonsLine(YamlConfiguration config, String path, List<String> defaults, String after,
@@ -227,24 +227,95 @@ public record HudSettings(
         added.add(path);
     }
 
+    /**
+     * The stock sidebar from 2.1 to 3.2: one list, the system at the bottom.
+     * The steps above compare a server's sidebar with it, so a stock one is
+     * brought up to date line by line before it moves to the sections.
+     */
+    static final List<String> STOCK_32 = List.of(
+            "<gray>Here: <white>{temp}",
+            "<gray>Feels like: <white>{feels}",
+            "{bar} {comfort}",
+            HUMIDITY_LINE,
+            AIR_LINE,
+            OUTSIDE_LINE,
+            WIND_LINE,
+            SEASON_LINE,
+            ADDONS_LINE,
+            "",
+            "<gray>System: <white>{system}",
+            "<gray>Mode: <white>{mode}",
+            "<gray>Airflow: <white>{zone}",
+            "<dark_gray><font:uniform>Version: {version}</font>");
+
+    /** The stock water sidebar from 2.1 to 3.2. */
+    static final List<String> WATER_STOCK_32 = List.of(
+            "<gray>Water: <white>{temp}",
+            "{bar} {comfort}",
+            WATER_AIR_LINE,
+            ADDONS_LINE,
+            "",
+            "<gray>Pool: <white>{system}",
+            "<gray>Mode: <white>{mode}",
+            "<gray>Circulation: <white>{zone}",
+            "<dark_gray><font:uniform>Version: {version}</font>");
+
+    /**
+     * The stock sidebar since BETA 1.0, in sections: Here, Outside and
+     * System, each under its heading, with its lines indented a space.
+     */
+    private static final List<String> SECTIONED = List.of(
+            "<aqua>Here",
+            "<gray> Temp: <white>{temp} <gray>feels <white>{feels}",
+            " {bar} {comfort}",
+            "<gray> Humidity: <white>{humidity}",
+            "<gray> Air: {aqi} <white>{aqi_band} <gray>· Pollen <white>{pollen}",
+            "<aqua>Outside",
+            "<gray> Temp: <white>{outdoor} <gray>{weather}",
+            "<gray> Wind: <white>{wind}",
+            "<gray> Season: <white>{season} <gray>day {season_day}",
+            ADDONS_LINE,
+            "<aqua>System",
+            " {system_mode}",
+            "<gray> Airflow: <white>{zone}",
+            "<dark_gray><font:uniform>Version: {version}</font>");
+
+    /** The stock water sidebar since BETA 1.0. */
+    private static final List<String> WATER_SECTIONED = List.of(
+            "<aqua>Water",
+            "<gray> Temp: <white>{temp}",
+            " {bar} {comfort}",
+            "<aqua>Outside",
+            "<gray> Air: <white>{outdoor} <gray>{weather}",
+            ADDONS_LINE,
+            "<aqua>Pool",
+            " {system_mode}",
+            "<gray> Circulation: <white>{zone}",
+            "<dark_gray><font:uniform>Version: {version}</font>");
+
+    /**
+     * When a server first starts BETA 1.0 (its config.yml gains
+     * {@code updates}), a sidebar that is still the 3.2 stock one moves to
+     * the sections, the water one too. One the server has made its own is
+     * left exactly as it is. Runs after the steps above.
+     */
+    public static void adoptSections(YamlConfiguration config, List<String> added) {
+        if (added.stream().noneMatch(path -> path.startsWith("updates."))) return;
+        adopt(config, "hud.sidebar.lines", STOCK_32, SECTIONED, added);
+        adopt(config, "hud.water.sidebar.lines", WATER_STOCK_32, WATER_SECTIONED, added);
+    }
+
+    private static void adopt(YamlConfiguration config, String path, List<String> stock, List<String> sectioned,
+                              List<String> added) {
+        if (!config.getStringList(path).equals(stock)) return;
+        config.set(path, sectioned);
+        added.add(path);
+    }
+
     public static HudSettings defaults() {
         return new HudSettings(true, Style.SIDEBAR, 10, false,
                 "<gradient:#3999fb:#f69500><bold>Climate</bold></gradient> <dark_gray>-</dark_gray> <gray>EZvac",
-                List.of(
-                        "<gray>Here: <white>{temp}",
-                        "<gray>Feels like: <white>{feels}",
-                        "{bar} {comfort}",
-                        HUMIDITY_LINE,
-                        AIR_LINE,
-                        "<gray>Outside: <white>{outdoor} <gray>{weather}",
-                        WIND_LINE,
-                        SEASON_LINE,
-                        ADDONS_LINE,
-                        "",
-                        "<gray>System: <white>{system}",
-                        "<gray>Mode: <white>{mode}",
-                        "<gray>Airflow: <white>{zone}",
-                        "<dark_gray><font:uniform>Version: {version}</font>"),
+                SECTIONED,
                 List.of("TAB", "FeatherBoard", "AnimatedScoreboard", "SimpleScore", "KiteBoard",
                         "QuickBoard", "TitleManager", "BetterScoreboard"),
                 "<white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{humidity}"
@@ -263,16 +334,7 @@ public record HudSettings(
 
     private static Medium defaultWater() {
         return new Medium(
-                List.of(
-                        "<gray>Water: <white>{temp}",
-                        "{bar} {comfort}",
-                        WATER_AIR_LINE,
-                        ADDONS_LINE,
-                        "",
-                        "<gray>Pool: <white>{system}",
-                        "<gray>Mode: <white>{mode}",
-                        "<gray>Circulation: <white>{zone}",
-                        "<dark_gray><font:uniform>Version: {version}</font>"),
+                WATER_SECTIONED,
                 "<aqua>Water</aqua> <white>{temp}</white> {bar} {comfort} <dark_gray>|</dark_gray> <gray>{system}",
                 "<aqua>Water</aqua> <white>{temp}</white> <gray>-</gray> {comfort} <dark_gray>|</dark_gray> <gray>{system}",
                 60.0, 104.0,

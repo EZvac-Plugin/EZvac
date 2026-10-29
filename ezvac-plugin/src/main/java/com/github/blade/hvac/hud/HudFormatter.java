@@ -171,8 +171,20 @@ public final class HudFormatter {
     public String mode(ClimateSnapshot snapshot) {
         if (snapshot.mode() == null) return settings.noneText();
         String mode = capitalize(snapshot.mode());
-        if (Double.isNaN(snapshot.targetF()) || snapshot.mode().equals("IDLE")) return mode;
+        if (Double.isNaN(snapshot.targetF())) return mode;
+        // Idle at the target is holding it (BETA 1.0), as the thermostat's screen says.
+        if (snapshot.mode().equals("IDLE")) return "Holding " + temperature(snapshot.targetF());
         return mode + " to " + temperature(snapshot.targetF());
+    }
+
+    /**
+     * The system and what it's doing on one line (BETA 1.0), for the
+     * sectioned sidebar: {@code Home1: Holding 72.0°F}, or the none-text
+     * outside any system rather than "none: none".
+     */
+    private String systemModeMini(ClimateSnapshot snapshot) {
+        if (snapshot.system() == null) return "<gray>" + escape(settings.noneText());
+        return "<gray>" + escape(snapshot.system()) + ": <white>" + escape(mode(snapshot));
     }
 
     /** "45%", or the none text in water or where humidity is unknown. */
@@ -259,6 +271,7 @@ public final class HudFormatter {
                 .replace("{bar}", barMini(snapshot.comfortF(), medium))
                 .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
+                .replace("{system_mode}", systemModeMini(snapshot))
                 .replace("{system}", escape(system(snapshot)))
                 .replace("{group}", escape(system(snapshot)))
                 .replace("{thermostat}", escape(thermostat(snapshot)))
