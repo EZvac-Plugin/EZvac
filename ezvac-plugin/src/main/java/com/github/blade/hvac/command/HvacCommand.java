@@ -8,6 +8,7 @@ import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.ServerSwitches;
 import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.hud.ClimateHudService;
+import com.github.blade.hvac.hud.HudFormatter;
 import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
@@ -535,11 +536,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(gray(water ? "Natural water: no pool system reaches this block."
                     : "No completed linked-vent path reaches this block."));
         } else {
-            String zone = reading.airflowDistance() <= settings.airflowCoreRange()
-                    ? "core" : Math.round(reading.influence() * 100) + (water ? "% mixing" : "% leakage");
+            int strength = HudFormatter.strength(reading.airflowDistance() <= settings.airflowCoreRange(),
+                    reading.influence());
+            String text = strength + "%";
             player.sendMessage(join(gray("System: "), white(SystemNames.label(registry, reading.system())),
-                    gray(" | Path: "),
-                    white(reading.airflowDistance() + " blocks"), gray(" | Zone: "), white(zone)));
+                    gray(" | Path: "), white(reading.airflowDistance() + " blocks"), gray(" | Strength: "),
+                    strength == 100 ? green(text) : strength < 50 ? gold(text) : white(text)));
         }
     }
 

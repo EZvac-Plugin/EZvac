@@ -60,6 +60,13 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
 - **An idle system says what it holds:** `{mode}` and `%ezvac_mode%` read
   `Holding 72.0°F` instead of `Idle`, as its screen does. The new
   `{system_mode}` token gives `Home: Holding 72.0°F`.
+- **Airflow shows its strength:** `Airflow: Strength 100%`, in green, in a
+  vent's core, and less towards the edge of its reach, in gold under 50%.
+  It used to say `Core` or `62% leakage`, which read as the opposite of what
+  it meant and clashed with a building's leaks (see Size-based heating and
+  cooling). `Outside` is unchanged; pools read `Circulation: Strength 62%`.
+  `%ezvac_zone%` gives the same text, and `%ezvac_influence%` is still the
+  number. `/hvac temperature` says `Strength: 62%` instead of `Zone:`.
 - **Pollen levels are shorter** on the HUD and in `%ezvac_pollen%`: `Med`
   and `V.High` instead of Moderate and Very high, so no level widens the
   sidebar. Screens and commands keep the full words.

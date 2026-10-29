@@ -24,7 +24,7 @@ class PlaceholderResolverTest {
                 Map.entry("comfort", "Comfortable"), Map.entry("system", "house"), Map.entry("group", "house"),
                 Map.entry("thermostat", "main"), Map.entry("mode", "Cooling to 70.0°F"),
                 Map.entry("target", "70.0°F"), Map.entry("influence", "60"),
-                Map.entry("zone", "60% leakage"), Map.entry("conditioned", "true"), Map.entry("medium", "air"),
+                Map.entry("zone", "Strength 60%"), Map.entry("conditioned", "true"), Map.entry("medium", "air"),
                 Map.entry("feels_like", "73.4°F"), Map.entry("feels_like_f", "73.4°F"),
                 Map.entry("feels_like_c", "23.0°C"), Map.entry("humidity", "45%"), Map.entry("weather", "Rain"),
                 Map.entry("season", "Summer"), Map.entry("season_day", "3"),
@@ -96,7 +96,7 @@ class PlaceholderResolverTest {
         ClimateSnapshot pool = new ClimateSnapshot(84.0, 90.0, 1.0, 2, "pool", "spa", "HEATING", 84.0, true, true);
         assertEquals("water", resolver.resolve(pool, "medium"));
         assertEquals("Comfortable", resolver.resolve(pool, "comfort"));
-        assertEquals("Core", resolver.resolve(pool, "zone"));
+        assertEquals("Strength 100%", resolver.resolve(pool, "zone"));
     }
 
     @Test

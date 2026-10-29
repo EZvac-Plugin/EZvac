@@ -84,7 +84,7 @@ class HudFormatterTest {
     void templatesFillEveryToken() {
         String line = plain(format.render(
                 "{temp}|{bar}|{comfort}|{outdoor}|{group}|{thermostat}|{mode}|{target}|{zone}", cooled(72.5)));
-        assertEquals("72.5°F|▮▮▮▮▮▯▯▯▯▯|Comfortable|88.0°F|house|main|Cooling to 70.0°F|70.0°F|60% leakage", line);
+        assertEquals("72.5°F|▮▮▮▮▮▯▯▯▯▯|Comfortable|88.0°F|house|main|Cooling to 70.0°F|70.0°F|Strength 60%", line);
     }
 
     @Test
@@ -105,7 +105,7 @@ class HudFormatterTest {
     @Test
     void coreAndIdleRenderPlainly() {
         ClimateSnapshot idleCore = new ClimateSnapshot(70.0, 60.0, 1.0, 3, "house", "main", "IDLE", 70.0, true, false);
-        assertEquals("Holding 70.0°F|Core", plain(format.render("{mode}|{zone}", idleCore)));
+        assertEquals("Holding 70.0°F|Strength 100%", plain(format.render("{mode}|{zone}", idleCore)));
     }
 
     @Test
@@ -141,11 +141,25 @@ class HudFormatterTest {
     }
 
     @Test
+    void strengthIsFullAndGreenOnlyInTheCoreAndGoldUnderHalf() {
+        ClimateSnapshot core = new ClimateSnapshot(70.0, 88.0, 1.0, 4, "house", "main", "COOLING", 70.0, true, false);
+        ClimateSnapshot almost = new ClimateSnapshot(70.0, 88.0, 0.996, 16, "house", "main", "COOLING", 70.0, false, false);
+        ClimateSnapshot weak = new ClimateSnapshot(70.0, 88.0, 0.3, 26, "house", "main", "COOLING", 70.0, false, false);
+        ClimateSnapshot outside = new ClimateSnapshot(88.0, 88.0, 0.0, -1, null, null, null, Double.NaN, false, false);
+        assertEquals("<white><green>Strength 100%</green>", format.fill("<white>{zone}", core));
+        assertEquals("<white>Strength 99%", format.fill("<white>{zone}", almost), "just short of the core never reads full");
+        assertEquals("<white>Strength 60%", format.fill("<white>{zone}", cooled(70)), "between, the template's colour");
+        assertEquals("<white><gold>Strength 30%</gold>", format.fill("<white>{zone}", weak));
+        assertEquals("<white>Outside", format.fill("<white>{zone}", outside));
+        assertEquals("Strength 100%", format.zone(core), "placeholders stay plain");
+    }
+
+    @Test
     void waterUsesItsOwnScaleAndWording() {
         ClimateSnapshot pool = new ClimateSnapshot(84.0, 90.0, 0.4, 20, "pool", "spa", "HEATING", 84.0, false, true);
         assertEquals("Comfortable", format.band(pool).label(), "84 F is a pleasant pool");
         assertEquals("Warm", format.band(84.0).label(), "but a warm room");
-        assertEquals("Water: 84.0°F|Air: 90.0°F|Pool: pool|Circulation: 40% mixing",
+        assertEquals("Water: 84.0°F|Air: 90.0°F|Pool: pool|Circulation: Strength 40%",
                 plain(format.render("<gray>Water: {temp}|Air: {outdoor}|Pool: {group}|Circulation: {zone}", pool)));
         assertEquals(BossBar.Color.GREEN, format.bossBarColor(pool));
         ClimateSnapshot hotTub = new ClimateSnapshot(102.0, 70.0, 1.0, 2, "spa", "spa", "IDLE", 102.0, true, true);

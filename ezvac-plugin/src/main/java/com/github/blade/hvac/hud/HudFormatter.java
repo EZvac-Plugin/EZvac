@@ -240,11 +240,30 @@ public final class HudFormatter {
         return Double.isNaN(snapshot.targetF()) ? settings.noneText() : temperature(snapshot.targetF());
     }
 
-    /** Air: "Core", "62% leakage", "Outside". Water: "Core", "62% mixing", "Natural water". */
+    /**
+     * How well the system's air (or water) reaches here: "Strength 100%" in
+     * the core, less towards its edge; "Outside" or "Natural water" beyond it.
+     * BETA 1.0: before, "Core" and "62% leakage", which read as the opposite
+     * of what it meant and clashed with a building's leaks.
+     */
     public String zone(ClimateSnapshot snapshot) {
         if (!snapshot.conditioned()) return snapshot.water() ? "Natural water" : "Outside";
-        if (snapshot.core()) return "Core";
-        return Math.round(snapshot.influence() * 100) + (snapshot.water() ? "% mixing" : "% leakage");
+        return "Strength " + strength(snapshot.core(), snapshot.influence()) + "%";
+    }
+
+    /** The zone for templates: green at full strength, gold under half, otherwise the template's colour. */
+    private String zoneMini(ClimateSnapshot snapshot) {
+        String text = escape(zone(snapshot));
+        if (!snapshot.conditioned()) return text;
+        int strength = strength(snapshot.core(), snapshot.influence());
+        if (strength == 100) return "<green>" + text + "</green>";
+        return strength < 50 ? "<gold>" + text + "</gold>" : text;
+    }
+
+    /** 0-100, rounded down: 100 only in the core, so just short of it never reads full. */
+    public static int strength(boolean core, double influence) {
+        if (core) return 100;
+        return (int) Math.max(0, Math.min(99, Math.floor(influence * 100)));
     }
 
     // ---- templates ----
@@ -279,7 +298,7 @@ public final class HudFormatter {
                 .replace("{thermostat}", escape(thermostat(snapshot)))
                 .replace("{mode}", escape(mode(snapshot)))
                 .replace("{target}", escape(target(snapshot)))
-                .replace("{zone}", escape(zone(snapshot)))
+                .replace("{zone}", zoneMini(snapshot))
                 .replace("{version}", escape(version));
     }
 

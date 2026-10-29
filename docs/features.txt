@@ -571,7 +571,8 @@ CLIMATE HUD AND PLACEHOLDERS
 - /hvac hud shows, per player, the local temperature, how warm it feels, a
   cold-to-hot bar, a comfort label (cold, cool, comfortable, warm, hot), the
   humidity, the outdoor temperature and weather, and the conditioning system
-  with its mode, target, and core/leakage zone.
+  with its mode, target, and airflow strength (Strength 100% green in the core,
+  less towards the edge, gold under 50%; Outside where none reaches).
 - Styles: a scoreboard sidebar (default, score numbers hidden), the action bar,
   or a boss bar whose fill and colour follow the temperature.
 - Off by default per player; the choice is stored in the player's own data,
