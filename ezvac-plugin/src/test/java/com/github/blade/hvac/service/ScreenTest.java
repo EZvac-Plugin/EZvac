@@ -1,8 +1,11 @@
 package com.github.blade.hvac.service;
 
+import com.github.blade.hvac.model.OperatingMode;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -94,6 +97,18 @@ class ScreenTest {
             for (String line : lines)
                 assertTrue(line.isBlank() || line.equals(line.strip()), () -> "never padded: '" + line + "'");
         }
+    }
+
+    @Test
+    void aThermostatWaitingOnUnitsFitsItsLines() {
+        // A wrapped line pushes the body up over the big reading (BETA 1.0, seen on a live screen).
+        for (String target : List.of("104.0°F", "-40.0°C", "100.0°F"))
+            for (OperatingMode mode : List.of(OperatingMode.HEATING, OperatingMode.COOLING)) {
+                String line = DisplayService.waitingLine(mode, target);
+                assertTrue(SignText.width(line) <= ScreenText.WIDTH, line + " is " + SignText.width(line));
+            }
+        assertTrue(SignText.width(DisplayService.UNITS_OFF) <= ScreenText.WIDTH);
+        assertTrue(SignText.width(DisplayService.UNITS_OFF + " | 15/15") <= SignText.SIGN_WIDTH, "and the sign's footer");
     }
 
     @Test

@@ -282,9 +282,9 @@ public final class DisplayService {
             if (!thermostat.enabled())
                 screen.tone(ScreenText.Tone.OFF).line("Off · set " + target, NamedTextColor.GRAY);
             else if (waiting != null)
-                screen.tone(ScreenText.Tone.OFF).line((waiting == OperatingMode.HEATING ? "Needs heat" : "Needs cooling")
-                        + " · set " + target, waiting == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.AQUA)
-                        .line(UNITS_OFF + " server-wide", NamedTextColor.RED);
+                screen.tone(ScreenText.Tone.OFF).line(waitingLine(waiting, target),
+                        waiting == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.AQUA)
+                        .line(UNITS_OFF, NamedTextColor.RED);
             else switch (thermostat.mode()) {
                 case COOLING -> screen.tone(ScreenText.Tone.COOLING).line("Cooling to " + target, NamedTextColor.AQUA)
                         .line(ScreenText.bar(load, 10, NamedTextColor.AQUA));
@@ -550,6 +550,15 @@ public final class DisplayService {
 
     /** A thermostat whose call waits on units switched off in /hvac quicksettings (BETA 1.0). */
     static final String UNITS_OFF = "Units off";
+
+    /**
+     * What a waiting thermostat's screen says it wants: {@code Heat to 72.0°F}.
+     * Shorter than "Heating to", so it fits a screen line at any target; a
+     * line that wraps pushes the body up over the big reading.
+     */
+    static String waitingLine(OperatingMode waiting, String target) {
+        return (waiting == OperatingMode.HEATING ? "Heat to " : "Cool to ") + target;
+    }
 
     /** A unit whose kind is switched off in /hvac quicksettings (BETA 1.0); 15 characters, a sign line. */
     static final String OFF_SERVER_WIDE = "Off server-wide";
