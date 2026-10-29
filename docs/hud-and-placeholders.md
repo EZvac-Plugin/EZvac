@@ -60,7 +60,7 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_aqi%`, `%ezvac_aqi_colored%` | `42`: the Air Quality Index (3.2), plain or in its band's colour |
 | `%ezvac_aqi_band%` | `Good` (`Moderate`, `Sensitive`, `Unhealthy`, `Very bad`, `Hazardous`) |
 | `%ezvac_pm25%`, `%ezvac_pm10%` | `6.4`, `18`: particles in µg/m³ |
-| `%ezvac_pollen%`, `%ezvac_pollen_count%` | `High`, `95`: the pollen level (`Low`, `Med`, `High`, `Very high`; `Med` was `Moderate` before BETA 1.0, to keep sidebars narrow), and grains/m³ |
+| `%ezvac_pollen%`, `%ezvac_pollen_count%` | `High`, `95`: the pollen level (`Low`, `Med`, `High`, `V.High`; before BETA 1.0 `Moderate` and `Very high`, shortened to keep sidebars narrow), and grains/m³ |
 | `%ezvac_wind%` | `Windy 22 km/h`, or `Calm` (3.2) |
 | `%ezvac_wind_level%`, `%ezvac_wind_speed%` | `Windy`, `22 km/h`: the level, and the speed in the server's units |
 | `%ezvac_wind_ms%`, `%ezvac_wind_kmh%`, `%ezvac_wind_mph%` | `6`, `22`, `14`: the speed as a whole number |
