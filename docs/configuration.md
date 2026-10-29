@@ -122,7 +122,7 @@ When the thermostat acts.
 | `heating-f-per-minecraft-hour` | 5.0 | How fast one unit at full speed heats |
 | `idle-drift-f-per-minecraft-hour` | 1.25 | How fast a room with nothing running drifts toward the outdoors |
 | `active-leak-f-per-minecraft-hour` | 0.50 | How much the outdoors works against a running system |
-| `maximum-group-capacity` | 2.0 | Most a system's units can add up to, in single units (named before groups became systems in 3.0) |
+| `maximum-group-capacity` | 2.0 | The most a system delivers, in units of one ★★★ unit in a house its size. With [sizing](#sizing) on, it applies after the size scales the units, so a small room heats at most twice as fast. (Named before groups became systems in 3.0) |
 
 ## performance.variable-speed
 
@@ -157,6 +157,21 @@ The budget tiers (3.1). Variable-speed (★★★) isn't listed: it is the
 | `maximum-range` | 30 | Blocks of airflow before a system has no effect |
 | `nodes-per-tick` | 4000 | Work budget for working out airflow, per tick |
 | `maximum-cells-per-system` | 200000 | Most blocks one system's airflow covers |
+
+## sizing
+
+New in BETA 1.0; see [Sizing](equipment.md#sizing).
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `enabled` | true | false: any size heats and cools as before BETA 1.0. Quick settings switches it while the server runs |
+| `cells-per-unit` | 1860 | Blocks of air one ★★★ unit heats or cools at the normal pace: 5,000 sq ft of floor over 4-block levels |
+| `pool-cells-per-unit` | 1500 | Blocks of water one ★★★ pool heater warms at the normal pace |
+| `maximum-speed-up` | 2.0 | The most a smaller system is sped up by |
+| `outdoor-reach` | 3 | Blocks the air reaches past a roof's edge, into open sky |
+| `opening-leak` | 1.1 | Extra leak per block of opening, per 1,000 blocks of air. One open door in a sized house leaks about twice as much as a sealed one |
+| `maximum-openness` | 6.0 | The most openings can multiply a sealed room's leak by |
+| `neighbour-exchange` | 10.0 | How fast systems whose air touches even out, per touching face |
 
 ## audio
 

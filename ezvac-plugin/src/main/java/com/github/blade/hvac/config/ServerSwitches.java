@@ -11,8 +11,8 @@ import java.util.function.Consumer;
 
 /**
  * What /hvac quicksettings switches while the server runs (BETA 1.0): air
- * quality, pollen, wind and the seasons, and device kinds switched off
- * server-wide. Each lives in config.yml, and a change is written back to it.
+ * quality, pollen, wind, the seasons and building size, and device kinds
+ * switched off server-wide. Each lives in config.yml, and a change is written back to it.
  *
  * <p>While EZvac runs, the installed switches are what the settings records'
  * {@code enabled()} answer, so every check of a feature, from the HUD to the
@@ -28,6 +28,7 @@ public final class ServerSwitches {
     private volatile boolean pollen;
     private volatile boolean wind;
     private volatile boolean seasons;
+    private volatile boolean sizing;
     /** Replaced whole on a change, so a reader off the main thread never sees it half-made. */
     private volatile Set<DeviceKind> off;
 
@@ -38,6 +39,7 @@ public final class ServerSwitches {
         this.pollen = config.getBoolean("air-quality.pollen", true);
         this.wind = config.getBoolean("wind.enabled", true);
         this.seasons = config.getBoolean("seasons.enabled", true);
+        this.sizing = config.getBoolean("sizing.enabled", true);
         this.off = off;
     }
 
@@ -76,6 +78,11 @@ public final class ServerSwitches {
         return switches == null ? configured : switches.seasons;
     }
 
+    static boolean sizing(boolean configured) {
+        ServerSwitches switches = live;
+        return switches == null ? configured : switches.sizing;
+    }
+
     static boolean pollenOn() {
         ServerSwitches switches = live;
         return switches == null || switches.pollen;
@@ -91,6 +98,7 @@ public final class ServerSwitches {
     public boolean pollen() { return pollen; }
     public boolean wind() { return wind; }
     public boolean seasons() { return seasons; }
+    public boolean sizing() { return sizing; }
     public boolean isOff(DeviceKind kind) { return off.contains(kind); }
 
     public void setAirQuality(boolean on) {
@@ -111,6 +119,11 @@ public final class ServerSwitches {
     public void setSeasons(boolean on) {
         seasons = on;
         write("seasons.enabled", on);
+    }
+
+    public void setSizing(boolean on) {
+        sizing = on;
+        write("sizing.enabled", on);
     }
 
     public void setOff(DeviceKind kind, boolean switchedOff) {

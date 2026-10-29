@@ -93,10 +93,15 @@ public final class PerformanceModel {
      */
     public static double load(double deliveredFixed, double deliveredVariable, double fullFixed, double fullVariable,
                               HvacSettings settings) {
-        double full = ThermalModel.aggregateIndependentCapacity(fullFixed, fullVariable, settings.maximumSystemCapacity());
+        return load(deliveredFixed, deliveredVariable, fullFixed, fullVariable, Double.NaN, settings);
+    }
+
+    /** The same, combined as a system of this size combines its units (BETA 1.0; NaN with building size off). */
+    public static double load(double deliveredFixed, double deliveredVariable, double fullFixed, double fullVariable,
+                              double sizeFactor, HvacSettings settings) {
+        double full = SizingModel.combine(fullFixed, fullVariable, sizeFactor, settings);
         if (full <= 0.0) return 0.0;
-        double delivered = ThermalModel.aggregateIndependentCapacity(deliveredFixed, deliveredVariable,
-                settings.maximumSystemCapacity());
+        double delivered = SizingModel.combine(deliveredFixed, deliveredVariable, sizeFactor, settings);
         return clamp(delivered / full, 0.0, 1.0);
     }
 

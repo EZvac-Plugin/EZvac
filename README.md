@@ -35,7 +35,9 @@ biome and the weather.
 > sulfur caves get their own climate and air, and admins are told when a
 > newer EZvac is out. `/hvac quicksettings` gives owners one menu to switch
 > device kinds, air quality, pollen, wind and the seasons on or off, and to
-> back the registry up. Your save carries over unchanged.
+> back the registry up. Heating and cooling now go by building size: one
+> three-star unit per 5,000 sq ft, so big builds need more equipment. Your
+> save carries over unchanged.
 >
 > ALPHA 3.2 added air quality. Every room tracks
 > fine particles, dust and pollen, scored as the US EPA Air Quality Index:

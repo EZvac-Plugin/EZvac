@@ -675,6 +675,59 @@ UPDATE CHECK
   has nothing to compare against.
 
 
+SIZING
+------
+
+- Size-based heating and cooling (BETA 1.0; sizing.enabled, live through
+  ServerSwitches and quick settings' Building size). SizingModel is pure.
+- A system's size is the blocks it owns: its completed airflow map, a block
+  reached by several systems going to the nearest (ties to the lower id), as
+  readings already do. Water systems count water.
+- Required = size / cells-per-unit (1860; pools pool-cells-per-unit, 1500),
+  in variable-speed units. Installed = sum of tierCapacity (1, 0.85, 0.70)
+  over enabled units that do the mode and aren't switched off server-wide.
+  Undersized below 95% of required; the thermostat screen adds
+  "Undersized <has>/<needs>" (whole numbers from 10; a share in % if even that
+  is too wide) while heating or cooling.
+- Delivered capacity: with sizing, units add up linearly and are multiplied
+  by factor = min(maximum-speed-up, cells-per-unit / size), then capped at
+  maximum-group-capacity (SizingModel.combine). Without it, the old
+  aggregateIndependentCapacity (sqrt past one unit). The ETA and the load bar
+  combine the same way.
+- The walk (air systems, sizing on): a block is open sky above the column's
+  highest MOTION_BLOCKING_NO_LEAVES block (cached per column per rebuild).
+  Under a roof a path goes the vent's range as before; out under sky it
+  counts steps and stops past outdoor-reach (3); back under a roof it resets.
+  Openings: open-sky blocks next to a roofed block the walk reached (a set,
+  so the walk's order doesn't matter).
+- Leak: wind infiltration x openness, openness = min(maximum-openness,
+  1 + opening-leak x openings x 1000 / size); it feeds the thermal, humidity
+  and air steps and the ETA. opening-leak 1.1: one open door (2 blocks) in a
+  sized house stretches a hot day's ETA by about x1.45.
+- Neighbours: contact = faces where a block one system owns touches one
+  another owns (same medium only). Each cycle a system is pulled by
+  neighbour-exchange x contact / size x (their F - its F) per in-game hour,
+  from start-of-cycle temperatures, at most half the gap, added after its
+  thermal step. Shapes (owned, openings, contacts) are worked out after a map
+  completes, for it and every system whose map could meet it, in slices of
+  nodes-per-tick blocks a tick.
+- /hvac sync also remaps every system (blocks changed by /fill or WorldEdit
+  fire no events).
+- A map with no blocks (every vent in unloaded chunks) counts as not mapped
+  yet: no size factor, no openness, "not mapped yet" in listings.
+- Shapes are found through a 32-block grid of where maps lie, and each one
+  started costs 64 of the tick's budget, so a mass remap spreads over ticks.
+  Fresh ETA forecasts are capped at 64 per tick (DisplayService); past that a
+  sign keeps its last ETA until its next refresh. The 1000-room benchmark
+  averages the same as without sizing; its one tick of 40-65 ms, when every
+  identical room reaches its target together, also happens without sizing,
+  only later.
+- /hvac stats sizes (ezvac.admin, chat or console) and quick settings'
+  Statistics > Sizes list every system's size, openings and has/needs for
+  cooling and heating, the worst sized first (HvacController.sizeLines);
+  /hvac info on a thermostat adds the sq ft and the systems its air touches.
+
+
 QUICK SETTINGS
 --------------
 

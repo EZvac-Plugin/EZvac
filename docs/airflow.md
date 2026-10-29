@@ -43,7 +43,36 @@ air goes around corners and through doorways but not through walls.
   room.
 
 When you open a door or break a wall, the system's airflow updates about a
-second later. More vents cover more of a big space.
+second later. More vents cover more of a big space. Blocks changed by
+commands such as `/fill` or WorldEdit don't tell EZvac; run `/hvac sync`
+afterwards to map every system again.
+
+### Roofs and the outdoors
+
+New in BETA 1.0, with [sizing](equipment.md#sizing). Air under a roof goes as
+far as its vents reach. Once it steps out under open sky, through a door, a
+window or off a patio, it only goes **3 blocks** further before the outdoors
+swallows it:
+
+```
+ vent (10 blocks inside)                roof ends
+ ##############################################
+ . . . . . . . . . . . . . . . . . . . [door]  1  2  3  x
+ ##############################################
+```
+
+- **Roofed** means a solid block somewhere above, glass included. Leaves
+  don't count.
+- **A porch with a roof** is indoors: the whole porch is reached, then 3
+  blocks past its edge.
+- **A vent out in the open** cools a small bubble around it, not a field.
+- **Every block of opening** (each block of a doorway or window, or a hole
+  in the roof) makes the room leak more, so it drifts toward the outdoor
+  temperature faster.
+- **The Nether** is all roofed, so nothing changes there.
+
+`sizing.outdoor-reach` sets the 3 blocks. With building size off, air goes
+the whole 30 blocks outdoors, as before BETA 1.0.
 
 <!-- screenshot: a room with two iron trapdoor vents and the link tool -->
 

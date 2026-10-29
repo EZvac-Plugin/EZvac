@@ -108,6 +108,12 @@ class ScreenTest {
                 assertTrue(SignText.width(line) <= ScreenText.WIDTH, line + " is " + SignText.width(line));
             }
         assertTrue(SignText.width(DisplayService.UNITS_OFF) <= ScreenText.WIDTH);
+        // Size-based heating (BETA 1.0): the widest has/needs a system can show, up to 200,000 blocks of air.
+        for (double[] sized : new double[][] {{0.85, 2.6}, {9.9, 9.9}, {12.5, 107.5}, {107.5, 107.5}}) {
+            String line = DisplayService.undersizedLine(new com.github.blade.hvac.simulation.SizingModel.Assessment(
+                    200_000, false, 0, sized[1], sized[0], 0.01, 1.0));
+            assertTrue(SignText.width(line) <= ScreenText.WIDTH, line + " is " + SignText.width(line));
+        }
         assertTrue(SignText.width(DisplayService.UNITS_OFF + " | 15/15") <= SignText.SIGN_WIDTH, "and the sign's footer");
     }
 

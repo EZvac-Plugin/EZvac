@@ -134,10 +134,11 @@ In `config.yml` this is [`devices.disabled`](configuration.md#devices).
 | **Pollen** | No pollen outdoors or in, and readings say pollen is "Off". The AQI never counted pollen, so it doesn't change |
 | **Wind** | No daily wind, no drafts through openings and no wind chill: "feels like" only has the weather's light breeze |
 | **Seasons** | No seasonal warmth, cold or pollen. The calendar keeps counting, so switched back on, it's the season the date has reached |
+| **Building size** | Any size heats and cools as before BETA 1.0: no [sizing](equipment.md#sizing), the air spills 30 blocks outdoors, and neighbours don't even out. Switching it maps every system again |
 
 EZvac keeps heating, cooling and drying with any of them off. They're
-`air-quality.enabled`, `air-quality.pollen`, `wind.enabled` and
-`seasons.enabled` in `config.yml`.
+`air-quality.enabled`, `air-quality.pollen`, `wind.enabled`,
+`seasons.enabled` and `sizing.enabled` in `config.yml`.
 
 ### Backups
 
@@ -158,7 +159,9 @@ To restore one, see
 
 What `/hvac stats` reports, written out: each kind of device with how many
 run, the thermostats and other signs, the airflow figures, and when
-`hvac.yml` was last saved. **Refresh** reads them again.
+`hvac.yml` was last saved. **Sizes** lists each system's size and what it has
+of the units it needs, for cooling and heating, the worst sized first.
+**Refresh** reads them again.
 
 ### Updates
 
