@@ -5,7 +5,8 @@
 
 
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper
-1.21.1 and its forks, including Purpur. Build heat pumps, air conditioners and
+26.1 to 26.3 and its forks, including Purpur. It still runs on 1.21.1 until
+BETA 2.x. Build heat pumps, air conditioners and
 furnaces out of dispensers, link vents to a room, and a sign thermostat keeps
 it at the temperature you set, while the outdoors follows the time of day, the
 biome and the weather.
@@ -27,7 +28,14 @@ biome and the weather.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
   power or items needed.
 
-> **Release status:** EZvac ALPHA 3.2 adds air quality. Every room tracks
+> **Release status:** EZvac **BETA 1.0 Pilot 1** is the first BETA. It
+> runs on Minecraft 26.1 to 26.3 (Paper or Purpur), and still on 1.21.1
+> until BETA 2.x. Every screen is redesigned as a status strip coloured by
+> what the device is doing. The pale garden, the dappled forest and the
+> sulfur caves get their own climate and air, and admins are told when a
+> newer EZvac is out. Your save carries over unchanged.
+>
+> ALPHA 3.2 added air quality. Every room tracks
 > fine particles, dust and pollen, scored as the US EPA Air Quality Index:
 > campfires and fire make smoke, deserts and the Nether bring dust and ash,
 > and spring brings pollen. Air purifiers clean it, and their tube coral
@@ -46,23 +54,24 @@ biome and the weather.
 > underground, lit screens and control menus on every sign, and Fahrenheit
 > or Celsius server wide. See the [changelog](CHANGELOG.md).
 
-> **What's next:** ALPHA 3.2 is the last ALPHA. Before any official BETA 1.0
-> pilots, EZvac takes a short break from new releases while it gets some
-> runtime on private servers. BETA 1.0 will then move EZvac to the latest
-> Minecraft version.
+> **BETA 1.0 pilots:** pilots are test builds of BETA 1.0, published as
+> prereleases (betas on Modrinth) before the full release. A server running
+> a pilot is told about newer pilots; one running a full release only about
+> full releases.
 >
-> **Hotfixes only until then.** If ALPHA 3.2 needs hotfixes
-> (`ALPHA-3.2-HOTFIX1` and so on), they fix bugs and nothing else: no new
-> features, no changed behaviour, and the save stays format 8. Testers can
-> upgrade to any 3.2 hotfix, and back, without risk.
+> **1.21.1 is on its way out.** BETA 1.x still runs on Minecraft 1.21.1 and
+> says so at start-up, but **BETA 2.x will drop it entirely**. Update your
+> server to 26.1 or newer before then; see
+> [Upgrading](docs/upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
 
 ## Quick install
 
-1. Download `EzVac-ALPHA-3.2-HOTFIX1.jar` from the
+1. Download `EzVac-BETA-1.0-P1.jar` from the
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
-2. Put it in your server's `plugins` folder. You need Paper 1.21.1 or a fork
-   such as Purpur, on Java 21.
+2. Put it in your server's `plugins` folder. You need Paper 26.1 to 26.3 or
+   a fork such as Purpur, on Java 25. 1.21.1 on Java 21 still works until
+   BETA 2.x.
 3. Start the server, then follow [Getting started](docs/getting-started.md) to
    build your first system.
 
@@ -97,13 +106,14 @@ and see [The EZvac API](docs/api.md).
 
 ## Building from source
 
-You need Java 21 and Maven 3.9 or newer.
+You need Java 21 or newer and Maven 3.9 or newer. EZvac builds against the
+Paper 1.21.1 API, so one jar runs on 1.21.1 and on 26.1 to 26.3.
 
 ```shell
 mvn clean package
 ```
 
-The plugin is written to `ezvac-plugin/target/EzVac-ALPHA-3.2-HOTFIX1.jar`. `mvn verify` also runs
+The plugin is written to `ezvac-plugin/target/EzVac-BETA-1.0-P1.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

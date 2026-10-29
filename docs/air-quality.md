@@ -41,9 +41,11 @@ Each biome has its own air. Biome borders blend, like temperature.
 | --- | --- | --- |
 | Flower forest, meadow, cherry grove, sunflower plains | clean | very high |
 | Plains, forests, savanna, jungle, swamp | clean | high |
+| Pale garden | clean | low |
 | Taiga, hills | clean | moderate to high |
 | Desert, badlands | dusty (Moderate AQI) | very low |
 | Snowy biomes, peaks, oceans | very clean | none to low |
+| Sulfur caves | hazy from the springs and lava (Unhealthy for Sensitive Groups, reads as smoke) | none |
 | Nether wastes, crimson and warped forests | smoke and spores (Unhealthy) | none |
 | Soul sand valley, basalt deltas | ash (Very Unhealthy to Hazardous) | none |
 | The End | almost nothing | none |

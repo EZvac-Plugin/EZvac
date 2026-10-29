@@ -2,6 +2,60 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 1
+
+**The first BETA: EZvac on Minecraft 26.x.** One jar runs on Paper and
+Purpur **26.1 to 26.3**, and still on **1.21.1**. The save is unchanged
+(format 8), so it's a drop-in upgrade from ALPHA 3.2 on either version.
+
+### Minecraft 26.x
+
+- **Runs on 26.1, 26.2 and 26.3,** on the Java 25 that Paper 26.x needs.
+  Biomes are no longer a fixed list in 26.x. EZvac now looks them up in a
+  way that works on both versions, and a data pack's biome gets its own
+  climate on 26.x as it did on 1.21.1.
+- **1.21.1 is deprecated.** BETA 1.x still runs on it, and says so at
+  start-up. **BETA 2.x will drop it entirely**, so update your server to
+  26.1 or newer before then. See
+  [Moving to Minecraft 26.x](docs/upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
+- **New biomes:**
+  - **pale garden:** a dark forest drained of colour, a touch cooler
+    (62 °F at noon, 48 °F at midnight), sheltered from the wind, with little
+    pollen;
+  - **dappled forest:** cooler and drier than a forest (66 °F, 46 °F), with
+    forest air;
+  - **sulfur caves:** a steady 64 °F, warmed by lava and springs, with hazy
+    air (about AQI 137, Unhealthy for Sensitive Groups, read as smoke), so
+    a purifier earns its keep down there.
+- **Pale oak and poplar** signs, hanging signs and trapdoors work like
+  every other wood.
+
+### Screens
+
+- **Every screen is redesigned as a status strip.** A header with the
+  device's name is coloured by what it's doing: blue and ❄ cooling, orange
+  and ♨ heating, green holding, grey off, amber when it needs you, and the
+  AQI's colour on air monitors and purifiers. Under it, an opaque panel shows
+  the main reading big and centred.
+- **The sign behind a screen is blank,** so only the screen shows. On 26.x
+  the sign's text showed through the screen. A server with Bedrock players
+  (Geyser) should set `displays.screens: false`, so the signs carry the text.
+
+### Update notifications
+
+- **EZvac tells you when a newer version is on GitHub.** It checks in the
+  background at start-up and every 6 hours, logs a newer release with a
+  link, and tells players with `ezvac.admin` when they join.
+- **A server on a pilot** hears about newer pilots and full releases. **One
+  on a full release** only hears about full releases and their hotfixes.
+- `updates.check: false` in `config.yml` turns it off. See
+  [Configuration](docs/configuration.md#updates).
+
+### Also
+
+- **The HUD's version line** shows BETA versions short: `B1.0_P1`.
+- **Your config.yml** gains the `updates` section, with its comments.
+
 ## ALPHA 3.2 HOTFIX 1
 
 A bug fix only. The save is unchanged (format 8), so this is a drop-in

@@ -5,22 +5,43 @@ dehumidifiers and humidifiers open a **control menu** when clicked.
 
 ## Screens
 
-Every EZvac sign has a screen in front of it: a dark, lit panel with more room
-than a sign's four lines. All screens are the same size, so a wall of devices
-lines up.
+Every EZvac sign has a screen in front of it, with more room than a sign's
+four lines. Since BETA 1.0 each screen is a **status strip**:
+
+- **A header** with the device's name, coloured by what it's doing, with a
+  glyph at its right end:
+
+  | Header | Means |
+  | --- | --- |
+  | Blue ❄ | Cooling |
+  | Orange ♨ | Heating |
+  | Green ● | Holding the target, or running |
+  | Grey ○ | Switched off |
+  | Amber ! | Needs you: no filter, a spent filter, air too cold to dry |
+  | The AQI's colour ● | An air monitor or purifier: green for Good, through yellow, orange, red and purple, to maroon for Hazardous |
+  | Slate | Nothing to report, such as a thermometer |
+
+- **An opaque body** under it, with the main reading big and centred, and a
+  few lines under that.
+
+All screens are the same size, so a wall of devices lines up.
 
 | Device | Shows |
 | --- | --- |
-| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature, what it's doing (`❄ Cooling to 70.0°F`, `♨ Heating to`, `● Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season |
+| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season |
 | Thermometer, hygrometer, thermo-hygrometer | The reading, feels-like, the outdoors, the weather and season |
+| Air monitor | The AQI, its band, what's behind it, pollen |
 | Dehumidifier, humidifier | The humidity, the setpoint, its state, and a dehumidifier's tank |
+| Air purifier | The AQI, its fan, its filter, pollen |
 | Sensor hub | Up to five sensors at once; with more, it pages along with the sign |
 | RPM monitor | The RPM, a capacity bar and how many units are running |
 | Settings panel | The profile, and how to change it |
 
-- **The sign stays behind the screen.** Clicking works exactly as before, and
-  players whose client can't show screens (such as Bedrock players coming in
-  through Geyser) still read the sign.
+- **The sign behind is blank** (BETA 1.0), so only the screen shows.
+  Clicking the sign works exactly as before.
+- **Bedrock players** coming in through Geyser can't see screens. On a
+  server with them, set `displays.screens: false`: the signs then show
+  everything, as before.
 - Screens light themselves, so they're readable at night.
 - Like signs, screens update when someone is nearby, and only when what they
   show has changed.
@@ -30,7 +51,7 @@ lines up.
 - Placed on wall signs, standing signs and hanging signs alike.
 
 Turn them off with `displays.screens: false` in `config.yml`; the signs alone
-then show everything, as before.
+then show everything, as they did before screens.
 
 ## Control menus
 

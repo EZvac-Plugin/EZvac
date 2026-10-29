@@ -41,9 +41,9 @@ The speeds above are for open, level ground. Terrain changes them:
 | Mountain peaks, snowy slopes, windswept hills | 1.4x |
 | Oceans, beaches, shores, mushroom fields | 1.3x |
 | Plains, savanna, desert, badlands, snowy plains, meadows | 1.15x |
-| Forests, taiga, flower forests, cherry groves | 0.75x |
+| Forests, dappled forests, taiga, flower forests, cherry groves | 0.75x |
 | Swamps | 0.7x |
-| Dark forests, jungles, old-growth forests | 0.5x |
+| Dark forests, pale gardens, jungles, old-growth forests | 0.5x |
 | Underground, the Nether, the End | none |
 
 - **It gets windier with height:** a third more 40 blocks above sea level,

@@ -1,8 +1,10 @@
 EZVAC ALPHA 3.0 FEATURES
 ================================
 
-EZvac is a standalone HVAC and indoor-climate plugin for Paper 1.21.1 and its
-forks, including Purpur. A climate system is the devices linked together in
+EZvac is a standalone HVAC and indoor-climate plugin for Paper 26.1 to 26.3
+and its forks, including Purpur (BETA 1.0). One jar, built against the Paper
+1.21.1 API on Java 21, also runs on 1.21.1, which logs at start-up that BETA
+2.x drops it. A climate system is the devices linked together in
 one world; it has a hidden key and no name of its own (3.0).
 
 
@@ -148,10 +150,17 @@ Hot 100/78):
   Examples: desert 98/64 +-14 (none), plains 72/50 +-18, jungle 88/74 +-2,
   taiga 52/32 +-24, snowy plains 28/8 +-26 (snow), ocean 66/60 +-10, caves
   steady (deep dark 52), Nether 96-120 steady, End 30 steady.
+- Biomes after 1.21.1 (BETA 1.0), keyed by id so the 1.21.1 API needs no
+  constants for them: pale garden 62/48 +-16 (air 5/7, pollen 60, wind 0.5),
+  dappled forest 66/46 +-18 (5/8, pollen 180, wind 0.75), sulfur caves 64
+  steady (fine 50, coarse 40: AQI ~137, Unhealthy for Sensitive Groups,
+  dominant PM2.5 so it reads Smoke; wind 0).
 - biomes: in config.yml overrides any of it per biome id; values left out
   keep the built-in ones, and a broken entry warns and is skipped.
-- A data-pack biome (Biome.CUSTOM) is looked up by its key through Paper's
-  UnsafeValues#getBiomeKey for overrides, else estimated from vanilla's
+- On 1.21.1 a data-pack biome (Biome.CUSTOM) is looked up by its key through
+  Paper's UnsafeValues#getBiomeKey for overrides (26.1 removed it; there a
+  data-pack biome is its own Biome with its own key, and is cached like any
+  other; the caches are HashMaps since Biome is no longer an enum), else estimated from vanilla's
   biome temperature and downfall: the mean follows the temperature, the
   day/night swing is 10 + 25 x (1 - downfall) F, the seasonal swing follows
   the mean (26 F when cold down to 3 F in the tropics).
@@ -499,16 +508,31 @@ DISPLAYS AND AUDIO
   right-click advances the profile; sneak-right-click moves backward. Removing
   or unlinking the panel immediately restores the system to NORMAL.
 - Display writes are fingerprinted so unchanged signs are not rewritten.
-- Screens (displays.screens, default true, 2.1): a non-persistent text
-  display entity in front of each device sign (ScreenService), placed by sign
-  kind (wall, standing, hanging) and facing, scale 0.4 (0.34 on hanging signs),
-  100 px lines, a dark translucent background, full brightness. Every screen is
-  6 lines (blank ones pad it) with its title padded by spaces to the full
-  width, because a text display sizes its panel to its text. Text is sent only
-  when it changed. A refresh puts back a screen that its chunk unloading took
-  away; removing a device (DisplayService.invalidate), a periodic sweep of
-  screens without a device, and plugin disable take them down. The sign stays
-  behind and is still written, for clicks and for clients without screens.
+- Screens (displays.screens, default true, 2.1): non-persistent text
+  display entities in front of each device sign (ScreenService), placed by
+  sign kind (wall, standing, hanging) and facing, scale 0.4 (0.34 on hanging
+  signs), 100 px lines, full brightness. Since BETA 1.0 a screen is a status
+  strip of up to three displays (ScreenText, ScreenPlacement.layout):
+  - a header, one line, left-aligned: the name, what it belongs to, spaces
+    and a glyph at the right end; its opaque background is the device's
+    Tone (cooling blue, heating orange, holding/running green, off grey,
+    alert amber, AQI band colours, neutral slate);
+  - a body under it, opaque #101418, centred, 6 lines (more if a device
+    needs them). A blank line of spaces just short of the 100 px wrap width
+    sets the panel's width (a display sizes its panel to its widest line and
+    centres the rest); lines are never padded, since a padded line could
+    wrap and push the body up under the big reading. A body without a big
+    reading lists at most 5 rows and ends in that blank line;
+  - the big reading, bold, at twice the scale with no background, centred
+    over the body's top 2 blank lines and 0.01 blocks in front of it.
+  Text and the header colour are sent only when they changed; a change of
+  size, or gaining or losing the big reading, puts the screen up afresh. A
+  refresh puts back a screen that its chunk unloading took away; removing a
+  device (DisplayService.invalidate), a periodic sweep of screens without a
+  device, and plugin disable take them down.
+- With screens on, the sign behind is kept blank (BETA 1.0: from 26.1 the
+  sign's text shows through a screen); a blank sign isn't sent again. With
+  screens off, the sign carries everything, as before.
 - Sign lines are measured in pixels with the vanilla font's widths (90 px on
   standing and wall signs, 60 px on hanging signs) and cut to fit, so the
   game never wraps one. Headers drop "EZvac | " when the label needs the room,
@@ -596,6 +620,25 @@ previous file is kept as config.yml.before-<version>.bak.
 - If the main file is unreadable, the backup is restored.
 - Invalid records are logged and preserved instead of overwritten.
 - Loaded missing blocks are pruned; unloaded blocks are retained.
+
+
+UPDATE CHECK
+------------
+
+- UpdateNotifier (BETA 1.0): off the main thread, 10 s after start-up and
+  then every 6 hours, GETs api.github.com/repos/EZvac-Plugin/EZvac/releases
+  (30 newest). updates.check: false turns it off; a build whose version is
+  not a release name (e.g. a SNAPSHOT) never checks.
+- ReleaseVersion orders releases: ALPHA before BETA, then the numbers, then
+  a number's pilots (P1 < P2) before it and its hotfixes after it
+  (ALPHA-1.1-HOTFIX counts as HOTFIX1). The HUD's short version uses it too
+  (BETA-1.0-P1 -> B1.0_P1).
+- UpdateCheck skips drafts and other tags; a GitHub prerelease counts as a
+  pilot. A server on a pilot hears of the newest newer release, pilots
+  included; one on a full release only of newer full releases.
+- A new one is logged once, and told to online players with ezvac.admin and
+  to each one who joins (2 s later), with a link (updates.notify-admins).
+  A failed check is logged once until a check succeeds.
 
 
 PUBLIC API

@@ -2,9 +2,11 @@
 
 ## Installing
 
-You need Paper 1.21.1 or a Paper fork such as Purpur, on Java 21.
+You need Paper or Purpur for Minecraft **26.1 to 26.3**, on Java 25 (Paper's
+own requirement). Minecraft 1.21.1 on Java 21 still works in BETA 1.x, with a
+warning, but BETA 2.x will drop it.
 
-1. Put `EzVac-ALPHA-3.2-HOTFIX1.jar` in the server's `plugins` folder.
+1. Put `EzVac-BETA-1.0-P1.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 
@@ -18,6 +20,10 @@ Upgrading from any earlier EZvac release is supported:
 
 Your `plugins/EZvac/hvac.yml` is read as it is: every release's save file is
 covered by the test suite.
+
+- **From 3.2 to BETA 1.0,** swap the jar: the save stays **format 8**, on
+  1.21.1 and on 26.x alike. Your config.yml gains `updates`. Going back to
+  3.2 is a jar swap too, as long as the server is still on 1.21.1.
 
 > **2.x to 3.0 is a one-way upgrade.** 3.0 converts `hvac.yml` to **format
 > 7** the first time it saves. Your 2.x file is kept as
@@ -77,6 +83,31 @@ covered by the test suite.
   set is changed, and the previous file is kept as
   `config.yml.before-<version>.bak`. See
   [Configuration](configuration.md#your-configyml-stays-up-to-date).
+
+### Moving to Minecraft 26.x
+
+BETA 1.0 runs on 1.21.1 and on 26.1 to 26.3, so EZvac and the server can be
+updated in either order. BETA 2.x will drop 1.21.1, so plan the move:
+
+1. **Back up the whole server:** the world folders (`world`, `world_nether`,
+   `world_the_end`) and `plugins/EZvac/`.
+2. **Put EZvac BETA 1.0 in,** if it isn't already.
+3. **Switch the server to Paper or Purpur 26.x, on Java 25.**
+4. **Start it once and let Minecraft move the worlds.** On the first start,
+   Paper warns that the world storage needs migrating and waits 30 seconds
+   before doing it. It moves the Nether and the End into
+   `world/dimensions/`, which can't be undone.
+5. **Check the log** for `EZvac enabled: ...` with the same counts as before.
+
+Every device keeps its world, the Nether and the End included: Minecraft
+keeps each world's id through the move, and EZvac finds devices by that id.
+Tested on a real 1.21.1 world with 6 systems, upgraded to 26.3 with every
+device and airflow path intact.
+
+Addons: EZdebug+ 0.2.1 and LiveExposure 0.2.0 work on 26.x unchanged.
+
+**Going back to 1.21.1** means restoring the world backup. That's a
+Minecraft limit, not an EZvac one: a 26.x world can't be opened by 1.21.1.
 
 ### Going back
 
