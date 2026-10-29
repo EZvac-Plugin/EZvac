@@ -127,9 +127,9 @@ public final class HvacPlugin extends JavaPlugin {
             requestImmediateSync();
             String legacy = legacyServerWarning(getServer().getMinecraftVersion());
             if (legacy != null) getLogger().warning(legacy);
+            updates = new UpdateNotifier(this, getPluginMeta().getVersion(), getServer().getMinecraftVersion(),
+                    getConfig().getBoolean("updates.notify-admins", true));
             if (getConfig().getBoolean("updates.check", true)) {
-                updates = new UpdateNotifier(this, getPluginMeta().getVersion(),
-                        getConfig().getBoolean("updates.notify-admins", true));
                 getServer().getPluginManager().registerEvents(updates, this);
                 updates.start();
             }
@@ -322,6 +322,7 @@ public final class HvacPlugin extends JavaPlugin {
     public SeasonService seasons() { return seasons; }
     public ControlMenus menus() { return menus; }
     public HvacController controller() { return controller; }
+    public UpdateNotifier updates() { return updates; }
 
     /**
      * Offers EZvac's public API to other plugins (2.1) and connects

@@ -81,7 +81,16 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
   link, and tells players with `ezvac.admin` when they join.
 - **A server on a pilot** hears about newer pilots and full releases. **One
   on a full release** only hears about full releases and their hotfixes.
-- `updates.check: false` in `config.yml` turns it off. See
+- **`/hvac update` checks now** (`ezvac.admin`, chat or console). It says
+  you're on the latest, or names the newer release and whether it runs on
+  this server's Minecraft. A 1.21.x server is told that BETA 2.x needs
+  Minecraft 26.1 or newer, with a link to the upgrade guide, and which
+  newer release still runs on 1.21.x. See
+  [Commands](docs/commands.md#hvac-update).
+- **The notifier says the same,** so a 1.21.x server isn't just told to
+  install a BETA 2.x it can't run.
+- `updates.check: false` in `config.yml` turns the background checks off;
+  `/hvac update` still works. See
   [Configuration](docs/configuration.md#updates).
 
 ### Also
