@@ -55,6 +55,12 @@ public final class Thermostat {
      * follows what is linked to it: water equipment or grates make it one.
      */
     private boolean pool;
+    /**
+     * HEATING or COOLING when the room needs it but every unit that could do it
+     * is switched off server-wide (BETA 1.0), so the system waits; null
+     * otherwise. Worked out each cycle, never saved.
+     */
+    private OperatingMode waitingOnUnits;
 
     /** A temperate biome's downfall, used until the thermostat's chunk is first sampled. */
     public static final double DEFAULT_DOWNFALL = 0.4;
@@ -106,6 +112,10 @@ public final class Thermostat {
     public double roomF() { return roomF; }
     public boolean enabled() { return enabled; }
     public OperatingMode mode() { return mode; }
+    public OperatingMode waitingOnUnits() { return waitingOnUnits; }
+    public void setWaitingOnUnits(OperatingMode needed) {
+        this.waitingOnUnits = needed == OperatingMode.IDLE ? null : needed;
+    }
     public long ticksInMode() { return ticksInMode; }
     public double outdoorNoonF() { return outdoorNoonF; }
     public double outdoorMidnightF() { return outdoorMidnightF; }

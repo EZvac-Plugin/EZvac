@@ -926,6 +926,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 + temp(thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
                 gray(" | Profile: "), white(registry.profileFor(thermostat.system()).name()),
                 gray(" | "), white(thermostat.enabled() ? "enabled" : "disabled")));
+        if (thermostat.enabled() && thermostat.waitingOnUnits() != null)
+            player.sendMessage(yellow("It needs " + (thermostat.waitingOnUnits() == OperatingMode.HEATING ? "heat"
+                    : "cooling") + ", but its units that could give it are switched off server-wide"
+                    + " (/hvac quicksettings)."));
         if (!thermostat.pool() && thermostat.hasRoomDewPoint()) {
             double humidity = Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
             player.sendMessage(join(gray("Humidity: "), white(Math.round(humidity) + "%"),

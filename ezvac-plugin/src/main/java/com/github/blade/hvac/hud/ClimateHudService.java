@@ -239,7 +239,8 @@ public final class ClimateHudService implements Listener {
                     reading.humidity(), reading.feelsLikeF(), reading.weather());
         return new ClimateSnapshot(reading.localF(), reading.outdoorF(), reading.influence(),
                 reading.airflowDistance(), thermostat.id(), thermostat.id(),
-                thermostat.mode().name(), thermostat.targetF(),
+                thermostat.enabled() && thermostat.waitingOnUnits() != null ? ClimateSnapshot.UNITS_OFF
+                        : thermostat.mode().name(), thermostat.targetF(),
                 reading.influence() >= 1.0, reading.water(),
                 reading.humidity(), reading.feelsLikeF(), reading.weather());
     }

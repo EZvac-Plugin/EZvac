@@ -228,6 +228,8 @@ public final class DisplayService {
             case HEATING -> "HEAT";
             case IDLE -> thermostat.enabled() ? "IDLE" : "OFF";
         };
+        // Its units are switched off server-wide (BETA 1.0): say so, not "Ready" or "Holding".
+        OperatingMode waiting = thermostat.enabled() ? thermostat.waitingOnUnits() : null;
         List<EquipmentUnit> running = registry.equipmentFor(thermostat.system()).stream()
                 .filter(unit -> unit.running() && unit.operatingMode() == thermostat.mode()).toList();
         double fixedEquivalent = running.stream().filter(unit -> unit.type().fixedSpeed())
@@ -252,6 +254,7 @@ public final class DisplayService {
                 .map(unit -> new EtaEstimator.UnitSnapshot(unit.type(), unit.motorRpm(), unit.tier())).toList();
         OptionalLong eta = estimateEta(thermostat, snapshots, force);
         String footer = !thermostat.enabled() ? "System off"
+                : waiting != null ? UNITS_OFF
                 : thermostat.mode() == OperatingMode.IDLE ? "Ready"
                 : eta.isPresent() ? "ETA " + formatEta(eta) : "ETA --";
         // Since 3.0 the last line counts the units at work where the group's name used to be.
@@ -262,7 +265,8 @@ public final class DisplayService {
                 thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id());
         render(thermostat.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
-            NamedTextColor color = thermostat.mode() == OperatingMode.COOLING ? NamedTextColor.AQUA
+            NamedTextColor color = waiting != null ? NamedTextColor.RED
+                    : thermostat.mode() == OperatingMode.COOLING ? NamedTextColor.AQUA
                     : thermostat.mode() == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.GRAY;
             lines.set(1, temp(thermostat.roomF()) + " | " + mode, color);
             String setpoint = "Set " + temp(thermostat.targetF());
@@ -277,6 +281,10 @@ public final class DisplayService {
             String target = degrees(thermostat.targetF());
             if (!thermostat.enabled())
                 screen.tone(ScreenText.Tone.OFF).line("Off · set " + target, NamedTextColor.GRAY);
+            else if (waiting != null)
+                screen.tone(ScreenText.Tone.OFF).line((waiting == OperatingMode.HEATING ? "Needs heat" : "Needs cooling")
+                        + " · set " + target, waiting == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.AQUA)
+                        .line(UNITS_OFF + " server-wide", NamedTextColor.RED);
             else switch (thermostat.mode()) {
                 case COOLING -> screen.tone(ScreenText.Tone.COOLING).line("Cooling to " + target, NamedTextColor.AQUA)
                         .line(ScreenText.bar(load, 10, NamedTextColor.AQUA));
@@ -539,6 +547,9 @@ public final class DisplayService {
                 .line("Click: next", NamedTextColor.GRAY)
                 .line("Sneak: back", NamedTextColor.GRAY));
     }
+
+    /** A thermostat whose call waits on units switched off in /hvac quicksettings (BETA 1.0). */
+    static final String UNITS_OFF = "Units off";
 
     /** A unit whose kind is switched off in /hvac quicksettings (BETA 1.0); 15 characters, a sign line. */
     static final String OFF_SERVER_WIDE = "Off server-wide";

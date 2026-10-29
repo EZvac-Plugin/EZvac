@@ -13,7 +13,7 @@ import com.github.blade.hvac.simulation.AirQualityModel;
  * @param distance     airflow path length from the nearest vent, or -1
  * @param group        label of the conditioning system, or null when none
  * @param thermostat   id of that system's thermostat, or null
- * @param mode         thermostat mode (COOLING, HEATING, IDLE), or null
+ * @param mode         thermostat mode (COOLING, HEATING, IDLE), {@link #UNITS_OFF}, or null
  * @param targetF      thermostat target, or NaN when there is none
  * @param core         true inside the full-strength core range
  * @param water        true when the player is in water; localF is then the water temperature
@@ -33,6 +33,9 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
                               boolean core, boolean water, double humidity, double feelsLikeF,
                               String weather, String season, int seasonDay, AirQualityModel.Air air,
                               String pollen, double windMs, String windLevel, String windSpeed) {
+    /** The mode of an idle system whose units are switched off server-wide (BETA 1.0). */
+    public static final String UNITS_OFF = "UNITS_OFF";
+
     public ClimateSnapshot {
         if (!Double.isFinite(feelsLikeF)) feelsLikeF = localF;
         if (weather == null) weather = "";

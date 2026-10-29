@@ -697,7 +697,13 @@ QUICK SETTINGS
   unit's switchedOn() is powered() and not off server-wide, and its control
   and state use it. Its own powered/enabled flag is untouched, so switching
   the kind back on resumes it. /hvac create of a disabled kind is refused;
-  its sign reads "Off server-wide"; /hvac info says so.
+  its sign reads "Off server-wide"; /hvac info says so. HvacController's
+  hasAvailableEquipment skips disabled kinds, so a thermostat with nothing
+  else for that mode goes (or stays) IDLE rather than calling; when the room
+  is past its start point and a unit for it is off server-wide, the
+  thermostat's transient waitingOnUnits (HEATING/COOLING, never saved) is
+  set, and its screen ("Needs heat", "Units off server-wide"), sign footer
+  ("Units off"), HUD mode ("Units off") and /hvac info say so.
 - Pollen off: the outdoor pollen factor is 0, and AirQualityModel.step sets a
   space's pollen to 0 at once; pollen labels read "Off" (AirText.pollenName,
   pollenHudName). Purifiers' Auto never steps up for pollen.
