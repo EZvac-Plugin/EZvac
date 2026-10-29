@@ -1,0 +1,46 @@
+# EZvac defaults. Durations use server ticks (20 ticks is normally one second).
+controller:
+  period-ticks: 20
+  save-period-ticks: 600
+  display-period-ticks: 60
+  cooling-start-above-f: 1.0
+  heating-start-below-f: 1.0
+  cooling-stop-below-f: 0.3
+  heating-stop-above-f: 0.3
+  minimum-run-ticks: 300
+  minimum-off-ticks: 200
+
+temperature:
+  minimum-target-f: 60.0
+  maximum-target-f: 85.0
+  cooling-f-per-minecraft-hour: 3.75
+  heating-f-per-minecraft-hour: 5.0
+  idle-drift-f-per-minecraft-hour: 1.25
+  active-leak-f-per-minecraft-hour: 0.50
+  maximum-group-capacity: 2.0
+
+# Heat pumps and air conditioners slow down inside the approach band. Their
+# RPM-derived capacity is the capacity used by the thermal simulation.
+performance:
+  variable-speed:
+    approach-band-f: 3.0
+    minimum-capacity: 0.40
+    minimum-rpm: 1200.0
+    maximum-rpm: 3600.0
+    eco-maximum-rpm: 2400.0
+    turbo-maximum-rpm: 4200.0
+    ramp-up-rpm-per-second: 900.0
+    ramp-down-rpm-per-second: 1200.0
+
+airflow:
+  core-range: 15
+  maximum-range: 30
+  nodes-per-tick: 4000
+  maximum-cells-per-system: 200000
+
+audio:
+  enabled: true
+  radius-blocks: 25.0
+  hum-refresh-ticks: 60
+  hum-volume: 1.6
+  hum-pitch: 0.55

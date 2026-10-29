@@ -294,22 +294,80 @@ public record HudSettings(
             "<dark_gray><font:uniform>Version: {version}</font>");
 
     /**
+     * Every stock sidebar a release has shipped, oldest first. Until BETA 1.0
+     * only the newest of them was brought up to date: 3.0 renamed
+     * {@code {group}} to {@code {system}} with no step for it, so a stock
+     * sidebar from 1.8 to 2.2 stayed as it was, without the season, addons,
+     * air and wind lines (found by ReleaseConfigUpgradeTest).
+     */
+    static final List<List<String>> PAST_STOCK = List.of(
+            // ALPHA 1.8 and 1.9
+            List.of("<gray>Here: <white>{temp}", "{bar} {comfort}", "<gray>Outside: <white>{outdoor}", "",
+                    "<gray>System: <white>{group}", "<gray>Mode: <white>{mode}", "<gray>Airflow: <white>{zone}",
+                    "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 2.0 to 2.1 Pilot 1
+            List.of("<gray>Here: <white>{temp}", "<gray>Feels like: <white>{feels}", "{bar} {comfort}",
+                    HUMIDITY_LINE, OUTSIDE_LINE, "", "<gray>System: <white>{group}", "<gray>Mode: <white>{mode}",
+                    "<gray>Airflow: <white>{zone}", "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 2.1 Pilots 2 to 4
+            List.of("<gray>Here: <white>{temp}", "<gray>Feels like: <white>{feels}", "{bar} {comfort}",
+                    HUMIDITY_LINE, OUTSIDE_LINE, SEASON_LINE, "", "<gray>System: <white>{group}",
+                    "<gray>Mode: <white>{mode}", "<gray>Airflow: <white>{zone}",
+                    "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 2.1 and 2.2
+            List.of("<gray>Here: <white>{temp}", "<gray>Feels like: <white>{feels}", "{bar} {comfort}",
+                    HUMIDITY_LINE, OUTSIDE_LINE, SEASON_LINE, ADDONS_LINE, "", "<gray>System: <white>{group}",
+                    "<gray>Mode: <white>{mode}", "<gray>Airflow: <white>{zone}",
+                    "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 3.0 and 3.1
+            List.of("<gray>Here: <white>{temp}", "<gray>Feels like: <white>{feels}", "{bar} {comfort}",
+                    HUMIDITY_LINE, OUTSIDE_LINE, SEASON_LINE, ADDONS_LINE, "", "<gray>System: <white>{system}",
+                    "<gray>Mode: <white>{mode}", "<gray>Airflow: <white>{zone}",
+                    "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 3.2 pilots, with air but no wind yet, then ALPHA 3.2
+            withoutLine(STOCK_32, WIND_LINE),
+            STOCK_32);
+
+    /** Every stock water sidebar a release has shipped, oldest first. */
+    static final List<List<String>> PAST_WATER_STOCK = List.of(
+            // ALPHA 1.9
+            List.of("<gray>Water: <white>{temp}", "{bar} {comfort}", "<gray>Air: <white>{outdoor}", "",
+                    "<gray>Pool: <white>{group}", "<gray>Mode: <white>{mode}", "<gray>Circulation: <white>{zone}",
+                    "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 2.0 to 2.1 Pilot 4
+            List.of("<gray>Water: <white>{temp}", "{bar} {comfort}", WATER_AIR_LINE, "",
+                    "<gray>Pool: <white>{group}", "<gray>Mode: <white>{mode}", "<gray>Circulation: <white>{zone}",
+                    "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 2.1 and 2.2
+            List.of("<gray>Water: <white>{temp}", "{bar} {comfort}", WATER_AIR_LINE, ADDONS_LINE, "",
+                    "<gray>Pool: <white>{group}", "<gray>Mode: <white>{mode}", "<gray>Circulation: <white>{zone}",
+                    "<dark_gray><font:uniform>Version: {version}</font>"),
+            // ALPHA 3.0 to 3.2
+            WATER_STOCK_32);
+
+    private static List<String> withoutLine(List<String> lines, String line) {
+        List<String> out = new ArrayList<>(lines);
+        out.remove(line);
+        return List.copyOf(out);
+    }
+
+    /**
      * When a server first starts BETA 1.0 (its config.yml gains
-     * {@code updates}), a sidebar that is still the 3.2 stock one moves to
-     * the sections, the water one too. One the server has made its own is
-     * left exactly as it is. Runs after the steps above.
+     * {@code updates}), a sidebar that is still any release's stock one
+     * moves to the sections, the water one too. One the server has made its
+     * own is left exactly as it is. Runs after the steps above.
      */
     public static void adoptSections(YamlConfiguration config, List<String> added) {
         if (added.stream().noneMatch(path -> path.startsWith("updates."))) return;
-        adopt(config, "hud.sidebar.lines", STOCK_32, SECTIONED, added);
-        adopt(config, "hud.water.sidebar.lines", WATER_STOCK_32, WATER_SECTIONED, added);
+        adopt(config, "hud.sidebar.lines", PAST_STOCK, SECTIONED, added);
+        adopt(config, "hud.water.sidebar.lines", PAST_WATER_STOCK, WATER_SECTIONED, added);
     }
 
-    private static void adopt(YamlConfiguration config, String path, List<String> stock, List<String> sectioned,
-                              List<String> added) {
-        if (!config.getStringList(path).equals(stock)) return;
+    private static void adopt(YamlConfiguration config, String path, List<List<String>> stock,
+                              List<String> sectioned, List<String> added) {
+        if (!stock.contains(config.getStringList(path))) return;
         config.set(path, sectioned);
-        added.add(path);
+        if (!added.contains(path)) added.add(path);
     }
 
     public static HudSettings defaults() {

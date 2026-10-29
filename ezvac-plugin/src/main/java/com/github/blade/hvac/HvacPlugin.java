@@ -6,7 +6,6 @@ import com.github.blade.hvac.config.ConfigUpdater;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.SoundSettings;
-import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.api.EzvacApi;
 import com.github.blade.hvac.gui.ControlMenus;
 import com.github.blade.hvac.integration.api.ApiEvents;
@@ -182,15 +181,8 @@ public final class HvacPlugin extends JavaPlugin {
             getLogger().log(Level.WARNING, "Could not read the bundled config.yml", failure);
             return;
         }
-        List<String> added = ConfigUpdater.addMissing(current, bundled);
+        List<String> added = ConfigUpdater.upgrade(current, bundled);
         if (added.isEmpty()) return;
-        SoundSettings.carryOverHum(current, added);
-        TemperatureUnit.carryOver(current, added);
-        HudSettings.addSeasonLine(current, added);
-        HudSettings.addAddonsLine(current, added);
-        HudSettings.addAirLine(current, added);
-        HudSettings.addWindLine(current, added);
-        HudSettings.adoptSections(current, added);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
