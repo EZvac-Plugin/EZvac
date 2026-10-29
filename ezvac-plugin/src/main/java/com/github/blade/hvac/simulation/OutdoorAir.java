@@ -69,6 +69,8 @@ public final class OutdoorAir {
         put(new Baseline(5, 8, 150), "forest");
         put(new Baseline(5, 8, 180), "birch_forest", "old_growth_birch_forest");
         put(new Baseline(5, 7, 120), "dark_forest");
+        put(new Baseline(5, 7, 60), "pale_garden");
+        put(new Baseline(5, 8, 180), "dappled_forest");
         put(new Baseline(4, 6, 90), "taiga", "windswept_forest");
         put(new Baseline(4, 6, 110), "old_growth_pine_taiga", "old_growth_spruce_taiga");
         put(new Baseline(8, 30, 100), "savanna", "savanna_plateau");
@@ -106,6 +108,8 @@ public final class OutdoorAir {
         put(new Baseline(5, 15, 0), "dripstone_caves");
         put(new Baseline(4, 5, 40), "lush_caves");
         put(new Baseline(4, 8, 0), "deep_dark");
+        // Sulfur springs and lava haze the air: Unhealthy for Sensitive Groups.
+        put(new Baseline(50, 40, 0), "sulfur_caves");
         // The Nether: smoke, ash and spores.
         put(new Baseline(70, 110, 0), "nether_wastes");
         put(new Baseline(45, 90, 0), "crimson_forest");
