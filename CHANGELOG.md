@@ -5,7 +5,7 @@ All notable changes to EZvac are recorded here.
 ## BETA 1.0 Pilot 1
 
 **The first BETA: EZvac on Minecraft 26.x.** One jar runs on Paper and
-Purpur **26.1 to 26.3**, and still on **1.21.1**. The save is unchanged
+Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
 (format 8), so it's a drop-in upgrade from ALPHA 3.2 on either version.
 
 ### Minecraft 26.x
@@ -14,9 +14,10 @@ Purpur **26.1 to 26.3**, and still on **1.21.1**. The save is unchanged
   Biomes are no longer a fixed list in 26.x. EZvac now looks them up in a
   way that works on both versions, and a data pack's biome gets its own
   climate on 26.x as it did on 1.21.1.
-- **1.21.1 is deprecated.** BETA 1.x still runs on it, and says so at
-  start-up. **BETA 2.x will drop it entirely**, so update your server to
-  26.1 or newer before then. See
+- **1.21.x is deprecated.** BETA 1.x still runs on it (tested on 1.21.1;
+  later 1.21 versions should work but aren't tested yet), and says so at
+  start-up. **BETA 2.x will drop all of 1.21.x**: it needs Minecraft 26.1
+  or newer, so update your server before then. See
   [Moving to Minecraft 26.x](docs/upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
 - **New biomes:**
   - **pale garden:** a dark forest drained of colour, a touch cooler

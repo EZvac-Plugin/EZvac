@@ -147,13 +147,14 @@ public final class HvacPlugin extends JavaPlugin {
     }
 
     /**
-     * BETA 1.0 still runs on 1.21.1, the version every ALPHA was built for,
-     * but only until BETA 2.x. Null on Minecraft 26.1 and newer.
+     * BETA 1.0 still runs on 1.21.x (built for 1.21.1, the version every
+     * ALPHA was built for), but only until BETA 2.x, which needs 26.1 or
+     * newer. Null on Minecraft 26.1 and newer.
      */
     static String legacyServerWarning(String minecraftVersion) {
         if (minecraftVersion == null || !minecraftVersion.startsWith("1.")) return null;
-        return "This server runs Minecraft " + minecraftVersion + ". EZvac BETA 1.x still supports 1.21.1,"
-                + " but BETA 2.x will drop it entirely. Update the server to Minecraft 26.1 or newer"
+        return "This server runs Minecraft " + minecraftVersion + ". EZvac BETA 1.x still supports 1.21.x,"
+                + " but BETA 2.x will drop all of 1.21.x: it needs Minecraft 26.1 or newer. Update the server"
                 + " before then; your EZvac save carries over unchanged.";
     }
 

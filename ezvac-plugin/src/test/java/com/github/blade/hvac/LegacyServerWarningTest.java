@@ -13,6 +13,9 @@ class LegacyServerWarningTest {
         String warning = HvacPlugin.legacyServerWarning("1.21.1");
         assertNotNull(warning);
         assertTrue(warning.contains("1.21.1") && warning.contains("BETA 2.x"), warning);
+        String later = HvacPlugin.legacyServerWarning("1.21.4");
+        assertTrue(later.contains("Minecraft 1.21.4") && later.contains("all of 1.21.x")
+                && later.contains("26.1 or newer"), "a later 1.21 is told its whole line goes: " + later);
     }
 
     @Test
