@@ -26,6 +26,7 @@ import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.ClimateVent;
+import com.github.blade.hvac.model.WeatherStation;
 import com.github.blade.hvac.model.EquipmentUnit;
 import com.github.blade.hvac.model.RpmMonitor;
 import com.github.blade.hvac.model.Sensor;
@@ -295,13 +296,24 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
 
     // ---- devices added and removed (API 1.2) ----
 
+    /**
+     * Weather stations (BETA 1.0) aren't part of API 1.5, which addons were
+     * built against: they're never reported, rather than reported as
+     * something they aren't.
+     */
+    static boolean inApi(Object device) {
+        return !(device instanceof WeatherStation);
+    }
+
     @Override
     public void added(Object device) {
+        if (!inApi(device)) return;
         ApiEvents.deviceAdded(() -> device(device));
     }
 
     @Override
     public void removed(Object device, HvacRegistry.DeviceObserver.Cause cause) {
+        if (!inApi(device)) return;
         ApiEvents.deviceRemoved(() -> device(device), switch (cause) {
             case BROKEN -> DeviceRemovedEvent.Cause.BROKEN;
             case COMMAND -> DeviceRemovedEvent.Cause.COMMAND;
