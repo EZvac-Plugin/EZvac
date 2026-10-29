@@ -30,6 +30,7 @@ import org.bukkit.inventory.ItemStack;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 import static com.github.blade.hvac.gui.ControlMenus.click;
@@ -187,7 +188,8 @@ public final class QuickSettingsMenu implements Listener {
                 gray("Seasonal warmth, cold and pollen"), gray("Off: no seasonal effect; the calendar keeps counting"),
                 clickTo(switches.seasons())));
         placeSwitch(inventory, SIZING, Material.BRICKS, "Building size", switches.sizing(), List.of(
-                gray("A unit heats or cools what fits its size:"), gray("one three-star unit per 5,000 sq ft"),
+                gray("A unit heats or cools what fits its size:"), gray("one three-star unit per " + String.format(Locale.US, "%,d",
+                        plugin.controller().sizing().cellsPerUnit()) + " blocks of air"),
                 gray("Off: any size, as before BETA 1.0"), clickTo(switches.sizing())));
     }
 
@@ -335,7 +337,7 @@ public final class QuickSettingsMenu implements Listener {
         boolean switchOff = !switches.isOff(kind);
         switches.setOff(kind, switchOff);
         click(player, true);
-        logChange(player, "switched " + kind.plural().toLowerCase(java.util.Locale.ROOT)
+        logChange(player, "switched " + kind.plural().toLowerCase(Locale.ROOT)
                 + (switchOff ? " off" : " on") + " server-wide");
         plugin.requestImmediateSync();
         for (ClimateUnit unit : registry.climateUnits())
@@ -396,7 +398,7 @@ public final class QuickSettingsMenu implements Listener {
             int next = RegistryBackups.nextInterval(backups.intervalHours());
             backups.setIntervalHours(next);
             click(player, true);
-            logChange(player, "set automatic backups to " + RegistryBackups.describe(next).toLowerCase(java.util.Locale.ROOT));
+            logChange(player, "set automatic backups to " + RegistryBackups.describe(next).toLowerCase(Locale.ROOT));
         }
     }
 
@@ -448,7 +450,7 @@ public final class QuickSettingsMenu implements Listener {
     /** {@code Home1: 4,800 air · cool 1/2.6 · heat 2/2.6}, or that it isn't mapped yet. */
     public static String sizeText(com.github.blade.hvac.service.HvacController.SizeLine line) {
         if (line.cooling() == null) return line.name() + ": not mapped yet";
-        StringBuilder text = new StringBuilder(line.name() + ": " + String.format(java.util.Locale.US, "%,d",
+        StringBuilder text = new StringBuilder(line.name() + ": " + String.format(Locale.US, "%,d",
                 line.cooling().size()) + (line.cooling().water() ? " water" : " air"));
         if (!line.cooling().water() && line.cooling().openings() > 0)
             text.append(", ").append(line.cooling().openings()).append(" open");

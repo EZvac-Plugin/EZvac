@@ -96,9 +96,9 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
 ### Size-based heating and cooling
 
 - **A bigger building needs more equipment.** One ★★★ unit heats or cools
-  5,000 sq ft of floor (about 1,860 blocks of air) at the normal pace; a ★★
-  unit counts as 0.85 of one, a ★ as 0.70, and units add up. A 30,000 sq ft
-  building needs six. Before, one unit cooled any building with enough
+  1,860 blocks of air at the normal pace: a floor of about 465 blocks, 4
+  blocks high. A ★★ unit counts as 0.85 of one, a ★ as 0.70, and units add
+  up. A building of 11,160 blocks of air needs six. Before, one unit cooled any building with enough
   vents.
 - **Too few units is slower,** and the thermostat's screen says
   **Undersized 1/3**. A small room is quicker, up to twice the pace.

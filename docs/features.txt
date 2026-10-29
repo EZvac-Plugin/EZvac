@@ -725,7 +725,7 @@ SIZING
 - /hvac stats sizes (ezvac.admin, chat or console) and quick settings'
   Statistics > Sizes list every system's size, openings and has/needs for
   cooling and heating, the worst sized first (HvacController.sizeLines);
-  /hvac info on a thermostat adds the sq ft and the systems its air touches.
+  /hvac info on a thermostat adds the openings and the systems its air touches.
 
 
 QUICK SETTINGS

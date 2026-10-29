@@ -94,7 +94,7 @@ airflow:
 
 # Size-based heating and cooling (BETA 1.0). Units heat or cool the air their
 # system reaches: one three-star unit is sized for cells-per-unit blocks of
-# air, about 5,000 sq ft of floor over 4-block-tall levels. A two-star unit
+# air, a floor of about 465 blocks, 4 blocks high. A two-star unit
 # counts 0.85 of one, a one-star 0.70, and units add up. A bigger system needs
 # more of them or is slower, and its screen says Undersized; a smaller one is
 # quicker, up to maximum-speed-up times. Pools count water: pool-cells-per-unit
