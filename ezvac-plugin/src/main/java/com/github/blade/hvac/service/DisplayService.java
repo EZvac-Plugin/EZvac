@@ -14,6 +14,7 @@ import com.github.blade.hvac.simulation.ThermalModel;
 import net.kyori.adventure.text.Component;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -135,8 +136,8 @@ public final class DisplayService {
                 lines.set(line + 1, line < readings.size() ? readings.get(line).line(lines.width()) : "",
                         NamedTextColor.WHITE);
         }, () -> {
-            // Up to five sensors fit on a screen at once; with more it pages along with the sign.
-            boolean all = hub.sensors().size() <= ScreenText.LINES - 1;
+            // Up to six sensors fit on a screen at once; with more it pages along with the sign.
+            boolean all = hub.sensors().size() <= ScreenText.ROWS;
             ScreenText screen = ScreenText.titled(hub.label(), all ? "" : "page" + pageText);
             if (hub.sensors().isEmpty()) return screen.line("No sensors yet:", NamedTextColor.GRAY)
                     .line("link with the", NamedTextColor.GRAY).line("sensor-tool", NamedTextColor.GRAY);
@@ -274,13 +275,14 @@ public final class DisplayService {
             ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.pool() ? "Pool" : "")
                     .big(degrees(thermostat.roomF()));
             String target = degrees(thermostat.targetF());
-            if (!thermostat.enabled()) screen.line("System off · set " + target, NamedTextColor.RED);
+            if (!thermostat.enabled())
+                screen.tone(ScreenText.Tone.OFF).line("Off · set " + target, NamedTextColor.GRAY);
             else switch (thermostat.mode()) {
-                case COOLING -> screen.line("❄ Cooling to " + target, NamedTextColor.AQUA)
+                case COOLING -> screen.tone(ScreenText.Tone.COOLING).line("Cooling to " + target, NamedTextColor.AQUA)
                         .line(ScreenText.bar(load, 10, NamedTextColor.AQUA));
-                case HEATING -> screen.line("♨ Heating to " + target, NamedTextColor.GOLD)
+                case HEATING -> screen.tone(ScreenText.Tone.HEATING).line("Heating to " + target, NamedTextColor.GOLD)
                         .line(ScreenText.bar(load, 10, NamedTextColor.GOLD));
-                case IDLE -> screen.line("● Holding " + target, NamedTextColor.GREEN);
+                case IDLE -> screen.tone(ScreenText.Tone.HOLDING).line("Holding " + target, NamedTextColor.GREEN);
             }
             String humidity = thermostat.hasRoomDewPoint() ? Math.round(Psychrometrics.relativeHumidity(
                     thermostat.roomF(), thermostat.roomDewPointF())) + "% RH" : "";
@@ -390,7 +392,8 @@ public final class DisplayService {
                     } else {
                         AirQualityModel.Air air = reading.air();
                         AirQualityIndex.Band band = AirText.band(air);
-                        screen.big(AirText.aqiNumber(air)).line("AQI · " + band.displayName(), AirText.color(band));
+                        screen.tone(tone(band)).big(AirText.aqiNumber(air))
+                                .line("AQI · " + band.displayName(), AirText.color(band));
                         if (band != AirQualityIndex.Band.GOOD)
                             screen.line("Mostly " + AirQualityIndex.dominant(air).cause().toLowerCase(Locale.ROOT),
                                     NamedTextColor.WHITE);
@@ -459,8 +462,9 @@ public final class DisplayService {
             if (monitor.system() == null) return screen.line("Not linked:", NamedTextColor.GRAY)
                     .line("link with the", NamedTextColor.GRAY).line("link-tool", NamedTextColor.GRAY);
             if (rows.isEmpty()) return screen.line("No equipment", NamedTextColor.RED);
-            // A screen holds five rows; with more it pages along with the sign.
-            for (RpmMonitor.Row row : rows.size() <= ScreenText.LINES - 1 ? rows : shown)
+            // A screen holds six rows; with more it pages along with the sign.
+            if (rows.stream().anyMatch(row -> row.running() > 0)) screen.tone(ScreenText.Tone.RUNNING);
+            for (RpmMonitor.Row row : rows.size() <= ScreenText.ROWS ? rows : shown)
                 screen.line(rowText(row, ScreenText.WIDTH, settings.fullStar(), settings.emptyStar()),
                         row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
             return screen;
@@ -526,8 +530,14 @@ public final class DisplayService {
             lines.set(3, "Click > | Sneak <", NamedTextColor.GRAY);
         }, () -> ScreenText.titled(panel.label(), panel.system() == null ? "Not linked"
                         : SystemNames.label(registry, panel.system()))
+                .tone(switch (panel.profile()) {
+                    case ECO -> ScreenText.Tone.HOLDING.withGlyph("");
+                    case NORMAL -> ScreenText.Tone.NEUTRAL;
+                    case TURBO -> ScreenText.Tone.HEATING.withGlyph("");
+                })
                 .big(panel.profile().name())
-                .line("Click: next · Sneak: back", NamedTextColor.GRAY));
+                .line("Click: next", NamedTextColor.GRAY)
+                .line("Sneak: back", NamedTextColor.GRAY));
     }
 
     /** A dehumidifier's last line is its tank; a humidifier, being plumbed, just says what it is. */
@@ -566,9 +576,10 @@ public final class DisplayService {
             lines.set(3, footer, NamedTextColor.GRAY);
         }, () -> {
             ScreenText screen = ScreenText.titled(unit.label(), unit.kind().displayName())
+                    .tone(tooCold ? ScreenText.Tone.ALERT : tone(state))
                     .big(Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
                     .line("Target " + unit.setpoint() + "%", NamedTextColor.WHITE)
-                    .line("● " + stateText, stateColor);
+                    .line(stateText, stateColor);
             if (unit instanceof Dehumidifier dehumidifier)
                 screen.line(Component.text("Tank ", NamedTextColor.GRAY)
                         .append(ScreenText.bar(dehumidifier.tank(), 8, NamedTextColor.AQUA)));
@@ -607,10 +618,15 @@ public final class DisplayService {
             lines.set(2, stateText, stateColor);
             lines.set(3, footer, NamedTextColor.GRAY);
         }, () -> {
-            ScreenText screen = ScreenText.titled(purifier.label(), purifier.kind().displayName())
+            ScreenText.Tone tone = switch (state) {
+                case OFF -> ScreenText.Tone.OFF;
+                case NO_FILTER, FILTER_SPENT, EMPTYING -> ScreenText.Tone.ALERT;
+                case IDLE, RUNNING -> air.known() ? tone(AirText.band(air)) : ScreenText.Tone.NEUTRAL;
+            };
+            ScreenText screen = ScreenText.titled(purifier.label(), purifier.kind().displayName()).tone(tone)
                     .big(air.known() ? AirText.aqiNumber(air) : "--")
                     .line(air.known() ? "AQI · " + AirText.band(air).displayName() : "AQI", AirText.color(air))
-                    .line("● " + stateText, stateColor);
+                    .line(stateText, stateColor);
             if (purifier.installed() != AirPurifier.Filter.MISSING)
                 screen.line(Component.text("Filter ", NamedTextColor.GRAY)
                         .append(ScreenText.bar(purifier.filter(), 8, NamedTextColor.AQUA)));
@@ -654,7 +670,7 @@ public final class DisplayService {
             if (block != null && org.bukkit.Tag.ALL_SIGNS.isTagged(block.getType())) {
                 if (force || !fingerprint.equals(fingerprints.get(position)) || !screens.showing(position, block)) {
                     ScreenText text = screen.get();
-                    screens.show(position, block, text.text(), text.lines());
+                    screens.show(position, block, text);
                 }
             } else {
                 screens.remove(position);
@@ -664,13 +680,53 @@ public final class DisplayService {
         var location = position.location();
         if (location == null || !(location.getBlock().getState() instanceof Sign sign)) return;
         try {
-            writer.accept(new Lines(sign.getSide(Side.FRONT),
-                    sign instanceof HangingSign ? SignText.HANGING_SIGN_WIDTH : SignText.SIGN_WIDTH));
-            sign.update(false, false);
+            if (screens.enabled()) {
+                // The screen shows it all, so the sign stays blank (BETA 1.0): from 26.1 the sign's
+                // own text shows through the screen's panel. A sign already blank isn't sent again.
+                if (clear(sign.getSide(Side.FRONT))) sign.update(false, false);
+            } else {
+                writer.accept(new Lines(sign.getSide(Side.FRONT),
+                        sign instanceof HangingSign ? SignText.HANGING_SIGN_WIDTH : SignText.SIGN_WIDTH));
+                sign.update(false, false);
+            }
             fingerprints.put(position, fingerprint);
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.WARNING, "Could not refresh HVAC display at " + position, exception);
         }
+    }
+
+    /** A screen header for the air (BETA 1.0): the AQI band's colour, darkened to carry white text. */
+    static ScreenText.Tone tone(AirQualityIndex.Band band) {
+        return switch (band) {
+            case GOOD -> new ScreenText.Tone(0x2E7D32, "●");
+            case MODERATE -> new ScreenText.Tone(0x8A7400, "●");
+            case SENSITIVE -> new ScreenText.Tone(0xA8521C, "●");
+            case UNHEALTHY -> new ScreenText.Tone(0xA32D2D, "●");
+            case VERY_UNHEALTHY -> new ScreenText.Tone(0x6A2A8A, "●");
+            case HAZARDOUS -> new ScreenText.Tone(0x6E1E2E, "●");
+        };
+    }
+
+    /** A (de)humidifier's header for what it is doing. */
+    static ScreenText.Tone tone(ClimateUnit.State state) {
+        return switch (state) {
+            case OFF -> ScreenText.Tone.OFF;
+            case IDLE -> ScreenText.Tone.NEUTRAL;
+            case RUNNING -> ScreenText.Tone.RUNNING;
+            case EMPTYING -> ScreenText.Tone.COOLING.withGlyph("≈");
+            case NO_FILTER, FILTER_SPENT -> ScreenText.Tone.ALERT;
+        };
+    }
+
+    /** Empties every line of a sign's side; false when there was nothing to empty. */
+    static boolean clear(SignSide side) {
+        boolean changed = false;
+        for (int line = 0; line < 4; line++) {
+            if (PlainTextComponentSerializer.plainText().serialize(side.line(line)).isEmpty()) continue;
+            side.line(line, Component.empty());
+            changed = true;
+        }
+        return changed;
     }
 
     private static String formatEta(OptionalLong eta) {

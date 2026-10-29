@@ -31,17 +31,23 @@ import java.util.Set;
 import java.util.UUID;
 
 /**
- * Floating screens in front of device signs (2.1): text displays with
- * a dark background, lit at night, that show more than a sign's four lines.
- * They have no hitbox, so clicks reach the sign behind. They are never saved
- * with the world: a chunk unloading or the server stopping takes them away,
- * and the next refresh puts them back. Main thread only.
+ * Floating screens in front of device signs (2.1), drawn as a status strip
+ * since BETA 1.0: a header display in the colour of what the device is doing,
+ * an opaque body display under it, and the big reading as a third display at
+ * twice the size, floating just in front of the body. They are lit at night,
+ * have no hitbox, so clicks reach the sign behind, and are never saved with
+ * the world: a chunk unloading or the server stopping takes them away, and the
+ * next refresh puts them back. Main thread only.
  */
 public final class ScreenService {
-    /** A dark, slightly see-through panel. */
-    private static final Color BACKGROUND = Color.fromARGB(0xB0, 0x10, 0x14, 0x18);
+    /** The body's panel: dark and opaque, so the sign behind never shows through. */
+    private static final Color BODY = Color.fromARGB(0xFF, 0x10, 0x14, 0x18);
+    /** The big reading has no panel of its own: it is drawn over the body. */
+    private static final Color CLEAR = Color.fromARGB(0, 0, 0, 0);
 
-    private record Shown(UUID entity, int lines, Component text) {}
+    /** A screen's displays, and what they show: big is null on a screen without a big reading. */
+    private record Shown(UUID header, UUID body, UUID big, int bodyLines, ScreenText.Tone tone,
+                         Component headerText, Component bodyText, Component bigText) {}
 
     private final boolean enabled;
     private final NamespacedKey tag;
@@ -55,59 +61,103 @@ public final class ScreenService {
     public boolean enabled() { return enabled; }
 
     /**
-     * Shows this text on the sign's screen, putting the screen up first if
-     * it isn't there (a chunk that unloaded took it away). Unchanged text is
-     * not sent again.
+     * Shows this screen in front of the sign, putting it up first if it isn't
+     * there (a chunk that unloaded took it away). Unchanged parts are not sent
+     * again; a screen that changes size, or gains or loses its big reading, is
+     * put up afresh.
      */
-    public void show(BlockKey position, Block sign, Component text, int lines) {
+    public void show(BlockKey position, Block sign, ScreenText screen) {
         if (!enabled) return;
+        Component headerText = screen.header(), bodyText = screen.body(), bigText = screen.bigText();
+        int bodyLines = screen.bodyLines();
+        World world = sign.getWorld();
         Shown shown = screens.get(position);
-        Entity entity = shown == null ? null : sign.getWorld().getEntity(shown.entity());
-        if (entity instanceof TextDisplay display && display.isValid() && shown.lines() == lines) {
-            if (!shown.text().equals(text)) {
-                display.text(text);
-                screens.put(position, new Shown(shown.entity(), lines, text));
-            }
+        if (shown != null && intact(world, shown) && shown.bodyLines() == bodyLines
+                && (shown.big() == null) == (bigText == null)) {
+            if (!shown.headerText().equals(headerText)) display(world, shown.header()).text(headerText);
+            if (!shown.tone().equals(screen.tone()))
+                display(world, shown.header()).setBackgroundColor(panel(screen.tone()));
+            if (!shown.bodyText().equals(bodyText)) display(world, shown.body()).text(bodyText);
+            if (bigText != null && !bigText.equals(shown.bigText())) display(world, shown.big()).text(bigText);
+            screens.put(position, new Shown(shown.header(), shown.body(), shown.big(), bodyLines, screen.tone(),
+                    headerText, bodyText, bigText));
             return;
         }
-        if (entity != null) entity.remove();
-        Location spot = spot(sign, lines);
-        if (spot == null) {
+        if (shown != null) take(world, shown);
+        BlockData data = sign.getBlockData();
+        BlockFace facing = facing(data);
+        if (facing == null) {
             screens.remove(position);
             return;
         }
-        double scale = mount(sign.getBlockData()).scale();
-        TextDisplay display = sign.getWorld().spawn(spot, TextDisplay.class, created -> {
+        ScreenPlacement.Mount mount = mount(data);
+        ScreenPlacement.Layout layout = ScreenPlacement.layout(mount, facing.getDirection().getX(),
+                facing.getDirection().getZ(), bodyLines, bigText != null);
+        float scale = (float) mount.scale();
+        UUID header = spawn(sign, position, layout.header(), scale, headerText, panel(screen.tone()),
+                TextDisplay.TextAlignment.LEFT);
+        UUID body = spawn(sign, position, layout.body(), scale, bodyText, BODY, TextDisplay.TextAlignment.CENTER);
+        UUID big = bigText == null ? null
+                : spawn(sign, position, layout.big(), scale * 2f, bigText, CLEAR, TextDisplay.TextAlignment.CENTER);
+        screens.put(position, new Shown(header, body, big, bodyLines, screen.tone(), headerText, bodyText, bigText));
+    }
+
+    private static Color panel(ScreenText.Tone tone) {
+        return Color.fromARGB(0xFF, tone.rgb() >> 16 & 0xFF, tone.rgb() >> 8 & 0xFF, tone.rgb() & 0xFF);
+    }
+
+    private UUID spawn(Block sign, BlockKey position, ScreenPlacement.Spot spot, float scale, Component text,
+                       Color background, TextDisplay.TextAlignment alignment) {
+        Location at = new Location(sign.getWorld(), sign.getX() + spot.x(), sign.getY() + spot.y(),
+                sign.getZ() + spot.z(), spot.yaw(), 0f);
+        return sign.getWorld().spawn(at, TextDisplay.class, created -> {
             created.setPersistent(false);
             created.getPersistentDataContainer().set(tag, PersistentDataType.STRING, position.toString());
             created.setBillboard(Display.Billboard.FIXED);
-            created.setAlignment(TextDisplay.TextAlignment.LEFT);
+            created.setAlignment(alignment);
             created.setLineWidth(ScreenPlacement.LINE_WIDTH);
-            created.setBackgroundColor(BACKGROUND);
+            created.setDefaultBackground(false);
+            created.setBackgroundColor(background);
             created.setShadowed(true);
             created.setBrightness(new Display.Brightness(15, 15));
-            float s = (float) scale;
             created.setTransformation(new Transformation(new Vector3f(), new AxisAngle4f(),
-                    new Vector3f(s, s, s), new AxisAngle4f()));
+                    new Vector3f(scale, scale, scale), new AxisAngle4f()));
             created.text(text);
-        });
-        screens.put(position, new Shown(display.getUniqueId(), lines, text));
+        }).getUniqueId();
+    }
+
+    private static TextDisplay display(World world, UUID id) {
+        return (TextDisplay) world.getEntity(id);
+    }
+
+    /** True while every display of the screen is still there. */
+    private static boolean intact(World world, Shown shown) {
+        return valid(world, shown.header()) && valid(world, shown.body())
+                && (shown.big() == null || valid(world, shown.big()));
+    }
+
+    private static boolean valid(World world, UUID id) {
+        return world.getEntity(id) instanceof TextDisplay display && display.isValid();
+    }
+
+    private static void take(World world, Shown shown) {
+        if (world == null) return;
+        for (UUID id : new UUID[] {shown.header(), shown.body(), shown.big()}) {
+            Entity entity = id == null ? null : world.getEntity(id);
+            if (entity != null) entity.remove();
+        }
     }
 
     /** True while this sign's screen is up. */
     public boolean showing(BlockKey position, Block sign) {
         Shown shown = screens.get(position);
-        return shown != null && sign.getWorld().getEntity(shown.entity()) instanceof TextDisplay display
-                && display.isValid();
+        return shown != null && intact(sign.getWorld(), shown);
     }
 
     /** Takes a sign's screen down, when its device is removed or its sign changes. */
     public void remove(BlockKey position) {
         Shown shown = screens.remove(position);
-        if (shown == null) return;
-        World world = position.world();
-        Entity entity = world == null ? null : world.getEntity(shown.entity());
-        if (entity != null) entity.remove();
+        if (shown != null) take(position.world(), shown);
     }
 
     /** Takes down every screen whose device is gone. */
@@ -115,10 +165,7 @@ public final class ScreenService {
         for (Iterator<BlockKey> it = screens.keySet().iterator(); it.hasNext(); ) {
             BlockKey position = it.next();
             if (devices.contains(position)) continue;
-            Shown shown = screens.get(position);
-            World world = position.world();
-            Entity entity = world == null ? null : world.getEntity(shown.entity());
-            if (entity != null) entity.remove();
+            take(position.world(), screens.get(position));
             it.remove();
         }
     }
@@ -126,17 +173,6 @@ public final class ScreenService {
     /** Takes down every screen, when EZvac stops; they would otherwise stay until their chunks unload. */
     public void removeAll() {
         for (BlockKey position : Set.copyOf(screens.keySet())) remove(position);
-    }
-
-    /** Where the screen of this sign goes, or null for a block that isn't a sign any more. */
-    private static Location spot(Block sign, int lines) {
-        BlockData data = sign.getBlockData();
-        BlockFace facing = facing(data);
-        if (facing == null) return null;
-        ScreenPlacement.Spot spot = ScreenPlacement.of(mount(data), facing.getDirection().getX(),
-                facing.getDirection().getZ(), lines);
-        return new Location(sign.getWorld(), sign.getX() + spot.x(), sign.getY() + spot.y(), sign.getZ() + spot.z(),
-                spot.yaw(), 0f);
     }
 
     private static ScreenPlacement.Mount mount(BlockData data) {

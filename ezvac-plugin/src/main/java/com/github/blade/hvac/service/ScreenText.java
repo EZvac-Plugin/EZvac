@@ -11,45 +11,76 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The text of a screen (2.1): a title, one big reading, then a few
- * smaller lines, in the colours the signs already use. Every screen is the
- * same size: a text display sizes its panel to its text, so each screen is
- * padded to {@link #LINES} lines and its title to the full width. Pure.
+ * The text of a screen, as a status strip (BETA 1.0): a header in the colour
+ * of what the device is doing, with its name and a glyph; under it a dark
+ * body with one big reading and a few centred lines. The header, the body and
+ * the big reading are three text displays (see {@link ScreenService}), since a
+ * display has one background colour and one text size. Every screen is the
+ * same size: a display sizes its panel to its widest line and centres the
+ * others on it, so every body holds at least one blank line of spaces as wide
+ * as the screen, and is {@link #BODY_LINES} lines tall. Lines themselves are
+ * never padded: a line pushed past the display's wrap width would wrap, and
+ * the extra line would move everything up under the big reading. Pure.
  */
 public final class ScreenText {
-    /** Lines on every screen; a device with less to say gets blank ones. */
-    public static final int LINES = 6;
+    /** Lines in the body. A big reading takes the top two. */
+    public static final int BODY_LINES = 6;
+    /** Lines a big reading takes: it is drawn at twice the size. */
+    public static final int BIG_LINES = 2;
+    /** Small lines a screen shows when it has no big reading, such as a hub's sensors: one stays blank. */
+    public static final int ROWS = BODY_LINES - 1;
     /** Pixels a line may take: the screen's width, less a pixel either side so nothing wraps. */
     static final int WIDTH = ScreenPlacement.LINE_WIDTH - 2;
+
+    /**
+     * What a device is doing, as its header shows it: a colour (opaque, RGB)
+     * and a glyph at the header's right end.
+     */
+    public record Tone(int rgb, String glyph) {
+        public static final Tone NEUTRAL = new Tone(0x2F3A48, "");
+        public static final Tone COOLING = new Tone(0x1F5F9F, "❄");
+        public static final Tone HEATING = new Tone(0xA8521C, "♨");
+        public static final Tone HOLDING = new Tone(0x2E7D32, "●");
+        public static final Tone RUNNING = new Tone(0x2E7D32, "●");
+        public static final Tone OFF = new Tone(0x4A4F57, "○");
+        /** Something needs a player: no filter, a spent filter, air too cold to dry. */
+        public static final Tone ALERT = new Tone(0x9A6400, "!");
+
+        /** The same colour with another glyph. */
+        public Tone withGlyph(String other) { return new Tone(rgb, other); }
+    }
+
+    private final String title;
+    private final String belongsTo;
+    private Tone tone = Tone.NEUTRAL;
+    private Component big;
     private final List<Component> lines = new ArrayList<>();
-    private int titleWidth;
 
-    /** The device's name, and in grey whatever it belongs to. */
+    private ScreenText(String title, String belongsTo) {
+        this.title = title;
+        this.belongsTo = belongsTo;
+    }
+
+    /** The device's name, and in a lighter shade whatever it belongs to. */
     public static ScreenText titled(String title, String belongsTo) {
-        ScreenText screen = new ScreenText();
-        String suffix = belongsTo == null || belongsTo.isBlank() ? "" : "  · " + belongsTo;
-        String name = SignText.fit(title, WIDTH - width(suffix));
-        if (name.isEmpty()) {
-            name = SignText.fit(title, WIDTH);
-            suffix = "";
-        }
-        Component line = Component.text(name, NamedTextColor.AQUA);
-        if (!suffix.isEmpty()) line = line.append(Component.text(suffix, NamedTextColor.GRAY));
-        screen.lines.add(line);
-        screen.titleWidth = width(name + suffix);
-        return screen;
+        return new ScreenText(title, belongsTo == null || belongsTo.isBlank() ? "" : belongsTo.trim());
     }
 
-    /** Pixels a title takes; its · separator is as narrow as a full stop, though the sign's table doesn't know it. */
-    private static int width(String text) {
-        return SignText.width(text.replace('·', '.'));
-    }
-
-    /** The reading that matters most, bold. */
-    public ScreenText big(String reading) {
-        lines.add(Component.text(reading, NamedTextColor.WHITE).decorate(TextDecoration.BOLD));
+    /** The header's colour and glyph; {@link Tone#NEUTRAL} unless a device says otherwise. */
+    public ScreenText tone(Tone value) {
+        tone = value;
         return this;
     }
+
+    public Tone tone() { return tone; }
+
+    /** The reading that matters most, big and bold. */
+    public ScreenText big(String reading) {
+        big = Component.text(reading, NamedTextColor.WHITE).decorate(TextDecoration.BOLD);
+        return this;
+    }
+
+    public boolean hasBig() { return big != null; }
 
     /**
      * A line of EZvac's own wording, short enough by design. Only names a
@@ -74,25 +105,73 @@ public final class ScreenText {
         return this;
     }
 
-    /** Lines in use so far, before padding. */
+    /** Small lines in use so far. */
     public int used() { return lines.size(); }
 
-    /** Lines on the screen: always {@link #LINES} unless a device needed more. */
-    public int lines() { return Math.max(LINES, lines.size()); }
+    /** Lines in the body: always {@link #BODY_LINES} unless a device needed more. */
+    public int bodyLines() {
+        return Math.max(BODY_LINES, lines.size() + (big == null ? 1 : BIG_LINES));
+    }
 
-    public Component text() {
-        List<Component> all = new ArrayList<>(lines);
-        // Spaces after the title stretch the panel to the full width; blank lines give it the full height.
-        int spaces = Math.max(0, (WIDTH - titleWidth) / SignText.width(" "));
-        if (!all.isEmpty() && spaces > 0) all.set(0, all.get(0).append(Component.text(" ".repeat(spaces))));
-        while (all.size() < LINES) all.add(Component.text(" "));
+    /**
+     * The header: the name in white, what it belongs to in a lighter shade,
+     * then spaces out to the glyph at the right end, which also stretches
+     * the strip to the full width.
+     */
+    public Component header() {
+        String suffix = belongsTo.isEmpty() ? "" : "  · " + belongsTo;
+        // At least a space always comes before the glyph, and a space's width is left spare at the
+        // end, so a glyph a little wider than the sign's table thinks never wraps the strip.
+        int room = WIDTH - glyphWidth() - SignText.width(" "), text = room - SignText.width(" ");
+        String name = SignText.fit(title, text - width(suffix));
+        if (name.isEmpty()) {
+            name = SignText.fit(title, text);
+            suffix = "";
+        }
+        Component line = Component.text(name, NamedTextColor.WHITE);
+        if (!suffix.isEmpty()) line = line.append(Component.text(suffix, TextColor.color(0xC8D0DA)));
+        int spaces = Math.max(1, (room - width(name + suffix)) / SignText.width(" "));
+        line = line.append(Component.text(" ".repeat(spaces)));
+        return tone.glyph().isEmpty() ? line : line.append(Component.text(tone.glyph(), NamedTextColor.WHITE));
+    }
+
+    private int glyphWidth() {
+        return tone.glyph().isEmpty() ? 0 : SignText.width(tone.glyph());
+    }
+
+    /** The big reading, or null when the screen has none. */
+    public Component bigText() { return big; }
+
+    /**
+     * The body, centred by its display: blank rows where the big reading is
+     * drawn over it, then the small lines, then blank rows to the full
+     * height. The blank rows are the screen's width in spaces, which sets the
+     * panel's width; a screen without a big reading always ends in one.
+     */
+    public Component body() {
+        List<Component> all = new ArrayList<>();
+        if (big != null) for (int i = 0; i < BIG_LINES; i++) all.add(Component.text(BLANK));
+        all.addAll(lines);
+        if (big == null) all.add(Component.text(BLANK));
+        while (all.size() < BODY_LINES) all.add(Component.text(BLANK));
         return Component.join(JoinConfiguration.newlines(), all);
     }
 
-    /** The text as plain characters, without the padding. */
+    /** A line of spaces just short of the wrap width, so it can never wrap. */
+    static final String BLANK = " ".repeat(WIDTH / SignText.width(" ") - 1);
+
+    /** Pixels a text takes; a · is as narrow as a full stop, though the sign's table doesn't know it. */
+    private static int width(String text) {
+        return SignText.width(text.replace('·', '.'));
+    }
+
+    /** The text as plain characters, without the padding: the header, the big reading, the lines. */
     String plain() {
-        return PlainTextComponentSerializer.plainText().serialize(
-                Component.join(JoinConfiguration.newlines(), lines));
+        List<String> all = new ArrayList<>();
+        all.add(belongsTo.isEmpty() ? title : title + "  · " + belongsTo);
+        if (big != null) all.add(PlainTextComponentSerializer.plainText().serialize(big));
+        for (Component line : lines) all.add(PlainTextComponentSerializer.plainText().serialize(line));
+        return String.join("\n", all);
     }
 
     /** A filled-and-empty bar: ▮▮▮▮▮▮▯▯▯▯ for 0.6 over ten cells. */
