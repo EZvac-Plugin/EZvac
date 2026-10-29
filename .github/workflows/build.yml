@@ -45,3 +45,25 @@ jobs:
           path: ezvac-plugin/target/EzVac-*.jar
           if-no-files-found: error
           retention-days: 30
+
+  # The jar is built against the Paper 1.21.1 API so one jar runs on 1.21.1
+  # and on 26.1 to 26.3 (BETA 1.0). This job compiles the same code and tests
+  # against the 26.1 API too, on the Java 25 that Paper 26.x needs, so code
+  # that 26.x removed fails here before it reaches a server.
+  compile-26:
+    name: Compile against Paper 26.1
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Compile the plugin and its tests
+        run: mvn -B -Dpaper.version=26.1.2.build.74-stable -Dmaven.compiler.release=25 clean test-compile

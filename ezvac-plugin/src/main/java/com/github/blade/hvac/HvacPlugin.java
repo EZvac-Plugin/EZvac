@@ -124,6 +124,8 @@ public final class HvacPlugin extends JavaPlugin {
                     HvacAudioService.BUBBLE_PERIOD_TICKS);
             displays.refreshAll(true);
             requestImmediateSync();
+            String legacy = legacyServerWarning(getServer().getMinecraftVersion());
+            if (legacy != null) getLogger().warning(legacy);
             getLogger().info("EZvac enabled: " + registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.vents().size() + " vent(s), "
@@ -135,6 +137,17 @@ public final class HvacPlugin extends JavaPlugin {
             getLogger().log(Level.SEVERE, "EZvac could not start safely", exception);
             getServer().getPluginManager().disablePlugin(this);
         }
+    }
+
+    /**
+     * BETA 1.0 still runs on 1.21.1, the version every ALPHA was built for,
+     * but only until BETA 2.x. Null on Minecraft 26.1 and newer.
+     */
+    static String legacyServerWarning(String minecraftVersion) {
+        if (minecraftVersion == null || !minecraftVersion.startsWith("1.")) return null;
+        return "This server runs Minecraft " + minecraftVersion + ". EZvac BETA 1.x still supports 1.21.1,"
+                + " but BETA 2.x will drop it entirely. Update the server to Minecraft 26.1 or newer"
+                + " before then; your EZvac save carries over unchanged.";
     }
 
     /**
