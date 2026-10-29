@@ -497,6 +497,25 @@ public final class OutdoorTemperatureService {
                 climate.wind());
     }
 
+    /**
+     * The outdoor air of a climate right now, weather and season included:
+     * for a weather station's area (BETA 1.0), which is averaged from many
+     * spots. Never reads a room's temperature.
+     */
+    public double airNow(World world, BiomeBlend.Blended local) {
+        return air(world, local);
+    }
+
+    /** How far the seasons move a climate this many days from now, in degrees (BETA 1.0, forecasts). */
+    public double seasonShiftIn(World world, double seasonalF, int days) {
+        if (seasons == null || world == null || !(seasonalF > 0.0)) return 0.0;
+        double strength = climate.seasons().effectiveStrength();
+        return strength <= 0.0 ? 0.0 : seasonalF * strength * seasons.airFactorIn(world.getUID(), days);
+    }
+
+    /** Null outside a running server (tests). */
+    public SeasonService seasons() { return seasons; }
+
     /** The outdoor air at this time of day and point of the year, weather included. */
     private double air(World world, BiomeBlend.Blended local) {
         WeatherModel.Effect effect = effect(world, local);

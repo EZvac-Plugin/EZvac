@@ -13,6 +13,7 @@ import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
 import com.github.blade.hvac.simulation.AirQualityModel;
+import com.github.blade.hvac.simulation.Forecast;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
 import com.github.blade.hvac.simulation.SizingModel;
@@ -98,6 +99,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             if (!requireAdmin(sender)) return true;
             // Blocks changed without events (/fill, WorldEdit) leave maps stale until remapped (BETA 1.0).
             plugin.airflow().invalidateAllSystems();
+            plugin.weatherStations().recheckAll();
             plugin.requestImmediateSync();
             sender.sendMessage(green("HVAC reconciliation queued; every system's air is mapped again."));
             return true;
@@ -147,6 +149,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         { if (requireAdmin(player)) linkTool.give(player); }
                 case "remove" -> { if (requireAdmin(player)) remove(player, args); }
                 case "quicksettings", "qs" -> { if (requireAdmin(player)) plugin.quickSettings().open(player); }
+                case "forecast", "weatherfc" -> plugin.forecastMenu().openForecast(player, null);
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
             }
         } catch (IllegalArgumentException exception) {
@@ -292,6 +295,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         + (reads == Sensor.Kind.WIND ? " Put it up high in the open: walls and roofs shelter it."
                         : "")));
             }
+            case "weatherstation", "weather-station", "station" -> createWeatherStation(player, block, position, args);
             case "sensor-hub", "sensorhub" -> {
                 requireSign(block);
                 SensorHub hub = new SensorHub(position, args.length >= 3 ? args[2] : "Sensors");
@@ -303,6 +307,24 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             default -> throw new IllegalArgumentException("Unknown device type '" + args[1] + "'.");
         }
         plugin.requestImmediateSync();
+    }
+
+    /**
+     * A weather station (BETA 1.0): the wall sign on the waxed cut copper of
+     * a whole tower, in a world with weather. It measures its area at once.
+     */
+    private void createWeatherStation(Player player, Block sign, BlockKey position, String[] args) {
+        requireSwitchedOn(DeviceKind.WEATHER_STATION);
+        if (sign.getWorld().getEnvironment() != World.Environment.NORMAL)
+            throw new IllegalArgumentException("Weather stations only work where there's weather: in the Overworld.");
+        WeatherStationService.Check check = WeatherStationService.check(sign);
+        if (!check.whole()) throw new IllegalArgumentException(check.missing() + " See the docs for the tower.");
+        WeatherStation station = new WeatherStation(position, args.length >= 3 ? args[2] : "Station");
+        registry.addWeatherStation(station);
+        plugin.weatherStations().measure(station);
+        displays.refreshWeatherStation(station, true);
+        player.sendMessage(green("Created weather station '" + station.label() + "'. Players within "
+                + plugin.weatherStations().settings().range() + " blocks can see its forecast with /hvac forecast."));
     }
 
     /**
@@ -502,11 +524,32 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         else if (unit != null && unit.position().equals(key)) unit.setLabel(label);
         else if (!registry.relabel(key, label))
             throw new IllegalArgumentException("Look at a thermostat, an RPM monitor, a settings panel, a sensor"
-                    + " hub, a thermometer, a sensor, or a dehumidifier or humidifier sign.");
+                    + " hub, a thermometer, a sensor, a weather station, or a dehumidifier or humidifier sign.");
         registry.markDirty();
         displays.invalidate(key);
         displays.refreshAll(true);
         player.sendMessage(green("Renamed to '" + label + "'."));
+    }
+
+    /** /hvac info on a weather station (BETA 1.0). */
+    private void showWeatherStation(Player player, WeatherStation station) {
+        WeatherStationService stations = plugin.weatherStations();
+        String state = !WeatherStationService.switchedOn() ? "off server-wide" : !station.enabled() ? "off"
+                : !station.intact() ? "damaged: rebuild its tower" : "on";
+        player.sendMessage(join(gold("Weather station "), white(station.label()), gray(" | " + state)));
+        if (station.area() == null) player.sendMessage(gray("It hasn't measured its area yet."));
+        else player.sendMessage(join(gray("Outdoors around it: "),
+                white(StationText.temperature(stations.nowF(station), settings.units())),
+                gray(" | measures " + stations.settings().areaRadius() + " blocks around and "
+                        + stations.settings().areaHeight() + " up")));
+        List<Forecast.Day> days = WeatherStationService.working(station) ? stations.forecast(station) : List.of();
+        if (!days.isEmpty()) {
+            Forecast.Day today = days.get(0);
+            boolean snow = station.area().snowShare() > station.area().rainShare();
+            player.sendMessage(join(gray("Today: "), white(StationText.sky(today, snow) + ", "
+                    + StationText.highLow(today, settings.units())), gray(today.note().isEmpty() ? "" : " | " + today.note())));
+        }
+        player.sendMessage(gray("Struck by lightning " + station.strikes() + (station.strikes() == 1 ? " time." : " times.")));
     }
 
     private void temperature(Player player) {
@@ -794,6 +837,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             player.sendMessage(gray("Shown on " + hubs + " sensor hub" + (hubs == 1 ? "" : "s") + "."));
             return;
         }
+        WeatherStation station = registry.weatherStationAt(key);
+        if (station != null) {
+            showWeatherStation(player, station);
+            return;
+        }
         SensorHub hub = registry.sensorHubAt(key);
         if (hub != null) {
             player.sendMessage(join(gold("Sensor hub "), white(hub.label()), gray(" | " + hub.sensors().size() + "/"
@@ -890,6 +938,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             else if (registry.removeSensor(key) != null)
                 player.sendMessage(green("Sensor removed, and taken off every sensor hub that showed it."));
             else if (registry.removeSensorHub(key) != null) player.sendMessage(green("Sensor hub removed."));
+            else if (registry.removeWeatherStation(key) != null) {
+                plugin.weatherStations().forget(key);
+                player.sendMessage(green("Weather station removed. Its tower stays."));
+            }
             else { player.sendMessage(red("No EZvac device is registered at that block.")); return; }
         }
         displays.invalidate(key);
@@ -1166,6 +1218,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         + "|settingspanel|sensor-hub [label]", "a sign"));
                 lines.add(help("/hvac create dehumidifier|humidifier|purifier [label]", "the sign on its iron block"));
                 lines.add(help("/hvac create sensor [label]", "a button"));
+                lines.add(help("/hvac create weatherstation [label]", "the sign on its tower"));
                 lines.add(help("/hvac link-tool", "link devices to a thermostat, or sensors to a hub"));
                 lines.add(help("/hvac thermostat set|enable|disable", "the thermostat you look at"));
                 lines.add(help("/hvac equipment enable|disable|tier", "the unit you look at"));
@@ -1190,6 +1243,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 lines.add(help("/hvac list", "the systems in this world"));
                 lines.add(help("/hvac season", "the season and how much it warms or cools outside"));
                 lines.add(help("/hvac wind", "today's wind, the wind here, and the next days'"));
+                lines.add(help("/hvac forecast", "the next seven days, from a weather station near you"));
                 if (admin) {
                     lines.add(help("/hvac help build", "creating, linking and changing devices"));
                     lines.add(help("/hvac help server", "quick settings, statistics, seasons, wind, updates"));
@@ -1205,7 +1259,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     /** The first word's completions: only what the sender can run. */
     static List<String> subcommands(boolean hud, boolean admin) {
-        List<String> words = new ArrayList<>(List.of("help", "temperature", "list", "info", "season", "wind"));
+        List<String> words = new ArrayList<>(List.of("help", "temperature", "list", "info", "season", "wind",
+                "forecast"));
         if (hud) words.add("hud");
         if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove",
                 "stats", "sync", "update", "quicksettings"));
@@ -1241,7 +1296,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
                         "thermohygrometer", "airmonitor", "rpmmonitor", "settingspanel", "dehumidifier",
-                        "humidifier", "purifier", "sensor", "sensor-hub");
+                        "humidifier", "purifier", "sensor", "sensor-hub", "weatherstation");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");

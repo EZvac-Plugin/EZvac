@@ -16,6 +16,7 @@ class DeviceKindTest {
         Set<DeviceKind> kinds = EnumSet.noneOf(DeviceKind.class);
         for (EquipmentType type : EquipmentType.values()) kinds.add(DeviceKind.of(type));
         for (ClimateUnit.Kind kind : ClimateUnit.Kind.values()) kinds.add(DeviceKind.of(kind));
+        kinds.add(DeviceKind.WEATHER_STATION);   // not climate-changing, but switched like one (BETA 1.0)
         assertEquals(EnumSet.allOf(DeviceKind.class), kinds);
     }
 

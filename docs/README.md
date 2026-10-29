@@ -10,6 +10,7 @@ New to EZvac? Start with **[Getting started](getting-started.md)**.
 - [Dehumidifiers and humidifiers](dehumidifiers-and-humidifiers.md): building and using them
 - [Air quality and air purifiers](air-quality.md): the AQI, pollen, smoke, and purifiers with coral filters
 - [Sensors and readings](sensors.md): thermometers, hygrometers, air monitors, sensors (wind sensors too) and sensor hubs
+- [Weather stations](weather-stations.md): the tower, its seven-day forecast, `/hvac forecast`, sparks and lightning
 - [Screens and control menus](screens-and-menus.md): the screens on every sign, and the menus for setpoints
 
 ## How it works

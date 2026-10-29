@@ -14,6 +14,9 @@ all of it. `sizing.enabled: false`, or **Building size** in quick settings,
 keeps the old behaviour. See
 [Size-based heating and cooling](#size-based-heating-and-cooling).
 
+**New: weather stations,** towers that forecast the next seven days for
+players nearby. See [Weather stations](#weather-stations).
+
 ### Minecraft 26.x
 
 - **Runs on 26.1, 26.2 and 26.3,** on the Java 25 that Paper 26.x needs.
@@ -63,6 +66,27 @@ keeps the old behaviour. See
   reach all of it. `sizing.enabled: false`, or **Building size** in quick
   settings, keeps the old behaviour.
 
+### Weather stations
+
+- **A new device: a weather station.** An admin builds a tower of copper and
+  iron with three lightning rods and puts a sign on it
+  (`/hvac create weatherstation`). It measures the outdoor climate 100
+  blocks around it and 20 up, and forecasts the next seven days. It never
+  reads a room's temperature. See [Weather stations](docs/weather-stations.md).
+- **Honest forecasts:** each day's high and low, wind and pollen are exact,
+  from the area's climate, the season calendar and the world's seed. Rain
+  and thunder are what's certain today or tomorrow ("Rain from 15:00"), then
+  chances, since Minecraft's next spell of weather is random.
+- **`/hvac forecast`** (everyone) shows the stations within 400 blocks,
+  nearest first, and the chosen one's seven days. Clicking a station's screen
+  opens it too; an admin gets its menu, with an on/off switch.
+- **Sparks and lightning:** a working station's rods spark when someone is
+  near, and it counts every lightning strike on its tower.
+- **It measures** at sunrise and sunset and forecasts again when the weather
+  changes. A damaged tower stops it until it's rebuilt. Weather stations are
+  a kind on quick settings' Devices page, and `weather-stations` in
+  `config.yml` sets their range, area and sparks.
+
 ### Quick settings
 
 - **`/hvac quicksettings`** (or `/hvac qs`, `ezvac.admin`) opens one menu for
@@ -71,7 +95,7 @@ keeps the old behaviour. See
   See [Quick settings](docs/screens-and-menus.md#quick-settings).
 - **Devices:** switch a kind off server-wide (heat pumps, air conditioners,
   furnaces, boilers, pool heat pumps, dehumidifiers, humidifiers, air
-  purifiers). They stop, their signs read "Off server-wide", and no new one
+  purifiers, weather stations). They stop, their signs read "Off server-wide", and no new one
   can be made. Switched back on, each runs again as it was set. A thermostat
   left with no unit to heat or cool says "Units off" rather than heating
   with no ETA.
@@ -170,8 +194,9 @@ keeps the old behaviour. See
   each one chat screen. Tab completion only offers commands you can run.
   No command changed. See [Commands](docs/commands.md).
 - **The HUD's version line** shows BETA versions short: `B1.0_P1`.
-- **Your config.yml** gains the `updates`, `devices`, `backups` and
-  `sizing` sections and `air-quality.pollen`, with their comments.
+- **Your config.yml** gains the `updates`, `devices`, `backups`, `sizing`
+  and `weather-stations` sections and `air-quality.pollen`, with their
+  comments.
 
 ## ALPHA 3.2 HOTFIX 1
 

@@ -40,7 +40,7 @@ public final class HvacRegistry {
 
     public enum DeviceKind {
         THERMOSTAT, EQUIPMENT, VENT, THERMOMETER, RPM_MONITOR, SETTINGS_PANEL, DEHUMIDIFIER, HUMIDIFIER,
-        AIR_PURIFIER, SENSOR, SENSOR_HUB, NONE
+        AIR_PURIFIER, SENSOR, SENSOR_HUB, WEATHER_STATION, NONE
     }
 
     /**
@@ -95,7 +95,7 @@ public final class HvacRegistry {
     private static final Set<String> KNOWN_SECTIONS = Set.of(
             "thermostats", "equipment", "cleanup", "vents",
             "thermometers", "rpmMonitors", "settingsPanels", "dehumidifiers", "humidifiers",
-            "purifiers", "sensors", "sensorHubs");
+            "purifiers", "sensors", "sensorHubs", "weatherStations");
 
     private final Host host;
     private final HvacSettings settings;
@@ -115,6 +115,7 @@ public final class HvacRegistry {
     private final Map<BlockKey, Sensor> sensors = new HashMap<>();
     /** Keyed by sign. Few per world, so lookups by linked sensor simply scan them. */
     private final Map<BlockKey, SensorHub> sensorHubs = new HashMap<>();
+    private final Map<BlockKey, WeatherStation> weatherStations = new HashMap<>();
     private final List<EquipmentUnit> pendingCleanup = new ArrayList<>();
     private final Map<String, List<Map<String, Object>>> preservedRecords = new HashMap<>();
     private final File dataFile;
@@ -215,6 +216,8 @@ public final class HvacRegistry {
                 value -> loadByPosition(sensors, "sensors", value.position(), value, value.toMap()));
         readSection(configuration, "sensorHubs", SensorHub::fromMap,
                 value -> loadByPosition(sensorHubs, "sensorHubs", value.position(), value, value.toMap()));
+        readSection(configuration, "weatherStations", WeatherStation::fromMap,
+                value -> loadByPosition(weatherStations, "weatherStations", value.position(), value, value.toMap()));
         if (upgradedFromFormat > 0 && upgradedFromFormat < 8) {
             for (EquipmentUnit unit : equipment.values()) unit.setTier(Tier.LEGACY);
             for (EquipmentUnit unit : pendingCleanup) unit.setTier(Tier.LEGACY);
@@ -393,6 +396,8 @@ public final class HvacRegistry {
         write(configuration, "purifiers", purifiers.values(), AirPurifier::position, AirPurifier::toMap);
         write(configuration, "sensors", sensors.values(), Sensor::position, Sensor::toMap);
         write(configuration, "sensorHubs", sensorHubs.values(), SensorHub::position, SensorHub::toMap);
+        write(configuration, "weatherStations", weatherStations.values(), WeatherStation::position,
+                WeatherStation::toMap);
         for (Map.Entry<String, List<Map<String, Object>>> entry : preservedRecords.entrySet()) {
             int index = sectionSize(configuration, entry.getKey());
             for (Map<String, Object> record : entry.getValue())
@@ -537,6 +542,7 @@ public final class HvacRegistry {
         removeUnitConflicts(purifiers, occupied, "purifiers");
         removePositionConflicts(sensors, occupied, "sensors", Sensor::toMap);
         removePositionConflicts(sensorHubs, occupied, "sensorHubs", SensorHub::toMap);
+        removePositionConflicts(weatherStations, occupied, "weatherStations", WeatherStation::toMap);
         int dangling = 0;
         for (SensorHub hub : sensorHubs.values())
             for (BlockKey linked : List.copyOf(hub.sensors()))
@@ -610,6 +616,10 @@ public final class HvacRegistry {
     public Collection<SensorHub> sensorHubs() { return Collections.unmodifiableCollection(sensorHubs.values()); }
     public Sensor sensorAt(BlockKey key) { return sensors.get(key); }
     public SensorHub sensorHubAt(BlockKey key) { return sensorHubs.get(key); }
+    public Collection<WeatherStation> weatherStations() {
+        return Collections.unmodifiableCollection(weatherStations.values());
+    }
+    public WeatherStation weatherStationAt(BlockKey key) { return weatherStations.get(key); }
     /** The hubs a sensor is linked to, by position. */
     public List<SensorHub> hubsShowing(BlockKey sensor) {
         List<SensorHub> hubs = new ArrayList<>();
@@ -798,6 +808,7 @@ public final class HvacRegistry {
         };
         if (sensors.containsKey(key)) return DeviceKind.SENSOR;
         if (sensorHubs.containsKey(key)) return DeviceKind.SENSOR_HUB;
+        if (weatherStations.containsKey(key)) return DeviceKind.WEATHER_STATION;
         return DeviceKind.NONE;
     }
 
@@ -920,6 +931,20 @@ public final class HvacRegistry {
         if (value == null) return null;
         for (SensorHub hub : sensorHubs.values()) hub.unlink(key);
         dirty = true;
+        removed(value);
+        return value;
+    }
+
+    public void addWeatherStation(WeatherStation station) {
+        requireFree(station.position());
+        weatherStations.put(station.position(), station);
+        dirty = true;
+        added(station);
+    }
+
+    public WeatherStation removeWeatherStation(BlockKey key) {
+        WeatherStation value = weatherStations.remove(key);
+        dirty |= value != null;
         removed(value);
         return value;
     }
@@ -1162,12 +1187,19 @@ public final class HvacRegistry {
     }
 
     /**
-     * Renames the thermometer or sensor at a block. Both are records, so the
-     * registry swaps in the renamed one; hubs link sensors by position.
+     * Renames the thermometer, sensor or weather station at a block. Their
+     * labels are final, so the registry swaps in the renamed one; hubs link
+     * sensors by position.
      *
-     * @return false when neither is there
+     * @return false when none is there
      */
     public boolean relabel(BlockKey key, String label) {
+        WeatherStation station = weatherStations.get(key);
+        if (station != null) {
+            weatherStations.put(key, station.renamed(label));
+            dirty = true;
+            return true;
+        }
         Thermometer thermometer = thermometers.get(key);
         if (thermometer != null) {
             thermometers.put(key, new Thermometer(key, label, thermometer.reads()));
@@ -1253,6 +1285,7 @@ public final class HvacRegistry {
         removed += removedUnits.size();
         removedUnits.forEach(unit -> removed(unit, DeviceObserver.Cause.MISSING));
         removed += pruneSigns(sensorHubs.values().iterator(), SensorHub::position);
+        removed += pruneSigns(weatherStations.values().iterator(), WeatherStation::position);
         // A button pops off when its wall is broken, without any break event of its own.
         Iterator<Sensor> sensorIterator = sensors.values().iterator();
         while (sensorIterator.hasNext()) {
@@ -1325,6 +1358,7 @@ public final class HvacRegistry {
         rpmMonitors.clear(); settingsPanels.clear(); pendingCleanup.clear(); preservedRecords.clear();
         nextSystem = 1;
         dehumidifiers.clear(); humidifiers.clear(); purifiers.clear(); sensors.clear(); sensorHubs.clear();
+        weatherStations.clear();
         rebuildIndexes();
         dirty = false;
     }

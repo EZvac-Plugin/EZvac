@@ -420,6 +420,20 @@ wind:
   #   minecraft:plains: 1.2
   biomes: {}
 
+# Weather stations (BETA 1.0): a tower of copper and iron with a sign, built
+# by an admin (/hvac create weatherstation). It measures the outdoor climate
+# around it and forecasts the next seven days; players near one see the
+# forecast with /hvac forecast or by clicking its screen. It measures again at
+# sunrise and sunset, and when the weather changes.
+weather-stations:
+  # How near a player must be to a station to see its forecast, in blocks.
+  range: 400
+  # The area a station measures: this far each way, and this far above it.
+  area-radius: 100
+  area-height: 20
+  # Sparks at the lightning rods of a station that is on, when a player is near.
+  sparks: true
+
 # On-screen climate HUD and PlaceholderAPI placeholders (ALPHA 1.8).
 # Players turn the HUD on or off for themselves with /hvac hud. Text uses
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:

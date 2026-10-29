@@ -36,8 +36,9 @@ biome and the weather.
 > newer EZvac is out. `/hvac quicksettings` gives owners one menu to switch
 > device kinds, air quality, pollen, wind and the seasons on or off, and to
 > back the registry up. Heating and cooling now go by building size: one
-> three-star unit per 1,860 blocks of air, so big builds need more equipment. Your
-> save carries over unchanged.
+> three-star unit per 1,860 blocks of air, so big builds need more equipment.
+> Weather stations forecast the next seven days for players nearby
+> (`/hvac forecast`). Your save carries over unchanged.
 >
 > ALPHA 3.2 added air quality. Every room tracks
 > fine particles, dust and pollen, scored as the US EPA Air Quality Index:
@@ -90,6 +91,7 @@ biome and the weather.
 | [Dehumidifiers and humidifiers](docs/dehumidifiers-and-humidifiers.md) | Building and using them, "Air too cold" |
 | [Air quality and air purifiers](docs/air-quality.md) | The AQI, pollen, smoke and dust, and purifiers with coral filters |
 | [Sensors and readings](docs/sensors.md) | Thermometers, hygrometers, sensors and sensor hubs |
+| [Weather stations](docs/weather-stations.md) | A tower that forecasts the next seven days; `/hvac forecast` |
 | [Screens and control menus](docs/screens-and-menus.md) | The screens on every sign, the setpoint menus, and quick settings |
 | [Climate](docs/climate.md) | Outdoor temperature, weather, humidity, feels-like, variance |
 | [Wind](docs/wind.md) | Each day's wind, where it blows, and what it does |

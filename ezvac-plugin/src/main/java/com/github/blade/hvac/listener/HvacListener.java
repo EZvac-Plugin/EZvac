@@ -57,7 +57,7 @@ public final class HvacListener implements Listener {
         boolean thermostat = registry.thermostatAt(key) != null;
         if (thermostat || registry.thermometerAt(key) != null || registry.rpmMonitorAt(key) != null
                 || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null
-                || registry.sensorHubAt(key) != null) {
+                || registry.sensorHubAt(key) != null || registry.weatherStationAt(key) != null) {
             event.setCancelled(true);
             event.getPlayer().sendMessage(Component.text(thermostat
                     ? "Right-click the sign to open its controls." : "That HVAC display is read-only.",
@@ -552,6 +552,11 @@ public final class HvacListener implements Listener {
                     SensorHub hub = registry.removeSensorHub(key);
                     removed = true;
                     notice = "sensor hub '" + hub.label() + "'";
+                } else if (registry.weatherStationAt(key) != null) {
+                    WeatherStation station = registry.removeWeatherStation(key);
+                    plugin.weatherStations().forget(key);
+                    removed = true;
+                    notice = "weather station '" + station.label() + "'";
                 } else {
                     removed = registry.removeThermometer(key); // deliberately silent
                 }
