@@ -108,6 +108,9 @@ class HudFormatterTest {
         assertEquals("A2.0", HudFormatter.shortVersion("ALPHA-2.0"));
         assertEquals("A2.0_P5", HudFormatter.shortVersion("ALPHA-2.0-P5"));
         assertEquals("A1.10_H12", HudFormatter.shortVersion("ALPHA-1.10-HOTFIX12"));
+        assertEquals("B1.0_P1", HudFormatter.shortVersion("BETA-1.0-P1"));
+        assertEquals("B1.0", HudFormatter.shortVersion("BETA-1.0"));
+        assertEquals("B1.0_H2", HudFormatter.shortVersion("BETA-1.0-HOTFIX2"));
         assertEquals("1.0-SNAPSHOT", HudFormatter.shortVersion("1.0-SNAPSHOT"), "unknown formats pass through");
         assertEquals("", HudFormatter.shortVersion(null));
     }

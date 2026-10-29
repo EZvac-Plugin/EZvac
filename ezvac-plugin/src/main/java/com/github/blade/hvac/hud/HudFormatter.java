@@ -3,6 +3,7 @@ package com.github.blade.hvac.hud;
 import com.github.blade.hvac.config.HudSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.service.AirText;
+import com.github.blade.hvac.update.ReleaseVersion;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.bossbar.BossBar;
 import net.kyori.adventure.text.Component;
@@ -26,8 +27,6 @@ public final class HudFormatter {
     private static final Pattern SECTION = Pattern.compile("\\{section:([a-z0-9_.-]+:[a-z0-9_.-]+)}", Pattern.CASE_INSENSITIVE);
     /** Where every addon section not placed on its own goes, alone on a sidebar line. */
     public static final String ADDONS = HudSettings.ADDONS_LINE;
-    private static final Pattern RELEASE =
-            Pattern.compile("ALPHA-([0-9]+(?:[.][0-9]+)*)(?:-HOTFIX([0-9]+))?(?:-P([0-9]+))?", Pattern.CASE_INSENSITIVE);
 
     private final HudSettings settings;
     private final HudSettings.Medium air;
@@ -46,16 +45,12 @@ public final class HudFormatter {
 
     /**
      * ALPHA-1.8 becomes A1.8, ALPHA-1.8-HOTFIX1 becomes A1.8_H1, and
-     * ALPHA-1.6-P1 becomes A1.6_P1. Anything else is shown as it is.
+     * BETA-1.0-P1 becomes B1.0_P1. Anything else is shown as it is.
      */
     public static String shortVersion(String version) {
         if (version == null) return "";
-        Matcher match = RELEASE.matcher(version.trim());
-        if (!match.matches()) return version.trim();
-        StringBuilder out = new StringBuilder("A").append(match.group(1));
-        if (match.group(2) != null) out.append("_H").append(match.group(2));
-        if (match.group(3) != null) out.append("_P").append(match.group(3));
-        return out.toString();
+        ReleaseVersion release = ReleaseVersion.parse(version);
+        return release == null ? version.trim() : release.shortName();
     }
 
     public String version() { return version; }
