@@ -9,7 +9,7 @@ block use the block you're looking at, within six blocks.
 | --- | --- | --- |
 | `ezvac.use` | everyone | help, readings, `/hvac list` and `info`, and using signs: thermostat targets and on/off, settings panels, dehumidifiers, humidifiers and air purifiers, sensor hubs, pressing sensors |
 | `ezvac.hud` | everyone | `/hvac hud` |
-| `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season and the wind, `stats`, `sync` and `update` |
+| `ezvac.admin` | operators | creating, changing, linking and removing devices, changing the season and the wind, `stats`, `sync`, `update` and `quicksettings` |
 
 ## For everyone (`ezvac.use`)
 
@@ -155,6 +155,7 @@ As with the seasons, from the console add a world's name at the end.
 | `/hvac hud sections` | The sections addons have added to the HUD, with the `{section:<id>}` token for each (see [HUD and placeholders](hud-and-placeholders.md#addon-sections)) |
 | `/hvac sync` | Applies block and world changes straight away instead of on the next update |
 | `/hvac update` | Checks GitHub for a newer EZvac now, and says whether it runs on this server's Minecraft (BETA 1.0, see below) |
+| `/hvac quicksettings` (`qs`) | Opens the [quick settings](screens-and-menus.md#quick-settings) menu: device kinds and climate systems on or off, registry backups, statistics and updates (BETA 1.0) |
 
 Breaking a device's block removes it too, and tells you what was removed.
 

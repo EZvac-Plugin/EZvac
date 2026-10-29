@@ -93,10 +93,32 @@ Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
   `/hvac update` still works. See
   [Configuration](docs/configuration.md#updates).
 
+### Quick settings
+
+- **`/hvac quicksettings`** (or `/hvac qs`, `ezvac.admin`) opens one menu for
+  the settings that shape the whole server. Changes apply at once, are
+  written to `config.yml`, and are logged. Every page has Back and Close.
+  See [Quick settings](docs/screens-and-menus.md#quick-settings).
+- **Devices:** switch a kind off server-wide (heat pumps, air conditioners,
+  furnaces, boilers, pool heat pumps, dehumidifiers, humidifiers, air
+  purifiers). They stop, their signs read "Off server-wide", and no new one
+  can be made. Switched back on, each runs again as it was set.
+- **Climate systems:** switch air quality, pollen, wind and the seasons off
+  and on without a restart. EZvac keeps heating and cooling; the effect just
+  stops shaping the climate. Pollen can now be switched off on its own
+  (`air-quality.pollen`).
+- **Backups:** back the registry up now, or automatically every 4, 8, 12,
+  24 or 48 hours or every week of real time, to `plugins/EZvac/backups/`.
+  The newest 10 automatic ones are kept. See
+  [Restoring a backup](docs/upgrading-and-troubleshooting.md#restoring-a-backup).
+- **Statistics** and **Updates** pages: what `/hvac stats` and
+  `/hvac update` say, and the update check's two switches.
+
 ### Also
 
 - **The HUD's version line** shows BETA versions short: `B1.0_P1`.
-- **Your config.yml** gains the `updates` section, with its comments.
+- **Your config.yml** gains the `updates`, `devices` and `backups` sections
+  and `air-quality.pollen`, with their comments.
 
 ## ALPHA 3.2 HOTFIX 1
 

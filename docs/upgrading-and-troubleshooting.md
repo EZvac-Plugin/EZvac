@@ -146,6 +146,22 @@ on a biome border), and 2.1 samples them again if you come back.
   chunk is loaded. Devices in unloaded chunks or worlds are kept.
 - **Player choices** (the HUD on or off) are stored with each player, not in
   `hvac.yml`.
+- **Backups:** since BETA 1.0, [quick settings](screens-and-menus.md#backups)
+  backs the registry up on demand, or every few hours, to
+  `plugins/EZvac/backups/`.
+
+### Restoring a backup
+
+1. **Stop the server.** A running EZvac would save over a restored file.
+2. **Keep the current files aside,** in case: copy `hvac.yml` and
+   `seasons.yml` somewhere else.
+3. **Copy the backup over them:** `backups/hvac-<date>_<time>-manual.yml` (or
+   `-auto.yml`) becomes `hvac.yml`, and the `seasons-` file with the same date
+   and time becomes `seasons.yml`.
+4. **Start the server** and check the log for `EZvac enabled: ...` with the
+   counts you expect.
+
+Devices built after the backup was made aren't in it: register them again.
 
 ## Troubleshooting
 

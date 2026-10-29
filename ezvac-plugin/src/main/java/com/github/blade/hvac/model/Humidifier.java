@@ -37,7 +37,7 @@ public final class Humidifier extends ClimateUnit {
 
     /** Adds moisture once RH is the hysteresis below the setpoint and runs until it is back up to it. */
     public boolean control(double humidity, ClimateSettings.Humidifier settings) {
-        boolean wanted = powered() && Double.isFinite(humidity)
+        boolean wanted = switchedOn() && Double.isFinite(humidity)
                 && (running ? humidity < setpoint() : humidity < setpoint() - settings.hysteresis());
         boolean changed = wanted != running;
         running = wanted;

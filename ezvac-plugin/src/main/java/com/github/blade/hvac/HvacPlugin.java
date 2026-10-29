@@ -17,6 +17,8 @@ import com.github.blade.hvac.integration.placeholderapi.PlaceholderApiBridge;
 import com.github.blade.hvac.listener.HvacListener;
 import com.github.blade.hvac.service.*;
 import com.github.blade.hvac.update.UpdateNotifier;
+import com.github.blade.hvac.config.ServerSwitches;
+import com.github.blade.hvac.gui.QuickSettingsMenu;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.World;
@@ -59,6 +61,9 @@ public final class HvacPlugin extends JavaPlugin {
     private BukkitTask bubbleTask;
     private ClimateHudService hud;
     private UpdateNotifier updates;
+    private ServerSwitches switches;
+    private RegistryBackups backups;
+    private QuickSettingsMenu quickSettings;
     /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
     private Runnable placeholderUnregister;
     private AirQualityService airQuality;
@@ -73,6 +78,9 @@ public final class HvacPlugin extends JavaPlugin {
         try {
             saveDefaultConfig();
             addNewSettingsToConfig();
+            // Installed first: every settings record answers its enabled() from them (BETA 1.0).
+            switches = ServerSwitches.load(getConfig(), this::saveConfig, getLogger()::warning);
+            switches.install();
             settings = HvacSettings.load(getConfig(), getLogger()::warning);
             climate = ClimateSettings.load(getConfig(), getLogger()::warning);
             registry = new HvacRegistry(this, settings);
@@ -129,10 +137,12 @@ public final class HvacPlugin extends JavaPlugin {
             if (legacy != null) getLogger().warning(legacy);
             updates = new UpdateNotifier(this, getPluginMeta().getVersion(), getServer().getMinecraftVersion(),
                     getConfig().getBoolean("updates.notify-admins", true));
-            if (getConfig().getBoolean("updates.check", true)) {
-                getServer().getPluginManager().registerEvents(updates, this);
-                updates.start();
-            }
+            getServer().getPluginManager().registerEvents(updates, this);
+            if (getConfig().getBoolean("updates.check", true)) updates.start();
+            backups = new RegistryBackups(this, registry, getConfig(), this::saveConfig);
+            backups.start();
+            quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates);
+            getServer().getPluginManager().registerEvents(quickSettings, this);
             getLogger().info("EZvac enabled: " + registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.vents().size() + " vent(s), "
@@ -237,6 +247,8 @@ public final class HvacPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         if (menus != null) menus.closeAll();
+        if (quickSettings != null) quickSettings.closeAll();
+        if (backups != null) backups.stop();
         getServer().getServicesManager().unregisterAll(this);
         if (api != null) api.clear();
         if (placeholderUnregister != null) placeholderUnregister.run();
@@ -251,6 +263,7 @@ public final class HvacPlugin extends JavaPlugin {
             registry.save(true); // shutdown must not hand work to the scheduler
         }
         if (seasons != null) seasons.save();
+        if (switches != null) switches.uninstall();
         if (registry != null && !registry.isWritable())
             getLogger().warning("EZvac disabled without saving: hvac.yml could not be loaded, so it was left untouched.");
         else
@@ -323,6 +336,7 @@ public final class HvacPlugin extends JavaPlugin {
     public ControlMenus menus() { return menus; }
     public HvacController controller() { return controller; }
     public UpdateNotifier updates() { return updates; }
+    public QuickSettingsMenu quickSettings() { return quickSettings; }
 
     /**
      * Offers EZvac's public API to other plugins (2.1) and connects

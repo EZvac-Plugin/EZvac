@@ -58,6 +58,18 @@ public final class AirText {
         return AirQualityIndex.PollenLevel.of(air.pollen(), settings.pollenLevels());
     }
 
+    /** The pollen level's name for a sign or chat ("Moderate"), or "Off" while pollen is switched off (BETA 1.0). */
+    public static String pollenName(AirQualityModel.Air air, AirQualitySettings settings) {
+        return settings.pollen() ? pollen(air, settings).displayName() : POLLEN_OFF;
+    }
+
+    /** The same, short for the HUD ("Med"). */
+    public static String pollenHudName(AirQualityModel.Air air, AirQualitySettings settings) {
+        return settings.pollen() ? pollen(air, settings).hudName() : POLLEN_OFF;
+    }
+
+    static final String POLLEN_OFF = "Off";
+
     /**
      * For a sign line: {@code AQI 42 Good}, or what drives it when it is not
      * good: {@code AQI 160 Smoke}.
@@ -77,7 +89,7 @@ public final class AirText {
         if (!air.known()) return "AQI --";
         AirQualityIndex.Band band = band(air);
         String cause = band == AirQualityIndex.Band.GOOD ? "" : " · " + AirQualityIndex.dominant(air).cause();
-        return aqi(air) + " " + band.displayName() + cause + " · Pollen " + pollen(air, settings).displayName();
+        return aqi(air) + " " + band.displayName() + cause + " · Pollen " + pollenName(air, settings);
     }
 
     /** PM2.5 and PM10 in µg/m³ and the pollen count, for /hvac info. */

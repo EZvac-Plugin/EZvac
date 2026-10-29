@@ -44,7 +44,7 @@ public final class UpdateNotifier implements Listener {
     private final String runningName;
     private final ReleaseVersion running;
     private final String minecraft;
-    private final boolean notifyAdmins;
+    private volatile boolean notifyAdmins;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private volatile UpdateCheck.Outcome available;
     private volatile Fetched recent;
@@ -77,6 +77,28 @@ public final class UpdateNotifier implements Listener {
         // A check still waiting on GitHub must not hold up the shutdown or outlive a reload.
         http.shutdownNow();
     }
+
+    /** Whether the background checks run. */
+    public boolean checking() { return task != null; }
+
+    /** Starts or stops the background checks while the server runs (/hvac quicksettings). */
+    public void setChecking(boolean on) {
+        if (on == checking()) return;
+        if (on) start();
+        else {
+            task.cancel();
+            task = null;
+            available = null;
+        }
+    }
+
+    public boolean notifyAdmins() { return notifyAdmins; }
+
+    public void setNotifyAdmins(boolean on) { notifyAdmins = on; }
+
+    /** This server's EZvac and Minecraft, for the menu. */
+    public String runningName() { return runningName; }
+    public String minecraft() { return minecraft; }
 
     /** /hvac update: checks GitHub now and tells the sender what it found. */
     public void checkNow(CommandSender sender) {

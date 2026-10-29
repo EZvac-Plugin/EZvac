@@ -29,6 +29,16 @@ public record AirQualitySettings(boolean enabled, int referenceCells, Rates sett
         biomes = Map.copyOf(biomes == null ? Map.of() : biomes);
     }
 
+    /** On a running server, what /hvac quicksettings says (BETA 1.0); config.yml's value otherwise. */
+    @Override
+    public boolean enabled() { return ServerSwitches.airQuality(enabled); }
+
+    /**
+     * Whether pollen counts (BETA 1.0, {@code air-quality.pollen}): switched
+     * off, there is none outdoors or in, and readings say pollen is off.
+     */
+    public boolean pollen() { return enabled() && ServerSwitches.pollenOn(); }
+
     /** One rate for each kind of particle. */
     public record Rates(double fine, double coarse, double pollen) {
         public Rates {

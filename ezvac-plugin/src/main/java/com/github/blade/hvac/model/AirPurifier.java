@@ -109,7 +109,7 @@ public final class AirPurifier extends ClimateUnit {
 
     @Override
     public State state() {
-        if (!powered()) return State.OFF;
+        if (!switchedOn()) return State.OFF;
         if (installed == Filter.MISSING) return State.NO_FILTER;
         if (!filterUsable()) return State.FILTER_SPENT;
         return super.state();
@@ -163,7 +163,7 @@ public final class AirPurifier extends ClimateUnit {
      * @return true when it started or stopped; a change of speed is not one
      */
     public boolean control(AirQualityModel.Air air, AirQualitySettings settings) {
-        boolean wanted = powered() && filterUsable() && settings.enabled() && air.known();
+        boolean wanted = switchedOn() && filterUsable() && settings.enabled() && air.known();
         if (wanted && mode == Mode.AUTO) speed = autoSpeed(air, speed, settings);
         boolean changed = wanted != running;
         running = wanted;

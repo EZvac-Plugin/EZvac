@@ -339,7 +339,7 @@ public final class DisplayService {
         boolean airOn = airSettings().enabled();
         String airLine = airOn ? AirText.signLine(reading.air()) : "Air quality off";
         String pollen = airOn && reading.air().known()
-                ? "Pollen " + AirText.pollen(reading.air(), airSettings()).displayName() : "";
+                ? "Pollen " + AirText.pollenName(reading.air(), airSettings()) : "";
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s|%s|%s", reading.localF(),
                 reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label(),
                 thermometer.reads() == Thermometer.Reads.AIR ? airLine : "", pollen);
@@ -540,6 +540,9 @@ public final class DisplayService {
                 .line("Sneak: back", NamedTextColor.GRAY));
     }
 
+    /** A unit whose kind is switched off in /hvac quicksettings (BETA 1.0); 15 characters, a sign line. */
+    static final String OFF_SERVER_WIDE = "Off server-wide";
+
     /** A dehumidifier's last line is its tank; a humidifier, being plumbed, just says what it is. */
     public void refreshClimateUnit(ClimateUnit unit, boolean force) {
         if (unit instanceof AirPurifier purifier) {
@@ -553,7 +556,7 @@ public final class DisplayService {
         // Running in air it can't dry: say so rather than look like it works.
         boolean tooCold = state == ClimateUnit.State.RUNNING && unit instanceof Dehumidifier dry && dry.tooCold();
         String stateText = tooCold ? "Air too cold" : switch (state) {
-            case OFF -> "OFF";
+            case OFF -> unit.offServerWide() ? OFF_SERVER_WIDE : "OFF";
             case IDLE -> "Idle";
             case RUNNING -> "Running";
             case EMPTYING -> "Emptying...";
@@ -596,7 +599,7 @@ public final class DisplayService {
         String reading = AirText.signLine(air);
         ClimateUnit.State state = purifier.state();
         String stateText = switch (state) {
-            case OFF -> "OFF";
+            case OFF -> purifier.offServerWide() ? OFF_SERVER_WIDE : "OFF";
             case IDLE -> purifier.mode().displayName();
             case RUNNING -> purifier.modeText();
             case NO_FILTER -> "No filter";
@@ -610,7 +613,7 @@ public final class DisplayService {
         };
         String footer = purifier.installed() == AirPurifier.Filter.MISSING ? "Place tube coral"
                 : "Filter " + Math.round(purifier.filter() * 100) + "%";
-        String pollen = air.known() ? "Pollen " + AirText.pollen(air, airSettings()).displayName() : "";
+        String pollen = air.known() ? "Pollen " + AirText.pollenName(air, airSettings()) : "";
         String fingerprint = purifier.label() + "|" + reading + "|" + stateText + "|" + footer + "|" + pollen;
         render(purifier.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(purifier.label()), NamedTextColor.AQUA);

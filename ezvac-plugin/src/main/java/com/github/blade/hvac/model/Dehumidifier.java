@@ -69,7 +69,7 @@ public final class Dehumidifier extends ClimateUnit {
      * back down to the setpoint. Never while its tank is emptying.
      */
     public boolean control(double humidity, ClimateSettings.Dehumidifier settings) {
-        boolean wanted = powered() && !emptying() && Double.isFinite(humidity)
+        boolean wanted = switchedOn() && !emptying() && Double.isFinite(humidity)
                 && (running ? humidity > setpoint() : humidity > setpoint() + settings.hysteresis());
         boolean changed = wanted != running;
         running = wanted;
