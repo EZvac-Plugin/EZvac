@@ -40,6 +40,8 @@ public final class WeatherStation {
         }
 
         static Area fromMap(Object value) {
+            // Read back from hvac.yml, a nested map is a configuration section, not a Map.
+            if (value instanceof org.bukkit.configuration.ConfigurationSection section) value = section.getValues(false);
             if (!(value instanceof Map<?, ?> map)) return null;
             try {
                 return new Area(number(map, "noonF"), number(map, "midnightF"), number(map, "downfall"),

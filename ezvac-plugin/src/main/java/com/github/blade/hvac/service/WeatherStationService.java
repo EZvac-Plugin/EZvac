@@ -315,7 +315,8 @@ public final class WeatherStationService implements Listener {
     /**
      * Every second, for the stations someone is near: checks the tower again,
      * since /fill, WorldEdit and pistons change blocks without the events
-     * that would say so, then gives off sparks at the rods of a working one.
+     * that would say so, measures one that hasn't yet, then gives off sparks
+     * at the rods of a working one.
      * Thirteen block reads a station, and none where nobody is.
      */
     public void watch() {
@@ -325,6 +326,11 @@ public final class WeatherStationService implements Listener {
             Location sign = station.position().location();
             if (sign == null || sign.getNearbyPlayers(SPARK_RANGE).isEmpty()) continue;
             recheck(station);
+            // Not measured yet, or its chunk wasn't loaded when it last tried (just after a start).
+            if (station.area() == null && station.intact()) {
+                measure(station);
+                if (displays != null && station.area() != null) displays.refreshWeatherStation(station, true);
+            }
             if (!settings.sparks() || !station.intact()
                     || !(sign.getBlock().getBlockData() instanceof WallSign wall)) continue;
             BlockFace facing = wall.getFacing();
