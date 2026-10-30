@@ -187,6 +187,17 @@ players nearby. See [Weather stations](#weather-stations).
   every released `config.yml` to today's: nothing is missing, nothing a
   server set changes, and nothing warns.
 
+### API 1.6
+
+- **Everything new in BETA 1.0 can be read by addons:** a system's size and
+  what it needs (`systemSize`), the quick settings switches
+  (`serverSettings`), weather stations and their forecasts
+  (`weatherStations`, `weatherStationAt`, `weatherStationsNear`), a
+  reading's `airflowStrength()`, and a thermostat's `unitsOff()`.
+- **Nothing an addon built for 1.5 uses has changed.** Weather stations are
+  kept out of `HvacDevice` and the device events, so a `switch` over every
+  device kind stays complete. See [The EZvac API](docs/api.md).
+
 ### Also
 
 - **`/hvac help` is shorter:** players see only their own commands, and

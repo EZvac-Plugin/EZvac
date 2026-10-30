@@ -823,6 +823,15 @@ PUBLIC API
 - Since 2.1 the build is two modules: ezvac-api (the public API) and
   ezvac-plugin, whose jar shades the API's classes in unrelocated. JitPack
   publishes com.github.EZvac-Plugin.EZvac:ezvac-api:<tag>.
+- API 1.6 (BETA 1.0), additive only: systemSize (SizingModel assessments of
+  both modes and the shape's contacts by system key), serverSettings (the
+  ServerSwitches), weatherStations / weatherStationAt / weatherStationsNear
+  (WeatherStationView with its ForecastDays), ClimateReading.airflowStrength()
+  and ThermostatView.unitsOff (an extra record component with a 1.5-shaped
+  constructor kept). Weather stations stay out of the sealed HvacDevice and
+  the device events (EzvacApiImpl.inApi): EZdebug+ switches exhaustively
+  over device kinds and InstrumentView.Kind, and a new one would throw
+  MatchException in addons built against 1.5.
 - EzvacApi (version 1.1, read-only apart from HUD sections) is registered
   with Paper's services manager while EZvac is enabled (EzvacApiImpl in
   integration.api). Readings reuse AirflowService.temperatureAt /

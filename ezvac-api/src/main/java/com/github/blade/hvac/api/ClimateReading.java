@@ -60,6 +60,18 @@ public record ClimateReading(Position position, double temperatureF, double feel
     /** True where an EZvac system conditions the spot. */
     public boolean conditioned() { return thermostat.isPresent() && influence > 0.0; }
 
+    /**
+     * The airflow's strength here in percent, as the HUD shows it (EZvac BETA
+     * 1.0): 100 only in a vent's core, rounded down below it, 0 where no
+     * system reaches.
+     *
+     * @since 1.6
+     */
+    public int airflowStrength() {
+        if (!conditioned()) return 0;
+        return influence >= 1.0 ? 100 : (int) Math.max(0, Math.min(99, Math.floor(influence * 100.0)));
+    }
+
     public double temperatureC() { return Temperatures.celsius(temperatureF); }
 
     public double feelsLikeC() { return Temperatures.celsius(feelsLikeF); }

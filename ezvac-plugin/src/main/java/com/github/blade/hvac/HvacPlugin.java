@@ -131,6 +131,7 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(weatherStations, this);
             registerApi();
             api.setLinkTool(commandHandler.linkTool());
+            api.setBeta(weatherStations, switches);
             hud.start();
             if (hud.sidebarYieldedTo() != null)
                 getLogger().info(hud.sidebarYieldedTo() + " draws its own scoreboard, so the /hvac hud overlay uses"

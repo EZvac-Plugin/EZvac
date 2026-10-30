@@ -11,7 +11,8 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class StationTextTest {
     private static Forecast.Day day(Forecast.Sky sky, double rain, double thunder, double highF, double lowF, String note) {
-        return new Forecast.Day(2, highF, lowF, rain, thunder, sky, WindModel.Level.BREEZY, 5.0, 60.0, note);
+        return new Forecast.Day(2, highF, lowF, rain, thunder, sky, new WindModel.Day(0, WindModel.Level.BREEZY, 5.0),
+                60.0, note);
     }
 
     @Test
