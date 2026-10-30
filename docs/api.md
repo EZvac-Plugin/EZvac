@@ -3,11 +3,11 @@
 From ALPHA 2.1, other plugins can use what EZvac knows about the climate:
 the temperature and "feels like" anywhere and around every player, the
 outdoors, thermostats and their systems, dehumidifiers, humidifiers and air
-purifiers, the air quality, the seasons, and events when things change. Addons can also add their own
+purifiers, the air quality, the seasons, building sizes, weather stations' forecasts, and events when things change. Addons can also add their own
 sections to EZvac's climate HUD. An addon is an ordinary Paper plugin that
 depends on EZvac.
 
-API version **1.5** reads only: nothing an addon does through it changes
+API version **1.6** reads only: nothing an addon does through it changes
 EZvac's climate or systems. Ways to change things (targets, power) will come
 in a later API version.
 
@@ -87,12 +87,26 @@ server runs.
 | `season(world)` | The season and its day, or empty where there are no seasons |
 | `windForecast(world, days)` | Today's wind and the next days', each a `Wind.Day` with its level and mean speed; empty where there is no wind (1.5) |
 | `units()` | Whether the server shows players °F or °C |
+| `systemSize(world, system)` | A system's size in blocks of air (or water), its openings and how much faster it leaks, what equipment it has and needs for cooling and heating, and the systems its air touches; empty while its air isn't mapped or with building size off (1.6) |
+| `serverSettings()` | What the owner has switched in `/hvac quicksettings`: device kinds off server-wide (by their `devices.disabled` names), air quality, pollen, wind, seasons and building size (1.6) |
+| `weatherStations(world)`, `weatherStationAt(position)` | Weather stations: label, on/off, whether the tower stands, lightning strikes, the outdoor temperature around it and its seven-day forecast (1.6) |
+| `weatherStationsNear(location)` | The working stations a player there could see with `/hvac forecast`, nearest first (1.6) |
 
 A `ClimateReading` holds the temperature, feels-like, humidity (NaN in water),
 the outdoor temperature, whether the spot is in water, the weather, the
 season, which system conditions the spot and how strongly, and since 1.5 its
 `airQuality()` and the `wind()` felt there. A `ThermostatView` has its room's
 `airQuality()` too, and an `OutdoorClimate` the `wind()` out in the open.
+Since 1.6 a reading gives the `airflowStrength()` the HUD shows (100 only in a
+vent's core), and a `ThermostatView` says `unitsOff()` while every unit that
+could heat or cool its system is switched off server-wide.
+
+A `WeatherStationView` (1.6) holds its `forecast()`: seven `ForecastDay`s,
+today first, each with its high and low, `Sky` (`CLEAR`, `RAIN`, `SNOW`,
+`THUNDER`), chance of rain and of thunder, the day's `Wind.Day`, pollen, and
+a `note()` of what is certain about the day (`Rain from 15:00`). It is empty
+while the station isn't forecasting. Weather stations are not `HvacDevice`s:
+a `switch` over every device kind an addon was built with stays complete.
 
 A `Wind` (1.5) holds the speed in m/s (`kmh()` and `mph()` convert it) and its
 `Level`: `CALM`, `BREEZY`, `WINDY` or `GALE`. It is calm indoors, in water,
@@ -129,8 +143,8 @@ cancelled.
 | `DeviceAddedEvent` | A device is created: with `/hvac create`, or a vent with the link tool (1.2) |
 | `DeviceRemovedEvent` | A device is gone: broken (`BROKEN`), removed with `/hvac remove` or unlinked with the link tool (`COMMAND`), or found missing (`MISSING`) (1.2) |
 
-Weather stations (BETA 1.0) aren't part of API 1.5: they fire neither event
-and don't appear among the devices.
+Weather stations (1.6) fire neither event and don't appear among the
+devices; read them with `weatherStations(world)`.
 
 EZvac only builds an event while some plugin listens to it, so it costs
 nothing on servers without addons.
@@ -291,6 +305,7 @@ depend: [EZvac]
   ALPHA 2.1 (HUD sections), 1.2 with ALPHA 2.2 (every device, and the device
   events), and 1.3 with ALPHA 3.0 (linked systems: `thermostatAt`,
   `thermostatOf`, the link tool), 1.4 with ALPHA 3.1 (`EquipmentView.tier()`),
-  and 1.5 with ALPHA 3.2 (`AirQuality`, air purifiers, air monitors and air
-  sensors, `Wind` and wind sensors).
+  1.5 with ALPHA 3.2 (`AirQuality`, air purifiers, air monitors and air
+  sensors, `Wind` and wind sensors), and 1.6 with BETA 1.0 (`SystemSize`,
+  `ServerSettingsView`, weather stations, `airflowStrength()`, `unitsOff()`).
   Depend on the oldest EZvac whose API has what you use.

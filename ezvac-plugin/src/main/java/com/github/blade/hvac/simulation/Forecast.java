@@ -57,7 +57,10 @@ public final class Forecast {
      * the day, such as {@code Rain from 15:00} (to the nearest hour), or empty.
      */
     public record Day(int ahead, double highF, double lowF, double rainChance, double thunderChance, Sky sky,
-                      WindModel.Level wind, double windMs, double pollen, String note) {}
+                      WindModel.Day wind, double pollen, String note) {
+        /** The day's wind on open ground, m/s; 0 with wind switched off. */
+        public double windMs() { return wind == null ? 0.0 : wind.meanMs(); }
+    }
 
     private Forecast() {}
 
@@ -188,8 +191,7 @@ public final class Forecast {
                 new WeatherModel.Conditions(rainChance, thunderChance, rainChance >= 0.5, thunderChance >= 0.5),
                 weather, wind == null ? weather.windClearMs() : wind.meanMs());
         return new Day(ahead, effect.noonF(blended.noonF(), blended.midnightF()),
-                effect.midnightF(blended.noonF(), blended.midnightF()), rainChance, thunderChance, sky,
-                wind == null ? null : wind.level(), wind == null ? 0.0 : wind.meanMs(),
+                effect.midnightF(blended.noonF(), blended.midnightF()), rainChance, thunderChance, sky, wind,
                 pollen, note);
     }
 }

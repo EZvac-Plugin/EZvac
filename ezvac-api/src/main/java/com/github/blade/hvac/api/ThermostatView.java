@@ -19,11 +19,13 @@ import java.util.Optional;
  * @param totalUnits   equipment units in its system
  * @param airQuality   what is in the room's air (1.5); empty for a pool, before it is first simulated,
  *                     or where the server has air quality switched off
+ * @param unitsOff     true while it would heat or cool but every unit that could is switched off
+ *                     server-wide in /hvac quicksettings (1.6, EZvac BETA 1.0): its screen says "Units off"
  * @since 1.0
  */
 public record ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
                              boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits,
-                             Optional<AirQuality> airQuality)
+                             Optional<AirQuality> airQuality, boolean unitsOff)
         implements HvacDevice {
     public ThermostatView {
         Objects.requireNonNull(id, "id");
@@ -33,11 +35,19 @@ public record ThermostatView(String id, String system, Position position, double
         airQuality = airQuality == null ? Optional.empty() : airQuality;
     }
 
+    /** A view as in API 1.5, before units could be switched off server-wide. */
+    public ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
+                          boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits,
+                          Optional<AirQuality> airQuality) {
+        this(id, system, position, roomF, targetF, mode, enabled, pool, humidity, runningUnits, totalUnits,
+                airQuality, false);
+    }
+
     /** A view without air quality, as before API 1.5. */
     public ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
                           boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits) {
         this(id, system, position, roomF, targetF, mode, enabled, pool, humidity, runningUnits, totalUnits,
-                Optional.empty());
+                Optional.empty(), false);
     }
 
     /** What a system is doing. */

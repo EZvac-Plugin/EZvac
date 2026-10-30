@@ -43,7 +43,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.5";
+    String API_VERSION = "1.6";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -211,4 +211,57 @@ public interface EzvacApi {
      * @since 1.3
      */
     EzvacLinkTool linkTool();
+
+    /**
+     * How big a system is and what equipment its size needs (EZvac BETA 1.0,
+     * size-based heating and cooling). Empty for an unknown system, one whose
+     * air isn't mapped yet (its chunk unloaded), or with building size
+     * switched off.
+     *
+     * @param system a system's key (see {@link #thermostatOf})
+     * @since 1.6
+     */
+    default Optional<SystemSize> systemSize(World world, String system) {
+        return Optional.empty();
+    }
+
+    /**
+     * What the owner has switched in /hvac quicksettings, as it is now.
+     *
+     * @since 1.6
+     */
+    default ServerSettingsView serverSettings() {
+        return new ServerSettingsView(java.util.Set.of(), true, true, true, true, true);
+    }
+
+    /**
+     * The weather stations in a world (EZvac BETA 1.0), working or not.
+     * Weather stations are not {@link HvacDevice}s: they aren't in
+     * {@link #devices(World)} and fire no device events.
+     *
+     * @since 1.6
+     */
+    default Collection<WeatherStationView> weatherStations(World world) {
+        return List.of();
+    }
+
+    /**
+     * The weather station whose sign is at a block.
+     *
+     * @since 1.6
+     */
+    default Optional<WeatherStationView> weatherStationAt(Position position) {
+        return Optional.empty();
+    }
+
+    /**
+     * The working stations whose forecast a player at this spot could see
+     * with {@code /hvac forecast}: in the same world, within the server's
+     * range (400 blocks by default), nearest first.
+     *
+     * @since 1.6
+     */
+    default List<WeatherStationView> weatherStationsNear(Location location) {
+        return List.of();
+    }
 }

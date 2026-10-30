@@ -3,6 +3,14 @@ package com.github.blade.hvac.integration.api;
 import com.github.blade.hvac.api.Wind;
 import com.github.blade.hvac.config.WindSettings;
 import com.github.blade.hvac.service.WindService;
+import com.github.blade.hvac.simulation.SizingModel;
+import com.github.blade.hvac.service.WeatherStationService;
+import com.github.blade.hvac.model.OperatingMode;
+import com.github.blade.hvac.model.DeviceKind;
+import com.github.blade.hvac.config.ServerSwitches;
+import com.github.blade.hvac.api.WeatherStationView;
+import com.github.blade.hvac.api.ServerSettingsView;
+import com.github.blade.hvac.api.SystemSize;
 import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.ClimateUnitView;
 import com.github.blade.hvac.api.EquipmentView;
@@ -98,6 +106,72 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
 
     /** Set once the command, which owns the link tool, exists. */
     public void setLinkTool(LinkTool tool) { this.linkTool = new ApiLinkTool(tool, registry); }
+
+    private WeatherStationService stations;
+    private ServerSwitches switches;
+
+    /** BETA 1.0's weather stations and quick settings, for API 1.6; set once both exist. */
+    public void setBeta(WeatherStationService stations, ServerSwitches switches) {
+        this.stations = stations;
+        this.switches = switches;
+    }
+
+    // ---- API 1.6 (EZvac BETA 1.0) ----
+
+    @Override
+    public Optional<SystemSize> systemSize(World world, String system) {
+        if (world == null || system == null) return Optional.empty();
+        SystemId id;
+        try {
+            id = new SystemId(world.getUID(), system);
+        } catch (IllegalArgumentException notAKey) {
+            return Optional.empty();
+        }
+        SizingModel.Assessment cooling = controller.assess(id, OperatingMode.COOLING);
+        SizingModel.Assessment heating = controller.assess(id, OperatingMode.HEATING);
+        if (cooling == null || heating == null) return Optional.empty();
+        AirflowService.Shape shape = airflow.shape(id);
+        return Optional.of(ApiViews.systemSize(id, cooling, heating, shape == null ? Map.of() : shape.contacts()));
+    }
+
+    @Override
+    public ServerSettingsView serverSettings() {
+        if (switches == null) return EzvacApi.super.serverSettings();
+        java.util.Set<String> off = new java.util.TreeSet<>();
+        for (DeviceKind kind : DeviceKind.values()) if (switches.isOff(kind)) off.add(kind.configName());
+        return new ServerSettingsView(off, switches.airQuality(), switches.pollen(), switches.wind(),
+                switches.seasons(), switches.sizing());
+    }
+
+    @Override
+    public Collection<WeatherStationView> weatherStations(World world) {
+        if (world == null || stations == null) return List.of();
+        List<WeatherStationView> out = new ArrayList<>();
+        for (WeatherStation station : registry.weatherStations())
+            if (station.position().worldId().equals(world.getUID())) out.add(stationView(station));
+        out.sort(java.util.Comparator.comparing((WeatherStationView view) -> view.position().x())
+                .thenComparing(view -> view.position().z()).thenComparing(view -> view.position().y()));
+        return List.copyOf(out);
+    }
+
+    @Override
+    public Optional<WeatherStationView> weatherStationAt(Position position) {
+        if (position == null || stations == null) return Optional.empty();
+        WeatherStation station = registry.weatherStationAt(new BlockKey(position.world(), position.x(), position.y(),
+                position.z()));
+        return station == null ? Optional.empty() : Optional.of(stationView(station));
+    }
+
+    @Override
+    public List<WeatherStationView> weatherStationsNear(Location location) {
+        if (location == null || stations == null) return List.of();
+        return stations.nearby(location, Integer.MAX_VALUE).stream().map(this::stationView).toList();
+    }
+
+    private WeatherStationView stationView(WeatherStation station) {
+        return ApiViews.weatherStation(station, stations.nowF(station),
+                WeatherStationService.working(station) ? stations.forecast(station) : List.of());
+    }
 
     @Override
     public EzvacLinkTool linkTool() {

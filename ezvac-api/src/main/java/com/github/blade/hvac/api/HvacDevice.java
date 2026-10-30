@@ -12,6 +12,10 @@ package com.github.blade.hvac.api;
  * }
  * }</pre>
  *
+ * <p>Weather stations (1.6, EZvac BETA 1.0) are not devices here, so a
+ * switch over every kind of device stays complete: see
+ * {@link EzvacApi#weatherStations(org.bukkit.World)}.
+ *
  * @since 1.2
  */
 public sealed interface HvacDevice permits ThermostatView, EquipmentView, VentView, ClimateUnitView, InstrumentView {

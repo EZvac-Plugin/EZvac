@@ -12,6 +12,11 @@ import com.github.blade.hvac.api.Position;
 import com.github.blade.hvac.api.SeasonView;
 import com.github.blade.hvac.api.ThermostatView;
 import com.github.blade.hvac.api.VentView;
+import com.github.blade.hvac.api.SystemSize;
+import com.github.blade.hvac.api.WeatherStationView;
+import com.github.blade.hvac.model.WeatherStation;
+import com.github.blade.hvac.simulation.Forecast;
+import com.github.blade.hvac.simulation.SizingModel;
 import com.github.blade.hvac.api.event.EquipmentStateChangeEvent;
 import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.model.AirPurifier;
@@ -36,7 +41,9 @@ import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.Seasons;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
@@ -73,7 +80,30 @@ public final class ApiViews {
                 thermostat.roomF(), thermostat.targetF(), mode(thermostat.mode()), thermostat.enabled(),
                 thermostat.pool(), humidity, status == null ? 0 : status.running(),
                 status == null ? 0 : status.equipment(),
-                thermostat.pool() ? Optional.empty() : airQuality(thermostat.roomAir(), air));
+                thermostat.pool() ? Optional.empty() : airQuality(thermostat.roomAir(), air),
+                thermostat.enabled() && thermostat.waitingOnUnits() != null);
+    }
+
+    /** A weather station and its forecast (API 1.6); an empty forecast while it isn't forecasting. */
+    public static WeatherStationView weatherStation(WeatherStation station, double outdoorF, List<Forecast.Day> days) {
+        List<WeatherStationView.ForecastDay> forecast = new ArrayList<>(days.size());
+        for (Forecast.Day day : days)
+            forecast.add(new WeatherStationView.ForecastDay(day.ahead(), day.highF(), day.lowF(),
+                    WeatherStationView.Sky.valueOf(day.sky().name()), day.rainChance(), day.thunderChance(),
+                    day.wind() == null ? Optional.empty()
+                            : Optional.of(new Wind.Day(day.wind().day(), level(day.wind().level()), day.wind().meanMs())),
+                    day.pollen(), day.note()));
+        return new WeatherStationView(station.label(), position(station.position()), station.enabled(),
+                station.intact(), station.strikes(), outdoorF, forecast);
+    }
+
+    /** A system's size and what it needs (API 1.6), from its cooling and heating assessments. */
+    public static SystemSize systemSize(SystemId system, SizingModel.Assessment cooling,
+                                        SizingModel.Assessment heating, Map<SystemId, Integer> contacts) {
+        Map<String, Integer> touching = new java.util.TreeMap<>();
+        contacts.forEach((other, faces) -> touching.merge(other.key(), faces, Integer::sum));
+        return new SystemSize(system.key(), cooling.size(), cooling.water(), cooling.openings(), cooling.openness(),
+                cooling.required(), cooling.installed(), heating.required(), heating.installed(), touching);
     }
 
     public static ClimateUnitView climateUnit(ClimateUnit unit) {
