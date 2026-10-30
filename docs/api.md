@@ -20,7 +20,9 @@ player, drawn from `devices(world)` and the device events).
 ## Adding the dependency
 
 The API is published through [JitPack](https://jitpack.io/#EZvac-Plugin/EZvac),
-built from EZvac's release tags. Use it with `provided` (Maven) or
+built from EZvac's release tags: use the tag of the oldest EZvac whose API
+has what you need (`BETA-1.0-P1` for API 1.6, `ALPHA-3.2` for 1.5; see
+[Versions and promises](#versions-and-promises)). Use it with `provided` (Maven) or
 `compileOnly` (Gradle) scope: EZvac carries the API's classes at runtime, so
 never shade them into your jar.
 
@@ -38,7 +40,7 @@ never shade them into your jar.
     <dependency>
         <groupId>com.github.EZvac-Plugin.EZvac</groupId>
         <artifactId>ezvac-api</artifactId>
-        <version>ALPHA-3.1</version>
+        <version>BETA-1.0-P1</version>
         <scope>provided</scope>
     </dependency>
 </dependencies>
@@ -48,7 +50,7 @@ never shade them into your jar.
 
 ```kotlin
 repositories { maven("https://jitpack.io") }
-dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:ALPHA-3.1") }
+dependencies { compileOnly("com.github.EZvac-Plugin.EZvac:ezvac-api:BETA-1.0-P1") }
 ```
 
 In your `plugin.yml`, depend on EZvac so it loads first:

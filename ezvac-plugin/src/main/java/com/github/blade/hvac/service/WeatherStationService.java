@@ -63,6 +63,10 @@ public final class WeatherStationService implements Listener {
     private final Map<BlockKey, List<Forecast.Day>> forecasts = new HashMap<>();
     /** Per world, the half-day (sunrise to sunset, or sunset to sunrise) last measured in. */
     private final Map<UUID, Long> measuredIn = new HashMap<>();
+    /** Stations to measure again, one each check, so a world's sunrise isn't one long tick for all of them. */
+    private final java.util.LinkedHashSet<BlockKey> toMeasure = new java.util.LinkedHashSet<>();
+    /** Stations whose tower changed, checked once a tick later however many of its blocks changed. */
+    private final java.util.Set<BlockKey> toRecheck = new java.util.HashSet<>();
     /** Per world, the rain and thunder chances: every station in a world shares the sky's clocks. */
     private final Map<UUID, Forecast.Chances> chances = new HashMap<>();
 
@@ -273,11 +277,14 @@ public final class WeatherStationService implements Listener {
     // ---- the day's rhythm ----
 
     /**
-     * Measures and forecasts again in every world whose half-day has turned
-     * (at sunrise and at sunset), and redraws its stations. Cheap the rest of
-     * the time: one comparison per world.
+     * Forecasts again in every world whose half-day has turned (at sunrise
+     * and at sunset), and queues its stations to measure again: one station
+     * is measured each check, every two seconds, since measuring is some
+     * five hundred climate samples. Cheap the rest of the time: one
+     * comparison per world.
      */
     public void tick() {
+        measureNext();
         Map<UUID, World> worlds = new HashMap<>();
         for (WeatherStation station : registry.weatherStations()) {
             World world = station.position().world();
@@ -290,11 +297,25 @@ public final class WeatherStationService implements Listener {
             chances.remove(world.getUID());
             for (WeatherStation station : registry.weatherStations()) {
                 if (!station.position().worldId().equals(world.getUID())) continue;
-                recheck(station);
-                measure(station);
                 forecasts.remove(station.position());
                 if (displays != null) displays.refreshWeatherStation(station, true);
+                toMeasure.add(station.position());
             }
+        }
+    }
+
+    /** Measures the next queued station that still exists. */
+    private void measureNext() {
+        java.util.Iterator<BlockKey> next = toMeasure.iterator();
+        while (next.hasNext()) {
+            BlockKey position = next.next();
+            next.remove();
+            WeatherStation station = registry.weatherStationAt(position);
+            if (station == null) continue;
+            recheck(station);
+            measure(station);
+            if (displays != null) displays.refreshWeatherStation(station, true);
+            return;
         }
     }
 
@@ -398,8 +419,14 @@ public final class WeatherStationService implements Listener {
 
     /** A block changed by a tower: check it again a tick later, once the change has happened. */
     private void changedNear(Location at) {
-        for (WeatherStation station : registry.weatherStations())
-            if (onTower(station, at)) Bukkit.getScheduler().runTask(plugin, () -> recheck(station));
+        for (WeatherStation station : registry.weatherStations()) {
+            if (!onTower(station, at) || !toRecheck.add(station.position())) continue;
+            Bukkit.getScheduler().runTask(plugin, () -> {
+                toRecheck.remove(station.position());
+                WeatherStation current = registry.weatherStationAt(station.position());
+                if (current != null) recheck(current);
+            });
+        }
     }
 
     /** Checks every station whose chunk is loaded, for /hvac sync. */
@@ -410,5 +437,6 @@ public final class WeatherStationService implements Listener {
     /** Forgets what a removed station had. */
     public void forget(BlockKey position) {
         forecasts.remove(position);
+        toMeasure.remove(position);
     }
 }
