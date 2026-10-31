@@ -171,7 +171,7 @@ public final class HvacPlugin extends JavaPlugin {
             quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates);
             getServer().getPluginManager().registerEvents(quickSettings, this);
             notices = StartupNotices.loaded(this, registry.recoveredFrom(), registry.setAside(),
-                    registry.keptAside(), registry.migratedFrom());
+                    registry.keptAside(), registry.migratedFrom(), sizingStartedOff);
             if (notices != null) {
                 getServer().getPluginManager().registerEvents(notices, this);
                 notices.tellOnline();
@@ -230,6 +230,8 @@ public final class HvacPlugin extends JavaPlugin {
         }
         List<String> added = ConfigUpdater.upgrade(current, bundled);
         if (added.isEmpty()) return;
+        // Building size arrived with this start, on an upgraded server: it starts off, and admins are told.
+        sizingStartedOff = added.contains("sizing.enabled");
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
@@ -281,6 +283,8 @@ public final class HvacPlugin extends JavaPlugin {
     }
 
     private StartupNotices notices;
+    /** This start upgraded config.yml from before BETA 1.0, so building size starts off (and admins hear why). */
+    private boolean sizingStartedOff;
 
     /**
      * hvac.yml couldn't be loaded: EZvac stays enabled but runs nothing and

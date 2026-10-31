@@ -66,6 +66,7 @@ public final class ConfigUpdater {
         HudSettings.addWindLine(target, added);
         HudSettings.adoptSections(target, added);
         HudSettings.adoptAccents(target, added);
+        SizingSettings.offOnUpgrade(target, added);
         return added;
     }
 

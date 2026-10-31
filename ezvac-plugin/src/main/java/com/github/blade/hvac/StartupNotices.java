@@ -62,11 +62,23 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
      * @param setAside      where the unreadable file was kept, or null
      * @param keptAside     records kept aside
      * @param migratedFrom  the older format hvac.yml was upgraded from, or 0
+     * @param sizingOff     building size started off on this upgrade
      */
     public static StartupNotices loaded(Plugin plugin, String recoveredFrom, String setAside, int keptAside,
-                                        int migratedFrom) {
+                                        int migratedFrom, boolean sizingOff) {
         List<Component> lines = lines(recoveredFrom, setAside, keptAside, migratedFrom);
+        if (sizingOff) lines = withSizingOff(lines);
         return lines.isEmpty() ? null : new StartupNotices(plugin, lines, false, false, null);
+    }
+
+    /** Building size is new and starts off on this upgraded server (BETA 1.0): told once, as news, not a warning. */
+    static List<Component> withSizingOff(List<Component> lines) {
+        List<Component> out = new ArrayList<>(lines);
+        out.add(prefix().append(Component.text("Building size is new in BETA 1.0 and starts off here, so your builds"
+                + " heat and cool as before.", NamedTextColor.GREEN)));
+        out.add(Component.text("Switch it on in /hvac quicksettings › Climate systems; /hvac stats sizes then shows"
+                + " which systems need more units. It switches off again there anytime.", NamedTextColor.GRAY));
+        return out;
     }
 
     static List<Component> lines(String recoveredFrom, String setAside, int keptAside, int migratedFrom) {

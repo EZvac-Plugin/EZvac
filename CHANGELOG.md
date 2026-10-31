@@ -8,11 +8,11 @@ All notable changes to EZvac are recorded here.
 Purpur **26.1 to 26.3**, and still on **1.21.x**. The save is unchanged
 (format 8), so your devices carry over from ALPHA 3.2 on either version.
 
-**Heating and cooling now go by building size.** A big build may heat and
-cool more slowly than before and need more units, or more vents to reach
-all of it. `sizing.enabled: false`, or **Building size** in quick settings,
-keeps the old behaviour. See
-[Size-based heating and cooling](#size-based-heating-and-cooling).
+**Heating and cooling can now go by building size.** On a new server it's on:
+a big build needs more units, or more vents to reach all of it. **On a server
+upgrading from ALPHA it starts off,** so existing builds heat and cool as before;
+admins are told once, and switch it on with **Building size** in quick settings.
+See [Size-based heating and cooling](#size-based-heating-and-cooling).
 
 **New: weather stations,** towers that forecast the next seven days for
 players nearby. See [Weather stations](#weather-stations).
@@ -62,9 +62,11 @@ players nearby. See [Weather stations](#weather-stations).
   wall or a closed door keeps them apart.
 - **`/hvac sync`** also maps every system's air again, for builds made with
   `/fill` or WorldEdit.
-- **Upgrading:** a big build may now need more units, or more vents to
-  reach all of it. `sizing.enabled: false`, or **Building size** in quick
-  settings, keeps the old behaviour.
+- **Upgrading:** it starts off on a server upgrading from ALPHA, so nothing
+  changes until the owner switches **Building size** on in quick settings
+  (`sizing.enabled`). Admins are told so on joining, once. Switched on, a
+  big build may need more units, or more vents to reach all of it;
+  `/hvac stats sizes` shows which. A new server starts with it on.
 
 ### Weather stations
 

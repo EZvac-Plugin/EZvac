@@ -85,6 +85,15 @@ covered by the test suite.
   `config.yml.before-<version>.bak`. See
   [Configuration](configuration.md#your-configyml-stays-up-to-date).
 
+### Building size starts off
+
+BETA 1.0 can heat and cool by building size: one ★★★ unit per 1,860 blocks
+of air. It would change how existing builds play, so on a server upgrading
+from ALPHA it starts off (`sizing.enabled: false` is added to `config.yml`),
+and admins are told once. Switch it on in `/hvac quicksettings` › Climate
+systems; `/hvac stats sizes` then shows which systems need more units, and
+it switches off again there anytime. See [Sizing](equipment.md#sizing).
+
 ### Moving to Minecraft 26.x
 
 BETA 1.0 runs on 1.21.x and on 26.1 to 26.3, so EZvac and the server can be

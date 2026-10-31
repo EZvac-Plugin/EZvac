@@ -164,7 +164,7 @@ New in BETA 1.0; see [Sizing](equipment.md#sizing).
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
-| `enabled` | true | false: any size heats and cools as before BETA 1.0. Quick settings switches it while the server runs |
+| `enabled` | true | false: any size heats and cools as before BETA 1.0. Quick settings switches it while the server runs. A server upgrading from ALPHA gets `false` (BETA 1.0), so its builds don't change until the owner switches it on |
 | `cells-per-unit` | 1860 | Blocks of air one ★★★ unit heats or cools at the normal pace: a floor of about 465 blocks, 4 blocks high |
 | `pool-cells-per-unit` | 1500 | Blocks of water one ★★★ pool heater warms at the normal pace |
 | `maximum-speed-up` | 2.0 | The most a smaller system is sped up by |

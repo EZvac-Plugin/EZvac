@@ -1,5 +1,7 @@
 package com.github.blade.hvac.config;
 
+import java.util.List;
+
 import org.bukkit.configuration.file.FileConfiguration;
 
 import java.util.function.Consumer;
@@ -39,6 +41,20 @@ public record SizingSettings(boolean enabled, int cellsPerUnit, int poolCellsPer
     /** On a running server, what /hvac quicksettings says; config.yml's value otherwise. */
     @Override
     public boolean enabled() { return ServerSwitches.sizing(enabled); }
+
+    /**
+     * Building size starts off on a server upgraded from before BETA 1.0
+     * (maintainer, 2026-10-31): it changes how existing builds heat and cool,
+     * so the owner switches it on. A new install keeps the bundled true, and
+     * a server that already has the setting keeps its own.
+     *
+     * @return whether it started off just now
+     */
+    public static boolean offOnUpgrade(org.bukkit.configuration.file.YamlConfiguration config, List<String> added) {
+        if (!added.contains("sizing.enabled")) return false;
+        config.set("sizing.enabled", false);
+        return true;
+    }
 
     public static SizingSettings defaults() {
         return new SizingSettings(true, 1860, 1500, 2.0, 3, 1.1, 6.0, 10.0);
