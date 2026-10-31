@@ -49,7 +49,7 @@ import static com.github.blade.hvac.gui.ControlMenus.item;
 public final class QuickSettingsMenu implements Listener {
     enum Page {
         MAIN("EZvac quick settings", 27), DEVICES("Quick settings › Devices", 36),
-        CLIMATE("Quick settings › Climate systems", 36), BACKUPS("Quick settings › Backups", 36),
+        CLIMATE("Quick settings › Climate systems", 36), BACKUPS("Quick settings › Backups & registry", 36),
         STATISTICS("Quick settings › Statistics", 36), UPDATES("Quick settings › Updates", 36);
 
         final String title;
@@ -71,7 +71,11 @@ public final class QuickSettingsMenu implements Listener {
     /** Air quality, pollen, wind, seasons and building size, with their switches beneath. */
     static final int AIR = 9, POLLEN = 11, WIND = 13, SEASONS = 15, SIZING = 17;
     static final int BACK_UP_NOW = 11, AUTOMATIC = 13, BACKUP_INFO = 15;
-    static final int DEVICE_COUNTS = 10, SYSTEM_COUNTS = 11, SIZES = 13, AIRFLOW = 15, SAVED = 16, REFRESH = 22;
+    /** hvac.yml's health at this start, under the backups (BETA 1.0); clicked twice, it discards what was kept aside. */
+    static final int REGISTRY = 22;
+    /** The kept-aside entries its lore lists at most. */
+    private static final int LISTED_ASIDE = 5;
+    static final int DEVICE_COUNTS = 10, SYSTEM_COUNTS = 11, SIZES = 13, AIRFLOW = 15, REFRESH = 22;
     /** The systems the sizes item lists at most, the worst sized first. */
     private static final int LISTED_SYSTEMS = 10;
     static final int RUNNING = 10, CHECK_NOW = 12, BACKGROUND = 14, TELL_ADMINS = 16;
@@ -80,6 +84,8 @@ public final class QuickSettingsMenu implements Listener {
     private static final class Menu implements InventoryHolder {
         final Page page;
         Inventory inventory;
+        /** Clicked once: the next click on the registry item discards what was kept aside. */
+        boolean discardArmed;
 
         Menu(Page page) { this.page = page; }
 
@@ -128,7 +134,7 @@ public final class QuickSettingsMenu implements Listener {
             case MAIN -> drawMain(inventory);
             case DEVICES -> drawDevices(inventory);
             case CLIMATE -> drawClimate(inventory);
-            case BACKUPS -> drawBackups(inventory);
+            case BACKUPS -> drawBackups(inventory, menu.discardArmed);
             case STATISTICS -> drawStatistics(inventory);
             case UPDATES -> drawUpdates(inventory);
         }
@@ -143,8 +149,8 @@ public final class QuickSettingsMenu implements Listener {
         inventory.setItem(CLIMATE, section(Material.SUNFLOWER, "Climate systems",
                 systemsOff == 0 ? "All on" : systemsOff + " switched off",
                 "Air quality, pollen, wind, seasons, size"));
-        inventory.setItem(BACKUPS, section(Material.CHEST, "Backups",
-                "Automatic: " + RegistryBackups.describe(backups.intervalHours()), "Back up the registry"));
+        inventory.setItem(BACKUPS, section(Material.CHEST, "Backups & registry",
+                "Automatic: " + RegistryBackups.describe(backups.intervalHours()), "Back up hvac.yml; its health"));
         inventory.setItem(STATISTICS, section(Material.BOOK, "Statistics",
                 registry.thermostats().size() + " thermostat(s), " + registry.equipment().size() + " unit(s)",
                 "What /hvac stats shows"));
@@ -194,7 +200,8 @@ public final class QuickSettingsMenu implements Listener {
                 gray("Off: any size, as before BETA 1.0"), clickTo(switches.sizing())));
     }
 
-    private void drawBackups(Inventory inventory) {
+    private void drawBackups(Inventory inventory, boolean discardArmed) {
+        inventory.setItem(REGISTRY, registryItem(discardArmed));
         inventory.setItem(BACK_UP_NOW, item(Material.WRITABLE_BOOK,
                 Component.text("Back up now", NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
                 List.of(gray("hvac.yml and seasons.yml, to"), gray("plugins/EZvac/backups"),
@@ -241,10 +248,6 @@ public final class QuickSettingsMenu implements Listener {
                 gray("Maps made since start-up: " + figures.completed()),
                 gray("Cells visited: " + figures.visited()),
                 gray("Maps that hit the size cap: " + figures.capped()))));
-        File saved = new File(plugin.getDataFolder(), "hvac.yml");
-        inventory.setItem(SAVED, item(Material.FILLED_MAP, Component.text("Registry", NamedTextColor.AQUA), List.of(
-                gray(saved.isFile() ? "hvac.yml saved " + ago(saved.lastModified()) : "Not saved yet"),
-                gray(registry.isWritable() ? "Saving normally" : "Not saving: hvac.yml could not be read"))));
         inventory.setItem(REFRESH, item(Material.SPYGLASS, Component.text("Refresh", NamedTextColor.YELLOW),
                 List.of(gray("Read the figures again"))));
     }
@@ -313,7 +316,7 @@ public final class QuickSettingsMenu implements Listener {
             }
             case DEVICES -> clickDevices(player, slot);
             case CLIMATE -> clickClimate(player, slot);
-            case BACKUPS -> clickBackups(player, slot);
+            case BACKUPS -> clickBackups(player, slot, menu);
             case STATISTICS -> {
                 if (slot == REFRESH) click(player, true);
             }
@@ -384,8 +387,82 @@ public final class QuickSettingsMenu implements Listener {
         displays.refreshAll(true);
     }
 
-    private void clickBackups(Player player, int slot) {
-        if (slot == BACK_UP_NOW) {
+    /**
+     * How hvac.yml read at this start: fine, upgraded, recovered from a
+     * backup, or with entries kept aside, listed. With some kept aside, a
+     * click arms the discard and a second does it, like /hvac registry repair
+     * --force.
+     */
+    private ItemStack registryItem(boolean discardArmed) {
+        List<HvacRegistry.KeptAside> aside = registry.keptAsideRecords();
+        List<Component> lore = new ArrayList<>();
+        // When it was last saved: on the Statistics page until BETA 1.0's registry health joined the backups.
+        File saved = new File(plugin.getDataFolder(), "hvac.yml");
+        lore.add(gray(saved.isFile() ? "Saved " + ago(saved.lastModified()) : "Not saved yet"));
+        lore.add(gray(registry.isWritable() ? "Saving normally" : "Not saving: hvac.yml could not be read"));
+        NamedTextColor color = NamedTextColor.GREEN;
+        String state = "read fine";
+        if (registry.recoveredFrom() != null) {
+            state = "recovered";
+            color = NamedTextColor.GOLD;
+            lore.add(gray("Unreadable at this start: recovered"));
+            lore.add(gray("from " + registry.recoveredFrom()));
+            lore.add(gray("The unreadable file: " + registry.setAside()));
+        } else if (registry.migratedFrom() > 0) {
+            state = "upgraded";
+            lore.add(gray("Upgraded from format " + registry.migratedFrom() + " at this start"));
+        } else {
+            lore.add(gray("Read fine at this start"));
+        }
+        if (aside.isEmpty()) {
+            lore.add(gray("Nothing is kept aside"));
+        } else {
+            color = NamedTextColor.GOLD;
+            state = aside.size() + " kept aside";
+            lore.add(gray(aside.size() + (aside.size() == 1 ? " entry couldn't be loaded" : " entries couldn't be loaded")
+                    + ", not running:"));
+            for (HvacRegistry.KeptAside entry : aside.subList(0, Math.min(LISTED_ASIDE, aside.size()))) {
+                String reason = entry.reason().length() > 40 ? entry.reason().substring(0, 39) + "…" : entry.reason();
+                lore.add(gray(" " + entry.section() + " " + entry.entry() + ": " + reason));
+            }
+            if (aside.size() > LISTED_ASIDE) lore.add(gray(" and " + (aside.size() - LISTED_ASIDE) + " more (/hvac registry)"));
+            lore.add(gray("hvac.yml is copied aside first"));
+            lore.add(discardArmed
+                    ? Component.text("Click again to discard " + (aside.size() == 1 ? "it" : "them") + " for good",
+                    NamedTextColor.RED).decoration(TextDecoration.ITALIC, false)
+                    : Component.text("Click to discard " + (aside.size() == 1 ? "it" : "them") + " (asks again)",
+                    NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+        }
+        return item(Material.BOOK, Component.text("hvac.yml: " + state, color), lore);
+    }
+
+    private void clickBackups(Player player, int slot, Menu menu) {
+        if (slot != REGISTRY) menu.discardArmed = false;
+        if (slot == REGISTRY) {
+            if (registry.keptAside() == 0) {
+                click(player, false);
+            } else if (!menu.discardArmed) {
+                menu.discardArmed = true;
+                click(player, true);
+            } else {
+                menu.discardArmed = false;
+                try {
+                    HvacRegistry.Repair repaired = registry.repairKeptAside();
+                    click(player, true);
+                    logChange(player, "discarded " + repaired.discarded() + " kept-aside entr"
+                            + (repaired.discarded() == 1 ? "y" : "ies") + " from hvac.yml (copied first to "
+                            + repaired.copy() + ")");
+                    player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
+                            "Discarded " + repaired.discarded() + " entr" + (repaired.discarded() == 1 ? "y" : "ies")
+                                    + ". hvac.yml as it was is kept as " + repaired.copy() + ".", NamedTextColor.GREEN)));
+                } catch (java.io.IOException failure) {
+                    click(player, false);
+                    player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
+                            "Couldn't copy hvac.yml aside, so nothing was discarded: " + failure.getMessage(),
+                            NamedTextColor.RED)));
+                }
+            }
+        } else if (slot == BACK_UP_NOW) {
             click(player, true);
             backups.backUpNow((name, failure) -> {
                 if (name != null) {

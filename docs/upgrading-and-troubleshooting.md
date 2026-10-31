@@ -153,7 +153,7 @@ on a biome border), and 2.1 samples them again if you come back.
   chunk is loaded. Devices in unloaded chunks or worlds are kept.
 - **Player choices** (the HUD on or off) are stored with each player, not in
   `hvac.yml`.
-- **Backups:** since BETA 1.0, [quick settings](screens-and-menus.md#backups)
+- **Backups:** since BETA 1.0, [quick settings](screens-and-menus.md#backups--registry)
   backs the registry up on demand, or every few hours, to
   `plugins/EZvac/backups/`.
 

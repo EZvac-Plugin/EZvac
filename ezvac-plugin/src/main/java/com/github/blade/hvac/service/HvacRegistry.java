@@ -381,6 +381,25 @@ public final class HvacRegistry {
     /** How many records this start kept aside: ones it couldn't load, or that clashed with another. */
     public int keptAside() { return keptAside.size(); }
 
+    /**
+     * Discards the records kept aside on purpose, safely (BETA 1.0, /hvac
+     * registry repair --force and quick settings): hvac.yml is copied to
+     * {@code hvac.yml.before-repair-<time>} first, then they're discarded and
+     * the file saved at once. Nothing is discarded if the copy fails.
+     *
+     * @return how many were discarded, and the copy's name
+     */
+    public Repair repairKeptAside() throws IOException {
+        File before = new File(host.dataFolder(), "hvac.yml.before-repair-" + System.currentTimeMillis());
+        if (dataFile.isFile()) Files.copy(dataFile.toPath(), before.toPath());
+        int discarded = discardKeptAside();
+        save(true);
+        return new Repair(discarded, before.getName());
+    }
+
+    /** What {@link #repairKeptAside} did. */
+    public record Repair(int discarded, String copy) {}
+
     /** The records kept aside, in the order they were met. */
     public List<KeptAside> keptAsideRecords() {
         return keptAside.stream().map(Aside::info).toList();

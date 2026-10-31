@@ -103,7 +103,7 @@ players nearby. See [Weather stations](#weather-stations).
   building size off and on without a restart. EZvac keeps heating and
   cooling; the effect just stops shaping the climate. Pollen can now be
   switched off on its own (`air-quality.pollen`).
-- **Backups:** back the registry up now, or automatically every 4, 8, 12,
+- **Backups & registry:** back the registry up now, or automatically every 4, 8, 12,
   24 or 48 hours or every week of real time, to `plugins/EZvac/backups/`.
   The newest 10 automatic ones are kept. See
   [Restoring a backup](docs/upgrading-and-troubleshooting.md#restoring-a-backup).
@@ -198,6 +198,9 @@ players nearby. See [Weather stations](#weather-stations).
 - **Stopped, not gone:** with nothing readable, EZvac stays loaded but runs
   and saves nothing; `/hvac` and the join message say why, instead of it
   looking uninstalled.
+- **Quick settings' Backups page is Backups & registry** and shows `hvac.yml`'s health: when it was
+  last saved (moved from Statistics), how it read at this start, and what was
+  kept aside, which a click, then a second click, discards.
 - **`/hvac registry`** lists what was kept aside, and
   **`/hvac registry repair --force`** discards it on purpose, or salvages an
   unreadable file, keeping every entry that still reads. A file from a newer

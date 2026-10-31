@@ -93,7 +93,7 @@ New in BETA 1.0. Backups of the registry go to `plugins/EZvac/backups/`.
 - **`auto-every-hours`:** 0 is off, or 4, 8, 12, 24, 48 or 168 (a week). It
   counts real time, through restarts. Any other value counts as off.
 - **`keep`:** how many automatic backups are kept; older ones are deleted.
-  Backups made by hand in [quick settings](screens-and-menus.md#backups) are
+  Backups made by hand in [quick settings](screens-and-menus.md#backups--registry) are
   never deleted.
 
 ## controller
