@@ -19,6 +19,14 @@ class StartupNoticesTest {
     }
 
     @Test
+    void buildingSizeStartingOffIsToldWithWhereToSwitchIt() {
+        String said = text(StartupNotices.withSizingOff(List.of()));
+        assertTrue(said.contains("Building size is new in BETA 1.0 and starts off here"), said);
+        assertTrue(said.contains("/hvac quicksettings › Climate systems"), said);
+        assertTrue(said.contains("/hvac stats sizes"), said);
+    }
+
+    @Test
     void anUpgradeToANewerFormatIsToldAsGoodNews() {
         String said = text(StartupNotices.lines(null, null, 0, 7));
         assertTrue(said.contains("upgraded from format 7 to format 8 at this start: everything carried over"), said);

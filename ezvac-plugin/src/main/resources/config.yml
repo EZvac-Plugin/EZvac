@@ -104,7 +104,8 @@ airflow:
 # maximum-openness times a sealed room. Systems whose air touches even out
 # through it (neighbour-exchange); a wall or a closed door insulates.
 # enabled: false keeps the behaviour from before BETA 1.0; /hvac quicksettings
-# switches it while the server runs.
+# switches it while the server runs. A server upgrading from ALPHA starts with
+# it off, so its builds don't change until the owner switches it on.
 sizing:
   enabled: true
   cells-per-unit: 1860

@@ -35,9 +35,9 @@ biome and the weather.
 > sulfur caves get their own climate and air, and admins are told when a
 > newer EZvac is out. `/hvac quicksettings` gives owners one menu to switch
 > device kinds, air quality, pollen, wind and the seasons on or off, and to
-> back the registry up. Heating and cooling now go by building size: one
+> back the registry up. Heating and cooling can go by building size: one
 > three-star unit per 1,860 blocks of air, so big builds need more equipment.
-> Weather stations forecast the next seven days for players nearby
+> It's on for new servers and starts off on upgraded ones. Weather stations forecast the next seven days for players nearby
 > (`/hvac forecast`). Your save carries over unchanged.
 >
 > ALPHA 3.2 added air quality. Every room tracks

@@ -214,7 +214,9 @@ bigger building needs more of it.
 
 `sizing.enabled: false`, or **Building size** in
 [quick settings](screens-and-menus.md#climate-systems), turns this off: any
-size then heats and cools as before BETA 1.0. The numbers are in
+size then heats and cools as before BETA 1.0. **It's on for a new server and
+starts off on one upgrading from ALPHA,** so existing builds don't change
+until the owner switches it on; admins are told so once. The numbers are in
 [Configuration](configuration.md#sizing).
 
 ### The casing

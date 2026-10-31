@@ -2,6 +2,7 @@ package com.github.blade.hvac.config;
 
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -18,6 +19,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -80,8 +82,21 @@ class ReleaseConfigUpgradeTest {
             assertEquals(HudSettings.defaults().water().sidebarLines(), hud.water().sidebarLines(),
                     "its stock water sidebar is today's");
 
+        // Building size changes how existing builds heat and cool: it starts off on every upgraded server.
+        assertFalse(config.getBoolean("sizing.enabled", true), "building size starts off on an upgrade");
+
         YamlConfiguration saved = new YamlConfiguration();
         saved.loadFromString(config.saveToString());
         assertTrue(ConfigUpdater.upgrade(saved, bundled).isEmpty(), "the next start finds nothing to add");
+        assertFalse(saved.getBoolean("sizing.enabled", true), "and stays off until the owner switches it on");
+    }
+
+    @Test
+    void aNewInstallHasBuildingSizeOn() throws Exception {
+        assertTrue(load("/config.yml").getBoolean("sizing.enabled"), "the bundled config.yml");
+        YamlConfiguration chosen = load("/config.yml");
+        chosen.set("sizing.enabled", true);
+        assertTrue(ConfigUpdater.upgrade(chosen, load("/config.yml")).isEmpty());
+        assertTrue(chosen.getBoolean("sizing.enabled"), "a server that has the setting keeps its own");
     }
 }
