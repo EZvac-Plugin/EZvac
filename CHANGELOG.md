@@ -187,6 +187,23 @@ players nearby. See [Weather stations](#weather-stations).
   every released `config.yml` to today's: nothing is missing, nothing a
   server set changes, and nothing warns.
 
+### A broken hvac.yml
+
+- **Admins are told in game,** a moment after joining, when `hvac.yml` was
+  recovered from a backup at this start or has entries kept aside, not only
+  in the server log. Good news too: an upgrade to a newer save format says
+  it went through, and where the original was kept.
+- **One more fallback:** with `hvac.yml.bak` unreadable too, EZvac recovers
+  from the newest readable backup in `plugins/EZvac/backups/`.
+- **Stopped, not gone:** with nothing readable, EZvac stays loaded but runs
+  and saves nothing; `/hvac` and the join message say why, instead of it
+  looking uninstalled.
+- **`/hvac registry`** lists what was kept aside, and
+  **`/hvac registry repair --force`** discards it on purpose, or salvages an
+  unreadable file, keeping every entry that still reads. A file from a newer
+  EZvac is never forced. Upgrading never triggers any of this. See
+  [When hvac.yml is broken](docs/upgrading-and-troubleshooting.md#when-hvacyml-is-broken).
+
 ### API 1.6
 
 - **Everything new in BETA 1.0 can be read by addons:** a system's size and

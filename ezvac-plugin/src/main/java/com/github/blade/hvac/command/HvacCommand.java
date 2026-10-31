@@ -3,6 +3,7 @@ package com.github.blade.hvac.command;
 import com.github.blade.hvac.config.WindSettings;
 import com.github.blade.hvac.simulation.WindModel;
 import com.github.blade.hvac.HvacPlugin;
+import com.github.blade.hvac.StartupNotices;
 import com.github.blade.hvac.api.event.ThermostatTargetChangeEvent;
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.config.ServerSwitches;
@@ -102,6 +103,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             plugin.weatherStations().recheckAll();
             plugin.requestImmediateSync();
             sender.sendMessage(green("HVAC reconciliation queued; every system's air is mapped again."));
+            return true;
+        }
+        if (subcommand.equals("registry")) {
+            if (!requireAdmin(sender)) return true;
+            registryCommand(sender, args);
             return true;
         }
         if (subcommand.equals("update")) {
@@ -529,6 +535,59 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         displays.invalidate(key);
         displays.refreshAll(true);
         player.sendMessage(green("Renamed to '" + label + "'."));
+    }
+
+    /**
+     * /hvac registry (BETA 1.0): what this start recovered hvac.yml from and
+     * which entries it kept aside; {@code repair --force} discards those for
+     * good, after copying hvac.yml aside.
+     */
+    private void registryCommand(CommandSender sender, String[] args) {
+        List<HvacRegistry.KeptAside> aside = registry.keptAsideRecords();
+        boolean repair = args.length >= 2 && args[1].equalsIgnoreCase("repair");
+        boolean force = repair && args.length >= 3 && args[2].equalsIgnoreCase("--force");
+        if (!repair) {
+            sender.sendMessage(join(gold("hvac.yml: "), white(registry.recoveredFrom() == null ? "read fine at this start"
+                    : "recovered from " + registry.recoveredFrom() + " at this start; the unreadable file is kept as "
+                    + registry.setAside())));
+            if (aside.isEmpty()) {
+                sender.sendMessage(gray("Nothing is kept aside."));
+                return;
+            }
+            sender.sendMessage(yellow(aside.size() + (aside.size() == 1 ? " entry is" : " entries are")
+                    + " kept aside, not running:"));
+            for (HvacRegistry.KeptAside entry : aside.subList(0, Math.min(10, aside.size())))
+                sender.sendMessage(gray(" " + entry.section() + " " + entry.entry() + ": " + entry.reason()));
+            if (aside.size() > 10) sender.sendMessage(gray(" and " + (aside.size() - 10) + " more, in the server log"));
+            sender.sendMessage(gray("Fix them in hvac.yml and restart, or if this is intentional, run "
+                    + StartupNotices.REPAIR + " to discard them for good."));
+            return;
+        }
+        if (aside.isEmpty()) {
+            sender.sendMessage(green("Nothing is kept aside: there's nothing to repair."));
+            return;
+        }
+        if (!force) {
+            sender.sendMessage(yellow("This discards the " + aside.size() + " entr" + (aside.size() == 1 ? "y" : "ies")
+                    + " kept aside for good (see /hvac registry). hvac.yml as it is now is copied aside first. If"
+                    + " this is intentional, run " + StartupNotices.REPAIR + "."));
+            return;
+        }
+        java.io.File data = new java.io.File(plugin.getDataFolder(), "hvac.yml");
+        java.io.File before = new java.io.File(plugin.getDataFolder(), "hvac.yml.before-repair-" + System.currentTimeMillis());
+        try {
+            if (data.isFile()) java.nio.file.Files.copy(data.toPath(), before.toPath());
+        } catch (java.io.IOException failure) {
+            sender.sendMessage(red("Couldn't copy hvac.yml aside, so nothing was discarded: " + failure.getMessage()));
+            return;
+        }
+        int discarded = registry.discardKeptAside();
+        registry.save(true);
+        plugin.getLogger().warning(sender.getName() + " discarded " + discarded + " kept-aside entr"
+                + (discarded == 1 ? "y" : "ies") + " from hvac.yml with " + StartupNotices.REPAIR
+                + "; the file before is " + before.getName());
+        sender.sendMessage(green("Discarded " + discarded + " entr" + (discarded == 1 ? "y" : "ies")
+                + ". hvac.yml as it was is kept as " + before.getName() + "."));
     }
 
     /** /hvac info on a weather station (BETA 1.0). */
@@ -1234,6 +1293,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 lines.add(help("/hvac season set <season> [day] | next | pause | resume", "change the season"));
                 lines.add(help("/hvac wind set <calm|breezy|windy|gale|auto>", "set today's wind, until the day ends"));
                 lines.add(help("/hvac hud sections", "the HUD sections addons have added"));
+                lines.add(help("/hvac registry [repair --force]", "hvac.yml's health; discard broken entries"));
             }
             default -> {
                 lines.add(gold("EZvac commands"));
@@ -1263,7 +1323,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 "forecast"));
         if (hud) words.add("hud");
         if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove",
-                "stats", "sync", "update", "quicksettings"));
+                "stats", "sync", "update", "quicksettings", "registry"));
         return words;
     }
 
@@ -1288,6 +1348,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     .filter(WindService::hasWind).map(World::getName).toArray(String[]::new));
         }
         if (args.length == 2 && args[0].equalsIgnoreCase("help")) return admin ? filter(args[1], "build", "server") : List.of();
+        if (admin && args[0].equalsIgnoreCase("registry")) {
+            if (args.length == 2) return filter(args[1], "repair");
+            if (args.length == 3 && args[1].equalsIgnoreCase("repair")) return filter(args[2], "--force");
+        }
         if (args.length == 2 && args[0].equalsIgnoreCase("hud"))
             return admin ? filter(args[1], "on", "off", "sections") : filter(args[1], "on", "off");
         if (!admin) return List.of();

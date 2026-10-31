@@ -89,6 +89,12 @@ class RegistryCompatibilityTest {
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::running).count());
         assertEquals(0, registry.equipment().stream().filter(EquipmentUnit::hasOwnedOutput).count());
         assertTrue(host.warnings().isEmpty(), () -> "unexpected warnings: " + host.warnings());
+        // Upgrading is never a repair (BETA 1.0): admins aren't warned, and nothing waits on --force.
+        assertEquals(0, registry.keptAside(), () -> "kept aside: " + registry.keptAsideRecords());
+        assertNull(registry.recoveredFrom());
+        // Format 8 arrived with ALPHA 3.1: every release before it is told as a successful upgrade.
+        assertEquals(java.util.Set.of("ALPHA-3.1", "ALPHA-3.2").contains(release) ? 0 : 1,
+                Math.min(1, registry.migratedFrom()), release);
         assertSavesAsGolden(registry, release, "expected-save.yml");
     }
 

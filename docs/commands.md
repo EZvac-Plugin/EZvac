@@ -150,6 +150,8 @@ game.
 | `/hvac stats` | Device totals and airflow statistics |
 | `/hvac stats sizes` | Every system's size and openings, and what it has of the units it needs for cooling and heating, the worst sized first (BETA 1.0, see [Sizing](equipment.md#sizing)) |
 | `/hvac sync` | Applies block and world changes straight away instead of on the next update, and maps every system's air again: run it after building with `/fill` or WorldEdit, which don't tell EZvac |
+| `/hvac registry` | How `hvac.yml` read at this start: recovered from a backup, and the entries kept aside and why (BETA 1.0) |
+| `/hvac registry repair --force` | Discards the entries kept aside for good, after copying `hvac.yml` aside. While EZvac is stopped on an unreadable file, salvages it instead: keeps every entry that still reads. Without `--force` it says what it would do. See [When hvac.yml is broken](upgrading-and-troubleshooting.md#when-hvacyml-is-broken) |
 | `/hvac update` | Checks GitHub for a newer EZvac now, and says whether it runs on this server's Minecraft (BETA 1.0, see below) |
 | `/hvac hud sections` | The sections addons have added to the HUD, with the `{section:<id>}` token for each (see [HUD and placeholders](hud-and-placeholders.md#addon-sections)) |
 
