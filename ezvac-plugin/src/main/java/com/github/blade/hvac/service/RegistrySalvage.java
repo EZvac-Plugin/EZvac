@@ -101,6 +101,67 @@ public final class RegistrySalvage {
     /** A salvage written to disk, and where the original went. */
     public record Saved(Result result, String original) {}
 
+    /**
+     * A backup in plugins/EZvac/backups (BETA 1.0, the recovery menu).
+     *
+     * @param name     its file name, such as {@code hvac-2026-10-30_08-00-00-auto.yml}
+     * @param readable whether this EZvac can start from it: it reads, and isn't from a newer format
+     */
+    public record Backup(String name, boolean readable) {}
+
+    /** The backups in plugins/EZvac/backups, newest first, each checked. */
+    public static List<Backup> backups(java.io.File dataFolder) {
+        java.io.File folder = new java.io.File(dataFolder, "backups");
+        String[] names = folder.list();
+        if (names == null) return List.of();
+        List<Backup> out = new ArrayList<>();
+        for (String name : RegistryBackups.newestFirst(List.of(names))) {
+            boolean readable;
+            try {
+                YamlConfiguration configuration = new YamlConfiguration();
+                configuration.load(new java.io.File(folder, name));
+                readable = configuration.getInt("meta.format", HvacRegistry.FORMAT_VERSION) <= HvacRegistry.FORMAT_VERSION;
+            } catch (java.io.IOException | InvalidConfigurationException | RuntimeException exception) {
+                readable = false;
+            }
+            out.add(new Backup(name, readable));
+        }
+        return out;
+    }
+
+    /**
+     * Restores a backup over hvac.yml, and its seasons file over seasons.yml
+     * when there is one, for a stopped EZvac to start from at the next start.
+     * The files it replaces are kept, as {@code hvac.yml.before-restore-<time>}
+     * and {@code seasons.yml.before-restore-<time>}.
+     *
+     * @return the name hvac.yml was kept under, or null when there was none
+     */
+    public static String restore(java.io.File dataFolder, String name) throws java.io.IOException {
+        java.io.File folder = new java.io.File(dataFolder, "backups");
+        java.io.File backup = new java.io.File(folder, name);
+        if (!name.startsWith("hvac-") || name.contains("/") || name.contains("\\") || !backup.isFile())
+            throw new java.io.IOException("no backup called " + name);
+        long now = System.currentTimeMillis();
+        java.io.File data = new java.io.File(dataFolder, "hvac.yml");
+        String kept = null;
+        if (data.isFile()) {
+            kept = "hvac.yml.before-restore-" + now;
+            java.nio.file.Files.copy(data.toPath(), new java.io.File(dataFolder, kept).toPath());
+        }
+        java.io.File seasonsBackup = new java.io.File(folder, "seasons" + name.substring("hvac".length()));
+        java.io.File seasons = new java.io.File(dataFolder, "seasons.yml");
+        if (seasonsBackup.isFile()) {
+            if (seasons.isFile())
+                java.nio.file.Files.copy(seasons.toPath(),
+                        new java.io.File(dataFolder, "seasons.yml.before-restore-" + now).toPath());
+            java.nio.file.Files.copy(seasonsBackup.toPath(), seasons.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        java.nio.file.Files.copy(backup.toPath(), data.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        return kept;
+    }
+
     private static boolean readable(String yaml) {
         try {
             new YamlConfiguration().loadFromString(yaml);

@@ -190,7 +190,14 @@ moment after they join (once each start).
   entry that still reads and drops only the broken ones, keeps the file as it
   was as `hvac.yml.unreadable-<time>`, and asks for a restart.
 - **A file from a newer EZvac** stops EZvac too, but is never forced: that
-  would lose what the newer version stored. Update EZvac instead.
+  would lose what the newer version stored. Update EZvac instead, or restore
+  an older backup.
+- **`/hvac quicksettings` opens recovery while stopped:** why EZvac stopped,
+  **Salvage hvac.yml** (an unreadable file only), and the newest backups in
+  `plugins/EZvac/backups/`, each one this EZvac can read restorable. Click an
+  item, then click it again, to do it. Restoring copies the backup over
+  `hvac.yml` (and its seasons file over `seasons.yml`), keeping the files it
+  replaces as `.before-restore-<time>`. Then restart.
 
 ## Troubleshooting
 

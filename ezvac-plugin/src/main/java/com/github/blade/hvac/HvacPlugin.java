@@ -298,6 +298,10 @@ public final class HvacPlugin extends JavaPlugin {
             command.setTabCompleter(notices);
         }
         getServer().getPluginManager().registerEvents(notices, this);
+        // /hvac quicksettings opens recovery while stopped (BETA 1.0).
+        com.github.blade.hvac.gui.RecoveryMenu recovery = new com.github.blade.hvac.gui.RecoveryMenu(this, notices);
+        notices.setRecoveryMenu(recovery::open);
+        getServer().getPluginManager().registerEvents(recovery, this);
         notices.tellOnline();
         if (salvageable) getLogger().severe("If this is intentional, run " + StartupNotices.REPAIR
                 + " to keep what still reads and drop the broken parts, then restart.");

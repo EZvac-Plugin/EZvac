@@ -39,14 +39,19 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
     private final boolean stopped;
     /** Stopped on an unreadable file, which --force can salvage; never one from a newer EZvac. */
     private final boolean salvageable;
-    private boolean salvaged;
+    /** Salvaged or restored this run: the next start runs from it. */
+    private boolean fixed;
+    private final String reason;
+    /** /hvac quicksettings while stopped: the recovery menu; set by the plugin. */
+    private java.util.function.Consumer<Player> recoveryMenu;
     private final Set<UUID> told = new HashSet<>();
 
-    private StartupNotices(Plugin plugin, List<Component> lines, boolean stopped, boolean salvageable) {
+    private StartupNotices(Plugin plugin, List<Component> lines, boolean stopped, boolean salvageable, String reason) {
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.lines = List.copyOf(lines);
         this.stopped = stopped;
         this.salvageable = salvageable;
+        this.reason = reason == null ? "" : reason;
     }
 
     /**
@@ -61,7 +66,7 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
     public static StartupNotices loaded(Plugin plugin, String recoveredFrom, String setAside, int keptAside,
                                         int migratedFrom) {
         List<Component> lines = lines(recoveredFrom, setAside, keptAside, migratedFrom);
-        return lines.isEmpty() ? null : new StartupNotices(plugin, lines, false, false);
+        return lines.isEmpty() ? null : new StartupNotices(plugin, lines, false, false, null);
     }
 
     static List<Component> lines(String recoveredFrom, String setAside, int keptAside, int migratedFrom) {
@@ -97,7 +102,7 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
      * @param salvageable an unreadable file, which {@link #REPAIR} can salvage; false for one from a newer EZvac
      */
     public static StartupNotices stopped(Plugin plugin, String reason, boolean salvageable) {
-        return new StartupNotices(plugin, stoppedLines(reason, salvageable), true, salvageable);
+        return new StartupNotices(plugin, stoppedLines(reason, salvageable), true, salvageable, reason);
     }
 
     static List<Component> stoppedLines(String reason, boolean salvageable) {
@@ -110,6 +115,8 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
         if (salvageable)
             lines.add(Component.text("If this is intentional, run " + REPAIR + " to keep what still reads and drop the"
                     + " broken parts, then restart.", NamedTextColor.GRAY));
+        lines.add(Component.text("/hvac quicksettings opens recovery: salvage it, or restore a backup.",
+                NamedTextColor.GRAY));
         return lines;
     }
 
@@ -118,6 +125,12 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
     }
 
     public boolean stopped() { return stopped; }
+    public boolean salvageable() { return salvageable; }
+    /** Salvaged or restored this run; the next start runs from it. */
+    public boolean fixed() { return fixed; }
+    /** Why EZvac stopped, as the registry said. */
+    public String reason() { return reason; }
+    public void setRecoveryMenu(java.util.function.Consumer<Player> menu) { this.recoveryMenu = menu; }
 
     /** Tells the admins already online, as after a /reload. */
     public void tellOnline() {
@@ -152,6 +165,11 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
             repair(sender, args.length >= 3 && args[2].equalsIgnoreCase("--force"));
             return true;
         }
+        if (args.length >= 1 && (args[0].equalsIgnoreCase("quicksettings") || args[0].equalsIgnoreCase("qs"))
+                && sender instanceof Player player && recoveryMenu != null) {
+            recoveryMenu.accept(player);
+            return true;
+        }
         lines.forEach(sender::sendMessage);
         return true;
     }
@@ -162,8 +180,8 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
                     + " would lose what the newer version stored. Update EZvac instead.", NamedTextColor.RED));
             return;
         }
-        if (salvaged) {
-            sender.sendMessage(Component.text("hvac.yml was already salvaged. Restart the server to start EZvac.",
+        if (fixed) {
+            sender.sendMessage(Component.text("hvac.yml was already fixed. Restart the server to start EZvac.",
                     NamedTextColor.YELLOW));
             return;
         }
@@ -173,10 +191,21 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
                     + REPAIR + ".", NamedTextColor.YELLOW));
             return;
         }
+        salvage(sender);
+    }
+
+    /**
+     * Salvages hvac.yml now: keeps every entry that still reads. For
+     * {@link #REPAIR} and the recovery menu.
+     *
+     * @return whether it worked
+     */
+    public boolean salvage(CommandSender sender) {
+        if (!salvageable || fixed) return false;
         try {
             com.github.blade.hvac.service.RegistrySalvage.Saved saved =
                     com.github.blade.hvac.service.RegistrySalvage.salvageFile(plugin.getDataFolder());
-            salvaged = true;
+            fixed = true;
             List<String> dropped = saved.result().dropped();
             sender.sendMessage(Component.text("Salvaged hvac.yml: kept " + saved.result().kept() + " entries, dropped "
                     + dropped.size() + ". The file as it was is kept as " + saved.original()
@@ -184,20 +213,47 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
             if (!dropped.isEmpty())
                 sender.sendMessage(Component.text("Dropped: " + String.join(", ", dropped.subList(0,
                         Math.min(10, dropped.size()))) + (dropped.size() > 10 ? ", and more" : ""), NamedTextColor.GRAY));
-            plugin.getLogger().warning(sender.getName() + " salvaged hvac.yml with " + REPAIR + ": kept "
+            plugin.getLogger().warning(sender.getName() + " salvaged hvac.yml: kept "
                     + saved.result().kept() + " entries, dropped " + dropped + "; the original is "
                     + saved.original());
+            return true;
         } catch (java.io.IOException | RuntimeException failure) {
             sender.sendMessage(Component.text("Couldn't salvage hvac.yml: " + failure.getMessage()
                     + ". Nothing was changed.", NamedTextColor.RED));
             plugin.getLogger().log(java.util.logging.Level.SEVERE, "Couldn't salvage hvac.yml", failure);
+            return false;
+        }
+    }
+
+    /**
+     * Restores a backup from plugins/EZvac/backups over hvac.yml, for the
+     * recovery menu. Only one this EZvac can read.
+     *
+     * @return whether it worked
+     */
+    public boolean restore(CommandSender sender, String name) {
+        if (fixed) return false;
+        try {
+            String kept = com.github.blade.hvac.service.RegistrySalvage.restore(plugin.getDataFolder(), name);
+            fixed = true;
+            sender.sendMessage(Component.text("Restored backups/" + name + ". " + (kept == null ? ""
+                    : "hvac.yml as it was is kept as " + kept + ". ") + "Restart the server to start EZvac.",
+                    NamedTextColor.GREEN));
+            plugin.getLogger().warning(sender.getName() + " restored hvac.yml from backups/" + name
+                    + (kept == null ? "" : "; the file before is " + kept));
+            return true;
+        } catch (java.io.IOException | RuntimeException failure) {
+            sender.sendMessage(Component.text("Couldn't restore that backup: " + failure.getMessage()
+                    + ". Nothing was changed.", NamedTextColor.RED));
+            plugin.getLogger().log(java.util.logging.Level.SEVERE, "Couldn't restore hvac.yml from " + name, failure);
+            return false;
         }
     }
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (!sender.hasPermission(ADMIN)) return List.of();
-        if (args.length == 1) return List.of("registry");
+        if (args.length == 1) return List.of("quicksettings", "registry");
         if (args.length == 2 && args[0].equalsIgnoreCase("registry")) return List.of("repair");
         if (args.length == 3 && args[1].equalsIgnoreCase("repair")) return List.of("--force");
         return List.of();
