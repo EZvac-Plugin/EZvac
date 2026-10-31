@@ -203,6 +203,15 @@ public final class RegistryBackups {
         return file + "-" + stamp + "-" + (auto ? AUTO : MANUAL) + ".yml";
     }
 
+    /** Every registry backup among these file names, automatic and manual, newest first (BETA 1.0, recovery). */
+    static List<String> newestFirst(List<String> names) {
+        List<String> all = new ArrayList<>(backups(names, false));
+        all.addAll(backups(names, true));
+        all.sort(RegistryBackups::byStamp);
+        java.util.Collections.reverse(all);
+        return all;
+    }
+
     /** The registry backups among these file names, automatic or manual, oldest first. */
     static List<String> backups(List<String> names, boolean auto) {
         String suffix = "-" + (auto ? AUTO : MANUAL) + ".yml";

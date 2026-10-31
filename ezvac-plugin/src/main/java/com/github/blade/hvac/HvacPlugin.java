@@ -91,7 +91,13 @@ public final class HvacPlugin extends JavaPlugin {
             settings = HvacSettings.load(getConfig(), getLogger()::warning);
             climate = ClimateSettings.load(getConfig(), getLogger()::warning);
             registry = new HvacRegistry(this, settings);
-            registry.load();
+            try {
+                registry.load();
+            } catch (RuntimeException failure) {
+                // Stopped rather than disabled (BETA 1.0): nothing runs or saves, but admins are told why.
+                stop(failure);
+                return;
+            }
             weather = new WeatherService(climate.weather());
             seasons = new SeasonService(getDataFolder(), climate.seasons(), getLogger()::warning);
             seasons.load();
@@ -164,6 +170,15 @@ public final class HvacPlugin extends JavaPlugin {
             backups.start();
             quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates);
             getServer().getPluginManager().registerEvents(quickSettings, this);
+            notices = StartupNotices.loaded(this, registry.recoveredFrom(), registry.setAside(),
+                    registry.keptAside(), registry.migratedFrom());
+            if (notices != null) {
+                getServer().getPluginManager().registerEvents(notices, this);
+                notices.tellOnline();
+                if (registry.keptAside() > 0) getLogger().warning(registry.keptAside() + " entr"
+                        + (registry.keptAside() == 1 ? "y" : "ies") + " in hvac.yml are kept aside. If this is"
+                        + " intentional, run " + StartupNotices.REPAIR + " to discard them for good.");
+            }
             getLogger().info("EZvac enabled: " + registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.vents().size() + " vent(s), "
@@ -264,6 +279,32 @@ public final class HvacPlugin extends JavaPlugin {
                     + " the /hvac hud overlay still works.", failure);
         }
     }
+
+    private StartupNotices notices;
+
+    /**
+     * hvac.yml couldn't be loaded: EZvac stays enabled but runs nothing and
+     * saves nothing. Admins hear why when they join, and /hvac says it, with
+     * /hvac registry repair --force for an unreadable file.
+     */
+    private void stop(RuntimeException failure) {
+        getLogger().log(Level.SEVERE, "EZvac is stopped: hvac.yml could not be loaded. Nothing runs and nothing"
+                + " is saved until it is fixed or restored.", failure);
+        boolean salvageable = failure instanceof HvacRegistry.LoadFailure load && load.salvageable();
+        notices = StartupNotices.stopped(this, failure.getMessage(), salvageable);
+        PluginCommand command = getCommand("hvac");
+        if (command != null) {
+            command.setExecutor(notices);
+            command.setTabCompleter(notices);
+        }
+        getServer().getPluginManager().registerEvents(notices, this);
+        notices.tellOnline();
+        if (salvageable) getLogger().severe("If this is intentional, run " + StartupNotices.REPAIR
+                + " to keep what still reads and drop the broken parts, then restart.");
+    }
+
+    /** Whether this start stopped on hvac.yml. */
+    public boolean stopped() { return notices != null && notices.stopped(); }
 
     @Override
     public void onDisable() {

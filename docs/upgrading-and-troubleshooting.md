@@ -138,10 +138,17 @@ on a biome border), and 2.1 samples them again if you come back.
 - **Safe writes:** each save writes a temporary file, keeps the previous one
   as `hvac.yml.bak`, then swaps the new one in. A crash mid-save leaves a good
   file behind.
-- **Unreadable save:** if `hvac.yml` can't be read, the backup is restored. If
-  neither can, EZvac refuses to start and touches neither, so nothing is lost.
+- **Unreadable save:** if `hvac.yml` can't be read, EZvac recovers it from
+  `hvac.yml.bak`, else (BETA 1.0) from the newest readable backup in
+  `plugins/EZvac/backups/`. The unreadable file is kept as
+  `hvac.yml.unreadable-<time>`. If nothing can be read, EZvac **stops**: see
+  [When hvac.yml is broken](#when-hvacyml-is-broken).
 - **Invalid records:** a single record EZvac can't read is set aside with a
   warning and kept in the file, rather than deleted.
+- **Upgrading** never counts as any of this: an older file loads as it is
+  (a one-time `hvac.yml.format<N>.bak` copy is made first), with no warning.
+  Admins are told it went through (BETA 1.0): "hvac.yml was upgraded from
+  format 7 to format 8 at this start: everything carried over".
 - **Missing blocks:** devices whose blocks are gone are removed once their
   chunk is loaded. Devices in unloaded chunks or worlds are kept.
 - **Player choices** (the HUD on or off) are stored with each player, not in
@@ -162,6 +169,28 @@ on a biome border), and 2.1 samples them again if you come back.
    counts you expect.
 
 Devices built after the backup was made aren't in it: register them again.
+
+### When hvac.yml is broken
+
+New in BETA 1.0: admins are told in game, not only in the server log, a
+moment after they join (once each start).
+
+- **Recovered from a backup:** "hvac.yml was unreadable at this start, so it
+  was recovered from ...". Changes made since that copy may be missing; the
+  unreadable file is kept beside it, for anything worth copying back by hand.
+- **Entries kept aside:** some entries couldn't be loaded and aren't running.
+  `/hvac registry` lists them and why. Fix them in `hvac.yml` and restart, or,
+  if that's intentional (you removed something by hand, say), run
+  `/hvac registry repair --force` to discard them for good. `hvac.yml` is
+  copied to `hvac.yml.before-repair-<time>` first.
+- **Stopped:** nothing could be read, so EZvac runs nothing and saves
+  nothing, but stays loaded: `/hvac` says why, and admins hear it on joining.
+  Fix or restore `hvac.yml` and restart, or, if that's intentional, run
+  `/hvac registry repair --force` (an admin, or the console). It keeps every
+  entry that still reads and drops only the broken ones, keeps the file as it
+  was as `hvac.yml.unreadable-<time>`, and asks for a restart.
+- **A file from a newer EZvac** stops EZvac too, but is never forced: that
+  would lose what the newer version stored. Update EZvac instead.
 
 ## Troubleshooting
 

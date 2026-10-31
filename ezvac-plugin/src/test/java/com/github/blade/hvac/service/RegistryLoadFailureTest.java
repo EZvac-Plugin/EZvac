@@ -91,7 +91,7 @@ class RegistryLoadFailureTest {
         Files.writeString(backup, "also: [broken\n", StandardCharsets.UTF_8);
         HvacRegistry registry = registry();
         IllegalStateException refused = assertThrows(IllegalStateException.class, registry::load);
-        assertTrue(refused.getMessage().contains("Both hvac.yml and hvac.yml.bak are unreadable"));
+        assertTrue(refused.getMessage().contains("hvac.yml is unreadable, and so is every backup"));
         shutDown(registry);
         assertEquals(BROKEN, Files.readString(data, StandardCharsets.UTF_8));
         assertEquals("also: [broken\n", Files.readString(backup, StandardCharsets.UTF_8));

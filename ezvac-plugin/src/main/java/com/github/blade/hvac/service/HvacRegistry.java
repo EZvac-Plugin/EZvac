@@ -118,6 +118,39 @@ public final class HvacRegistry {
     private final Map<BlockKey, WeatherStation> weatherStations = new HashMap<>();
     private final List<EquipmentUnit> pendingCleanup = new ArrayList<>();
     private final Map<String, List<Map<String, Object>>> preservedRecords = new HashMap<>();
+    /** What this start recovered hvac.yml from, and where the unreadable file went; null when it read fine. */
+    private String recoveredFrom;
+    private String setAside;
+    /** Records this start couldn't load, or that clashed, kept aside verbatim; not those of a newer EZvac. */
+    private final List<Aside> keptAside = new ArrayList<>();
+
+    /**
+     * A record kept aside (BETA 1.0), for /hvac registry.
+     *
+     * @param section its section, such as {@code thermostats}
+     * @param entry   its key there, such as {@code item3}, or its label
+     * @param reason  why it couldn't be used
+     */
+    public record KeptAside(String section, String entry, String reason) {}
+
+    /** The record itself, by identity, so discarding takes exactly it out of the preserved ones. */
+    private record Aside(KeptAside info, Map<String, Object> record) {}
+
+    /**
+     * hvac.yml couldn't be loaded (BETA 1.0). {@code salvageable}: it is
+     * unreadable, and /hvac registry repair --force can keep what still reads;
+     * false for a file from a newer EZvac, which is never forced.
+     */
+    public static final class LoadFailure extends IllegalStateException {
+        private final boolean salvageable;
+
+        LoadFailure(String message, boolean salvageable, Throwable cause) {
+            super(message, cause);
+            this.salvageable = salvageable;
+        }
+
+        public boolean salvageable() { return salvageable; }
+    }
     private final File dataFile;
     private final File backupFile;
     private boolean dirty;
@@ -133,6 +166,8 @@ public final class HvacRegistry {
     private boolean writable = true;
     /** The older format just upgraded from, backed up once before the first save; 0 when none. */
     private int upgradedFromFormat;
+    /** The older format this start upgraded hvac.yml from (BETA 1.0, told to admins); 0 when it was current. */
+    private int migratedFrom;
     /** The number the next new system gets: #1, #2 and so on, never reused. */
     private long nextSystem = 1;
 
@@ -242,13 +277,16 @@ public final class HvacRegistry {
         int format = configuration.getInt("meta.format", FORMAT_VERSION);
         if (format > FORMAT_VERSION) {
             writable = false;
-            throw new IllegalStateException("hvac.yml is format " + format + ", written by a newer"
+            throw new LoadFailure("hvac.yml is format " + format + ", written by a newer"
                     + " version of EZvac, but this build understands format " + FORMAT_VERSION
                     + ". Downgrading EZvac is not supported, so the file has been left untouched"
                     + " and EZvac will not start. Update EZvac, or restore the hvac.yml.format"
-                    + FORMAT_VERSION + ".bak backup made when the newer version first upgraded it.");
+                    + FORMAT_VERSION + ".bak backup made when the newer version first upgraded it.", false, null);
         }
-        if (format < FORMAT_VERSION) upgradedFromFormat = format;
+        if (format < FORMAT_VERSION) {
+            upgradedFromFormat = format;
+            migratedFrom = format;
+        }
     }
 
     /**
@@ -275,40 +313,96 @@ public final class HvacRegistry {
         }
     }
 
+    /**
+     * Reads hvac.yml, or recovers it: from hvac.yml.bak (the last save
+     * before), else (BETA 1.0) from the newest readable backup in
+     * plugins/EZvac/backups, automatic or made by hand. The unreadable file is
+     * kept aside, never overwritten. With nothing readable, every file is left
+     * untouched and EZvac does not start.
+     */
     private YamlConfiguration loadWithRecovery() {
         YamlConfiguration configuration = new YamlConfiguration();
         try {
             configuration.load(dataFile);
             return configuration;
         } catch (IOException | InvalidConfigurationException primary) {
-            if (!backupFile.isFile())
-                throw new IllegalStateException("hvac.yml is unreadable and no backup exists. The file"
-                        + " has been left untouched and EZvac will not start; fix the error reported"
-                        + " below, or restore a copy of hvac.yml, then restart.", primary);
-            try {
-                configuration = new YamlConfiguration();
-                configuration.load(backupFile);
-            } catch (IOException | InvalidConfigurationException backupFailure) {
-                primary.addSuppressed(backupFailure);
-                throw new IllegalStateException("Both hvac.yml and hvac.yml.bak are unreadable. Both"
-                        + " have been left untouched and EZvac will not start; fix the errors reported"
-                        + " below, or restore a copy of hvac.yml, then restart.", primary);
+            List<File> candidates = new ArrayList<>();
+            if (backupFile.isFile()) candidates.add(backupFile);
+            File backups = new File(host.dataFolder(), "backups");
+            String[] names = backups.list();
+            if (names != null)
+                for (String name : RegistryBackups.newestFirst(List.of(names))) candidates.add(new File(backups, name));
+            for (File candidate : candidates) {
+                try {
+                    configuration = new YamlConfiguration();
+                    configuration.load(candidate);
+                } catch (IOException | InvalidConfigurationException candidateFailure) {
+                    primary.addSuppressed(candidateFailure);
+                    continue;
+                }
+                return recoverFrom(candidate, configuration, primary);
             }
-            // The unreadable file may hold changes newer than the backup, or hand
-            // edits worth repairing, so it is kept aside rather than overwritten.
-            File unreadable = new File(host.dataFolder(), "hvac.yml.unreadable-" + System.currentTimeMillis());
-            try {
-                Files.copy(dataFile.toPath(), unreadable.toPath());
-                Files.copy(backupFile.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (IOException copyFailure) {
-                primary.addSuppressed(copyFailure);
-                throw new IllegalStateException("hvac.yml is unreadable and could not be set aside for"
-                        + " recovery from hvac.yml.bak; nothing was changed and EZvac will not start.", primary);
-            }
-            host.logger().severe("Recovered unreadable hvac.yml from hvac.yml.bak; the unreadable file"
-                    + " was kept as " + unreadable.getName());
-            return configuration;
+            throw new LoadFailure(candidates.isEmpty()
+                    ? "hvac.yml is unreadable and there is no backup to recover it from. It has been left"
+                    + " untouched and nothing will run; fix the error reported below, or restore a copy of"
+                    + " hvac.yml, then restart."
+                    : "hvac.yml is unreadable, and so is every backup (" + candidates.size() + "). They have"
+                    + " been left untouched and nothing will run; fix the errors reported below, or restore a"
+                    + " copy of hvac.yml, then restart.", true, primary);
         }
+    }
+
+    private YamlConfiguration recoverFrom(File source, YamlConfiguration configuration, Exception primary) {
+        // The unreadable file may hold changes newer than the backup, or hand
+        // edits worth repairing, so it is kept aside rather than overwritten.
+        File unreadable = new File(host.dataFolder(), "hvac.yml.unreadable-" + System.currentTimeMillis());
+        try {
+            Files.copy(dataFile.toPath(), unreadable.toPath());
+            Files.copy(source.toPath(), dataFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException copyFailure) {
+            primary.addSuppressed(copyFailure);
+            throw new LoadFailure("hvac.yml is unreadable and could not be set aside for"
+                    + " recovery from " + source.getName() + "; nothing was changed and nothing will run.", false, primary);
+        }
+        recoveredFrom = source.equals(backupFile) ? "hvac.yml.bak" : "backups/" + source.getName();
+        setAside = unreadable.getName();
+        host.logger().severe("Recovered unreadable hvac.yml from " + recoveredFrom + "; the unreadable file"
+                + " was kept as " + setAside + ". Changes made since that copy may be missing.");
+        return configuration;
+    }
+
+    /** The older format this start upgraded hvac.yml from, or 0 when it was already current. */
+    public int migratedFrom() { return migratedFrom; }
+
+    /** What this start recovered hvac.yml from ({@code hvac.yml.bak} or a backup), or null when it read fine. */
+    public String recoveredFrom() { return recoveredFrom; }
+    /** Where this start kept the unreadable hvac.yml, or null. */
+    public String setAside() { return setAside; }
+    /** How many records this start kept aside: ones it couldn't load, or that clashed with another. */
+    public int keptAside() { return keptAside.size(); }
+
+    /** The records kept aside, in the order they were met. */
+    public List<KeptAside> keptAsideRecords() {
+        return keptAside.stream().map(Aside::info).toList();
+    }
+
+    /**
+     * Discards the records kept aside for good (BETA 1.0, /hvac registry
+     * repair --force): they're no longer saved back. Records from a newer
+     * EZvac stay. Saved at the next save.
+     *
+     * @return how many were discarded
+     */
+    public int discardKeptAside() {
+        int discarded = 0;
+        for (Aside aside : keptAside) {
+            List<Map<String, Object>> records = preservedRecords.get(aside.info().section());
+            if (records != null && records.removeIf(record -> record == aside.record())) discarded++;
+            if (records != null && records.isEmpty()) preservedRecords.remove(aside.info().section());
+        }
+        keptAside.clear();
+        if (discarded > 0) dirty = true;
+        return discarded;
     }
 
     private <T> void readSection(YamlConfiguration configuration, String section,
@@ -326,6 +420,7 @@ public final class HvacRegistry {
                 host.logger().warning("Preserving invalid " + section + "." + key
                         + ": " + exception.getMessage());
                 preservedRecords.computeIfAbsent(section, ignored -> new ArrayList<>()).add(values);
+                keptAside.add(new Aside(new KeptAside(section, key, String.valueOf(exception.getMessage())), values));
             }
         }
     }
@@ -589,8 +684,10 @@ public final class HvacRegistry {
     }
 
     private void preserve(String section, Map<String, Object> record, String reason) {
-        preservedRecords.computeIfAbsent(section, ignored -> new ArrayList<>())
-                .add(new LinkedHashMap<>(record));
+        Map<String, Object> copy = new LinkedHashMap<>(record);
+        preservedRecords.computeIfAbsent(section, ignored -> new ArrayList<>()).add(copy);
+        Object label = record.getOrDefault("label", record.getOrDefault("id", "an entry"));
+        keptAside.add(new Aside(new KeptAside(section, String.valueOf(label), reason), copy));
         host.logger().warning("Preserving " + section + " record: " + reason);
     }
 
@@ -1354,6 +1451,10 @@ public final class HvacRegistry {
     private void clear() {
         writable = true;
         upgradedFromFormat = 0;
+        recoveredFrom = null;
+        setAside = null;
+        keptAside.clear();
+        migratedFrom = 0;
         thermostats.clear(); equipment.clear(); vents.clear(); thermometers.clear();
         rpmMonitors.clear(); settingsPanels.clear(); pendingCleanup.clear(); preservedRecords.clear();
         nextSystem = 1;
