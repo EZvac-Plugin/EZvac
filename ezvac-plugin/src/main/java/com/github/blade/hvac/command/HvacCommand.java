@@ -573,21 +573,19 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     + " this is intentional, run " + StartupNotices.REPAIR + "."));
             return;
         }
-        java.io.File data = new java.io.File(plugin.getDataFolder(), "hvac.yml");
-        java.io.File before = new java.io.File(plugin.getDataFolder(), "hvac.yml.before-repair-" + System.currentTimeMillis());
+        HvacRegistry.Repair repaired;
         try {
-            if (data.isFile()) java.nio.file.Files.copy(data.toPath(), before.toPath());
+            repaired = registry.repairKeptAside();
         } catch (java.io.IOException failure) {
             sender.sendMessage(red("Couldn't copy hvac.yml aside, so nothing was discarded: " + failure.getMessage()));
             return;
         }
-        int discarded = registry.discardKeptAside();
-        registry.save(true);
+        int discarded = repaired.discarded();
         plugin.getLogger().warning(sender.getName() + " discarded " + discarded + " kept-aside entr"
                 + (discarded == 1 ? "y" : "ies") + " from hvac.yml with " + StartupNotices.REPAIR
-                + "; the file before is " + before.getName());
+                + "; the file before is " + repaired.copy());
         sender.sendMessage(green("Discarded " + discarded + " entr" + (discarded == 1 ? "y" : "ies")
-                + ". hvac.yml as it was is kept as " + before.getName() + "."));
+                + ". hvac.yml as it was is kept as " + repaired.copy() + "."));
     }
 
     /** /hvac info on a weather station (BETA 1.0). */

@@ -143,7 +143,7 @@ EZvac keeps heating, cooling and drying with any of them off. They're
 `air-quality.enabled`, `air-quality.pollen`, `wind.enabled`,
 `seasons.enabled` and `sizing.enabled` in `config.yml`.
 
-### Backups
+### Backups & registry
 
 - **Back up now** copies the registry (`hvac.yml`, with `seasons.yml` beside
   it) to `plugins/EZvac/backups/`, as `hvac-<date>_<time>-manual.yml`. A
@@ -154,6 +154,12 @@ EZvac keeps heating, cooling and drying with any of them off. They're
   automatic backups are kept (`backups.keep`).
 - The third item shows the newest backup, how long ago it was made, and how
   many there are.
+- **hvac.yml** (beneath them) shows when it was last saved and how it read at
+  this start: fine, upgraded from an older format, or recovered from a backup.
+  With entries kept aside it lists them; click it, then click again, to
+  discard them for good, as `/hvac registry repair --force` does (`hvac.yml`
+  is copied aside first). See
+  [When hvac.yml is broken](upgrading-and-troubleshooting.md#when-hvacyml-is-broken).
 
 To restore one, see
 [Restoring a backup](upgrading-and-troubleshooting.md#restoring-a-backup).
@@ -161,8 +167,8 @@ To restore one, see
 ### Statistics
 
 What `/hvac stats` reports, written out: each kind of device with how many
-run, the thermostats and other signs, the airflow figures, and when
-`hvac.yml` was last saved. **Sizes** lists each system's size and what it has
+run, the thermostats and other signs, and the airflow figures. When
+`hvac.yml` was last saved moved to the Backups & registry page in BETA 1.0. **Sizes** lists each system's size and what it has
 of the units it needs, for cooling and heating, the worst sized first.
 **Refresh** reads them again.
 
