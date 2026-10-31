@@ -114,6 +114,35 @@ class RegistryRepairTest {
     }
 
     @Test
+    void theRecoveryMenuListsBackupsNewestFirstAndOnlyRestoresReadableOnes() throws IOException {
+        Path backups = Files.createDirectory(folder.resolve("backups"));
+        Files.writeString(backups.resolve("hvac-2026-10-28_08-00-00-manual.yml"), VALID, StandardCharsets.UTF_8);
+        Files.writeString(backups.resolve("seasons-2026-10-28_08-00-00-manual.yml"), "worlds: {}\n");
+        Files.writeString(backups.resolve("hvac-2026-10-29_08-00-00-auto.yml"), "broken: [\n");
+        Files.writeString(backups.resolve("hvac-2026-10-30_08-00-00-auto.yml"), "meta:\n  format: 99\n");
+        List<RegistrySalvage.Backup> listed = RegistrySalvage.backups(folder.toFile());
+        assertEquals(List.of(new RegistrySalvage.Backup("hvac-2026-10-30_08-00-00-auto.yml", false),
+                new RegistrySalvage.Backup("hvac-2026-10-29_08-00-00-auto.yml", false),
+                new RegistrySalvage.Backup("hvac-2026-10-28_08-00-00-manual.yml", true)), listed,
+                "a newer format can't be restored here either");
+
+        Files.writeString(data, "thermostats: [broken\n", StandardCharsets.UTF_8);
+        Files.writeString(folder.resolve("seasons.yml"), "worlds: {now: 1}\n");
+        String kept = RegistrySalvage.restore(folder.toFile(), "hvac-2026-10-28_08-00-00-manual.yml");
+        assertEquals("thermostats: [broken\n", Files.readString(folder.resolve(kept)), "the broken file is kept");
+        assertEquals(VALID, Files.readString(data));
+        assertEquals("worlds: {}\n", Files.readString(folder.resolve("seasons.yml")), "its seasons come with it");
+        try (var files = Files.list(folder)) {
+            assertTrue(files.anyMatch(path -> path.getFileName().toString().startsWith("seasons.yml.before-restore-")));
+        }
+        HvacRegistry registry = registry();
+        registry.load();
+        assertNotNull(TestHost.labelled(registry, "main"), "and it starts from it");
+        assertThrows(IOException.class, () -> RegistrySalvage.restore(folder.toFile(), "../hvac.yml"),
+                "nothing outside the backups folder");
+    }
+
+    @Test
     void salvagingOnDiskKeepsTheOriginalAndLoadsAfterwards() throws IOException {
         String broken = VALID + "  item9: [unclosed\n";
         Files.writeString(data, broken, StandardCharsets.UTF_8);

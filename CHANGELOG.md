@@ -197,7 +197,8 @@ players nearby. See [Weather stations](#weather-stations).
   from the newest readable backup in `plugins/EZvac/backups/`.
 - **Stopped, not gone:** with nothing readable, EZvac stays loaded but runs
   and saves nothing; `/hvac` and the join message say why, instead of it
-  looking uninstalled.
+  looking uninstalled. `/hvac quicksettings` then opens a recovery menu:
+  salvage the file, or restore a backup, each with a click, then a second.
 - **Quick settings' Backups page is Backups & registry** and shows `hvac.yml`'s health: when it was
   last saved (moved from Statistics), how it read at this start, and what was
   kept aside, which a click, then a second click, discards.

@@ -143,6 +143,10 @@ EZvac keeps heating, cooling and drying with any of them off. They're
 `air-quality.enabled`, `air-quality.pollen`, `wind.enabled`,
 `seasons.enabled` and `sizing.enabled` in `config.yml`.
 
+While EZvac is stopped because `hvac.yml` can't be loaded, `/hvac quicksettings`
+opens a recovery menu instead: salvage the file, or restore a backup. See
+[When hvac.yml is broken](upgrading-and-troubleshooting.md#when-hvacyml-is-broken).
+
 ### Backups & registry
 
 - **Back up now** copies the registry (`hvac.yml`, with `seasons.yml` beside
