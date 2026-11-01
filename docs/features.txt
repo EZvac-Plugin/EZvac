@@ -507,9 +507,12 @@ DISPLAYS AND AUDIO
   where airflow reaches it, blended edge temperature, or outdoor temperature.
   They may be placed outdoors or where no HVAC system exists.
 - RPM monitors (reworked in 3.0) show their system's equipment, one row per
-  EquipmentType in enum order: the kind, the count when more than one, and the
-  average RPM of the running units ("off" when none runs). Rows are fitted to
-  the sign, shortening the kind first. Three rows to a page (model.Pager,
+  EquipmentType and tier: the kind, its tier as T1-T3 (BETA 1.0; stars before),
+  the count when more than one, and the average RPM of the running units
+  ("off" when none runs, "on" for a fixed-speed furnace or boiler). Rows are
+  fitted to the sign or screen (DisplayService.rowText): the kind is shortened,
+  then the speed (2.9k), then the count and the tier go; the speed is never
+  cut. A screen shows six rows. Three rows to a page on a sign (model.Pager,
   shared with sensor hubs): a click turns the page, a sneak-click toggles
   auto-flip (every 100 ticks), which is saved; the page is not. A 2.x
   monitor's equipmentType is read and dropped.
@@ -530,8 +533,12 @@ DISPLAYS AND AUDIO
     needs them). A blank line of spaces just short of the 100 px wrap width
     sets the panel's width (a display sizes its panel to its widest line and
     centres the rest); lines are never padded, since a padded line could
-    wrap and push the body up under the big reading. A body without a big
-    reading lists at most 5 rows and ends in that blank line;
+    wrap and push the body up under the big reading. A line too wide drops
+    its last " · " parts, then is cut (ScreenText.fitted), measured with
+    SignText's widths, which hold the client's real widths for EZvac's own
+    symbols (° 5, · 2, × 6, stars and ❄ 8; others outside ASCII count 9).
+    A body without a big reading lists at most 5 rows and ends in that
+    blank line;
   - the big reading, bold, at twice the scale with no background, centred
     over the body's top 2 blank lines and 0.01 blocks in front of it.
   Text and the header colour are sent only when they changed; a change of

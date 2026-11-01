@@ -30,13 +30,13 @@ All screens are the same size, so a wall of devices lines up.
 
 | Device | Shows |
 | --- | --- |
-| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season. While it works with too few units for its size, a gold **Undersized 1/3** line: what it has of what it needs, in ★★★ units (BETA 1.0) |
+| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season (the season is left off on a day too hot to fit both). While it works with too few units for its size, a gold **Undersized 1/3** line: what it has of what it needs, in ★★★ units (BETA 1.0) |
 | Thermometer, hygrometer, thermo-hygrometer | The reading, feels-like, the outdoors, the weather and season |
 | Air monitor | The AQI, its band, what's behind it, pollen |
 | Dehumidifier, humidifier | The humidity, the setpoint, its state, and a dehumidifier's tank |
 | Air purifier | The AQI, its fan, its filter, pollen |
 | Sensor hub | Up to five sensors at once; with more, it pages along with the sign |
-| RPM monitor | The RPM, a capacity bar and how many units are running |
+| RPM monitor | Its system's equipment, one row per kind and tier, up to six: `HP T3 ×2 2,950` (the kind, its tier, how many, and the average speed of those running; `on` or `off`). See [RPM monitors](equipment.md#rpm-monitors) |
 | Settings panel | The profile, and how to change it |
 | Weather station | The outdoor temperature around it big, today's weather, high and low, and wind, then what's certain today or tomorrow's weather; the header coloured by today's sky (BETA 1.0, see [Weather stations](weather-stations.md)) |
 
