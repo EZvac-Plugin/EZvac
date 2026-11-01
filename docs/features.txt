@@ -697,10 +697,17 @@ SIZING
   combine the same way.
 - The walk (air systems, sizing on): a block is open sky above the column's
   highest MOTION_BLOCKING_NO_LEAVES block (cached per column per rebuild).
-  Under a roof a path goes the vent's range as before; out under sky it
-  counts steps and stops past outdoor-reach (3); back under a roof it resets.
-  Openings: open-sky blocks next to a roofed block the walk reached (a set,
-  so the walk's order doesn't matter).
+  Inside (under cover, no open sky beside it at that height, reached without
+  having been under open sky) a path goes the vent's range as before. Open
+  sky, cover with open sky beside it (a doorway, under an eave), and anything
+  reached after the path has been under open sky (escaped: an overhang, a
+  porch, the next building) count steps and stop past outdoor-reach (3); only
+  the inside resets them. Openings: open-sky blocks stepped into from the
+  inside or the first covered edge block (outdoor step <= 1, not escaped), a
+  set. A cell reached again by a more inside path (not escaped, or fewer
+  steps) is walked on from again, so the shortest path dipping outside can't
+  cut a building off. Found live 2026-11-01 on soms: an overhang made one
+  door 12 openings and a side hole 300+ (air ran round under the eaves).
 - Leak: wind infiltration x openness, openness = min(maximum-openness,
   1 + opening-leak x openings x 1000 / size); it feeds the thermal, humidity
   and air steps and the ETA. opening-leak 1.1: one open door (2 blocks) in a

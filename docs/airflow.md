@@ -63,12 +63,18 @@ swallows it:
 
 - **Roofed** means a solid block somewhere above, glass included. Leaves
   don't count.
-- **A porch with a roof** is indoors: the whole porch is reached, then 3
-  blocks past its edge.
+- **Once out, air stays out.** A roof it finds after being under open sky (an
+  overhang, a porch, the building next door) doesn't make it indoors again:
+  the 3 blocks still count. So does cover with open sky beside it, such as
+  the strip under an eave or a doorway, so air doesn't run round a house
+  under its overhang.
+- **A porch or loggia reached through a door, without going out,** is part
+  of the room where nothing beside it is open sky.
 - **A vent out in the open** cools a small bubble around it, not a field.
 - **Every block of opening** (each block of a doorway or window, or a hole
   in the roof) makes the room leak more, so it drifts toward the outdoor
-  temperature faster.
+  temperature faster. Only where the inside meets the sky counts: a doorway
+  is 2 openings, whatever lies beyond it.
 - **The Nether** is all roofed, so nothing changes there.
 
 `sizing.outdoor-reach` sets the 3 blocks. With building size off, air goes
