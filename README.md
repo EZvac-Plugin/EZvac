@@ -65,9 +65,11 @@ biome and the weather.
 > a pilot is told about newer pilots; one running a full release only about
 > full releases.
 >
-> **1.21.x is on its way out.** BETA 1.x still runs on Minecraft 1.21.x
-> (tested on 1.21.1; 1.21.2 to 1.21.11 should work but aren't tested yet) and
-> says so at start-up, but **BETA 2.x will drop 1.21.x entirely**: it needs
+> **1.21.x is on its way out.** BETA 1.x still supports Minecraft 1.21.1 to
+> 1.21.11 and says so at start-up. It's played and tested on 26.x first: on
+> 1.21.x each release passes the automated tests on a few versions (1.21.1,
+> 1.21.4, 1.21.5, 1.21.8 and 1.21.11), but nobody plays on it for testing.
+> **BETA 2.x will drop 1.21.x entirely**: it needs
 > Minecraft 26.1 or newer. Update your server before then; see
 > [Upgrading](docs/upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
 

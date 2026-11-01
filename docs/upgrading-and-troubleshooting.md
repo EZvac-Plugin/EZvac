@@ -4,8 +4,10 @@
 
 You need Paper or Purpur for Minecraft **26.1 to 26.3**, on Java 25 (Paper's
 own requirement). Minecraft 1.21.x on Java 21 still works in BETA 1.x, with a
-warning, but BETA 2.x will drop it: it needs 26.1 or newer. BETA 1.x is
-tested on 1.21.1; 1.21.2 to 1.21.11 should work but aren't tested yet.
+warning, but BETA 2.x will drop it: it needs 26.1 or newer. EZvac is played
+and tested on 26.x first; on 1.21.x, BETA 1.0 passes the automated tests on
+1.21.1, 1.21.4, 1.21.5, 1.21.8 and 1.21.11, and the versions in between
+aren't checked on their own.
 
 1. Put `EzVac-BETA-1.0-P1.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
