@@ -35,7 +35,8 @@ From the bottom up:
   it on the side of a block.
 - **Waxed copper of any colour** counts: plain, exposed, weathered or
   oxidized, as long as it's waxed, so the tower never changes on its own.
-- **On 1.21.1** lightning rods have no waxed kind, so a plain one does.
+- **Before 1.21.9** (the copper age) lightning rods have no waxed kind, so a
+  plain one does.
 
 Then look at the sign and run:
 
