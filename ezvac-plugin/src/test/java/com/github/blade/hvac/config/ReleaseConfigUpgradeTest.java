@@ -82,13 +82,17 @@ class ReleaseConfigUpgradeTest {
             assertEquals(HudSettings.defaults().water().sidebarLines(), hud.water().sidebarLines(),
                     "its stock water sidebar is today's");
 
-        // Building size changes how existing builds heat and cool: it starts off on every upgraded server.
-        assertFalse(config.getBoolean("sizing.enabled", true), "building size starts off on an upgrade");
+        // Building size changes how existing builds heat and cool: it starts off on every server upgrading
+        // from ALPHA. A BETA config already has the setting, and keeps its own.
+        boolean sized = old.contains("sizing.enabled");
+        boolean expected = sized && old.getBoolean("sizing.enabled");
+        assertEquals(expected, config.getBoolean("sizing.enabled", true),
+                sized ? "a release with building size keeps its own" : "building size starts off on an upgrade");
 
         YamlConfiguration saved = new YamlConfiguration();
         saved.loadFromString(config.saveToString());
         assertTrue(ConfigUpdater.upgrade(saved, bundled).isEmpty(), "the next start finds nothing to add");
-        assertFalse(saved.getBoolean("sizing.enabled", true), "and stays off until the owner switches it on");
+        assertEquals(expected, saved.getBoolean("sizing.enabled", true), "and keeps it until the owner switches it");
     }
 
     @Test
