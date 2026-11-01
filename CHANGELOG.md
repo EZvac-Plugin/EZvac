@@ -23,9 +23,11 @@ players nearby. See [Weather stations](#weather-stations).
   Biomes are no longer a fixed list in 26.x. EZvac now looks them up in a
   way that works on both versions, and a data pack's biome gets its own
   climate on 26.x as it did on 1.21.1.
-- **1.21.x is deprecated.** BETA 1.x still runs on it (tested on 1.21.1;
-  later 1.21 versions should work but aren't tested yet), and says so at
-  start-up. **BETA 2.x will drop all of 1.21.x**: it needs Minecraft 26.1
+- **1.21.x is supported, but deprecated,** and says so at start-up. EZvac
+  is played and tested on 26.x first. On 1.21.x, this release passes the
+  automated tests on 1.21.1, 1.21.4, 1.21.5, 1.21.8 and 1.21.11; nobody
+  plays on it for testing, and the versions in between aren't checked on
+  their own. **BETA 2.x will drop all of 1.21.x**: it needs Minecraft 26.1
   or newer, so update your server before then. See
   [Moving to Minecraft 26.x](docs/upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
 - **New biomes:**

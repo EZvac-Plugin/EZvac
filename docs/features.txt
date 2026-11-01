@@ -3,7 +3,8 @@ EZVAC ALPHA 3.0 FEATURES
 
 EZvac is a standalone HVAC and indoor-climate plugin for Paper 26.1 to 26.3
 and its forks, including Purpur (BETA 1.0). One jar, built against the Paper
-1.21.1 API on Java 21, also runs on 1.21.x (tested on 1.21.1), which logs at
+1.21.1 API on Java 21, also runs on 1.21.1 to 1.21.11 (automated suites on
+1.21.1, .4, .5, .8 and .11; not play-tested), which logs at
 start-up that BETA 2.x drops 1.21.x. A climate system is the devices linked together in
 one world; it has a hidden key and no name of its own (3.0).
 
