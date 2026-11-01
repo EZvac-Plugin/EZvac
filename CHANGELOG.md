@@ -126,6 +126,8 @@ players nearby. See [Weather stations](#weather-stations).
   shows the old four-line signs, but they get none of the new lines (such as
   **Undersized**) and may be removed in a later release. Bedrock players
   through Geyser can't see screens.
+- **RPM monitors show the tier as `T1` to `T3`** instead of stars
+  (`HP T3 ×2 2,950`): the same tier in half the room.
 
 ### HUD
 
@@ -188,6 +190,10 @@ players nearby. See [Weather stations](#weather-stations).
   release's stock sidebar now moves to the sections. A test now upgrades
   every released `config.yml` to today's: nothing is missing, nothing a
   server set changes, and nothing warns.
+- **RPM monitors no longer cut off the speed.** A long row, such as ten or
+  more pool heat pumps, or almost any row on a hanging sign, lost its speed
+  at the edge of the sign, and a furnace's `on` became `o`. A row now gives
+  up its count and tier before its speed, and only the kind is ever cut.
 
 ### A broken hvac.yml
 

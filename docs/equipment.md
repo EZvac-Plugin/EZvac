@@ -295,17 +295,18 @@ A sign that shows the equipment of its system, one row per kind and tier:
 
 ```text
 EZvac | Fans 1/2
-HP ★★★ ×3 2,950
-Furnace ★★☆ off
-AC ★☆☆ ×2 3,100
+HP T3 ×3 2,950
+Furnace T2 off
+AC T1 ×2 3,100
 ```
 
-- **A row** is the kind, its tier's stars, how many there are when more than
+- **A row** is the kind, its tier (`T1` to `T3`), how many there are when more than
   one, and the average speed of those running. Furnaces and boilers say `on`,
   since they run at a fixed speed, and anything stopped says `off`. Green while
   any runs.
-- **Long rows are shortened, not cut:** the kind first (`HP`), then the speed
-  (`2.9k`). The stars always fit.
+- **Long rows are shortened:** the kind first (`HP`), then the speed
+  (`2.9k`), then the count and the tier drop. The speed is never cut off, so
+  on a hanging sign a row may be just `PHP 2.9k`.
 - **Three rows fit on a page.** Right-click turns the page; sneak-right-click
   switches auto-flip, which turns it every 5 seconds.
 - A system can have any number of monitors.

@@ -557,7 +557,7 @@ public final class DisplayService {
             for (int line = 0; line < Pager.PER_PAGE; line++) {
                 if (line >= shown.size()) { lines.set(line + 1, "", NamedTextColor.WHITE); continue; }
                 RpmMonitor.Row row = shown.get(line);
-                lines.set(line + 1, rowText(row, lines.width(), settings.fullStar(), settings.emptyStar()),
+                lines.set(line + 1, rowText(row, lines.width()),
                         row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
             }
         }, () -> {
@@ -569,33 +569,38 @@ public final class DisplayService {
             // A screen holds six rows; with more it pages along with the sign.
             if (rows.stream().anyMatch(row -> row.running() > 0)) screen.tone(ScreenText.Tone.RUNNING);
             for (RpmMonitor.Row row : rows.size() <= ScreenText.ROWS ? rows : shown)
-                screen.line(rowText(row, ScreenText.WIDTH, settings.fullStar(), settings.emptyStar()),
+                screen.line(rowText(row, ScreenText.WIDTH),
                         row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
             return screen;
         });
     }
 
     /**
-     * "Heat pump ★★★ ×4 2,950": the kind, its tier's stars, how many when
-     * more than one, and the average speed of those running ("off" when none
-     * is; a furnace or boiler, which has a fixed speed, says "on"). A row too
-     * wide for the sign tries shorter forms in turn: a short kind, the speed
-     * as "2.9k", a compact kind, the count closed up; only then is it cut.
+     * "Heat pump T3 ×4 2,950": the kind, its tier (T1 to T3; stars before
+     * BETA 1.0, which took twice the room), how many when more than one, and
+     * the average speed of those running ("off" when none is; a furnace or
+     * boiler, which has a fixed speed, says "on"). A row too wide for the sign
+     * tries shorter forms in turn: a short kind, the speed as "2.9k", a
+     * compact kind, the count closed up, then without the count and the tier.
+     * The speed is never what's cut: on a narrow sign only the kind is.
      */
-    static String rowText(RpmMonitor.Row row, int width, String fullStar, String emptyStar) {
-        String stars = " " + row.tier().stars(fullStar, emptyStar);
+    static String rowText(RpmMonitor.Row row, int width) {
+        String tier = " T" + row.tier().number();
         String count = row.units() > 1 ? " ×" + row.units() : "";
         boolean fixed = row.type().fixedSpeed();
         String state = row.running() == 0 ? "off" : fixed ? "on" : String.format(Locale.US, "%,.0f", row.rpm());
         String compact = row.running() == 0 || fixed ? state : String.format(Locale.US, "%.1fk", row.rpm() / 1000.0);
+        String name = compactName(row.type());
         String[] forms = {
-                row.type().displayName() + stars + count + " " + state,
-                shortName(row.type()) + stars + count + " " + state,
-                shortName(row.type()) + stars + count + " " + compact,
-                compactName(row.type()) + stars + count + " " + compact,
-                compactName(row.type()) + stars + count.trim() + " " + compact};
+                row.type().displayName() + tier + count + " " + state,
+                shortName(row.type()) + tier + count + " " + state,
+                shortName(row.type()) + tier + count + " " + compact,
+                name + tier + count + " " + compact,
+                name + tier + count.trim() + " " + compact,
+                name + tier + " " + compact,
+                name + " " + compact};
         for (String form : forms) if (SignText.width(form) <= width) return form;
-        return SignText.fit(forms[forms.length - 1], width);
+        return SignText.fit(name, width - SignText.width(" " + compact)) + " " + compact;
     }
 
     /** The shortest names, for a sign row that needs every pixel. */
