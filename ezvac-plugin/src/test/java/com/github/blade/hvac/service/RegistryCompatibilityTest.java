@@ -69,7 +69,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("ALPHA-2.2", true, true, true, true, true, true, true, true, true),
                 Arguments.of("ALPHA-3.0", true, true, true, true, true, true, true, true, true),
                 Arguments.of("ALPHA-3.1", true, true, true, true, true, true, true, true, true),
-                Arguments.of("ALPHA-3.2", true, true, true, true, true, true, true, true, true));
+                Arguments.of("ALPHA-3.2", true, true, true, true, true, true, true, true, true),
+                Arguments.of("BETA-1.0-P1", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -93,7 +94,7 @@ class RegistryCompatibilityTest {
         assertEquals(0, registry.keptAside(), () -> "kept aside: " + registry.keptAsideRecords());
         assertNull(registry.recoveredFrom());
         // Format 8 arrived with ALPHA 3.1: every release before it is told as a successful upgrade.
-        assertEquals(java.util.Set.of("ALPHA-3.1", "ALPHA-3.2").contains(release) ? 0 : 1,
+        assertEquals(java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1").contains(release) ? 0 : 1,
                 Math.min(1, registry.migratedFrom()), release);
         assertSavesAsGolden(registry, release, "expected-save.yml");
     }
@@ -171,26 +172,29 @@ class RegistryCompatibilityTest {
      * Releases whose dehumidifier sign opens a menu when clicked (from 2.1 on), so the
      * fixture bot's click leaves the setpoint at its default.
      */
-    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2");
+    private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2",
+            "BETA-1.0-P1");
 
     /**
      * Releases built with the link tool (3.0 on): their systems are numbered
      * (#1, #2), not named after a group, so a system is checked by what is
      * linked to it.
      */
-    private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2");
+    private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1");
 
     /**
      * Releases built with tiers (3.1 on): the fixture bot makes the house heat
      * pump variable (t3) and its furnace single-stage (t1); everything else is
      * the two-stage default.
      */
-    private static final java.util.Set<String> TIER_RELEASES = java.util.Set.of("ALPHA-3.1", "ALPHA-3.2");
+    private static final java.util.Set<String> TIER_RELEASES = java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1");
     /**
      * Releases whose fixture has the 3.2 air and wind devices: an air purifier set to High, an air
      * monitor, and a cherry-button air sensor and bamboo-button wind sensor on the hub.
      */
-    private static final java.util.Set<String> AIR_RELEASES = java.util.Set.of("ALPHA-3.2");
+    private static final java.util.Set<String> AIR_RELEASES = java.util.Set.of("ALPHA-3.2", "BETA-1.0-P1");
+    /** Releases whose fixture has a weather station (BETA 1.0 on): 'Harbour', measured, on a 1.21.1 tower. */
+    private static final java.util.Set<String> STATION_RELEASES = java.util.Set.of("BETA-1.0-P1");
 
     /** A fixture's system is its old group name before 3.0; from 3.0 it only has to be a numbered one. */
     private static void assertSystem(String release, String group, Thermostat thermostat) {
@@ -322,6 +326,17 @@ class RegistryCompatibilityTest {
             assertEquals(0.0, climateThere.snowShare());
             assertTrue(climateThere.noonF() > 75 && climateThere.noonF() < 97,
                     () -> "between plains and desert, was " + climateThere.noonF());
+        }
+
+        boolean station = STATION_RELEASES.contains(release);
+        assertEquals(station ? 1 : 0, registry.weatherStations().size());
+        if (station) {
+            WeatherStation harbour = registry.weatherStations().iterator().next();
+            assertEquals("Harbour", harbour.label());
+            assertTrue(harbour.enabled());
+            assertEquals(0, harbour.strikes());
+            assertNotNull(harbour.area(), "it measured its area while the bot stood by it");
+            assertTrue(harbour.area().noonF() > harbour.area().midnightF(), () -> "plains: " + harbour.area());
         }
     }
 
