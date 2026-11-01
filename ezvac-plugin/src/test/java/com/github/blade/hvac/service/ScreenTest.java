@@ -118,6 +118,27 @@ class ScreenTest {
     }
 
     @Test
+    void aLineTooWideGivesUpItsLastPartsInsteadOfWrapping() {
+        // BETA 1.0, seen on a live screen: on a 106.6 °F day this line wrapped and put Heating under the big reading.
+        assertEquals(103, SignText.width("Out 106.6°F · Summer"), "the client's own widths: ° 5, · 2");
+        assertEquals("Out 106.6°F", ScreenText.fitted("Out 106.6°F · Summer"));
+        assertEquals("Out 96.6°F · Summer", ScreenText.fitted("Out 96.6°F · Summer"), "a line that fits is kept");
+        assertEquals("ETA 0:31 · 28% RH", ScreenText.fitted("ETA 0:31 · 28% RH"));
+        for (String season : List.of("Spring", "Summer", "Autumn", "Winter", ""))
+            for (double f = -60; f <= 140; f += 0.1) {
+                for (String out : List.of(String.format(java.util.Locale.US, "Out %.1f°F", f),
+                        String.format(java.util.Locale.US, "Out %.1f°C", (f - 32) / 1.8))) {
+                    String line = ScreenText.fitted(season.isEmpty() ? out : out + " · " + season);
+                    assertTrue(SignText.width(line) <= ScreenText.WIDTH, line);
+                    assertTrue(line.startsWith(out), "the temperature always stays: " + line);
+                }
+            }
+        String screen = plain(ScreenText.titled("Home", "").big("106.6°F").line("Heating to 75.0°F", NamedTextColor.GOLD)
+                .line("Out 106.6°F · Summer", NamedTextColor.GRAY));
+        assertTrue(screen.endsWith("\nOut 106.6°F"), screen);
+    }
+
+    @Test
     void theBigReadingLeavesTheTopOfTheBodyBlank() {
         String[] lines = text(ScreenText.titled("main", "").big("72.4°F")
                 .line("Holding 72.0°F", NamedTextColor.GREEN).body()).split("\n", -1);
