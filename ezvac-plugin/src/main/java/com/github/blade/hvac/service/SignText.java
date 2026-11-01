@@ -16,9 +16,16 @@ public final class SignText {
     /** The prefix headers carry when there is room for it. */
     static final String PREFIX = "EZvac | ";
 
-    /** Counted for anything outside printable ASCII: wider than any glyph a label is likely to use. */
+    /** Counted for anything else outside printable ASCII: as wide as the client's fallback (unifont) glyphs. */
     private static final int UNKNOWN_WIDTH = 9;
     private static final int[] ASCII = new int[128];
+    /**
+     * The symbols EZvac writes itself, at their width in the client's font
+     * (BETA 1.0, measured from its glyph sheets): counted as unknown before,
+     * a degree sign took 9 pixels for its 5, so screen lines weren't measured.
+     */
+    private static final java.util.Map<Character, Integer> SYMBOLS = java.util.Map.of(
+            '°', 5, '·', 2, '×', 6, '★', 8, '☆', 8, '❄', 8, '●', 5, '○', 6, '◆', 6, '⚠', 10);
 
     static {
         java.util.Arrays.fill(ASCII, 6);
@@ -43,7 +50,7 @@ public final class SignText {
     }
 
     private static int width(char character) {
-        return character >= 32 && character < 127 ? ASCII[character] : UNKNOWN_WIDTH;
+        return character >= 32 && character < 127 ? ASCII[character] : SYMBOLS.getOrDefault(character, UNKNOWN_WIDTH);
     }
 
     /**

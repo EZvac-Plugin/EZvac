@@ -83,14 +83,21 @@ public final class ScreenText {
     public boolean hasBig() { return big != null; }
 
     /**
-     * A line of EZvac's own wording, short enough by design. Only names a
-     * player chose are cut to fit ({@link #named}): the sign's width table
-     * counts symbols like ° and ❄ as wide as any glyph, so it would cut lines
-     * that fit.
+     * A line of EZvac's own wording. One too wide for the screen would wrap,
+     * and the extra line would push the body up under the big reading (BETA
+     * 1.0: {@code Out 106.6°F · Summer}), so it gives up its last parts after
+     * a {@code ·} first, then is cut.
      */
     public ScreenText line(String text, TextColor color) {
-        lines.add(Component.text(text, color));
+        lines.add(Component.text(fitted(text), color));
         return this;
+    }
+
+    /** The text, without its last {@code ·} parts while it is too wide, then cut to the width. */
+    static String fitted(String text) {
+        String line = text;
+        while (SignText.width(line) > WIDTH && line.contains(" · ")) line = line.substring(0, line.lastIndexOf(" · "));
+        return SignText.fit(line, WIDTH);
     }
 
     /** A line holding a name a player chose, cut to the screen's width. */
@@ -123,14 +130,14 @@ public final class ScreenText {
         // At least a space always comes before the glyph, and a space's width is left spare at the
         // end, so a glyph a little wider than the sign's table thinks never wraps the strip.
         int room = WIDTH - glyphWidth() - SignText.width(" "), text = room - SignText.width(" ");
-        String name = SignText.fit(title, text - width(suffix));
+        String name = SignText.fit(title, text - SignText.width(suffix));
         if (name.isEmpty()) {
             name = SignText.fit(title, text);
             suffix = "";
         }
         Component line = Component.text(name, NamedTextColor.WHITE);
         if (!suffix.isEmpty()) line = line.append(Component.text(suffix, TextColor.color(0xC8D0DA)));
-        int spaces = Math.max(1, (room - width(name + suffix)) / SignText.width(" "));
+        int spaces = Math.max(1, (room - SignText.width(name + suffix)) / SignText.width(" "));
         line = line.append(Component.text(" ".repeat(spaces)));
         return tone.glyph().isEmpty() ? line : line.append(Component.text(tone.glyph(), NamedTextColor.WHITE));
     }
@@ -159,11 +166,6 @@ public final class ScreenText {
 
     /** A line of spaces just short of the wrap width, so it can never wrap. */
     static final String BLANK = " ".repeat(WIDTH / SignText.width(" ") - 1);
-
-    /** Pixels a text takes; a · is as narrow as a full stop, though the sign's table doesn't know it. */
-    private static int width(String text) {
-        return SignText.width(text.replace('·', '.'));
-    }
 
     /** The text as plain characters, without the padding: the header, the big reading, the lines. */
     String plain() {
