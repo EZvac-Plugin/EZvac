@@ -119,8 +119,12 @@ public final class AirflowService {
      */
     public record ZoneReading(ClimateUnit unit, int distance, double influence) {}
 
-    /** @param outdoor steps since the air left a roof (size-based heating, BETA 1.0); 0 under one */
-    private record Node(int x, int y, int z, int distance, int outdoor) {}
+    /**
+     * @param outdoor steps since the air left the inside (size-based heating, BETA 1.0); 0 inside
+     * @param escaped the air has been out under open sky on its way here: whatever roof it finds after
+     *                that (an overhang, a porch, the building next door) doesn't make it inside again
+     */
+    private record Node(int x, int y, int z, int distance, int outdoor, boolean escaped) {}
 
     private static final class Rebuild {
         final AirflowTarget target;
@@ -150,6 +154,8 @@ public final class AirflowService {
          * A set, so a doorway counts the same whichever way the walk reaches it first.
          */
         final LongOpenHashSet openings = new LongOpenHashSet();
+        /** Each reached cell's best outdoor state (escaped, steps), so a better path can still go on from it. */
+        final Long2ByteOpenHashMap states = new Long2ByteOpenHashMap();
         int minimumX = Integer.MAX_VALUE, maximumX = Integer.MIN_VALUE;
         int minimumZ = Integer.MAX_VALUE, maximumZ = Integer.MIN_VALUE;
         // Chunk lookups dominate the walk, and a breadth-first frontier stays
@@ -166,6 +172,7 @@ public final class AirflowService {
             this.range = range;
             this.maximumCells = maximumCells;
             distances.defaultReturnValue(ABSENT);
+            states.defaultReturnValue(ABSENT);
             roofs.defaultReturnValue(Integer.MIN_VALUE);
         }
 
@@ -516,7 +523,8 @@ public final class AirflowService {
         Rebuild rebuild = new Rebuild(zone, false, rangeOf(climateUnit), maximumCells);
         rebuild.clearChunkCache();
         for (int[] direction : DIRECTIONS)
-            enqueue(rebuild, world, unit.x() + direction[0], unit.y() + direction[1], unit.z() + direction[2], 0, -1);
+            enqueue(rebuild, world, unit.x() + direction[0], unit.y() + direction[1], unit.z() + direction[2], 0, -1,
+                    false);
         return rebuild;
     }
 
@@ -541,7 +549,7 @@ public final class AirflowService {
         for (BlockKey pos : seeds) {
             int x = pos.x(), y = pos.y(), z = pos.z();
             for (int[] direction : DIRECTIONS)
-                enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0, -1);
+                enqueue(rebuild, world, x + direction[0], y + direction[1], z + direction[2], 0, -1, false);
         }
         return rebuild;
     }
@@ -560,13 +568,17 @@ public final class AirflowService {
             int next = node.distance + 1;
             for (int[] direction : DIRECTIONS)
                 enqueue(rebuild, world, node.x + direction[0], node.y + direction[1],
-                        node.z + direction[2], next, node.outdoor);
+                        node.z + direction[2], next, node.outdoor, node.escaped);
         }
         return processed;
     }
 
-    /** @param parentOutdoor the step it came from's outdoor count; -1 beside a vent or unit */
-    private void enqueue(Rebuild rebuild, World world, int x, int y, int z, int distance, int parentOutdoor) {
+    /**
+     * @param parentOutdoor the step it came from's outdoor count; -1 beside a vent or unit
+     * @param parentEscaped whether the step it came from had been out under open sky
+     */
+    private void enqueue(Rebuild rebuild, World world, int x, int y, int z, int distance, int parentOutdoor,
+                         boolean parentEscaped) {
         if (rebuild.distances.size() >= rebuild.maximumCells) {
             rebuild.capped = true;
             return;
@@ -575,8 +587,16 @@ public final class AirflowService {
         long key = pack(x, y, z);
         byte previous = rebuild.distances.get(key);
         if (previous != ABSENT && previous <= distance) {
-            // Already reached; still an opening if it's open sky and this step comes from under a roof.
-            if (rebuild.plume && parentOutdoor == 0 && y > rebuild.roofAt(world, x, z)) rebuild.openings.add(key);
+            // Already reached. Still an opening if it's open sky and this step comes from the inside, and the
+            // walk goes on from it if this path is more inside than the one that reached it (BETA 1.0).
+            if (!rebuild.plume) return;
+            boolean sky = y > rebuild.roofAt(world, x, z);
+            if (sky && openingFrom(parentOutdoor, parentEscaped)) rebuild.openings.add(key);
+            int outdoorStep = outdoorStep(rebuild, world, x, y, z, sky, parentOutdoor, parentEscaped);
+            boolean escaped = parentEscaped || sky;
+            if (outdoorStep < 0 || !better(escaped, outdoorStep, rebuild.states.get(key))) return;
+            rebuild.states.put(key, state(escaped, outdoorStep));
+            rebuild.queue.addLast(new Node(x, y, z, distance, outdoorStep, escaped));
             return;
         }
         Chunk chunk = rebuild.chunkAt(world, x >> 4, z >> 4);
@@ -602,15 +622,70 @@ public final class AirflowService {
                     && rebuild.smokeCells.size() < MAXIMUM_SMOKE_CELLS) rebuild.smokeCells.add(key);
         }
         int outdoorStep = 0;
-        if (rebuild.plume && y > rebuild.roofAt(world, x, z)) {
-            // Out under open sky: the air goes only so far before the outdoors swallows it.
-            outdoorStep = Math.max(0, parentOutdoor) + 1;
-            if (outdoorStep > rebuild.reach) return;
-            if (parentOutdoor == 0) rebuild.openings.add(key);
+        boolean escaped = false;
+        if (rebuild.plume) {
+            boolean sky = y > rebuild.roofAt(world, x, z);
+            if (sky && openingFrom(parentOutdoor, parentEscaped)) rebuild.openings.add(key);
+            // Out under open sky, or under cover with the sky beside it: the air goes only so far.
+            outdoorStep = outdoorStep(rebuild, world, x, y, z, sky, parentOutdoor, parentEscaped);
+            if (outdoorStep < 0) return;
+            escaped = parentEscaped || sky;
+            rebuild.states.put(key, state(escaped, outdoorStep));
         }
         rebuild.distances.put(key, (byte) distance);
         rebuild.track(x, z);
-        rebuild.queue.addLast(new Node(x, y, z, distance, outdoorStep));
+        rebuild.queue.addLast(new Node(x, y, z, distance, outdoorStep, escaped));
+    }
+
+    /**
+     * Where a step into open sky counts as an opening (BETA 1.0): from the
+     * inside, or the first covered block at its edge (a doorway, a window,
+     * the eave just outside a door), and never once the air has been out.
+     * So a doorway is 2 openings, whatever lies beyond it.
+     */
+    private static boolean openingFrom(int parentOutdoor, boolean parentEscaped) {
+        return !parentEscaped && parentOutdoor <= 1;
+    }
+
+    /**
+     * How far outside a block is, in steps (BETA 1.0); 0 inside: under cover
+     * with no open sky beside it, reached without going out. Open sky, cover
+     * with open sky beside it (a doorway, under an eave or a porch roof), and
+     * anything reached after the air has been out all count a step, so the
+     * air goes {@code reach} blocks out and no further. -1: too far out.
+     */
+    private static int outdoorStep(Rebuild rebuild, World world, int x, int y, int z, boolean sky, int parentOutdoor,
+                                   boolean parentEscaped) {
+        boolean inside = !sky && !parentEscaped && !coverEdge(rebuild, world, x, y, z);
+        if (inside) return 0;
+        int step = Math.max(0, parentOutdoor) + 1;
+        return step > rebuild.reach ? -1 : step;
+    }
+
+    /** Under cover with open sky beside it at this height, through a block air passes. Never loads a chunk. */
+    private static boolean coverEdge(Rebuild rebuild, World world, int x, int y, int z) {
+        for (int[] direction : HORIZONTAL) {
+            int nx = x + direction[0], nz = z + direction[1];
+            Chunk chunk = rebuild.chunkAt(world, nx >> 4, nz >> 4);
+            if (chunk == null || y <= rebuild.roofAt(world, nx, nz)) continue;
+            Block beside = chunk.getBlock(nx & 15, y, nz & 15);
+            if (isAirPath(beside, beside.getType())) return true;
+        }
+        return false;
+    }
+
+    private static final int[][] HORIZONTAL = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+    private static byte state(boolean escaped, int outdoorStep) {
+        return (byte) ((escaped ? 64 : 0) | Math.min(63, outdoorStep));
+    }
+
+    /** More inside than what reached the block before: not escaped where that was, or fewer steps out. */
+    private static boolean better(boolean escaped, int outdoorStep, byte before) {
+        if (before == ABSENT) return true;
+        boolean wasEscaped = (before & 64) != 0;
+        int wasStep = before & 63;
+        return wasEscaped && !escaped || wasEscaped == escaped && outdoorStep < wasStep;
     }
 
     static boolean isAirPath(Block block) {
