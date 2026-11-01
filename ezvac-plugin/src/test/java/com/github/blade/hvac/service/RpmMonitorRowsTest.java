@@ -46,29 +46,51 @@ class RpmMonitorRowsTest {
     }
 
     private static String row(EquipmentType type, Tier tier, int units, int running, double rpm, int width) {
-        return DisplayService.rowText(new RpmMonitor.Row(type, tier, units, running, rpm), width, "★", "☆");
+        return DisplayService.rowText(new RpmMonitor.Row(type, tier, units, running, rpm), width);
     }
 
     @Test
-    void aRowShowsTheKindItsStarsTheCountAndTheSpeed() {
-        assertEquals("Heat pump ★★★ ×4 2,950", row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 4, 2, 2950, 300));
-        assertEquals("Furnace ★☆☆ off", row(EquipmentType.FURNACE, Tier.SINGLE_STAGE, 1, 0, 0, 300),
+    void aRowShowsTheKindItsTierTheCountAndTheSpeed() {
+        assertEquals("Heat pump T3 ×4 2,950", row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 4, 2, 2950, 300));
+        assertEquals("Furnace T1 off", row(EquipmentType.FURNACE, Tier.SINGLE_STAGE, 1, 0, 0, 300),
                 "no ×1 for a single unit");
-        assertEquals("Furnace ★★★ ×2 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 2, 1, 715, 300),
+        assertEquals("Furnace T3 ×2 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 2, 1, 715, 300),
                 "a furnace's blower speed says nothing, so it is on or off");
         for (EquipmentType type : EquipmentType.values())
             for (Tier tier : Tier.values())
                 for (int units = 1; units <= 9; units++) {
                     String text = row(type, tier, units, 1, 4_150, SignText.SIGN_WIDTH);
                     assertTrue(SignText.width(text) <= SignText.SIGN_WIDTH, text);
-                    assertTrue(text.contains(tier.stars("★", "☆")), "the stars always fit: " + text);
+                    assertTrue(text.contains(" T" + tier.number()), "the tier fits: " + text);
                     assertTrue(text.endsWith(type.fixedSpeed() ? " on" : "4.2k")
                             || text.endsWith("4,150"), "and so does the speed: " + text);
                 }
-        assertEquals("HP ★★☆ ×4 2.9k", row(EquipmentType.HEAT_PUMP, Tier.TWO_STAGE, 4, 2, 2940, SignText.SIGN_WIDTH),
-                "the kind is shortened first, then the speed");
-        assertEquals("HP [*][*][ ] off", DisplayService.rowText(new RpmMonitor.Row(EquipmentType.HEAT_PUMP,
-                Tier.TWO_STAGE, 1, 0, 0), SignText.SIGN_WIDTH, "[*]", "[ ]"), "a server's own glyphs");
+        assertEquals("HP T2 ×4 2,940", row(EquipmentType.HEAT_PUMP, Tier.TWO_STAGE, 4, 2, 2940, SignText.SIGN_WIDTH),
+                "the kind is shortened first");
+        assertEquals("PHP T2 ×40 2.9k", row(EquipmentType.POOL_HEAT_PUMP, Tier.TWO_STAGE, 40, 2, 2940,
+                SignText.SIGN_WIDTH), "then the speed");
+    }
+
+    @Test
+    void theSpeedIsNeverCutOffOnAnySignOrScreen() {
+        // BETA 1.0: "PHP ★★★×12" and "Furn ★★★×10 o" on a wall sign, and almost every row on a hanging one.
+        for (int width : new int[]{SignText.SIGN_WIDTH, SignText.HANGING_SIGN_WIDTH, ScreenText.WIDTH})
+            for (EquipmentType type : EquipmentType.values())
+                for (Tier tier : Tier.values())
+                    for (int units = 1; units <= 120; units++)
+                        for (int running = 0; running <= 1; running++)
+                            for (double rpm : new double[]{1_250, 4_150, 12_400}) {
+                                String text = row(type, tier, units, running, rpm, width);
+                                assertTrue(SignText.width(text) <= width, width + ": " + text);
+                                assertTrue(running == 0 ? text.endsWith(" off") : type.fixedSpeed() ? text.endsWith(" on")
+                                        : text.matches(".* [0-9][0-9,]*|.* [0-9]+\\.[0-9]k"), width + ": " + text);
+                            }
+        assertEquals("Furn T3 ×10 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 10, 1, 715, SignText.SIGN_WIDTH));
+        assertEquals("HP T3 4.2k", row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 2, 1, 4_150,
+                SignText.HANGING_SIGN_WIDTH));
+        assertEquals("PHP T3 4.2k", row(EquipmentType.POOL_HEAT_PUMP, Tier.VARIABLE, 12, 1, 4_150,
+                SignText.HANGING_SIGN_WIDTH), "the count goes before the speed");
+        assertEquals("Furn T3 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 120, 1, 715, SignText.HANGING_SIGN_WIDTH));
     }
 
     @Test
