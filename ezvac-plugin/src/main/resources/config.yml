@@ -27,7 +27,10 @@ devices:
 # /hvac quicksettings makes one on demand. auto-every-hours makes one in real
 # time, through restarts: 0 (off), 4, 8, 12, 24, 48 or 168 (a week). Only the
 # newest keep automatic ones are kept; one made by hand is never deleted.
-# To restore, stop the server and copy a backup over hvac.yml.
+# To restore, stop the server and copy a backup over hvac.yml. If hvac.yml
+# can't be read at start-up, EZvac falls back to the newest readable backup
+# itself, or stops and /hvac quicksettings opens a recovery menu that
+# restores one with a click.
 backups:
   auto-every-hours: 0
   keep: 10

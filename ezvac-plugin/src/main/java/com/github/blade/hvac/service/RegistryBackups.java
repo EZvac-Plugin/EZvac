@@ -25,7 +25,9 @@ import java.util.function.BiConsumer;
  * ones are kept; one made by hand stays until someone deletes it.
  *
  * <p>Restoring is by hand, with the server stopped: copy a backup over
- * hvac.yml (and its seasons file over seasons.yml).
+ * hvac.yml (and its seasons file over seasons.yml). When hvac.yml can't be
+ * read, the registry falls back to the newest readable backup itself, and a
+ * stopped EZvac's recovery menu restores one ({@link RegistrySalvage}).
  */
 public final class RegistryBackups {
     /** The automatic intervals, in hours; 0 is off. */
