@@ -37,8 +37,9 @@ biome and the weather.
 > device kinds, air quality, pollen, wind and the seasons on or off, and to
 > back the registry up. Heating and cooling can go by building size: one
 > three-star unit per 1,860 blocks of air, so big builds need more equipment.
-> It's on for new servers and starts off on upgraded ones. Weather stations forecast the next seven days for players nearby
-> (`/hvac forecast`). Your save carries over unchanged.
+> It's on for new servers and starts off on upgraded ones. Weather stations
+> forecast the next seven days for players nearby (`/hvac forecast`). Your
+> save carries over unchanged.
 >
 > ALPHA 3.2 added air quality. Every room tracks
 > fine particles, dust and pollen, scored as the US EPA Air Quality Index:
