@@ -156,7 +156,7 @@ public final class HvacPlugin extends JavaPlugin {
             stationTask = getServer().getScheduler().runTaskTimer(this, weatherStations::tick, 40L, 40L);
             sparkTask = getServer().getScheduler().runTaskTimer(this, weatherStations::watch, 20L, 20L);
             bubbleTask = getServer().getScheduler().runTaskTimer(this,
-                    () -> audio.bubble(runningUnits), HvacAudioService.BUBBLE_PERIOD_TICKS,
+                    () -> { audio.bubble(runningUnits); audio.ventBubbles(registry); }, HvacAudioService.BUBBLE_PERIOD_TICKS,
                     HvacAudioService.BUBBLE_PERIOD_TICKS);
             displays.refreshAll(true);
             requestImmediateSync();
@@ -171,7 +171,8 @@ public final class HvacPlugin extends JavaPlugin {
             quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates);
             getServer().getPluginManager().registerEvents(quickSettings, this);
             notices = StartupNotices.loaded(this, registry.recoveredFrom(), registry.setAside(),
-                    registry.keptAside(), registry.migratedFrom(), sizingStartedOff);
+                    registry.keptAside(), registry.migratedFrom(), sizingStartedOff,
+                    pilotTwoStart && backups.intervalHours() > 0, pilotTwoStart ? thermostatsWithoutVents() : 0);
             if (notices != null) {
                 getServer().getPluginManager().registerEvents(notices, this);
                 notices.tellOnline();
@@ -232,6 +233,8 @@ public final class HvacPlugin extends JavaPlugin {
         if (added.isEmpty()) return;
         // Building size arrived with this start, on an upgraded server: it starts off, and admins are told.
         sizingStartedOff = added.contains("sizing.enabled");
+        // Backups went on and vents became required with this start (BETA 1.0 Pilot 2): admins are told once.
+        pilotTwoStart = added.contains(ConfigUpdater.PILOT_2);
         File backup = new File(getDataFolder(), "config.yml.before-" + getPluginMeta().getVersion() + ".bak");
         try {
             if (!backup.exists()) Files.copy(file.toPath(), backup.toPath());
@@ -285,6 +288,17 @@ public final class HvacPlugin extends JavaPlugin {
     private StartupNotices notices;
     /** This start upgraded config.yml from before BETA 1.0, so building size starts off (and admins hear why). */
     private boolean sizingStartedOff;
+    private boolean pilotTwoStart;
+
+    /** Systems with units but no vent, which started before Pilot 2 and no longer do. */
+    private int thermostatsWithoutVents() {
+        int count = 0;
+        for (com.github.blade.hvac.model.Thermostat thermostat : registry.thermostats())
+            if (registry.thermostatFor(thermostat.system()) == thermostat
+                    && registry.ventsFor(thermostat.system()).isEmpty()
+                    && !registry.equipmentFor(thermostat.system()).isEmpty()) count++;
+        return count;
+    }
 
     /**
      * hvac.yml couldn't be loaded: EZvac stays enabled but runs nothing and

@@ -9,6 +9,7 @@ import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.ClimateVent;
 import com.github.blade.hvac.model.Dehumidifier;
 import com.github.blade.hvac.model.Humidifier;
+import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Thermostat;
 import org.bukkit.Particle;
@@ -94,6 +95,29 @@ public final class HvacAudioService {
             if (!watched) continue;
             block.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, source, 4, 0.2, 0.05, 0.2, 0.02);
             if (sound) play(humidifier.slab(), Event.HUMIDIFIER_BUBBLES);
+        }
+    }
+
+    /**
+     * Bubbles rising from the water vents of each pool that is heating
+     * (BETA 1.0 Pilot 2), so a working pool looks it. Only vents with a
+     * player nearby; nothing is heard, only seen.
+     */
+    public void ventBubbles(HvacRegistry registry) {
+        double radiusSquared = settings.audioRadiusBlocks() * settings.audioRadiusBlocks();
+        for (Thermostat thermostat : registry.thermostats()) {
+            if (!thermostat.pool() || thermostat.mode() != OperatingMode.HEATING || !thermostat.enabled()
+                    || registry.thermostatFor(thermostat.system()) != thermostat) continue;
+            for (ClimateVent vent : registry.ventsFor(thermostat.system())) {
+                if (!vent.position().isChunkLoaded()) continue;
+                Location block = vent.position().location();
+                if (block == null || block.getWorld() == null) continue;
+                Location source = block.clone().add(0.5, 0.6, 0.5);
+                boolean watched = false;
+                for (Player player : block.getWorld().getPlayers())
+                    if (withinRadius(player.getLocation().distanceSquared(source), radiusSquared)) { watched = true; break; }
+                if (watched) block.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, source, 3, 0.25, 0.1, 0.25, 0.03);
+            }
         }
     }
 

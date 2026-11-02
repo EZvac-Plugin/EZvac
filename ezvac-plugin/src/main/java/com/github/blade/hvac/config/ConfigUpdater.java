@@ -67,7 +67,31 @@ public final class ConfigUpdater {
         HudSettings.adoptSections(target, added);
         HudSettings.adoptAccents(target, added);
         SizingSettings.offOnUpgrade(target, added);
+        pilotTwo(target, added);
         return added;
+    }
+
+    /** Added in BETA 1.0 Pilot 2, so its being added marks a server's first Pilot 2 start. */
+    public static final String PILOT_2 = "updates.channel";
+
+    /** Pilot 1's humidifier bubbles, moved to a deeper pitch in Pilot 2. */
+    static final String OLD_HUMIDIFIER_BUBBLES = "block.bubble_column.upwards_ambient 0.35 1.0";
+
+    /**
+     * A server's first Pilot 2 start: the stock humidifier sound moves to its
+     * deeper pitch (one an owner changed is kept), and automatic backups go
+     * from Pilot 1's off to every 24 hours (maintainer, 2026-11-02: Pilot 1's
+     * 0 was its default, not a choice). An ALPHA config gets both from the
+     * bundled file.
+     */
+    static void pilotTwo(YamlConfiguration target, List<String> added) {
+        if (!added.contains(PILOT_2)) return;
+        String bubbles = "audio.sounds." + SoundSettings.Event.HUMIDIFIER_BUBBLES.key();
+        if (!added.contains(bubbles) && List.of(OLD_HUMIDIFIER_BUBBLES).equals(target.getStringList(bubbles)))
+            target.set(bubbles, List.of(new SoundSettings.Cue("block.bubble_column.upwards_ambient", 0.35f, 0.5f).line()));
+        String backups = "backups.auto-every-hours";
+        if (!added.contains(backups) && target.getInt(backups, 0) == 0)
+            target.set(backups, com.github.blade.hvac.service.RegistryBackups.DEFAULT_HOURS);
     }
 
     /** True when some parent of the path holds a plain value, which adding the path would overwrite. */

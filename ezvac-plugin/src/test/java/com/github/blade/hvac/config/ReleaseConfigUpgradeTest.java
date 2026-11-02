@@ -31,6 +31,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ReleaseConfigUpgradeTest {
     /** Lists the stock-layout steps move on to today's; every other value a server had must stay. */
     private static final Set<String> STOCK_LAYOUTS = Set.of("hud.sidebar.lines", "hud.water.sidebar.lines");
+    /**
+     * Stock values Pilot 2 moves on a server's first Pilot 2 start, checked on
+     * their own below: the humidifier's deeper bubbles, and backups going on.
+     */
+    private static final Set<String> PILOT_2_MOVES = Set.of("audio.sounds.humidifier-bubbles",
+            "backups.auto-every-hours");
 
     static Stream<String> releases() throws IOException, URISyntaxException {
         Path folder = Path.of(Objects.requireNonNull(ReleaseConfigUpgradeTest.class.getResource("/configs")).toURI());
@@ -64,7 +70,8 @@ class ReleaseConfigUpgradeTest {
         assertEquals(List.of(), missing, "every setting of today's config.yml is there");
 
         for (String path : old.getKeys(true)) {
-            if (old.isConfigurationSection(path) || STOCK_LAYOUTS.contains(path)) continue;
+            if (old.isConfigurationSection(path) || STOCK_LAYOUTS.contains(path) || PILOT_2_MOVES.contains(path))
+                continue;
             assertEquals(old.get(path), config.get(path), "the release's own " + path + " is kept");
         }
 
@@ -81,6 +88,12 @@ class ReleaseConfigUpgradeTest {
         if (old.contains("hud.water.sidebar.lines"))
             assertEquals(HudSettings.defaults().water().sidebarLines(), hud.water().sidebarLines(),
                     "its stock water sidebar is today's");
+
+        // Pilot 2: the stock humidifier bubbles go deeper, and automatic backups go on (Pilot 1's 0 included).
+        assertEquals(List.of("block.bubble_column.upwards_ambient 0.35 0.5"),
+                config.getStringList("audio.sounds.humidifier-bubbles"), "the humidifier's bubbles are deeper");
+        assertEquals(24, config.getInt("backups.auto-every-hours"), "automatic backups are on");
+        assertEquals("auto", config.getString("updates.channel"));
 
         // Building size changes how existing builds heat and cool: it starts off on every server upgrading
         // from ALPHA. A BETA config already has the setting, and keeps its own.
@@ -102,5 +115,24 @@ class ReleaseConfigUpgradeTest {
         chosen.set("sizing.enabled", true);
         assertTrue(ConfigUpdater.upgrade(chosen, load("/config.yml")).isEmpty());
         assertTrue(chosen.getBoolean("sizing.enabled"), "a server that has the setting keeps its own");
+    }
+
+    @Test
+    void anOwnersOwnSoundAndBackupsAreKept() throws Exception {
+        YamlConfiguration chosen = load("/configs/BETA-1.0-P1.yml");
+        chosen.set("audio.sounds.humidifier-bubbles", List.of("block.bubble_column.upwards_ambient 0.2 1.4"));
+        chosen.set("backups.auto-every-hours", 48);
+        ConfigUpdater.upgrade(chosen, load("/config.yml"));
+        assertEquals(List.of("block.bubble_column.upwards_ambient 0.2 1.4"),
+                chosen.getStringList("audio.sounds.humidifier-bubbles"));
+        assertEquals(48, chosen.getInt("backups.auto-every-hours"));
+    }
+
+    @Test
+    void theStepsRunOnlyOnTheFirstPilotTwoStart() throws Exception {
+        YamlConfiguration current = load("/config.yml");
+        current.set("backups.auto-every-hours", 0);
+        assertTrue(ConfigUpdater.upgrade(current, load("/config.yml")).isEmpty());
+        assertEquals(0, current.getInt("backups.auto-every-hours"), "switched off after Pilot 2: it stays off");
     }
 }

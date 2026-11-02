@@ -32,6 +32,8 @@ import java.util.function.BiConsumer;
 public final class RegistryBackups {
     /** The automatic intervals, in hours; 0 is off. */
     public static final List<Integer> INTERVALS = List.of(0, 4, 8, 12, 24, 48, 168);
+    /** Automatic backups are on by default, once a day of real time (BETA 1.0 Pilot 2; off in Pilot 1). */
+    public static final int DEFAULT_HOURS = 24;
     static final String AUTO = "auto", MANUAL = "manual";
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss");
     /** Whether an automatic one is due is checked this often. */
@@ -72,7 +74,7 @@ public final class RegistryBackups {
 
     /** Hours between automatic backups; 0 is off. A value that is no interval counts as off. */
     public int intervalHours() {
-        int hours = config.getInt("backups.auto-every-hours", 0);
+        int hours = config.getInt("backups.auto-every-hours", DEFAULT_HOURS);
         return INTERVALS.contains(hours) ? hours : 0;
     }
 
