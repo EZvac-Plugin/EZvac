@@ -21,6 +21,7 @@ import com.github.blade.hvac.simulation.SizingModel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
+import org.bukkit.Tag;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
@@ -220,7 +221,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 boolean pool = !args[1].equalsIgnoreCase("thermostat");
                 if (args.length < 3) throw new IllegalArgumentException(
                         "Usage: /hvac create " + args[1] + " <label> [target]");
-                requireSign(block);
+                // At a button on a wall, a mini thermostat (BETA 1.0 Pilot 2): the same, with a small display.
+                boolean mini = Tag.BUTTONS.isTagged(block.getType());
+                if (mini) requireWallButton(block);
+                else requireSign(block);
                 // Before 3.0 the word after the label was the group: create thermostat main house 72.
                 int targetArg = 3;
                 if (args.length >= 4 && !isTemperature(args[3])) {
@@ -231,10 +235,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         : (pool ? Thermostat.POOL_DEFAULT_F : Thermostat.ROOM_DEFAULT_F);
                 Thermostat thermostat = new Thermostat(position, args[2], registry.newSystem(position.worldId()),
                         target, outdoor.temperatureAt(block.getLocation()), settings, pool);
+                thermostat.setMini(mini);
                 registry.addThermostat(thermostat);
                 displays.refreshThermostat(thermostat, true);
-                player.sendMessage(green("Created " + (pool ? "pool thermostat" : "thermostat") + " '"
-                        + thermostat.id() + "'. Link equipment, vents and signs to it with /hvac link-tool."));
+                player.sendMessage(green("Created " + (mini ? "mini " : "") + (pool ? "pool thermostat" : "thermostat")
+                        + " '" + thermostat.id() + "'. Link equipment, vents and signs to it with /hvac link-tool."
+                        + (mini ? " Press the button for its menu." : "")));
             }
             case "heatpump", "heat_pump" -> createEquipment(player, block, args, EquipmentType.HEAT_PUMP);
             case "ac", "airconditioner", "air_conditioner" ->
@@ -1197,6 +1203,20 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Block block = player.getTargetBlockExact(6);
         if (block == null) player.sendMessage(red("Look directly at a block within 6 blocks."));
         return block;
+    }
+
+    /**
+     * A mini thermostat goes on a button on a wall, like a real one, and shows
+     * on a screen, so it needs screens on.
+     */
+    private void requireWallButton(Block block) {
+        if (!(block.getBlockData() instanceof org.bukkit.block.data.FaceAttachable attached)
+                || attached.getAttachedFace() != org.bukkit.block.data.FaceAttachable.AttachedFace.WALL)
+            throw new IllegalArgumentException("A mini thermostat goes on a button on a wall, not on a floor or"
+                    + " ceiling.");
+        if (!displays.screensEnabled())
+            throw new IllegalArgumentException("A mini thermostat shows on a screen, and this server has screens"
+                    + " off (displays.screens: false).");
     }
 
     private static void requireSign(Block block) {

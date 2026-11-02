@@ -15,7 +15,13 @@ public final class ScreenPlacement {
         /** On a post: the board is in the middle of the block, near its top. */
         STANDING(0.77, 0.08, 0.4),
         /** A hanging sign, on a wall or under a ceiling: a smaller board, low in the block. */
-        HANGING(0.31, 0.08, 0.34);
+        HANGING(0.31, 0.08, 0.34),
+        /**
+         * A wall button, a mini thermostat's (BETA 1.0 Pilot 2): its 6 by 4
+         * pixel face is centred in the block, 2 pixels off the wall, and the
+         * panel in front of it is a little bigger.
+         */
+        BUTTON(0.5, -0.36, 0.3);
 
         final double centreY;
         /** How far in front of the block's middle the screen goes, along the way the sign faces. */
@@ -68,6 +74,21 @@ public final class ScreenPlacement {
         // reading, 12 pixels tall at twice the size, is centred on them.
         double rowsCentre = bottom + bodyHeight - pixel * (1 + 5 * ScreenText.BIG_LINES);
         return new Layout(header, body, spot(mount, facingX, facingZ, rowsCentre - 12 * pixel, BIG_LIFT));
+    }
+
+    /**
+     * A mini thermostat's panel on its button, and its big reading over the
+     * panel's top {@link ScreenText#BIG_LINES} lines; no header (BETA 1.0
+     * Pilot 2).
+     */
+    public static Layout mini(double facingX, double facingZ, int bodyLines) {
+        Mount mount = Mount.BUTTON;
+        double pixel = mount.scale / 40.0;
+        double bodyHeight = height(mount, bodyLines);
+        double bottom = mount.centreY - bodyHeight / 2.0;
+        Spot body = spot(mount, facingX, facingZ, bottom, 0.0);
+        double rowsCentre = bottom + bodyHeight - pixel * (1 + 5 * ScreenText.BIG_LINES);
+        return new Layout(null, body, spot(mount, facingX, facingZ, rowsCentre - 12 * pixel, BIG_LIFT));
     }
 
     /** A display's height in blocks: ten pixels a line and a pixel of panel above and below. */

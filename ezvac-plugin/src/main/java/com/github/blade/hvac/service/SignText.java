@@ -24,8 +24,11 @@ public final class SignText {
      * (BETA 1.0, measured from its glyph sheets): counted as unknown before,
      * a degree sign took 9 pixels for its 5, so screen lines weren't measured.
      */
-    private static final java.util.Map<Character, Integer> SYMBOLS = java.util.Map.of(
-            '°', 5, '·', 2, '×', 6, '★', 8, '☆', 8, '❄', 8, '●', 5, '○', 6, '◆', 6, '⚠', 10);
+    private static final java.util.Map<Character, Integer> SYMBOLS = java.util.Map.ofEntries(
+            java.util.Map.entry('°', 5), java.util.Map.entry('·', 2), java.util.Map.entry('×', 6),
+            java.util.Map.entry('★', 8), java.util.Map.entry('☆', 8), java.util.Map.entry('❄', 8),
+            java.util.Map.entry('●', 5), java.util.Map.entry('○', 6), java.util.Map.entry('◆', 6),
+            java.util.Map.entry('⚠', 10));
 
     static {
         java.util.Arrays.fill(ASCII, 6);

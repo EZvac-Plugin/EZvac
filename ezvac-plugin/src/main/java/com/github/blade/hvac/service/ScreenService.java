@@ -72,7 +72,7 @@ public final class ScreenService {
         int bodyLines = screen.bodyLines();
         World world = sign.getWorld();
         Shown shown = screens.get(position);
-        if (shown != null && intact(world, shown) && shown.bodyLines() == bodyLines
+        if (shown != null && shown.header() != null && intact(world, shown) && shown.bodyLines() == bodyLines
                 && (shown.big() == null) == (bigText == null)) {
             if (!shown.headerText().equals(headerText)) display(world, shown.header()).text(headerText);
             if (!shown.tone().equals(screen.tone()))
@@ -95,11 +95,45 @@ public final class ScreenService {
                 facing.getDirection().getZ(), bodyLines, bigText != null);
         float scale = (float) mount.scale();
         UUID header = spawn(sign, position, layout.header(), scale, headerText, panel(screen.tone()),
-                TextDisplay.TextAlignment.LEFT);
-        UUID body = spawn(sign, position, layout.body(), scale, bodyText, BODY, TextDisplay.TextAlignment.CENTER);
-        UUID big = bigText == null ? null
-                : spawn(sign, position, layout.big(), scale * 2f, bigText, CLEAR, TextDisplay.TextAlignment.CENTER);
+                TextDisplay.TextAlignment.LEFT, ScreenPlacement.LINE_WIDTH);
+        UUID body = spawn(sign, position, layout.body(), scale, bodyText, BODY, TextDisplay.TextAlignment.CENTER,
+                ScreenPlacement.LINE_WIDTH);
+        UUID big = bigText == null ? null : spawn(sign, position, layout.big(), scale * 2f, bigText, CLEAR,
+                TextDisplay.TextAlignment.CENTER, ScreenPlacement.LINE_WIDTH);
         screens.put(position, new Shown(header, body, big, bodyLines, screen.tone(), headerText, bodyText, bigText));
+    }
+
+    /**
+     * Shows a mini thermostat's panel on its wall button (BETA 1.0 Pilot 2):
+     * the body and the big reading, no header. Unchanged parts aren't sent
+     * again.
+     */
+    public void showMini(BlockKey position, Block button, MiniScreen screen) {
+        if (!enabled) return;
+        Component bodyText = screen.body(), bigText = screen.bigText();
+        World world = button.getWorld();
+        Shown shown = screens.get(position);
+        if (shown != null && shown.header() == null && intact(world, shown)) {
+            if (!shown.bodyText().equals(bodyText)) display(world, shown.body()).text(bodyText);
+            if (!bigText.equals(shown.bigText())) display(world, shown.big()).text(bigText);
+            screens.put(position, new Shown(null, shown.body(), shown.big(), MiniScreen.BODY_LINES, null, null,
+                    bodyText, bigText));
+            return;
+        }
+        if (shown != null) take(world, shown);
+        BlockFace facing = facing(button.getBlockData());
+        if (facing == null) {
+            screens.remove(position);
+            return;
+        }
+        ScreenPlacement.Layout layout = ScreenPlacement.mini(facing.getDirection().getX(), facing.getDirection().getZ(),
+                MiniScreen.BODY_LINES);
+        float scale = (float) ScreenPlacement.Mount.BUTTON.scale();
+        UUID body = spawn(button, position, layout.body(), scale, bodyText, BODY, TextDisplay.TextAlignment.CENTER,
+                MiniScreen.LINE_WIDTH);
+        UUID big = spawn(button, position, layout.big(), scale * 2f, bigText, CLEAR, TextDisplay.TextAlignment.CENTER,
+                MiniScreen.LINE_WIDTH);
+        screens.put(position, new Shown(null, body, big, MiniScreen.BODY_LINES, null, null, bodyText, bigText));
     }
 
     private static Color panel(ScreenText.Tone tone) {
@@ -107,7 +141,7 @@ public final class ScreenService {
     }
 
     private UUID spawn(Block sign, BlockKey position, ScreenPlacement.Spot spot, float scale, Component text,
-                       Color background, TextDisplay.TextAlignment alignment) {
+                       Color background, TextDisplay.TextAlignment alignment, int lineWidth) {
         Location at = new Location(sign.getWorld(), sign.getX() + spot.x(), sign.getY() + spot.y(),
                 sign.getZ() + spot.z(), spot.yaw(), 0f);
         return sign.getWorld().spawn(at, TextDisplay.class, created -> {
@@ -115,7 +149,7 @@ public final class ScreenService {
             created.getPersistentDataContainer().set(tag, PersistentDataType.STRING, position.toString());
             created.setBillboard(Display.Billboard.FIXED);
             created.setAlignment(alignment);
-            created.setLineWidth(ScreenPlacement.LINE_WIDTH);
+            created.setLineWidth(lineWidth);
             created.setDefaultBackground(false);
             created.setBackgroundColor(background);
             created.setShadowed(true);
@@ -132,7 +166,7 @@ public final class ScreenService {
 
     /** True while every display of the screen is still there. */
     private static boolean intact(World world, Shown shown) {
-        return valid(world, shown.header()) && valid(world, shown.body())
+        return (shown.header() == null || valid(world, shown.header())) && valid(world, shown.body())
                 && (shown.big() == null || valid(world, shown.big()));
     }
 
