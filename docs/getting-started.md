@@ -68,7 +68,8 @@ Put a sign anywhere you like, look at it, and run:
 ```
 
 `Home` is the thermostat's name, and `72` the target (72 °F if you leave it
-out). Names don't have to be unique: every house on the server can have a
+out). Looking at a **button on a wall** instead makes a **mini thermostat**: the
+same thermostat, with a small display on the button (BETA 1.0 Pilot 2). Names don't have to be unique: every house on the server can have a
 Home. Temperatures are in °F unless the server uses Celsius (`units: C`);
 `72F` or `22C` always works. The sign shows the room temperature, what the
 system is doing, the target and how long until it gets there:
@@ -90,7 +91,9 @@ Vents are **iron trapdoors** in the room. Get the link tool:
 
 1. Right-click the thermostat sign to select it.
 2. Right-click the heat pump's dispenser to link it.
-3. Right-click each iron trapdoor in the room to link it as a vent.
+3. Right-click each iron trapdoor in the room to link it as a vent. A system
+   needs at least one vent to start: without one, its screen says
+   "Needs a vent" (BETA 1.0 Pilot 2).
 4. Sneak-right-click anything to unlink it again.
 
 If you're holding the tool with a thermostat selected when you create

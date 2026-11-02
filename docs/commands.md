@@ -52,7 +52,7 @@ these in game.
 
 | Command | Look at | Notes |
 | --- | --- | --- |
-| `/hvac create thermostat <label> [target]` | a sign | Target 60-85 °F, default 72. Labels may repeat |
+| `/hvac create thermostat <label> [target]` | a sign, or a button on a wall | Target 60-85 °F, default 72. Labels may repeat. At a wall button it makes a **mini thermostat** (BETA 1.0 Pilot 2) |
 | `/hvac create poolthermostat <label> [target]` | a sign | Also `pool`. Starts in the pool range: 75-104 °F, default 82 |
 | `/hvac create heatpump [t1\|t2\|t3]` | a dispenser | Cools and heats |
 | `/hvac create ac [t1\|t2\|t3]` | a dispenser | Cools |
@@ -196,8 +196,11 @@ console, and says one of three things:
   It also names the newest EZvac that still runs on 1.21.x, or says the
   server already has it.
 
-Like the update notifier, a server on a pilot hears about newer pilots too,
-and one on a full release only about full releases and hotfixes. It works
+Like the update notifier, it follows the server's update channel
+(`updates.channel`, BETA 1.0 Pilot 2): on Pilot it hears about newer pilots
+too, and on Stable only about full releases and hotfixes. Up to date, it says
+"the latest stable release", "the latest EZvac on the Pilot channel", or, for
+a pilot on Stable, that it waits for the next full release. It works
 even with `updates.check: false`, and asking again within a minute reuses
 the list it just read. A development build has nothing to compare against,
 and says so.

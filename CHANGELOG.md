@@ -2,6 +2,76 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 2
+
+**The thermostat's menu is where you run a system now,** and a thermostat can
+be small: a **mini thermostat** on a wall button. The save is unchanged
+(format 8), so everything carries over from Pilot 1.
+
+### Mini thermostats
+
+- **A thermostat on a wall button,** with a small display a little bigger than
+  the button: the room's temperature, the target, and a gauge of how far the
+  room has come toward it, where a full thermostat shows its ETA. Nothing a
+  real thermostat leaves out: no outdoor readings or season.
+- **Made like any thermostat:** look at a button on a wall and run
+  `/hvac create thermostat <label> [target]`. A button on a floor or ceiling
+  is refused. It's the same thermostat in every other way: its menu, linking,
+  sizing, the HUD and the API.
+- **Press it for its menu;** the press never powers the button. Sneak-press
+  switches the system off or on.
+- **A button is a mini thermostat or a sensor, never both.**
+- It shows on a screen, so it needs `displays.screens` on.
+
+### The thermostat's menu
+
+- **Profile** (top middle): Eco, Normal or Turbo, without a settings panel.
+  Click for the next, right-click for the previous. A system with a settings
+  panel shares it with the panel: either one sets it, and both show it.
+  Settings panels work as before.
+- **What needs attention** (top left): each thing the system needs, and how to
+  fix it.
+- **The system** (top right): what's linked, and with building size on, its
+  size, openings, and what it has of the units it needs. Undersized moved here
+  from the screen.
+
+### What needs attention
+
+- **A system needs a vent to start.** Its conditioned air or water has
+  nowhere to go without one; a pool needs a water vent. **On upgrading,
+  admins are told how many thermostats have units but no vent,** since those
+  no longer start.
+- **The screen counts what needs attention** in amber beside its glyph (`⚠2`):
+  no units, no vent, units switched off server-wide, or too few units for the
+  building's size. What keeps it from starting is said on its own line
+  ("Needs a vent"); the menu says what each is.
+
+### Update channels
+
+- **Choose which releases you hear about:** `updates.channel` is `stable`
+  (full releases and their hotfixes), `pilot` (pilots too), or `auto`, the
+  default, which follows the EZvac you run. **Quick settings › Updates** has
+  a Channel button.
+- **What `/hvac update` and the join notice say follows the channel:** "the
+  latest stable release", or a pilot on Stable waiting for the next full
+  release.
+
+### Also
+
+- **Automatic backups are on by default,** every 24 hours, and a Pilot 1
+  server's go on with this update. Admins are told once. Change or stop them
+  in quick settings › Backups & registry.
+- **A heating pool's water vents bubble,** where a player can see them.
+- **The humidifier's bubbles are deeper** (pitch 0.5). A sound you changed in
+  `config.yml` is kept.
+
+### API 1.7
+
+- `WeatherStationView.areaRadius()` and `areaHeight()`: a station's coverage,
+  for a map. The new MapPeek addon draws it.
+- `ThermostatView.profile()`, `mini()`, `attention()` and `blocked()`.
+- Nothing an addon built for 1.6 uses has changed.
+
 ## BETA 1.0 Pilot 1
 
 **The first BETA: EZvac on Minecraft 26.x.** One jar runs on Paper and
