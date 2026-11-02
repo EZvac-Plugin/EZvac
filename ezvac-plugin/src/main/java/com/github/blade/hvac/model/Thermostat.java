@@ -61,6 +61,12 @@ public final class Thermostat {
      * otherwise. Worked out each cycle, never saved.
      */
     private OperatingMode waitingOnUnits;
+    /**
+     * Its system's profile while no settings panel holds it (BETA 1.0 Pilot 2):
+     * the profile moved into the thermostat's menu, and a system's panel, when
+     * it has one, keeps holding it. HvacRegistry hands it between the two.
+     */
+    private OperatingProfile profile = OperatingProfile.NORMAL;
 
     /** A temperate biome's downfall, used until the thermostat's chunk is first sampled. */
     public static final double DEFAULT_DOWNFALL = 0.4;
@@ -117,6 +123,10 @@ public final class Thermostat {
         this.waitingOnUnits = needed == OperatingMode.IDLE ? null : needed;
     }
     public long ticksInMode() { return ticksInMode; }
+    /** The profile it holds for its system; use HvacRegistry.profileFor for the system's, panel or not. */
+    public OperatingProfile profile() { return profile; }
+    /** Only HvacRegistry sets it, as it hands the profile between a thermostat and a panel. */
+    public void setProfile(OperatingProfile profile) { this.profile = java.util.Objects.requireNonNull(profile, "profile"); }
     public double outdoorNoonF() { return outdoorNoonF; }
     public double outdoorMidnightF() { return outdoorMidnightF; }
     public double lastOutdoorF() { return lastOutdoorF; }
@@ -242,6 +252,8 @@ public final class Thermostat {
         }
         if (Double.isFinite(outdoorWindExposure)) map.put("outdoorWind", outdoorWindExposure);
         roomAir.write(map, "room");
+        // Saved only when it holds one (BETA 1.0 Pilot 2), so older saves save back unchanged.
+        if (profile != OperatingProfile.NORMAL) map.put("profile", profile.name());
         return map;
     }
 
@@ -284,6 +296,7 @@ public final class Thermostat {
         if (Double.isFinite(wind) && wind >= 0.0 && wind <= WindModel.MAXIMUM_EXPOSURE)
             thermostat.outdoorWindExposure = wind;
         thermostat.setRoomAir(AirQualityModel.Air.read(map, "room"));
+        thermostat.profile = OperatingProfile.parse(map.get("profile"));
         return thermostat;
     }
 

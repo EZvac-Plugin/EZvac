@@ -130,8 +130,7 @@ public final class HvacListener implements Listener {
         }
         OperatingProfile profile = event.getPlayer().isSneaking()
                 ? panel.profile().previous() : panel.profile().next();
-        panel.setProfile(profile);
-        registry.markDirty();
+        registry.setProfile(panel.system(), profile);
         displays.refreshSettingsPanel(panel, true);
         plugin.requestImmediateSync();
         event.getPlayer().sendMessage(Component.text("HVAC profile set to "

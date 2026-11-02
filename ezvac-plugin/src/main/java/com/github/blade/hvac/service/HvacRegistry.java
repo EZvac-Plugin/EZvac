@@ -904,9 +904,52 @@ public final class HvacRegistry {
         return system;
     }
 
+    /** A system's profile: its settings panel's when it has one, else its thermostat's (BETA 1.0 Pilot 2). */
     public OperatingProfile profileFor(SystemId system) {
         SettingsPanel panel = settingsPanelFor(system);
-        return panel == null ? OperatingProfile.NORMAL : panel.profile();
+        if (panel != null) return panel.profile();
+        Thermostat head = thermostatFor(system);
+        return head == null ? OperatingProfile.NORMAL : head.profile();
+    }
+
+    /**
+     * Sets a system's profile on whichever holds it, from its thermostat's
+     * menu or its panel (BETA 1.0 Pilot 2).
+     *
+     * @return false when the system has neither
+     */
+    public boolean setProfile(SystemId system, OperatingProfile profile) {
+        SettingsPanel panel = settingsPanelFor(system);
+        Thermostat head = thermostatFor(system);
+        if (panel != null) panel.setProfile(profile);
+        else if (head != null) head.setProfile(profile);
+        else return false;
+        dirty = true;
+        return true;
+    }
+
+    /**
+     * Only one of a system's thermostat and settings panel holds its profile,
+     * so the menu and the panel never disagree. A panel joining a system with
+     * a thermostat takes over the profile the system already had.
+     */
+    private void panelJoined(SettingsPanel panel) {
+        Thermostat head = panel.system() == null ? null : thermostatFor(panel.system());
+        if (head == null) return;
+        panel.setProfile(head.profile());
+        head.setProfile(OperatingProfile.NORMAL);
+    }
+
+    /** A thermostat joining a system whose panel holds its profile holds none itself. */
+    private void thermostatJoined(Thermostat thermostat) {
+        if (settingsPanelFor(thermostat.system()) != null) thermostat.setProfile(OperatingProfile.NORMAL);
+    }
+
+    /** A panel leaving its system hands the system's profile to its thermostat, which keeps it. */
+    private void handProfileBack(SettingsPanel panel) {
+        if (panel.system() == null) return;
+        Thermostat head = thermostatFor(panel.system());
+        if (head != null) head.setProfile(panel.profile());
     }
 
     public DeviceKind deviceKind(BlockKey key) {
@@ -976,6 +1019,7 @@ public final class HvacRegistry {
             throw new IllegalArgumentException("that system already has a thermostat");
         thermostats.put(thermostat.position(), thermostat);
         indexThermostat(thermostat);
+        thermostatJoined(thermostat);
         dirty = true;
         added(thermostat);
     }
@@ -1023,6 +1067,7 @@ public final class HvacRegistry {
             throw new IllegalArgumentException("that system already has a settings panel");
         settingsPanels.put(panel.position(), panel);
         indexPanel(panel);
+        panelJoined(panel);
         dirty = true;
         added(panel);
     }
@@ -1148,6 +1193,7 @@ public final class HvacRegistry {
         SettingsPanel value = settingsPanels.remove(key);
         if (value == null) return false;
         unindexPanel(value);
+        handProfileBack(value);
         dirty = true;
         removed(value);
         return true;
@@ -1169,6 +1215,7 @@ public final class HvacRegistry {
         } finally {
             indexThermostat(thermostat);
         }
+        thermostatJoined(thermostat);
         dirty = true;
     }
 
@@ -1202,11 +1249,13 @@ public final class HvacRegistry {
         if (existing != null && existing != panel)
             throw new IllegalArgumentException("that system already has a settings panel");
         unindexPanel(panel);
+        handProfileBack(panel);
         try {
             panel.setSystem(system);
         } finally {
             indexPanel(panel);
         }
+        panelJoined(panel);
         dirty = true;
     }
 
