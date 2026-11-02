@@ -121,9 +121,7 @@ public final class EtaEstimator {
     /** The controller's hold for these units: what the room loses while they run, when the outdoors is against it. */
     static double holdRequest(List<UnitSnapshot> units, double roomF, double outdoorF, OperatingMode mode,
                               OperatingProfile profile, HvacSettings settings, double leakFactor, double sizeFactor) {
-        boolean against = mode == OperatingMode.HEATING ? outdoorF < roomF
-                : mode == OperatingMode.COOLING && outdoorF > roomF;
-        if (!against) return 0.0;
+        if (!PerformanceModel.against(mode, roomF, outdoorF)) return 0.0;
         List<PerformanceModel.Unit> running = new ArrayList<>();
         for (UnitSnapshot unit : units)
             if (unit.type().supports(mode)) running.add(new PerformanceModel.Unit(unit.type(), unit.tier()));
