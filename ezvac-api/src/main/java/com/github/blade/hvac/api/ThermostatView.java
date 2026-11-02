@@ -1,5 +1,6 @@
 package com.github.blade.hvac.api;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -21,11 +22,16 @@ import java.util.Optional;
  *                     or where the server has air quality switched off
  * @param unitsOff     true while it would heat or cool but every unit that could is switched off
  *                     server-wide in /hvac quicksettings (1.6, EZvac BETA 1.0): its screen says "Units off"
+ * @param profile      its system's profile, set from its menu or a settings panel (1.7, EZvac BETA 1.0 Pilot 2)
+ * @param mini         true for a mini thermostat: a small display on a wall button instead of a sign (1.7)
+ * @param attention    what its system needs someone to look at, in the order its menu lists them; its
+ *                     screen counts them beside a ⚠ (1.7)
  * @since 1.0
  */
 public record ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
                              boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits,
-                             Optional<AirQuality> airQuality, boolean unitsOff)
+                             Optional<AirQuality> airQuality, boolean unitsOff, Profile profile, boolean mini,
+                             List<Attention> attention)
         implements HvacDevice {
     public ThermostatView {
         Objects.requireNonNull(id, "id");
@@ -33,6 +39,16 @@ public record ThermostatView(String id, String system, Position position, double
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(mode, "mode");
         airQuality = airQuality == null ? Optional.empty() : airQuality;
+        profile = profile == null ? Profile.NORMAL : profile;
+        attention = attention == null ? List.of() : List.copyOf(attention);
+    }
+
+    /** A view as in API 1.6, before profiles, mini thermostats and attention. */
+    public ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
+                          boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits,
+                          Optional<AirQuality> airQuality, boolean unitsOff) {
+        this(id, system, position, roomF, targetF, mode, enabled, pool, humidity, runningUnits, totalUnits,
+                airQuality, unitsOff, Profile.NORMAL, false, List.of());
     }
 
     /** A view as in API 1.5, before units could be switched off server-wide. */
@@ -52,6 +68,33 @@ public record ThermostatView(String id, String system, Position position, double
 
     /** What a system is doing. */
     public enum Mode { COOLING, HEATING, IDLE }
+
+    /**
+     * How fast a system's variable-speed units run (1.7): gentler and quieter,
+     * the usual, or past their usual top speed. Furnaces and boilers ignore it.
+     */
+    public enum Profile { ECO, NORMAL, TURBO }
+
+    /**
+     * What a system needs someone to look at (1.7). A switch over it needs a
+     * {@code default} branch: later versions may add kinds.
+     */
+    public enum Attention {
+        /** Nothing linked to heat or cool with: it can't start. */
+        NO_UNITS,
+        /** No vent linked (a water vent for a pool): it can't start. */
+        NO_VENTS,
+        /** It needs heating or cooling, but every unit that could is switched off server-wide. */
+        UNITS_OFF,
+        /** Too few units for the building's size, for the mode it runs or needs. */
+        UNDERSIZED
+    }
+
+    /** Whether something keeps it from starting at all. */
+    public boolean blocked() {
+        return attention.contains(Attention.NO_UNITS) || attention.contains(Attention.NO_VENTS)
+                || attention.contains(Attention.UNITS_OFF);
+    }
 
     public double roomC() { return Temperatures.celsius(roomF); }
 

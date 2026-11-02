@@ -67,6 +67,8 @@ public final class Thermostat {
      * it has one, keeps holding it. HvacRegistry hands it between the two.
      */
     private OperatingProfile profile = OperatingProfile.NORMAL;
+    /** A small display on a wall button instead of a sign (BETA 1.0 Pilot 2); everything else is the same. */
+    private boolean mini;
     /** What its system needs someone to look at (BETA 1.0 Pilot 2); worked out each cycle, never saved. */
     private java.util.Set<Attention> attention = java.util.EnumSet.noneOf(Attention.class);
 
@@ -129,6 +131,8 @@ public final class Thermostat {
     public OperatingProfile profile() { return profile; }
     /** Only HvacRegistry sets it, as it hands the profile between a thermostat and a panel. */
     public void setProfile(OperatingProfile profile) { this.profile = java.util.Objects.requireNonNull(profile, "profile"); }
+    public boolean mini() { return mini; }
+    public void setMini(boolean mini) { this.mini = mini; }
     /** What its system needs someone to look at, in {@link Attention}'s order; empty when all is well. */
     public java.util.Set<Attention> attention() { return java.util.Collections.unmodifiableSet(attention); }
     public void setAttention(java.util.Set<Attention> attention) {
@@ -262,6 +266,7 @@ public final class Thermostat {
         roomAir.write(map, "room");
         // Saved only when it holds one (BETA 1.0 Pilot 2), so older saves save back unchanged.
         if (profile != OperatingProfile.NORMAL) map.put("profile", profile.name());
+        if (mini) map.put("mini", true);
         return map;
     }
 
@@ -305,6 +310,7 @@ public final class Thermostat {
             thermostat.outdoorWindExposure = wind;
         thermostat.setRoomAir(AirQualityModel.Air.read(map, "room"));
         thermostat.profile = OperatingProfile.parse(map.get("profile"));
+        thermostat.mini = bool(map, "mini", false);
         return thermostat;
     }
 
