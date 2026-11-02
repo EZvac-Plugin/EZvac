@@ -254,9 +254,11 @@ public final class HvacController {
             updateAir(thermostat, out, leak, capacity > 0.0, elapsedTicks);
         }
 
-        boolean coolingAvailable = controllerLoaded && hasAvailableEquipment(
+        // No vent, no start (BETA 1.0 Pilot 2): conditioned air or water needs somewhere to go.
+        boolean vented = !registry.ventsFor(thermostat.system()).isEmpty();
+        boolean coolingAvailable = controllerLoaded && vented && hasAvailableEquipment(
                 thermostat.system(), OperatingMode.COOLING, managedOutputs);
-        boolean heatingAvailable = controllerLoaded && hasAvailableEquipment(
+        boolean heatingAvailable = controllerLoaded && vented && hasAvailableEquipment(
                 thermostat.system(), OperatingMode.HEATING, managedOutputs);
         ThermostatControl.State control = ThermostatControl.advance(
                 authoritative ? thermostat.mode() : OperatingMode.IDLE,
@@ -265,8 +267,31 @@ public final class HvacController {
                 authoritative && controllerLoaded && thermostat.enabled(),
                 coolingAvailable, heatingAvailable, elapsedTicks, settings);
         thermostat.setControlState(control.mode(), control.ticksInMode());
-        thermostat.setWaitingOnUnits(waitingOnUnits(thermostat, controllerLoaded && authoritative,
+        thermostat.setWaitingOnUnits(waitingOnUnits(thermostat, controllerLoaded && authoritative && vented,
                 coolingAvailable, heatingAvailable));
+        thermostat.setAttention(attention(thermostat, authoritative, vented));
+    }
+
+    /**
+     * What the system needs someone to look at (BETA 1.0 Pilot 2): nothing to
+     * heat or cool with, no vent, units switched off server-wide, or too few
+     * units for its size in the mode it runs or would start.
+     */
+    private Set<Attention> attention(Thermostat thermostat, boolean authoritative, boolean vented) {
+        if (!authoritative) return EnumSet.noneOf(Attention.class);
+        OperatingMode needed = thermostat.enabled() ? neededMode(thermostat.mode(), thermostat.roomF(),
+                thermostat.targetF(), settings) : null;
+        SizingModel.Assessment sized = needed == null ? null : assess(thermostat.system(), needed);
+        return Attention.of(!registry.equipmentFor(thermostat.system()).isEmpty(), vented,
+                thermostat.waitingOnUnits() != null, sized != null && sized.installed() > 0.0 && sized.undersized());
+    }
+
+    /** The mode a system runs, or would start in as the room stands; null when it would stay idle. */
+    static OperatingMode neededMode(OperatingMode mode, double roomF, double targetF, HvacSettings settings) {
+        if (mode != OperatingMode.IDLE) return mode;
+        if (roomF > targetF + settings.coolingStartAboveF()) return OperatingMode.COOLING;
+        if (roomF < targetF - settings.heatingStartBelowF()) return OperatingMode.HEATING;
+        return null;
     }
 
     /**

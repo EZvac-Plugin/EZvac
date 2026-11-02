@@ -53,6 +53,7 @@ public final class ScreenText {
     private final String title;
     private final String belongsTo;
     private Tone tone = Tone.NEUTRAL;
+    private int attention;
     private Component big;
     private final List<Component> lines = new ArrayList<>();
 
@@ -73,6 +74,19 @@ public final class ScreenText {
     }
 
     public Tone tone() { return tone; }
+
+    /**
+     * How many things need someone's attention (BETA 1.0 Pilot 2): shown in
+     * amber as {@code ⚠2} before the header's glyph; none when 0. What they
+     * are is in the device's menu.
+     */
+    public ScreenText attention(int count) {
+        attention = Math.max(0, count);
+        return this;
+    }
+
+    /** The amber of the attention count. */
+    static final TextColor ATTENTION = TextColor.color(0xFFC247);
 
     /** The reading that matters most, big and bold. */
     public ScreenText big(String reading) {
@@ -129,7 +143,9 @@ public final class ScreenText {
         String suffix = belongsTo.isEmpty() ? "" : "  · " + belongsTo;
         // At least a space always comes before the glyph, and a space's width is left spare at the
         // end, so a glyph a little wider than the sign's table thinks never wraps the strip.
-        int room = WIDTH - glyphWidth() - SignText.width(" "), text = room - SignText.width(" ");
+        String warning = attention > 0 ? "⚠" + attention + " " : "";
+        int room = WIDTH - glyphWidth() - SignText.width(warning) - SignText.width(" "),
+                text = room - SignText.width(" ");
         String name = SignText.fit(title, text - SignText.width(suffix));
         if (name.isEmpty()) {
             name = SignText.fit(title, text);
@@ -139,6 +155,7 @@ public final class ScreenText {
         if (!suffix.isEmpty()) line = line.append(Component.text(suffix, TextColor.color(0xC8D0DA)));
         int spaces = Math.max(1, (room - SignText.width(name + suffix)) / SignText.width(" "));
         line = line.append(Component.text(" ".repeat(spaces)));
+        if (!warning.isEmpty()) line = line.append(Component.text(warning, ATTENTION));
         return tone.glyph().isEmpty() ? line : line.append(Component.text(tone.glyph(), NamedTextColor.WHITE));
     }
 
@@ -170,7 +187,7 @@ public final class ScreenText {
     /** The text as plain characters, without the padding: the header, the big reading, the lines. */
     String plain() {
         List<String> all = new ArrayList<>();
-        all.add(belongsTo.isEmpty() ? title : title + "  · " + belongsTo);
+        all.add((belongsTo.isEmpty() ? title : title + "  · " + belongsTo) + (attention > 0 ? " ⚠" + attention : ""));
         if (big != null) all.add(PlainTextComponentSerializer.plainText().serialize(big));
         for (Component line : lines) all.add(PlainTextComponentSerializer.plainText().serialize(line));
         return String.join("\n", all);
