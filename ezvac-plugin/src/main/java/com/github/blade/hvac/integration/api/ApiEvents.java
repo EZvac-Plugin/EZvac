@@ -39,7 +39,7 @@ public final class ApiEvents {
         if (thermostat.mode() == from) return;
         fire(ThermostatModeChangeEvent.getHandlerList(), () -> new ThermostatModeChangeEvent(
                 ApiViews.thermostat(thermostat, controller.status(thermostat.system()),
-                        controller.airQuality()), ApiViews.mode(from)));
+                        controller.airQuality(), controller.profileFor(thermostat.system())), ApiViews.mode(from)));
     }
 
     public static void targetChanged(Thermostat thermostat, double previousF, ThermostatTargetChangeEvent.Cause cause,
@@ -47,7 +47,7 @@ public final class ApiEvents {
         if (thermostat.targetF() == previousF) return;
         fire(ThermostatTargetChangeEvent.getHandlerList(), () -> new ThermostatTargetChangeEvent(
                 ApiViews.thermostat(thermostat, controller.status(thermostat.system()),
-                        controller.airQuality()), previousF, cause));
+                        controller.airQuality(), controller.profileFor(thermostat.system())), previousF, cause));
     }
 
     public static void equipmentChanged(EquipmentUnit unit, boolean running) {

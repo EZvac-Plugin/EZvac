@@ -93,6 +93,11 @@ public final class HvacController {
      * How a system measures up for a mode (BETA 1.0), or null with building
      * size off or before it is mapped.
      */
+    /** A system's profile, from its panel or its thermostat (BETA 1.0 Pilot 2), for API views. */
+    public OperatingProfile profileFor(SystemId system) {
+        return registry.profileFor(system);
+    }
+
     public SizingModel.Assessment assess(SystemId system, OperatingMode mode) {
         if (!sizing.enabled()) return null;
         AirflowService.Shape shape = mapped(system);

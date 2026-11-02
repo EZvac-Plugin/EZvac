@@ -19,14 +19,23 @@ import java.util.Optional;
  * @param outdoorF         the outdoor air of the area it measures, right now; NaN before it has measured it
  * @param forecast         today first, seven days; empty while it isn't forecasting (off, damaged, switched
  *                         off server-wide, or not measured yet)
+ * @param areaRadius       how far each way it measures, in blocks: its coverage, as a map shows it (1.7)
+ * @param areaHeight       how far above it it measures, in blocks (1.7)
  * @since 1.6
  */
 public record WeatherStationView(String label, Position position, boolean enabled, boolean intact,
-                                 long lightningStrikes, double outdoorF, List<ForecastDay> forecast) {
+                                 long lightningStrikes, double outdoorF, List<ForecastDay> forecast,
+                                 int areaRadius, int areaHeight) {
     public WeatherStationView {
         Objects.requireNonNull(label, "label");
         Objects.requireNonNull(position, "position");
         forecast = forecast == null ? List.of() : List.copyOf(forecast);
+    }
+
+    /** A view as in API 1.6, before its coverage was known: 100 blocks each way and 20 up, the default. */
+    public WeatherStationView(String label, Position position, boolean enabled, boolean intact,
+                              long lightningStrikes, double outdoorF, List<ForecastDay> forecast) {
+        this(label, position, enabled, intact, lightningStrikes, outdoorF, forecast, 100, 20);
     }
 
     /** Whether it is forecasting: on, standing, switched on server-wide, and measured. */

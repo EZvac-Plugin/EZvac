@@ -8,7 +8,10 @@ import com.github.blade.hvac.api.SystemSize;
 import com.github.blade.hvac.api.ThermostatView;
 import com.github.blade.hvac.api.WeatherStationView;
 import com.github.blade.hvac.api.Wind;
+import com.github.blade.hvac.model.Attention;
 import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.OperatingProfile;
+import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.WeatherStation;
 import com.github.blade.hvac.simulation.Forecast;
@@ -24,12 +27,12 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** API 1.6: what EZvac BETA 1.0 added, for addons. */
+/** API 1.6 and 1.7: what EZvac BETA 1.0 and its Pilot 2 added, for addons. */
 class ApiBetaTest {
     private static final UUID WORLD = UUID.randomUUID();
 
     @Test
-    void theApiIsVersion16() {
+    void theApiIsVersion17() {
         assertEquals("1.7", EzvacApi.API_VERSION);
     }
 
@@ -53,6 +56,38 @@ class ApiBetaTest {
         Forecast.Day still = new Forecast.Day(1, 70, 50, 0, 0, Forecast.Sky.CLEAR, null, Double.NaN, "");
         assertEquals(Optional.empty(), ApiViews.weatherStation(station, 70, List.of(still)).forecast().get(0).wind(),
                 "no wind with wind switched off");
+    }
+
+    @Test
+    void aWeatherStationSaysHowFarItMeasuresForAMapToDraw() {
+        // API 1.7: MapPeek draws this as the station's coverage.
+        WeatherStation station = new WeatherStation(new BlockKey(WORLD, 10, 64, 20), "Harbour");
+        WeatherStationView view = ApiViews.weatherStation(station, 70.4, List.of(), 150, 30);
+        assertEquals(150, view.areaRadius());
+        assertEquals(30, view.areaHeight());
+        WeatherStationView old = new WeatherStationView("Old", new Position(WORLD, 0, 64, 0), true, true, 0,
+                70.0, List.of());
+        assertEquals(100, old.areaRadius(), "the 1.6 constructor gives the default area");
+    }
+
+    @Test
+    void aThermostatSaysItsProfileWhetherItIsMiniAndWhatNeedsAttention() {
+        // API 1.7 (EZvac BETA 1.0 Pilot 2).
+        Thermostat thermostat = new Thermostat(new BlockKey(WORLD, 0, 64, 0), "Hall", new SystemId(WORLD, "#3"),
+                72, 70, com.github.blade.hvac.config.HvacSettings.defaults(), false);
+        thermostat.setMini(true);
+        thermostat.setAttention(java.util.EnumSet.of(Attention.NO_VENTS, Attention.UNDERSIZED));
+        ThermostatView view = ApiViews.thermostat(thermostat, null, null, OperatingProfile.TURBO);
+        assertEquals(ThermostatView.Profile.TURBO, view.profile());
+        assertTrue(view.mini());
+        assertEquals(List.of(ThermostatView.Attention.NO_VENTS, ThermostatView.Attention.UNDERSIZED), view.attention());
+        assertTrue(view.blocked(), "no vent keeps it from starting");
+        ThermostatView old = new ThermostatView("Old", "#1", new Position(WORLD, 0, 64, 0), 70, 72,
+                ThermostatView.Mode.IDLE, true, false, Double.NaN, 0, 0, Optional.empty(), false);
+        assertEquals(ThermostatView.Profile.NORMAL, old.profile());
+        assertEquals(List.of(), old.attention());
+        assertFalse(old.mini() || old.blocked(), "the 1.6 constructor: nothing new set");
+        for (Attention each : Attention.values()) ThermostatView.Attention.valueOf(each.name());
     }
 
     @Test

@@ -27,6 +27,7 @@ import com.github.blade.hvac.model.Dehumidifier;
 import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.EquipmentUnit;
 import com.github.blade.hvac.model.OperatingMode;
+import com.github.blade.hvac.model.OperatingProfile;
 import com.github.blade.hvac.model.RpmMonitor;
 import com.github.blade.hvac.model.Sensor;
 import com.github.blade.hvac.model.SensorHub;
@@ -74,6 +75,12 @@ public final class ApiViews {
     /** The same, with the room's air when air quality is on (API 1.5). */
     public static ThermostatView thermostat(Thermostat thermostat, HvacController.SystemStatus status,
                                             AirQualitySettings air) {
+        return thermostat(thermostat, status, air, OperatingProfile.NORMAL);
+    }
+
+    /** The same, with its system's profile (API 1.7), which a settings panel may hold instead of it. */
+    public static ThermostatView thermostat(Thermostat thermostat, HvacController.SystemStatus status,
+                                            AirQualitySettings air, OperatingProfile profile) {
         double humidity = !thermostat.pool() && thermostat.hasRoomDewPoint()
                 ? Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF()) : Double.NaN;
         return new ThermostatView(thermostat.id(), thermostat.system().key(), position(thermostat.position()),
@@ -81,11 +88,19 @@ public final class ApiViews {
                 thermostat.pool(), humidity, status == null ? 0 : status.running(),
                 status == null ? 0 : status.equipment(),
                 thermostat.pool() ? Optional.empty() : airQuality(thermostat.roomAir(), air),
-                thermostat.enabled() && thermostat.waitingOnUnits() != null);
+                thermostat.enabled() && thermostat.waitingOnUnits() != null,
+                ThermostatView.Profile.valueOf(profile.name()), thermostat.mini(),
+                thermostat.attention().stream().map(each -> ThermostatView.Attention.valueOf(each.name())).toList());
     }
 
     /** A weather station and its forecast (API 1.6); an empty forecast while it isn't forecasting. */
     public static WeatherStationView weatherStation(WeatherStation station, double outdoorF, List<Forecast.Day> days) {
+        return weatherStation(station, outdoorF, days, 100, 20);
+    }
+
+    /** The same, with the area it measures (API 1.7): its coverage on a map. */
+    public static WeatherStationView weatherStation(WeatherStation station, double outdoorF, List<Forecast.Day> days,
+                                                    int areaRadius, int areaHeight) {
         List<WeatherStationView.ForecastDay> forecast = new ArrayList<>(days.size());
         for (Forecast.Day day : days)
             forecast.add(new WeatherStationView.ForecastDay(day.ahead(), day.highF(), day.lowF(),
@@ -94,7 +109,7 @@ public final class ApiViews {
                             : Optional.of(new Wind.Day(day.wind().day(), level(day.wind().level()), day.wind().meanMs())),
                     day.pollen(), day.note()));
         return new WeatherStationView(station.label(), position(station.position()), station.enabled(),
-                station.intact(), station.strikes(), outdoorF, forecast);
+                station.intact(), station.strikes(), outdoorF, forecast, areaRadius, areaHeight);
     }
 
     /** A system's size and what it needs (API 1.6), from its cooling and heating assessments. */

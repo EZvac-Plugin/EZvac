@@ -170,7 +170,8 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
 
     private WeatherStationView stationView(WeatherStation station) {
         return ApiViews.weatherStation(station, stations.nowF(station),
-                WeatherStationService.working(station) ? stations.forecast(station) : List.of());
+                WeatherStationService.working(station) ? stations.forecast(station) : List.of(),
+                stations.settings().areaRadius(), stations.settings().areaHeight());
     }
 
     @Override
@@ -417,7 +418,8 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     }
 
     private ThermostatView view(Thermostat thermostat) {
-        return ApiViews.thermostat(thermostat, controller.status(thermostat.system()), air());
+        return ApiViews.thermostat(thermostat, controller.status(thermostat.system()), air(),
+                registry.profileFor(thermostat.system()));
     }
 
     // ---- per-player updates, on the HUD's cadence ----
