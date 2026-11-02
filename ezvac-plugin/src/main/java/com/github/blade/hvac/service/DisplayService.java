@@ -302,6 +302,10 @@ public final class DisplayService {
     }
 
     public void refreshThermostat(Thermostat thermostat, boolean force) {
+        if (thermostat.mini()) {
+            refreshMini(thermostat, force);
+            return;
+        }
         String mode = switch (thermostat.mode()) {
             case COOLING -> "COOL";
             case HEATING -> "HEAT";
@@ -798,6 +802,46 @@ public final class DisplayService {
      * shows), and whenever it is missing: a chunk unloading takes screens away,
      * and this puts them back. Its text is only sent when it changed.
      */
+    /**
+     * A mini thermostat's panel on its wall button (BETA 1.0 Pilot 2). It has
+     * no sign, so nothing shows with screens off.
+     */
+    private void renderMini(BlockKey position, String fingerprint, boolean force,
+                            java.util.function.Supplier<MiniScreen> screen) {
+        if (!position.isChunkLoaded() || !screens.enabled()) return;
+        var block = position.location() == null ? null : position.location().getBlock();
+        if (block == null || !org.bukkit.Tag.BUTTONS.isTagged(block.getType())) {
+            screens.remove(position);
+            return;
+        }
+        if (force || !fingerprint.equals(fingerprints.get(position)) || !screens.showing(position, block)) {
+            screens.showMini(position, block, screen.get());
+            fingerprints.put(position, fingerprint);
+        }
+    }
+
+    /** A mini thermostat's short reason it can't start, for its gauge's line; empty when nothing stops it. */
+    static String miniBlocked(java.util.Set<Attention> attention, boolean waiting) {
+        if (attention.contains(Attention.NO_UNITS)) return "No unit";
+        if (attention.contains(Attention.NO_VENTS)) return "No vent";
+        return waiting ? "Units off" : "";
+    }
+
+    /** Whether screens are on (displays.screens): a mini thermostat needs them. */
+    public boolean screensEnabled() { return screens.enabled(); }
+
+    private void refreshMini(Thermostat thermostat, boolean force) {
+        java.util.Set<Attention> attention = thermostat.attention();
+        String blocked = thermostat.enabled() ? miniBlocked(attention, thermostat.waitingOnUnits() != null) : "";
+        double progress = thermostat.progress();
+        String fingerprint = String.format(Locale.US, "mini|%.1f|%.1f|%s|%s|%d|%s|%d", thermostat.roomF(),
+                thermostat.targetF(), thermostat.mode(), thermostat.enabled(),
+                Double.isFinite(progress) ? (int) Math.round(progress * 16) : -1, attention, blocked.length());
+        renderMini(thermostat.position(), fingerprint, force, () -> MiniScreen.of(settings.units(),
+                thermostat.roomF(), thermostat.targetF(), thermostat.mode(), thermostat.enabled(), progress,
+                attention.size(), blocked));
+    }
+
     private void render(BlockKey position, String fingerprint, boolean force,
                         java.util.function.Consumer<Lines> writer, java.util.function.Supplier<ScreenText> screen) {
         if (!position.isChunkLoaded()) return;

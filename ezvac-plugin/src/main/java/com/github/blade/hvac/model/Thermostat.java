@@ -69,6 +69,12 @@ public final class Thermostat {
     private OperatingProfile profile = OperatingProfile.NORMAL;
     /** A small display on a wall button instead of a sign (BETA 1.0 Pilot 2); everything else is the same. */
     private boolean mini;
+    /**
+     * The room's temperature when the system last started heating or cooling,
+     * for a mini thermostat's gauge; NaN while idle. Never saved: after a
+     * restart the gauge starts again from where the room is.
+     */
+    private double runStartF = Double.NaN;
     /** What its system needs someone to look at (BETA 1.0 Pilot 2); worked out each cycle, never saved. */
     private java.util.Set<Attention> attention = java.util.EnumSet.noneOf(Attention.class);
 
@@ -133,6 +139,27 @@ public final class Thermostat {
     public void setProfile(OperatingProfile profile) { this.profile = java.util.Objects.requireNonNull(profile, "profile"); }
     public boolean mini() { return mini; }
     public void setMini(boolean mini) { this.mini = mini; }
+
+    /** The block a thermostat stands on: a sign, or a button for a mini thermostat (BETA 1.0 Pilot 2). */
+    public static boolean standsOn(org.bukkit.Material type, boolean mini) {
+        return mini ? org.bukkit.Tag.BUTTONS.isTagged(type) : org.bukkit.Tag.ALL_SIGNS.isTagged(type);
+    }
+
+    /**
+     * How far the room has come toward the target since the system started
+     * heating or cooling: 0 at the start, 1 there. NaN while idle.
+     */
+    public double progress() {
+        if (mode == OperatingMode.IDLE || !Double.isFinite(runStartF)) return Double.NaN;
+        return progress(runStartF, roomF, targetF);
+    }
+
+    /** From where a run started to the target: 0 at the start, 1 there, never outside 0 to 1. */
+    public static double progress(double startF, double roomF, double targetF) {
+        double distance = targetF - startF;
+        if (Math.abs(distance) < 1e-6) return 1.0;
+        return Math.max(0.0, Math.min(1.0, (roomF - startF) / distance));
+    }
     /** What its system needs someone to look at, in {@link Attention}'s order; empty when all is well. */
     public java.util.Set<Attention> attention() { return java.util.Collections.unmodifiableSet(attention); }
     public void setAttention(java.util.Set<Attention> attention) {
@@ -192,7 +219,9 @@ public final class Thermostat {
     public void setRoomF(double roomF) { this.roomF = ThermalModel.clampTemperature(roomF); }
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
     public void setControlState(OperatingMode mode, long ticksInMode) {
-        this.mode = Objects.requireNonNull(mode, "mode");
+        Objects.requireNonNull(mode, "mode");
+        if (mode != this.mode || !Double.isFinite(runStartF)) runStartF = mode == OperatingMode.IDLE ? Double.NaN : roomF;
+        this.mode = mode;
         this.ticksInMode = Math.max(0L, ticksInMode);
     }
     public void setOutdoorProfile(double noonF, double midnightF) {

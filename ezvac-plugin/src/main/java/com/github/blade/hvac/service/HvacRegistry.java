@@ -1417,7 +1417,7 @@ public final class HvacRegistry {
             Thermostat value = thermostatIterator.next();
             if (!value.position().isChunkLoaded()) continue;
             var location = value.position().location();
-            if (location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType())) continue;
+            if (location != null && Thermostat.standsOn(location.getBlock().getType(), value.mini())) continue;
             thermostatIterator.remove(); removed++;
             removed(value, DeviceObserver.Cause.MISSING);
         }

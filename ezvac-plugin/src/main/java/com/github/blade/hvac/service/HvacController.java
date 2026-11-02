@@ -478,7 +478,7 @@ public final class HvacController {
     private static boolean isControllerLoaded(Thermostat thermostat) {
         if (!thermostat.position().isChunkLoaded()) return false;
         var location = thermostat.position().location();
-        return location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType());
+        return location != null && Thermostat.standsOn(location.getBlock().getType(), thermostat.mini());
     }
 
     private static void record(EquipmentUnit.Actuation actuation, EquipmentUnit unit,
