@@ -517,8 +517,15 @@ DISPLAYS AND AUDIO
   auto-flip (every 100 ticks), which is saved; the page is not. A 2.x
   monitor's equipmentType is read and dropped.
 - Settings-panel signs show their system and ECO/NORMAL/TURBO profile. A normal
-  right-click advances the profile; sneak-right-click moves backward. Removing
-  or unlinking the panel immediately restores the system to NORMAL.
+  right-click advances the profile; sneak-right-click moves backward. Since
+  BETA 1.0 Pilot 2 the thermostat's menu sets it too (slot 4: click next,
+  right-click previous). Exactly one holder: a system with a panel keeps it on
+  the panel (saves unchanged); without one, on its Thermostat (saved as
+  profile: only when not NORMAL). HvacRegistry.profileFor/setProfile read and
+  write the holder; a panel joining a system with a thermostat takes the
+  system's profile (panelJoined), a thermostat joining one with a panel holds
+  none (thermostatJoined), and a panel leaving hands it back
+  (handProfileBack), so the system keeps its profile.
 - Display writes are fingerprinted so unchanged signs are not rewritten.
 - Screens (displays.screens, default true, 2.1): non-persistent text
   display entities in front of each device sign (ScreenService), placed by
@@ -787,6 +794,47 @@ QUICK SETTINGS
   deleted with their seasons files; manual ones never are.
 - UpdateNotifier.setChecking() starts or stops the background checks live
   (updates.check); setNotifyAdmins() (updates.notify-admins).
+
+
+BETA 1.0 PILOT 2
+- Attention (model): NO_UNITS, NO_VENTS, UNITS_OFF, UNDERSIZED, worked out each
+  cycle by HvacController.attention (Attention.of; UNDERSIZED judged in the
+  mode it runs or would start in, neededMode, with building size on) and kept
+  transient on the Thermostat. A system with no linked vent never starts:
+  updateThermostat's cooling/heatingAvailable need registry.ventsFor() to be
+  non-empty. The screen header counts them (ScreenText.attention: amber ⚠N
+  before the glyph, the name cut before the count); DisplayService.blockedLine
+  says "Needs a unit" / "Needs a vent" / "Needs a water vent" in red where the
+  state line would be. The menu (ControlMenus): slot 0 attention (each with its
+  fix), 4 profile, 8 system (units, vents, size, openings, has/needs).
+- Mini thermostats: a Thermostat with mini: true (saved only when true) at a
+  wall button (Thermostat.standsOn: Tag.BUTTONS for a mini, Tag.ALL_SIGNS
+  else; the controller and pruneMissingLoadedDevices use it). /hvac create
+  thermostat at a button makes one (requireWallButton: FaceAttachable WALL,
+  screens on). Clicks go through the usual thermostat handlers, cancelled, so
+  the button never presses. ScreenService.showMini: a body and a big display
+  (no header) at ScreenPlacement.mini / Mount.BUTTON (centre 0.5, depth -0.36,
+  scale 0.3), MiniScreen.LINE_WIDTH 60 px (0.45 x 0.32 blocks). MiniScreen
+  (the maintainer's pick of three designs): the room temperature big, in whole
+  degrees without a unit letter and in the mode's colour; "Set 85°" (with
+  " ⚠N"; "Set" goes before the count would be cut); and a gauge of 16 thin
+  bars from Thermostat.progress() (room vs runStartF, set when the mode
+  changes, never saved), a green dot while idle, "Off", or a short reason
+  (DisplayService.miniBlocked). Registry requireFree keeps a button a mini
+  thermostat or a sensor, never both.
+- Water vent bubbles: HvacAudioService.ventBubbles, on the bubble task, puts
+  BUBBLE_COLUMN_UP over each water vent of an enabled pool thermostat that is
+  HEATING, only with a player within the audio radius.
+- Update channels: updates.channel auto|stable|pilot; UpdateCheck.Channel.of
+  resolves auto from the running build; newer() skips pilots on STABLE.
+  UpdateNotifier.channel()/setChannel() (forgets what was found and checks
+  again); report() words "up to date" per channel. Quick settings › Updates
+  slot 19 steps auto › stable › pilot.
+- First Pilot 2 start (ConfigUpdater.PILOT_2 = updates.channel added):
+  pilotTwo() moves Pilot 1's stock humidifier bubbles (0.35 1.0) to 0.35 0.5
+  and backups.auto-every-hours 0 to 24 (RegistryBackups.DEFAULT_HOURS);
+  StartupNotices.withPilotTwo tells admins once that backups are on and how
+  many thermostats with units have no vent.
 
 
 WEATHER STATIONS

@@ -308,6 +308,9 @@ depend: [EZvac]
   events), and 1.3 with ALPHA 3.0 (linked systems: `thermostatAt`,
   `thermostatOf`, the link tool), 1.4 with ALPHA 3.1 (`EquipmentView.tier()`),
   1.5 with ALPHA 3.2 (`AirQuality`, air purifiers, air monitors and air
-  sensors, `Wind` and wind sensors), and 1.6 with BETA 1.0 (`SystemSize`,
-  `ServerSettingsView`, weather stations, `airflowStrength()`, `unitsOff()`).
+  sensors, `Wind` and wind sensors), 1.6 with BETA 1.0 (`SystemSize`,
+  `ServerSettingsView`, weather stations, `airflowStrength()`, `unitsOff()`),
+  and 1.7 with BETA 1.0 Pilot 2 (`WeatherStationView.areaRadius()` and
+  `areaHeight()`, `ThermostatView.profile()`, `mini()`, `attention()` and
+  `blocked()`).
   Depend on the oldest EZvac whose API has what you use.

@@ -43,6 +43,7 @@ no longer read.
 updates:
   check: true
   notify-admins: true
+  channel: auto
 ```
 
 New in BETA 1.0. EZvac checks GitHub for a newer release in the background:
@@ -52,9 +53,11 @@ releases.
 - **A newer one is logged,** with a link.
 - **`notify-admins`:** players with `ezvac.admin` are also told when they
   join, with a link they can click.
-- **Pilots:** a server running a pilot hears about newer pilots and full
-  releases. One running a full release only hears about full releases and
-  their hotfixes.
+- **`channel`** (BETA 1.0 Pilot 2): which releases it hears about.
+  `stable`: full releases and their hotfixes only, even on a pilot. `pilot`:
+  pilots too, the test builds before a full release. `auto`, the default:
+  `pilot` on a pilot, `stable` on a full release. Quick settings › Updates
+  switches it.
 - **A newer Minecraft:** when the newest release needs a newer Minecraft
   than the server runs (BETA 2.x needs 26.1 or newer), the message says so,
   and names the newest release that still runs on the server.
@@ -84,14 +87,16 @@ runs, and writes the list here.
 
 ```yaml
 backups:
-  auto-every-hours: 0
+  auto-every-hours: 24
   keep: 10
 ```
 
 New in BETA 1.0. Backups of the registry go to `plugins/EZvac/backups/`.
 
 - **`auto-every-hours`:** 0 is off, or 4, 8, 12, 24, 48 or 168 (a week). It
-  counts real time, through restarts. Any other value counts as off.
+  counts real time, through restarts. Any other value counts as off. Every 24
+  hours by default since BETA 1.0 Pilot 2; a server still at Pilot 1's 0
+  moves to 24 when it updates, and admins are told.
 - **`keep`:** how many automatic backups are kept; older ones are deleted.
   Backups made by hand in [quick settings](screens-and-menus.md#backups--registry) are
   never deleted.

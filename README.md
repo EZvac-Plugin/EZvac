@@ -61,9 +61,10 @@ biome and the weather.
 > or Celsius server wide. See the [changelog](CHANGELOG.md).
 
 > **BETA 1.0 pilots:** pilots are test builds of BETA 1.0, published as
-> prereleases (betas on Modrinth) before the full release. A server running
-> a pilot is told about newer pilots; one running a full release only about
-> full releases.
+> prereleases (betas on Modrinth) before the full release. Which ones a server
+> hears about is its update channel (`updates.channel`, or quick settings ›
+> Updates): Stable for full releases and their hotfixes, Pilot for pilots too.
+> By default it follows the EZvac the server runs.
 >
 > **1.21.x is on its way out.** BETA 1.x still supports Minecraft 1.21.1 to
 > 1.21.11 and says so at start-up. It's played and tested on 26.x first: on

@@ -273,8 +273,12 @@ A **settings panel** switches a system between Eco, Normal and Turbo:
 ```
 
 Right-click the sign to move forward through the profiles and sneak-right-click
-to move back. Without a panel a system always uses Normal, and removing or
-unlinking the panel returns it to Normal. A system has one panel.
+to move back. A system has one panel.
+
+**The thermostat's menu sets it too** (BETA 1.0 Pilot 2), so a system doesn't
+need a panel: click the profile at the top of the menu for the next one,
+right-click for the previous. A system with a panel shares it with the panel,
+and removing or unlinking the panel leaves the system on the profile it had.
 
 | Profile | Default top speed | Variable-unit capacity |
 | --- | ---: | ---: |

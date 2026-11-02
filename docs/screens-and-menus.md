@@ -30,7 +30,8 @@ All screens are the same size, so a wall of devices lines up.
 
 | Device | Shows |
 | --- | --- |
-| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season (the season is left off on a day too hot to fit both). While it works with too few units for its size, a gold **Undersized 1/3** line: what it has of what it needs, in ★★★ units (BETA 1.0) |
+| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season (the season is left off on a day too hot to fit both). An amber **⚠2** beside the header's glyph counts what needs attention, which its menu lists (BETA 1.0 Pilot 2); what keeps it from starting is said in red instead of what it's doing (`Needs a vent`, `Needs a unit`, `Units off`) |
+| Mini thermostat | On its wall button (BETA 1.0 Pilot 2): the room temperature big in whole degrees, coloured by what it's doing, the target (`Set 85°`), and a gauge of thin bars of how far the room has come toward it since it started heating or cooling; a green dot while it holds. `⚠2` follows the target when something needs attention, and a short reason (`No vent`) replaces the gauge when something stops it. No outdoor readings or season |
 | Thermometer, hygrometer, thermo-hygrometer | The reading, feels-like, the outdoors, the weather and season |
 | Air monitor | The AQI, its band, what's behind it, pollen |
 | Dehumidifier, humidifier | The humidity, the setpoint, its state, and a dehumidifier's tank |
@@ -57,7 +58,8 @@ later release. Bedrock players coming in through Geyser can't see screens.
 
 ## Control menus
 
-Right-click a **thermostat** sign (room or pool) to open its control menu:
+Right-click a **thermostat** sign (room or pool), or press a mini
+thermostat's button, to open its control menu:
 
 | | Raise | Lower |
 | --- | --- | --- |
@@ -73,6 +75,18 @@ Right-click a **thermostat** sign (room or pool) to open its control menu:
   plays a low note.
 - In the middle: the target, the room's temperature and humidity, the allowed
   range, and a **lever** that switches the system off or on.
+- **Along the top** (BETA 1.0 Pilot 2):
+  - **left, what needs attention:** each thing the system needs, with how to
+    fix it: no units, no vent (it won't start without one), units switched off
+    server-wide, or undersized for its building. "All good" when there's
+    nothing. The thermostat's screen counts them beside a ⚠;
+  - **middle, the profile:** Eco, Normal or Turbo (see
+    [Operating profiles](equipment.md#operating-profiles)). Click for the
+    next, right-click for the previous. A settings panel linked to the
+    system shows and sets the same one;
+  - **right, the system:** its units and vents, and with building size on,
+    its size, openings, and what it has of the units it needs for cooling and
+    heating.
 
 Right-click a **dehumidifier** or **humidifier** sign for its menu: the black
 pane raises the setpoint by 5% and the white one lowers it, from the lowest to
@@ -153,7 +167,7 @@ opens a recovery menu instead: salvage the file, or restore a backup. See
   it) to `plugins/EZvac/backups/`, as `hvac-<date>_<time>-manual.yml`. A
   backup made by hand is kept until you delete it.
 - **Automatic** steps through Off, every 4, 8, 12, 24 or 48 hours, and every
-  week. It counts real time, through restarts: a server that was down longer
+  week. It's every 24 hours unless you change it (BETA 1.0 Pilot 2). It counts real time, through restarts: a server that was down longer
   than the interval backs up a minute after it starts. Only the newest 10
   automatic backups are kept (`backups.keep`).
 - The third item shows the newest backup, how long ago it was made, and how
@@ -181,3 +195,8 @@ of the units it needs, for cooling and heating, the worst sized first.
 This server's EZvac and Minecraft, **Check now** (the same as `/hvac update`,
 answered in chat), and switches for the background checks and for telling
 admins when they join (`updates.check` and `updates.notify-admins`).
+
+**Channel** (under the version, BETA 1.0 Pilot 2) is which releases the
+server hears about: **Stable**, full releases and their hotfixes, or
+**Pilot**, pilots too. Click to step through auto, stable and pilot; auto
+follows the EZvac the server runs. It's `updates.channel` in `config.yml`.
