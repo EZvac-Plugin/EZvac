@@ -12,11 +12,33 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Which GitHub release, if any, a server should hear about (BETA 1.0). A
- * server running a pilot hears about newer pilots and releases; one running a
- * release only about newer releases and their hotfixes.
+ * Which GitHub release, if any, a server should hear about (BETA 1.0). It
+ * follows the server's update channel (BETA 1.0 Pilot 2): on Pilot, newer
+ * pilots and releases; on Stable, only newer releases and their hotfixes.
  */
 public final class UpdateCheck {
+
+    /** Which releases a server hears about (BETA 1.0 Pilot 2). */
+    public enum Channel {
+        /** Full releases and their hotfixes. */
+        STABLE("Stable"),
+        /** Pilots too: the test builds before a full release. */
+        PILOT("Pilot");
+
+        private final String displayName;
+
+        Channel(String displayName) { this.displayName = displayName; }
+
+        public String displayName() { return displayName; }
+
+        /** {@code updates.channel}: stable or pilot, or auto (and anything else) for the running build's. */
+        public static Channel of(String setting, ReleaseVersion running) {
+            String value = setting == null ? "" : setting.trim().toLowerCase(java.util.Locale.ROOT);
+            if (value.equals("stable")) return STABLE;
+            if (value.equals("pilot")) return PILOT;
+            return running != null && running.isPilot() ? PILOT : STABLE;
+        }
+    }
 
     public record Release(ReleaseVersion version, String tag, String url, boolean pilot) {}
 
@@ -69,16 +91,21 @@ public final class UpdateCheck {
         return releases;
     }
 
-    /** The newest release newer than {@code current} that this server should hear about, or null. */
+    /** The newest release newer than {@code current} on its build's own channel, or null. */
     public static Release newer(ReleaseVersion current, List<Release> releases) {
-        return newer(current, releases, release -> true);
+        return newer(current, releases, Channel.of("auto", current), release -> true);
     }
 
-    /** What a server running {@code current} on Minecraft {@code minecraft} should hear about. */
+    /** What a server running {@code current} on Minecraft {@code minecraft} should hear about, on its build's channel. */
     public static Outcome check(ReleaseVersion current, List<Release> releases, String minecraft) {
-        Release newest = newer(current, releases);
+        return check(current, releases, minecraft, Channel.of("auto", current));
+    }
+
+    /** What a server running {@code current} on Minecraft {@code minecraft} should hear about on a channel. */
+    public static Outcome check(ReleaseVersion current, List<Release> releases, String minecraft, Channel channel) {
+        Release newest = newer(current, releases, channel, release -> true);
         if (newest == null || runsOn(newest.version(), minecraft)) return new Outcome(newest, newest);
-        return new Outcome(newest, newer(current, releases, release -> runsOn(release.version(), minecraft)));
+        return new Outcome(newest, newer(current, releases, channel, release -> runsOn(release.version(), minecraft)));
     }
 
     /** What a release needs beyond the 1.21.1 every ALPHA and BETA 1.x runs on, or null. */
@@ -118,12 +145,13 @@ public final class UpdateCheck {
         return out;
     }
 
-    private static Release newer(ReleaseVersion current, List<Release> releases, Predicate<Release> allowed) {
+    private static Release newer(ReleaseVersion current, List<Release> releases, Channel channel,
+                                 Predicate<Release> allowed) {
         if (current == null) return null;
         Release best = null;
         for (Release release : releases) {
             if (release.version().compareTo(current) <= 0) continue;
-            if (release.pilot() && !current.isPilot()) continue;
+            if (release.pilot() && channel == Channel.STABLE) continue;
             if (!allowed.test(release)) continue;
             if (best == null || release.version().compareTo(best.version()) > 0) best = release;
         }

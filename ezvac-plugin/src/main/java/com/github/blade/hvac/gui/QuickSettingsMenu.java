@@ -12,6 +12,7 @@ import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.service.RegistryBackups;
 import com.github.blade.hvac.simulation.SizingModel;
+import com.github.blade.hvac.update.UpdateCheck;
 import com.github.blade.hvac.update.UpdateNotifier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -79,6 +80,8 @@ public final class QuickSettingsMenu implements Listener {
     /** The systems the sizes item lists at most, the worst sized first. */
     private static final int LISTED_SYSTEMS = 10;
     static final int RUNNING = 10, CHECK_NOW = 12, BACKGROUND = 14, TELL_ADMINS = 16;
+    /** Under the running version (BETA 1.0 Pilot 2): which releases this server hears about. */
+    static final int CHANNEL = 19;
     private static final String ADMIN = "ezvac.admin";
 
     private static final class Menu implements InventoryHolder {
@@ -259,10 +262,41 @@ public final class QuickSettingsMenu implements Listener {
                 Component.text("Check now", NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
                 List.of(gray("Asks GitHub for a newer EZvac,"), gray("and whether it runs here."),
                         gray("The answer comes in chat."))));
+        inventory.setItem(CHANNEL, channel(updates.channel(), updates.channelSetting()));
         placeSwitch(inventory, BACKGROUND, Material.REPEATER, "Background checks", updates.checking(), List.of(
                 gray("At start-up and every 6 hours"), clickTo(updates.checking())));
         placeSwitch(inventory, TELL_ADMINS, Material.BELL, "Tell admins on join", updates.notifyAdmins(), List.of(
                 gray("When a background check finds one"), clickTo(updates.notifyAdmins())));
+    }
+
+    /**
+     * The update channel: which it is, what each hears about, and whether it
+     * was chosen or follows the build (auto).
+     */
+    static ItemStack channel(UpdateCheck.Channel channel, String setting) {
+        boolean auto = setting.equals("auto");
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text((channel == UpdateCheck.Channel.STABLE ? "● " : "  ")
+                + "Stable: full releases and their hotfixes", channel == UpdateCheck.Channel.STABLE
+                ? NamedTextColor.GREEN : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text((channel == UpdateCheck.Channel.PILOT ? "● " : "  ")
+                + "Pilot: pilots too, the test builds before one", channel == UpdateCheck.Channel.PILOT
+                ? NamedTextColor.GOLD : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        lore.add(gray(auto ? "Auto: follows the EZvac this server runs" : "Chosen here"));
+        lore.add(gray("Click: auto › stable › pilot"));
+        return item(channel == UpdateCheck.Channel.PILOT ? Material.TRIAL_KEY : Material.TRIPWIRE_HOOK,
+                Component.text("Channel: " + channel.displayName() + (auto ? " (auto)" : ""),
+                        channel == UpdateCheck.Channel.PILOT ? NamedTextColor.GOLD : NamedTextColor.GREEN)
+                        .decorate(TextDecoration.BOLD), lore);
+    }
+
+    /** The setting a click on the channel moves to: auto, then stable, then pilot, then auto again. */
+    static String nextChannel(String setting) {
+        return switch (setting) {
+            case "auto" -> "stable";
+            case "stable" -> "pilot";
+            default -> "auto";
+        };
     }
 
     /** An icon with a lime or red dye beneath it; clicking either switches it. */
@@ -492,6 +526,15 @@ public final class QuickSettingsMenu implements Listener {
                 updates.checkNow(player);
             });
             return true;
+        }
+        if (slot == CHANNEL) {
+            String setting = nextChannel(updates.channelSetting());
+            updates.setChannel(setting);
+            plugin.getConfig().set("updates.channel", setting);
+            plugin.saveConfig();
+            logChange(player, "set the update channel to " + setting + " (" + updates.channel().displayName() + ")");
+            click(player, true);
+            return false;
         }
         if (at == BACKGROUND) {
             boolean on = !updates.checking();
