@@ -27,6 +27,17 @@ class StartupNoticesTest {
     }
 
     @Test
+    void pilotTwoTellsOfBackupsGoingOnAndThermostatsThatNowNeedAVent() {
+        String said = text(StartupNotices.withPilotTwo(List.of(), true, 3));
+        assertTrue(said.contains("Automatic backups of hvac.yml are now on, every 24 hours"), said);
+        assertTrue(said.contains("Backups & registry"), said);
+        assertTrue(said.contains("3 thermostats have units but no vent, and no longer start"), said);
+        assertTrue(text(StartupNotices.withPilotTwo(List.of(), false, 1))
+                .contains("1 thermostat has units but no vent, and no longer starts"));
+        assertTrue(StartupNotices.withPilotTwo(List.of(), false, 0).isEmpty(), "nothing new: nothing said");
+    }
+
+    @Test
     void anUpgradeToANewerFormatIsToldAsGoodNews() {
         String said = text(StartupNotices.lines(null, null, 0, 7));
         assertTrue(said.contains("upgraded from format 7 to format 8 at this start: everything carried over"), said);

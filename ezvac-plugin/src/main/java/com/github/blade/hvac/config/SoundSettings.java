@@ -102,7 +102,8 @@ public record SoundSettings(Map<SoundSettings.Event, List<SoundSettings.Cue>> so
         sounds.put(Event.DEHUMIDIFIER_START, List.of(new Cue("block.beacon.activate", 0.2f, 1.2f)));
         sounds.put(Event.DEHUMIDIFIER_HUM, List.of(dehumidifierHum(1.6f, 0.55f)));
         sounds.put(Event.DEHUMIDIFIER_EMPTYING, List.of(new Cue("block.bubble_column.upwards_ambient", 0.8f, 0.8f)));
-        sounds.put(Event.HUMIDIFIER_BUBBLES, List.of(new Cue("block.bubble_column.upwards_ambient", 0.35f, 1.0f)));
+        // A deep gurgle (BETA 1.0 Pilot 2): at pitch 1.0 it was shrill for something always running.
+        sounds.put(Event.HUMIDIFIER_BUBBLES, List.of(new Cue("block.bubble_column.upwards_ambient", 0.35f, 0.5f)));
         sounds.put(Event.VENT_AIRFLOW, List.of(new Cue("block.conduit.ambient", 0.3f, 0.5f)));
         return new SoundSettings(sounds, 80);
     }

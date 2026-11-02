@@ -7,13 +7,18 @@ units: F
 
 # Checks GitHub for a newer EZvac release (BETA 1.0), in the background: at
 # start-up, then every 6 hours. A newer one is logged, and players with
-# ezvac.admin hear about it when they join, with a link. A server running a
-# pilot also hears about newer pilots; one running a full release only about
-# full releases and their hotfixes. It only reads GitHub's public list of
-# releases. /hvac update checks when asked, even with check: false.
+# ezvac.admin hear about it when they join, with a link. It only reads
+# GitHub's public list of releases. /hvac update checks when asked, even with
+# check: false.
+# channel (BETA 1.0 Pilot 2): which releases this server hears about.
+#   stable: full releases and their hotfixes only.
+#   pilot:  pilots too, the test builds before a full release.
+#   auto:   follows the EZvac this server runs: pilot on a pilot, else stable.
+# /hvac quicksettings › Updates switches it while the server runs.
 updates:
   check: true
   notify-admins: true
+  channel: auto
 
 # Device kinds switched off server-wide (BETA 1.0): they stop, and no new one
 # can be made; switched back on, each runs again as it was set. The kinds:
@@ -25,14 +30,15 @@ devices:
 
 # Backups of hvac.yml (with seasons.yml) in plugins/EZvac/backups (BETA 1.0).
 # /hvac quicksettings makes one on demand. auto-every-hours makes one in real
-# time, through restarts: 0 (off), 4, 8, 12, 24, 48 or 168 (a week). Only the
-# newest keep automatic ones are kept; one made by hand is never deleted.
+# time, through restarts: 0 (off), 4, 8, 12, 24, 48 or 168 (a week); every
+# 24 hours by default (BETA 1.0 Pilot 2). Only the newest keep automatic ones
+# are kept; one made by hand is never deleted.
 # To restore, stop the server and copy a backup over hvac.yml. If hvac.yml
 # can't be read at start-up, EZvac falls back to the newest readable backup
 # itself, or stops and /hvac quicksettings opens a recovery menu that
 # restores one with a click.
 backups:
-  auto-every-hours: 0
+  auto-every-hours: 24
   keep: 10
 
 controller:
@@ -148,7 +154,7 @@ audio:
     # A full tank starting to empty.
     dehumidifier-emptying: ["block.bubble_column.upwards_ambient 0.8 0.8"]
     # A running humidifier's slab, now and then.
-    humidifier-bubbles: ["block.bubble_column.upwards_ambient 0.35 1.0"]
+    humidifier-bubbles: ["block.bubble_column.upwards_ambient 0.35 0.5"]
     # Air vents (iron trapdoors) of running systems near a player, one per
     # cluster of vents. Water vents stay quiet.
     vent-airflow: ["block.conduit.ambient 0.3 0.5"]

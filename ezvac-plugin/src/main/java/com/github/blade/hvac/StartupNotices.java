@@ -63,11 +63,14 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
      * @param keptAside     records kept aside
      * @param migratedFrom  the older format hvac.yml was upgraded from, or 0
      * @param sizingOff     building size started off on this upgrade
+     * @param backupsOn     automatic backups went on at this upgrade (BETA 1.0 Pilot 2)
+     * @param needVents     thermostats with units but no vent, which no longer start (BETA 1.0 Pilot 2)
      */
     public static StartupNotices loaded(Plugin plugin, String recoveredFrom, String setAside, int keptAside,
-                                        int migratedFrom, boolean sizingOff) {
+                                        int migratedFrom, boolean sizingOff, boolean backupsOn, int needVents) {
         List<Component> lines = lines(recoveredFrom, setAside, keptAside, migratedFrom);
         if (sizingOff) lines = withSizingOff(lines);
+        lines = withPilotTwo(lines, backupsOn, needVents);
         return lines.isEmpty() ? null : new StartupNotices(plugin, lines, false, false, null);
     }
 
@@ -78,6 +81,27 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
                 + " heat and cool as before.", NamedTextColor.GREEN)));
         out.add(Component.text("Switch it on in /hvac quicksettings › Climate systems; /hvac stats sizes then shows"
                 + " which systems need more units. It switches off again there anytime.", NamedTextColor.GRAY));
+        return out;
+    }
+
+    /**
+     * What changed for this server with Pilot 2, told once: automatic backups
+     * are on, and thermostats with units but no vent no longer start.
+     */
+    static List<Component> withPilotTwo(List<Component> lines, boolean backupsOn, int needVents) {
+        List<Component> out = new ArrayList<>(lines);
+        if (backupsOn)
+            out.add(prefix().append(Component.text("Automatic backups of hvac.yml are now on, every 24 hours, to"
+                    + " plugins/EZvac/backups.", NamedTextColor.GREEN))
+                    .append(Component.text(" Change or stop them in /hvac quicksettings › Backups & registry.",
+                            NamedTextColor.GRAY)));
+        if (needVents > 0)
+            out.add(prefix().append(Component.text(needVents == 1
+                    ? "1 thermostat has units but no vent, and no longer starts: a system needs a vent to heat or cool."
+                    : needVents + " thermostats have units but no vent, and no longer start: a system needs a vent"
+                    + " to heat or cool.", NamedTextColor.GOLD))
+                    .append(Component.text(" Their screens count it beside a ⚠; link a vent with /hvac link-tool.",
+                            NamedTextColor.GRAY)));
         return out;
     }
 
