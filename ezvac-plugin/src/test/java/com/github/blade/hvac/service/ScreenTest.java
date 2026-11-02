@@ -209,4 +209,17 @@ class ScreenTest {
                 .serialize(ScreenText.bar(1.4, 5, NamedTextColor.GREEN)));
         assertEquals("main", plain(ScreenText.titled("main", " ")));
     }
+
+    @Test
+    void aFullScreensThreeDigitReadingsAreShownWhole() {
+        // The big reading is bold at twice the size, on a 100-pixel board.
+        for (String reading : List.of("104.0°F", "112.0°F", "120.0°F", "130.4°F", "-40.0°F", "48.9°C")) {
+            int bold = SignText.width(reading) + reading.length();
+            assertTrue(2 * bold <= ScreenPlacement.LINE_WIDTH, reading + " is " + 2 * bold);
+        }
+        for (String line : List.of("Heating to 104.0°F", "Cooling to 72.0°F", "Holding 104.0°F", "Off · set 104.0°F",
+                "Set 104.0°F", "Needs a water vent", "ETA 99m+ · 100% RH", "Out 120.0°F"))
+            assertEquals(line, ScreenText.fitted(line), "whole: " + line);
+        assertEquals("Out 112.0°F", ScreenText.fitted("Out 112.0°F · Summer"), "only the season gives way");
+    }
 }

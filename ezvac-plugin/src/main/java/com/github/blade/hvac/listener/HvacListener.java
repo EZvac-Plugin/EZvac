@@ -275,11 +275,16 @@ public final class HvacListener implements Listener {
         if (event.getPlayer().hasPermission("ezvac.use")) event.getPlayer().sendMessage(command.describeSensor(sensor));
     }
 
-    /** An arrow can still press a wooden (mangrove or birch) sensor; it powers nothing. */
+    /**
+     * An arrow can still press a wooden (mangrove or birch) sensor, or a mini
+     * thermostat on a wooden button (BETA 1.0 Pilot 2); it powers nothing.
+     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onSensorPowered(BlockRedstoneEvent event) {
-        if (registry.sensors().isEmpty() || event.getNewCurrent() <= 0) return;
-        if (registry.sensorAt(BlockKey.of(event.getBlock().getLocation())) != null) event.setNewCurrent(0);
+        if (event.getNewCurrent() <= 0 || !org.bukkit.Tag.BUTTONS.isTagged(event.getBlock().getType())) return;
+        BlockKey key = BlockKey.of(event.getBlock().getLocation());
+        Thermostat thermostat = registry.thermostatAt(key);
+        if (registry.sensorAt(key) != null || thermostat != null && thermostat.mini()) event.setNewCurrent(0);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

@@ -129,4 +129,25 @@ class MiniThermostatTest {
         assertSame(mini, registry.thermostatAt(button));
         assertNull(registry.thermostatAt(other));
     }
+
+    @Test
+    void threeDigitTemperaturesAreShownWhole() {
+        // The maintainer's check before Pilot 2: the Nether (112 °F, the basalt deltas 120) and a 104 °F pool.
+        for (double room : new double[] {99.6, 104.0, 112.0, 120.0, 130.4})
+            for (double target : new double[] {60.0, 85.0, 104.0})
+                for (int attention : new int[] {0, 3, 9}) {
+                    MiniScreen mini = screen(TemperatureUnit.F, room, target, OperatingMode.COOLING, 0.3, attention, "");
+                    String[] lines = mini.plain().split("\n");
+                    assertEquals(MiniScreen.degrees(TemperatureUnit.F, room), lines[0], "the room, whole");
+                    assertTrue(lines[1].contains(MiniScreen.degrees(TemperatureUnit.F, target)),
+                            "the target, whole: " + lines[1]);
+                    String big = PlainTextComponentSerializer.plainText().serialize(mini.bigText());
+                    assertTrue(2 * MiniScreen.boldWidth(big) <= MiniScreen.LINE_WIDTH, big);
+                    for (int width : mini.widths()) assertTrue(width <= MiniScreen.WIDTH, mini.plain());
+                }
+        assertEquals("Set 104°", screen(TemperatureUnit.F, 104, 104, OperatingMode.IDLE, Double.NaN, 0, "")
+                .plain().split("\n")[1]);
+        assertEquals("104° ⚠9", screen(TemperatureUnit.F, 104, 104, OperatingMode.IDLE, Double.NaN, 9, "")
+                .plain().split("\n")[1], "with a count it gives up its Set, never a digit");
+    }
 }
