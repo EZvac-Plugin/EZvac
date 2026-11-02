@@ -10,7 +10,7 @@
     -->
     <groupId>com.github.blade</groupId>
     <artifactId>ezvac-parent</artifactId>
-    <version>BETA-1.0-P1</version>
+    <version>BETA-1.0-P2</version>
     <packaging>pom</packaging>
 
     <name>EZvac (parent)</name>
