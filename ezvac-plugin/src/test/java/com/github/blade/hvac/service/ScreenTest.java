@@ -1,5 +1,6 @@
 package com.github.blade.hvac.service;
 
+import com.github.blade.hvac.model.Attention;
 import com.github.blade.hvac.model.OperatingMode;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -83,6 +84,19 @@ class ScreenTest {
     }
 
     @Test
+    void theHeaderCountsWhatNeedsAttentionBeforeItsGlyph() {
+        // BETA 1.0 Pilot 2: what it is is in the menu; the strip only counts it.
+        String header = text(ScreenText.titled("Living room", "").tone(ScreenText.Tone.OFF).attention(2).header());
+        assertTrue(header.startsWith("Living room ") && header.endsWith("⚠2 ○"), header);
+        assertTrue(width(header) <= ScreenText.WIDTH, header);
+        String crowded = text(ScreenText.titled("A very long thermostat name indeed", "Pool")
+                .tone(ScreenText.Tone.HEATING).attention(4).header());
+        assertTrue(crowded.endsWith("⚠4 ♨") && width(crowded) <= ScreenText.WIDTH,
+                "the name is cut, never the count: " + crowded);
+        assertFalse(text(ScreenText.titled("Shed", "").attention(0).header()).contains("⚠"), "none: no ⚠");
+    }
+
+    @Test
     void everyScreenIsTheSameSizeAndNoLineIsPadded() {
         for (ScreenText screen : java.util.List.of(ScreenText.titled("main", "house").big("72.4°F"),
                 ScreenText.titled("hub", "").line("Attic: 71.0 F", NamedTextColor.WHITE),
@@ -108,12 +122,13 @@ class ScreenTest {
                 assertTrue(SignText.width(line) <= ScreenText.WIDTH, line + " is " + SignText.width(line));
             }
         assertTrue(SignText.width(DisplayService.UNITS_OFF) <= ScreenText.WIDTH);
-        // Size-based heating (BETA 1.0): the widest has/needs a system can show, up to 200,000 blocks of air.
-        for (double[] sized : new double[][] {{0.85, 2.6}, {9.9, 9.9}, {12.5, 107.5}, {107.5, 107.5}}) {
-            String line = DisplayService.undersizedLine(new com.github.blade.hvac.simulation.SizingModel.Assessment(
-                    200_000, false, 0, sized[1], sized[0], 0.01, 1.0));
-            assertTrue(SignText.width(line) <= ScreenText.WIDTH, line + " is " + SignText.width(line));
-        }
+        for (boolean pool : new boolean[] {false, true})
+            for (Attention blocking : List.of(Attention.NO_UNITS, Attention.NO_VENTS)) {
+                String line = DisplayService.blockedLine(java.util.EnumSet.of(blocking), pool);
+                assertTrue(!line.isEmpty() && SignText.width(line) <= ScreenText.WIDTH, line);
+            }
+        assertEquals("", DisplayService.blockedLine(java.util.EnumSet.of(Attention.UNDERSIZED), false),
+                "undersized doesn't stop it: it only counts beside the ⚠");
         assertTrue(SignText.width(DisplayService.UNITS_OFF + " | 15/15") <= SignText.SIGN_WIDTH, "and the sign's footer");
     }
 

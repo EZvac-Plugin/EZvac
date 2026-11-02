@@ -8,6 +8,8 @@ import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.AirPurifier;
+import com.github.blade.hvac.model.Attention;
+import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.OperatingProfile;
 import com.github.blade.hvac.model.SettingsPanel;
@@ -16,6 +18,7 @@ import com.github.blade.hvac.service.AirText;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.simulation.Psychrometrics;
+import com.github.blade.hvac.simulation.SizingModel;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -50,8 +53,12 @@ public final class ControlMenus implements Listener {
     static final int RAISE_5 = 2, RAISE_1 = 11, RAISE_TENTH = 20;
     static final int LOWER_5 = 6, LOWER_1 = 15, LOWER_TENTH = 24;
     static final int INFO = 13, POWER = 22;
-    /** The system's profile, top middle (BETA 1.0 Pilot 2): what a settings panel sets, here too. */
-    static final int PROFILE = 4;
+    /**
+     * The top row (BETA 1.0 Pilot 2): what needs attention on the left, the
+     * system's profile in the middle (what a settings panel sets, here too),
+     * and the system's size on the right.
+     */
+    static final int ATTENTION = 0, PROFILE = 4, SYSTEM = 8;
     /** Humidity only moves in fives, on the middle row. */
     static final int HUMIDITY_RAISE = 11, HUMIDITY_LOWER = 15;
 
@@ -136,6 +143,85 @@ public final class ControlMenus implements Listener {
                 Component.text("Set " + units.degrees(thermostat.targetF()), NamedTextColor.AQUA), lore));
         inventory.setItem(POWER, power(thermostat.enabled(), "System"));
         inventory.setItem(PROFILE, profile(registry.profileFor(thermostat.system())));
+        SizingModel.Assessment cooling = assess(thermostat, OperatingMode.COOLING);
+        SizingModel.Assessment heating = assess(thermostat, OperatingMode.HEATING);
+        inventory.setItem(ATTENTION, attention(thermostat.attention(), thermostat.pool(), cooling, heating));
+        inventory.setItem(SYSTEM, system(thermostat, cooling, heating));
+    }
+
+    private SizingModel.Assessment assess(Thermostat thermostat, OperatingMode mode) {
+        return plugin.controller() == null ? null : plugin.controller().assess(thermostat.system(), mode);
+    }
+
+    /**
+     * What needs attention, each with what to do about it, or that all is
+     * well. The screen only counts them beside its ⚠.
+     */
+    static ItemStack attention(java.util.Set<Attention> attention, boolean pool, SizingModel.Assessment cooling,
+                               SizingModel.Assessment heating) {
+        if (attention.isEmpty())
+            return item(Material.LIME_DYE, Component.text("All good", NamedTextColor.GREEN),
+                    List.of(gray("Nothing needs your attention")));
+        List<Component> lore = new ArrayList<>();
+        for (Attention each : attention) {
+            switch (each) {
+                case NO_UNITS -> {
+                    lore.add(warning("No units: it can't heat or cool"));
+                    lore.add(gray("  Link equipment with /hvac link-tool"));
+                }
+                case NO_VENTS -> {
+                    lore.add(warning(pool ? "No water vent: it won't start" : "No vent: it won't start"));
+                    lore.add(gray(pool ? "  Link a water vent with /hvac link-tool"
+                            : "  Link a vent with /hvac link-tool"));
+                }
+                case UNITS_OFF -> {
+                    lore.add(warning("Its units are switched off server-wide"));
+                    lore.add(gray("  An admin switches them on in /hvac quicksettings"));
+                }
+                case UNDERSIZED -> {
+                    for (SizingModel.Assessment sized : java.util.Arrays.asList(cooling, heating))
+                        if (sized != null && sized.installed() > 0.0 && sized.undersized())
+                            lore.add(warning("Undersized for " + (sized == cooling ? "cooling" : "heating")
+                                    + ": has " + sized.ratio().replace("/", " of ") + " ★★★"));
+                    lore.add(gray("  Add units, or vents to reach all of it"));
+                }
+            }
+        }
+        int count = attention.size();
+        return item(Material.YELLOW_DYE, Component.text("⚠ " + count + (count == 1 ? " needs" : " need")
+                + " attention", NamedTextColor.GOLD).decorate(TextDecoration.BOLD), lore);
+    }
+
+    private static Component warning(String text) {
+        return Component.text(text, NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false);
+    }
+
+    /** The system: what's linked, and with building size on, its size and what it has of what it needs. */
+    private ItemStack system(Thermostat thermostat, SizingModel.Assessment cooling, SizingModel.Assessment heating) {
+        List<Component> lore = new ArrayList<>();
+        lore.add(gray(count(registry.equipmentFor(thermostat.system()).size(), "unit") + " · "
+                + count(registry.ventsFor(thermostat.system()).size(), thermostat.pool() ? "water vent" : "vent")));
+        if (plugin.controller() == null || !plugin.controller().sizing().enabled())
+            lore.add(gray("Building size is off: any size heats and cools"));
+        else if (cooling == null)
+            lore.add(gray("Size: not mapped yet"));
+        else {
+            lore.add(gray(String.format(Locale.US, "Size: %,d blocks of %s", cooling.size(),
+                    cooling.water() ? "water" : "air")));
+            if (!cooling.water()) lore.add(gray("Openings: " + cooling.openings()
+                    + (cooling.openings() == 0 ? "" : String.format(Locale.US, " (leaks x%.1f)", cooling.openness()))));
+            for (SizingModel.Assessment sized : java.util.Arrays.asList(cooling, heating))
+                if (sized != null && sized.installed() > 0.0)
+                    lore.add(Component.text((sized == cooling ? "Cooling: has " : "Heating: has ")
+                            + sized.ratio().replace("/", " of ") + " ★★★", sized.undersized()
+                            ? NamedTextColor.GOLD : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        }
+        return item(thermostat.pool() ? Material.PRISMARINE_BRICKS : Material.BRICKS,
+                Component.text(thermostat.pool() ? "Pool" : "System", NamedTextColor.AQUA), lore);
+    }
+
+    private static String count(int n, String what) {
+        return n + " " + what + (n == 1 ? "" : "s");
     }
 
     /**

@@ -67,6 +67,8 @@ public final class Thermostat {
      * it has one, keeps holding it. HvacRegistry hands it between the two.
      */
     private OperatingProfile profile = OperatingProfile.NORMAL;
+    /** What its system needs someone to look at (BETA 1.0 Pilot 2); worked out each cycle, never saved. */
+    private java.util.Set<Attention> attention = java.util.EnumSet.noneOf(Attention.class);
 
     /** A temperate biome's downfall, used until the thermostat's chunk is first sampled. */
     public static final double DEFAULT_DOWNFALL = 0.4;
@@ -127,6 +129,12 @@ public final class Thermostat {
     public OperatingProfile profile() { return profile; }
     /** Only HvacRegistry sets it, as it hands the profile between a thermostat and a panel. */
     public void setProfile(OperatingProfile profile) { this.profile = java.util.Objects.requireNonNull(profile, "profile"); }
+    /** What its system needs someone to look at, in {@link Attention}'s order; empty when all is well. */
+    public java.util.Set<Attention> attention() { return java.util.Collections.unmodifiableSet(attention); }
+    public void setAttention(java.util.Set<Attention> attention) {
+        this.attention = attention.isEmpty() ? java.util.EnumSet.noneOf(Attention.class)
+                : java.util.EnumSet.copyOf(attention);
+    }
     public double outdoorNoonF() { return outdoorNoonF; }
     public double outdoorMidnightF() { return outdoorMidnightF; }
     public double lastOutdoorF() { return lastOutdoorF; }

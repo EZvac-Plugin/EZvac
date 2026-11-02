@@ -11,7 +11,6 @@ import com.github.blade.hvac.simulation.EtaEstimator;
 import com.github.blade.hvac.simulation.Forecast;
 import com.github.blade.hvac.simulation.PerformanceModel;
 import com.github.blade.hvac.simulation.Psychrometrics;
-import com.github.blade.hvac.simulation.SizingModel;
 import com.github.blade.hvac.simulation.ThermalModel;
 import net.kyori.adventure.text.Component;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
@@ -343,12 +342,12 @@ public final class DisplayService {
         List<EquipmentUnit> units = registry.equipmentFor(thermostat.system());
         long working = units.stream().filter(EquipmentUnit::running).count();
         String linked = units.isEmpty() ? footer : footer + " | " + working + "/" + units.size();
-        // Too small a system for what it heats says so while it works (BETA 1.0).
-        SizingModel.Assessment sized = thermostat.enabled() && thermostat.mode() != OperatingMode.IDLE
-                && plugin.controller() != null ? plugin.controller().assess(thermostat.system(), thermostat.mode()) : null;
-        String undersized = sized != null && sized.undersized() ? undersizedLine(sized) : "";
+        // What needs looking at (BETA 1.0 Pilot 2): counted beside a ⚠, and what keeps it from starting said.
+        // Undersized is one of them: its detail moved from the screen into the thermostat's menu.
+        java.util.Set<Attention> attention = thermostat.attention();
+        String blocked = !thermostat.enabled() || waiting != null ? "" : blockedLine(attention, thermostat.pool());
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s|%s",
-                thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id(), undersized);
+                thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id(), attention);
         render(thermostat.position(), fingerprint, force, lines -> {
             lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
             NamedTextColor color = waiting != null ? NamedTextColor.RED
@@ -363,10 +362,13 @@ public final class DisplayService {
                             ? NamedTextColor.GREEN : NamedTextColor.GRAY);
         }, () -> {
             ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.pool() ? "Pool" : "")
-                    .big(degrees(thermostat.roomF()));
+                    .big(degrees(thermostat.roomF())).attention(attention.size());
             String target = degrees(thermostat.targetF());
             if (!thermostat.enabled())
                 screen.tone(ScreenText.Tone.OFF).line("Off · set " + target, NamedTextColor.GRAY);
+            else if (!blocked.isEmpty())
+                screen.tone(ScreenText.Tone.OFF).line("Set " + target, NamedTextColor.GRAY)
+                        .line(blocked, NamedTextColor.RED);
             else if (waiting != null)
                 screen.tone(ScreenText.Tone.OFF).line(waitingLine(waiting, target),
                         waiting == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.AQUA)
@@ -378,7 +380,6 @@ public final class DisplayService {
                         .line(ScreenText.bar(load, 10, NamedTextColor.GOLD));
                 case IDLE -> screen.tone(ScreenText.Tone.HOLDING).line("Holding " + target, NamedTextColor.GREEN);
             }
-            if (!undersized.isEmpty()) screen.line(undersized, NamedTextColor.GOLD);
             String humidity = thermostat.hasRoomDewPoint() ? Math.round(Psychrometrics.relativeHumidity(
                     thermostat.roomF(), thermostat.roomDewPointF())) + "% RH" : "";
             String status = thermostat.enabled() && thermostat.mode() != OperatingMode.IDLE
@@ -650,14 +651,14 @@ public final class DisplayService {
     }
 
     /**
-     * {@code Undersized 1/2.6}: what a system has of the units its size needs
-     * (BETA 1.0). Past a hundred units' worth that is too wide for one line,
-     * so it says the share instead: {@code Undersized 94%}.
+     * What keeps a thermostat from starting at all, for its screen (BETA 1.0
+     * Pilot 2): nothing to heat or cool with, or no vent. Empty when nothing
+     * does; units switched off server-wide say {@link #UNITS_OFF} instead.
      */
-    static String undersizedLine(SizingModel.Assessment sized) {
-        String line = "Undersized " + sized.ratio();
-        if (SignText.width(line) <= ScreenText.WIDTH) return line;
-        return "Undersized " + Math.round(100.0 * sized.installed() / Math.max(0.001, sized.required())) + "%";
+    static String blockedLine(java.util.Set<Attention> attention, boolean pool) {
+        if (attention.contains(Attention.NO_UNITS)) return "Needs a unit";
+        if (attention.contains(Attention.NO_VENTS)) return pool ? "Needs a water vent" : "Needs a vent";
+        return "";
     }
 
     /** A thermostat whose call waits on units switched off in /hvac quicksettings (BETA 1.0). */
