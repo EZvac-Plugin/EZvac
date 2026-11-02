@@ -92,6 +92,17 @@ public final class PerformanceModel {
         public static final Hold NONE = new Hold(0.0, true);
     }
 
+    /**
+     * Whether the outdoors works against a mode: colder outside while
+     * heating, warmer while cooling. Level with the room counts too: a system
+     * that can't keep up is pulled to the outdoor temperature and held there,
+     * and ThermalModel lets the outdoors oppose it at that point.
+     */
+    public static boolean against(OperatingMode mode, double roomF, double outdoorF) {
+        return mode == OperatingMode.HEATING ? outdoorF <= roomF + 0.05
+                : mode == OperatingMode.COOLING && outdoorF >= roomF - 0.05;
+    }
+
     /** How fast a held room still closes on its target, in °F an in-game hour, beyond its loss. */
     public static final double HOLD_MARGIN_F_PER_HOUR = 1.0;
 

@@ -118,10 +118,7 @@ public final class HvacController {
      * it: 0 when the outdoors is on its side.
      */
     double lossFPerHour(Thermostat thermostat, OperatingMode mode) {
-        double outside = outdoor.driftBaselineFor(thermostat);
-        boolean against = mode == OperatingMode.HEATING ? outside < thermostat.roomF()
-                : mode == OperatingMode.COOLING && outside > thermostat.roomF();
-        if (!against) return 0.0;
+        if (!PerformanceModel.against(mode, thermostat.roomF(), outdoor.driftBaselineFor(thermostat))) return 0.0;
         OutdoorTemperatureService.Outdoor out = thermostat.pool() ? null : outdoor.cachedClimateFor(thermostat);
         double leak = out == null ? 1.0
                 : outdoor.climate().wind().infiltrationFactor(out.windMs()) * openness(thermostat.system());
@@ -337,7 +334,7 @@ public final class HvacController {
     }
 
     /** The mode a system runs, or would start in as the room stands; null when it would stay idle. */
-    static OperatingMode neededMode(OperatingMode mode, double roomF, double targetF, HvacSettings settings) {
+    public static OperatingMode neededMode(OperatingMode mode, double roomF, double targetF, HvacSettings settings) {
         if (mode != OperatingMode.IDLE) return mode;
         if (roomF > targetF + settings.coolingStartAboveF()) return OperatingMode.COOLING;
         if (roomF < targetF - settings.heatingStartBelowF()) return OperatingMode.HEATING;

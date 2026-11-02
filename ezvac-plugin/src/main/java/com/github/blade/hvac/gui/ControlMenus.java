@@ -146,8 +146,10 @@ public final class ControlMenus implements Listener {
         SizingModel.Assessment cooling = assess(thermostat, OperatingMode.COOLING);
         SizingModel.Assessment heating = assess(thermostat, OperatingMode.HEATING);
         OperatingProfile profile = registry.profileFor(thermostat.system());
+        OperatingMode needed = thermostat.enabled() ? com.github.blade.hvac.service.HvacController.neededMode(
+                thermostat.mode(), thermostat.roomF(), thermostat.targetF(), settings) : null;
         inventory.setItem(ATTENTION, attention(thermostat.attention(), thermostat.pool(), cooling, heating, profile,
-                betterProfile(thermostat, profile)));
+                betterProfile(thermostat, profile), needed));
         inventory.setItem(SYSTEM, system(thermostat, cooling, heating));
     }
 
@@ -185,7 +187,7 @@ public final class ControlMenus implements Listener {
      */
     static ItemStack attention(java.util.Set<Attention> attention, boolean pool, SizingModel.Assessment cooling,
                                SizingModel.Assessment heating, OperatingProfile profile,
-                               OperatingProfile betterProfile) {
+                               OperatingProfile betterProfile, OperatingMode needed) {
         if (attention.isEmpty())
             return item(Material.LIME_DYE, Component.text("All good", NamedTextColor.GREEN),
                     List.of(gray("Nothing needs your attention")));
@@ -206,12 +208,17 @@ public final class ControlMenus implements Listener {
                     lore.add(gray("  An admin switches them on in /hvac quicksettings"));
                 }
                 case CANT_KEEP_UP -> {
-                    lore.add(warning("Losing it faster than it can make it: it can't reach its target"));
+                    lore.add(warning(needed == OperatingMode.COOLING
+                            ? "Warming faster than it can cool: it can't reach its target"
+                            : "Losing heat faster than it can heat: it can't reach its target"));
                     lore.add(gray("  Close openings, or add units"));
                 }
                 case UNDERSIZED -> {
+                    // Only for the mode it runs or would start in, as the count judges it.
+                    SizingModel.Assessment judged = needed == OperatingMode.COOLING ? cooling
+                            : needed == OperatingMode.HEATING ? heating : null;
                     for (SizingModel.Assessment sized : java.util.Arrays.asList(cooling, heating))
-                        if (sized != null && sized.installed() > 0.0 && sized.undersized())
+                        if (sized == judged && sized != null && sized.installed() > 0.0 && sized.undersized())
                             lore.add(warning("Undersized for " + (sized == cooling ? "cooling" : "heating")
                                     + (profile == OperatingProfile.NORMAL ? "" : " on " + title(profile))
                                     + ": has " + sized.ratio().replace("/", " of ") + " ★★★"));

@@ -103,4 +103,15 @@ class HoldTest {
                 OperatingProfile.NORMAL, SETTINGS, LEAKY, SMALL);
         assertTrue(eta.isPresent(), "it reaches the target, so the ETA isn't endless");
     }
+
+    @Test
+    void theOutdoorsLevelWithTheRoomStillWorksAgainstIt() {
+        // Found live: a room that can't keep up is pulled to the outdoor temperature and held there, so a
+        // strict "colder outside" saw no loss at all, and never said it couldn't keep up.
+        assertTrue(PerformanceModel.against(OperatingMode.HEATING, 56.6, 56.6));
+        assertTrue(PerformanceModel.against(OperatingMode.COOLING, 80.0, 80.0));
+        assertFalse(PerformanceModel.against(OperatingMode.HEATING, 56.6, 60.0), "warmer outside helps heating");
+        assertFalse(PerformanceModel.against(OperatingMode.COOLING, 80.0, 70.0), "cooler outside helps cooling");
+        assertFalse(PerformanceModel.against(OperatingMode.IDLE, 70.0, 50.0));
+    }
 }
