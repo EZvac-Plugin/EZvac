@@ -9,6 +9,8 @@ import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.AirPurifier;
 import com.github.blade.hvac.model.ClimateUnit;
+import com.github.blade.hvac.model.OperatingProfile;
+import com.github.blade.hvac.model.SettingsPanel;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.AirText;
 import com.github.blade.hvac.service.DisplayService;
@@ -48,6 +50,8 @@ public final class ControlMenus implements Listener {
     static final int RAISE_5 = 2, RAISE_1 = 11, RAISE_TENTH = 20;
     static final int LOWER_5 = 6, LOWER_1 = 15, LOWER_TENTH = 24;
     static final int INFO = 13, POWER = 22;
+    /** The system's profile, top middle (BETA 1.0 Pilot 2): what a settings panel sets, here too. */
+    static final int PROFILE = 4;
     /** Humidity only moves in fives, on the middle row. */
     static final int HUMIDITY_RAISE = 11, HUMIDITY_LOWER = 15;
 
@@ -131,6 +135,35 @@ public final class ControlMenus implements Listener {
         inventory.setItem(INFO, item(Material.DAYLIGHT_DETECTOR,
                 Component.text("Set " + units.degrees(thermostat.targetF()), NamedTextColor.AQUA), lore));
         inventory.setItem(POWER, power(thermostat.enabled(), "System"));
+        inventory.setItem(PROFILE, profile(registry.profileFor(thermostat.system())));
+    }
+
+    /**
+     * The profile button: what the system runs on, what each does, and how to
+     * change it, coloured as a settings panel shows it.
+     */
+    static ItemStack profile(OperatingProfile profile) {
+        NamedTextColor color = profileColor(profile);
+        List<Component> lore = new ArrayList<>();
+        for (OperatingProfile each : OperatingProfile.values())
+            lore.add(Component.text((each == profile ? "● " : "  ") + each.name() + ": " + switch (each) {
+                case ECO -> "gentler, quieter, slower";
+                case NORMAL -> "the usual speed";
+                case TURBO -> "faster, past the usual top speed";
+            }, each == profile ? profileColor(each) : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        lore.add(gray("Heat pumps, ACs and pool heat pumps;"));
+        lore.add(gray("furnaces and boilers run as always"));
+        lore.add(gray("Click: next · Right-click: previous"));
+        return item(Material.COMPARATOR, Component.text("Profile: " + profile.name(), color)
+                .decorate(TextDecoration.BOLD), lore);
+    }
+
+    static NamedTextColor profileColor(OperatingProfile profile) {
+        return switch (profile) {
+            case ECO -> NamedTextColor.GREEN;
+            case NORMAL -> NamedTextColor.AQUA;
+            case TURBO -> NamedTextColor.GOLD;
+        };
     }
 
     private void drawUnit(Inventory inventory, ClimateUnit unit) {
@@ -208,7 +241,8 @@ public final class ControlMenus implements Listener {
             plugin.getServer().getScheduler().runTask(plugin, () -> player.closeInventory());
             return;
         }
-        boolean changed = menu.device == Device.THERMOSTAT ? clickThermostat(player, menu, event.getSlot())
+        boolean changed = menu.device == Device.THERMOSTAT
+                ? clickThermostat(player, menu, event.getSlot(), event.isRightClick())
                 : clickUnit(player, menu, event.getSlot());
         if (changed) {
             registry.markDirty();
@@ -237,11 +271,20 @@ public final class ControlMenus implements Listener {
         if (event.getView().getTopInventory().getHolder() instanceof Menu) event.setCancelled(true);
     }
 
-    private boolean clickThermostat(Player player, Menu menu, int slot) {
+    private boolean clickThermostat(Player player, Menu menu, int slot, boolean rightClick) {
         Thermostat thermostat = registry.thermostatAt(menu.position);
         if (thermostat == null) {
             player.closeInventory();
             return false;
+        }
+        if (slot == PROFILE) {
+            OperatingProfile now = registry.profileFor(thermostat.system());
+            registry.setProfile(thermostat.system(), rightClick ? now.previous() : now.next());
+            click(player, true);
+            SettingsPanel panel = registry.settingsPanelFor(thermostat.system());
+            if (panel != null) displays.refreshSettingsPanel(panel, true);
+            displays.refreshThermostat(thermostat, true);
+            return true;
         }
         if (slot == POWER) {
             thermostat.setEnabled(!thermostat.enabled());
