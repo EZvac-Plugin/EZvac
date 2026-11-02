@@ -129,4 +129,31 @@ class UpdateCheckTest {
     void anythingButAListIsNoReleases() {
         assertTrue(UpdateCheck.parse("{\"message\": \"API rate limit exceeded\"}").isEmpty());
     }
+
+    private static String newer(String running, UpdateCheck.Channel channel) {
+        UpdateCheck.Outcome outcome = UpdateCheck.check(ReleaseVersion.parse(running), UpdateCheck.parse(RELEASES),
+                "26.3", channel);
+        return outcome.newest() == null ? null : outcome.newest().tag();
+    }
+
+    @Test
+    void theChannelDecidesWhetherPilotsCount() {
+        // BETA 1.0 Pilot 2: whatever the server runs.
+        assertEquals("BETA-1.0-HOTFIX1", newer("BETA-1.0-P1", UpdateCheck.Channel.STABLE),
+                "a pilot on Stable hears of the full release and its hotfix, not the next pilot");
+        assertEquals("BETA-1.1-P1", newer("BETA-1.0", UpdateCheck.Channel.PILOT), "a release on Pilot hears of pilots");
+        assertNull(newer("BETA-1.0-HOTFIX1", UpdateCheck.Channel.STABLE));
+        assertEquals("BETA-1.1-P1", newer("BETA-1.0-HOTFIX1", UpdateCheck.Channel.PILOT));
+    }
+
+    @Test
+    void autoFollowsTheBuild() {
+        assertEquals(UpdateCheck.Channel.PILOT, UpdateCheck.Channel.of("auto", ReleaseVersion.parse("BETA-1.0-P2")));
+        assertEquals(UpdateCheck.Channel.STABLE, UpdateCheck.Channel.of("auto", ReleaseVersion.parse("BETA-1.0")));
+        assertEquals(UpdateCheck.Channel.STABLE, UpdateCheck.Channel.of("Stable", ReleaseVersion.parse("BETA-1.0-P2")));
+        assertEquals(UpdateCheck.Channel.PILOT, UpdateCheck.Channel.of(" PILOT ", ReleaseVersion.parse("BETA-1.0")));
+        assertEquals(UpdateCheck.Channel.STABLE, UpdateCheck.Channel.of("nonsense", ReleaseVersion.parse("BETA-1.0")),
+                "anything else is auto");
+        assertEquals(UpdateCheck.Channel.STABLE, UpdateCheck.Channel.of(null, null));
+    }
 }

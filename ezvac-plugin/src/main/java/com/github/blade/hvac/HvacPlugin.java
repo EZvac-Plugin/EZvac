@@ -164,6 +164,7 @@ public final class HvacPlugin extends JavaPlugin {
             if (legacy != null) getLogger().warning(legacy);
             updates = new UpdateNotifier(this, getPluginMeta().getVersion(), getServer().getMinecraftVersion(),
                     getConfig().getBoolean("updates.notify-admins", true));
+            updates.setChannel(getConfig().getString("updates.channel", "auto"));
             getServer().getPluginManager().registerEvents(updates, this);
             if (getConfig().getBoolean("updates.check", true)) updates.start();
             backups = new RegistryBackups(this, registry, getConfig(), this::saveConfig);

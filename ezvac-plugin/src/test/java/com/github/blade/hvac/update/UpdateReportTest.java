@@ -29,8 +29,26 @@ class UpdateReportTest {
 
     @Test
     void upToDate() {
-        assertEquals(List.of("[EZvac] You're on the latest EZvac, BETA-1.0-P1."),
-                said(new UpdateCheck.Outcome(null, null), "BETA-1.0-P1", "26.3", true));
+        assertEquals(List.of("[EZvac] You're on the latest EZvac, BETA-1.0-P1, on the Pilot channel."),
+                said(new UpdateCheck.Outcome(null, null), "BETA-1.0-P1", "26.3", true), "a pilot is on Pilot by itself");
+        assertEquals(List.of("[EZvac] You're on the latest stable release, BETA-1.0."),
+                said(new UpdateCheck.Outcome(null, null), "BETA-1.0", "26.3", true));
+    }
+
+    private static List<String> said(String running, UpdateCheck.Channel channel) {
+        return UpdateNotifier.report(new UpdateCheck.Outcome(null, null), running, "26.3", true, channel).stream()
+                .map(PlainTextComponentSerializer.plainText()::serialize).toList();
+    }
+
+    @Test
+    void upToDateSaysWhatTheChannelWaitsFor() {
+        // BETA 1.0 Pilot 2: a text for Stable is never shown on Pilot, nor the other way round.
+        assertEquals(List.of("[EZvac] This server runs BETA-1.0-P2, a pilot, on the Stable channel: you'll hear"
+                + " when the next full release is out."), said("BETA-1.0-P2", UpdateCheck.Channel.STABLE));
+        assertEquals(List.of("[EZvac] You're on the latest EZvac, BETA-1.0, on the Pilot channel."),
+                said("BETA-1.0", UpdateCheck.Channel.PILOT));
+        assertEquals(List.of("[EZvac] You're on the latest stable release, BETA-1.0."),
+                said("BETA-1.0", UpdateCheck.Channel.STABLE));
     }
 
     @Test

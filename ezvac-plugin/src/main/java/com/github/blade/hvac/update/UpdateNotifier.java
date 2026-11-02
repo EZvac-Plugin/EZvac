@@ -45,6 +45,8 @@ public final class UpdateNotifier implements Listener {
     private final ReleaseVersion running;
     private final String minecraft;
     private volatile boolean notifyAdmins;
+    /** {@code updates.channel} as set: auto, stable or pilot (BETA 1.0 Pilot 2). */
+    private volatile String channelSetting = "auto";
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
     private volatile UpdateCheck.Outcome available;
     private volatile Fetched recent;
@@ -96,6 +98,24 @@ public final class UpdateNotifier implements Listener {
 
     public void setNotifyAdmins(boolean on) { notifyAdmins = on; }
 
+    /** The channel this server hears about: the one set, or with auto the running build's own. */
+    public UpdateCheck.Channel channel() { return UpdateCheck.Channel.of(channelSetting, running); }
+
+    /** auto, stable or pilot, as {@code updates.channel} says. */
+    public String channelSetting() { return channelSetting; }
+
+    /**
+     * Switches the channel while the server runs (/hvac quicksettings). What
+     * was found on the old one is forgotten, and a background check looks
+     * again at once.
+     */
+    public void setChannel(String setting) {
+        String value = setting == null ? "auto" : setting.trim().toLowerCase(java.util.Locale.ROOT);
+        channelSetting = value.equals("stable") || value.equals("pilot") ? value : "auto";
+        available = null;
+        if (checking()) plugin.getServer().getScheduler().runTaskAsynchronously(plugin, this::check);
+    }
+
     /** This server's EZvac and Minecraft, for the menu. */
     public String runningName() { return runningName; }
     public String minecraft() { return minecraft; }
@@ -130,8 +150,9 @@ public final class UpdateNotifier implements Listener {
 
     private void reply(CommandSender sender, List<UpdateCheck.Release> releases) {
         if (!stillThere(sender)) return;
-        for (Component line : report(UpdateCheck.check(running, releases, minecraft), runningName, minecraft,
-                sender instanceof Player)) sender.sendMessage(line);
+        UpdateCheck.Channel channel = channel();
+        for (Component line : report(UpdateCheck.check(running, releases, minecraft, channel), runningName, minecraft,
+                sender instanceof Player, channel)) sender.sendMessage(line);
     }
 
     private static boolean stillThere(CommandSender sender) {
@@ -151,7 +172,7 @@ public final class UpdateNotifier implements Listener {
             return;
         }
         failureLogged = false;
-        UpdateCheck.Outcome outcome = UpdateCheck.check(running, releases, minecraft);
+        UpdateCheck.Outcome outcome = UpdateCheck.check(running, releases, minecraft, channel());
         if (outcome.upToDate() || sameAs(available, outcome)) return;
         available = outcome;
         onMainThread(() -> announce(outcome));
@@ -188,7 +209,7 @@ public final class UpdateNotifier implements Listener {
     }
 
     private void announce(UpdateCheck.Outcome outcome) {
-        for (Component line : report(outcome, runningName, minecraft, false))
+        for (Component line : report(outcome, runningName, minecraft, false, channel()))
             plugin.getLogger().info(PlainTextComponentSerializer.plainText().serialize(line)
                     .replaceFirst("^\\[EZvac] ", ""));
         if (!notifyAdmins) return;
@@ -207,7 +228,7 @@ public final class UpdateNotifier implements Listener {
 
     private void tell(Player player, UpdateCheck.Outcome outcome) {
         if (!player.hasPermission("ezvac.admin")) return;
-        for (Component line : report(outcome, runningName, minecraft, true)) player.sendMessage(line);
+        for (Component line : report(outcome, runningName, minecraft, true, channel())) player.sendMessage(line);
     }
 
     /**
@@ -216,10 +237,22 @@ public final class UpdateNotifier implements Listener {
      */
     static List<Component> report(UpdateCheck.Outcome outcome, String runningName, String minecraft,
                                   boolean clickable) {
+        return report(outcome, runningName, minecraft, clickable,
+                UpdateCheck.Channel.of("auto", ReleaseVersion.parse(runningName)));
+    }
+
+    /** The same, in the words of the channel the server is on (BETA 1.0 Pilot 2). */
+    static List<Component> report(UpdateCheck.Outcome outcome, String runningName, String minecraft,
+                                  boolean clickable, UpdateCheck.Channel channel) {
         List<Component> lines = new ArrayList<>();
         if (outcome.upToDate()) {
-            lines.add(prefixed(Component.text("You're on the latest EZvac, " + runningName + ".",
-                    NamedTextColor.GREEN)));
+            ReleaseVersion running = ReleaseVersion.parse(runningName);
+            lines.add(prefixed(Component.text(channel == UpdateCheck.Channel.PILOT
+                    ? "You're on the latest EZvac, " + runningName + ", on the Pilot channel."
+                    : running != null && running.isPilot()
+                    ? "This server runs " + runningName + ", a pilot, on the Stable channel: you'll hear when the"
+                    + " next full release is out."
+                    : "You're on the latest stable release, " + runningName + ".", NamedTextColor.GREEN)));
             return lines;
         }
         UpdateCheck.Release newest = outcome.newest();
