@@ -88,11 +88,13 @@ class SizingModelTest {
     }
 
     @Test
-    void anOpenFrontDoorStretchesTheEtaByAThirdToAHalf() {
+    void anOpenFrontDoorStretchesTheEtaByAQuarterToAHalf() {
         long sealed = eta(HOUSE, 0, 1, 95.0, OperatingMode.COOLING, 85.0, 72.0);
         long open = eta(HOUSE, 2, 1, 95.0, OperatingMode.COOLING, 85.0, 72.0);
         double ratio = open / (double) sealed;
-        assertTrue(ratio >= 1.3 && ratio <= 1.6, "one open door: x" + ratio);
+        // A third to a half in Pilot 1; since Pilot 2 units hold their speed against the door's
+        // loss instead of easing down into it near the target, so it costs a little less (x1.26).
+        assertTrue(ratio >= 1.2 && ratio <= 1.6, "one open door: x" + ratio);
     }
 
     @Test

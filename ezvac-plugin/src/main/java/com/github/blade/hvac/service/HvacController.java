@@ -98,12 +98,50 @@ public final class HvacController {
         return registry.profileFor(system);
     }
 
+    /** A system's sizing in a mode, on the profile it runs (BETA 1.0 Pilot 2: Eco counts for less). */
     public SizingModel.Assessment assess(SystemId system, OperatingMode mode) {
+        return assess(system, mode, registry.profileFor(system));
+    }
+
+    /** The same on a given profile, so the menu can say whether another would keep up. */
+    public SizingModel.Assessment assess(SystemId system, OperatingMode mode, OperatingProfile profile) {
         if (!sizing.enabled()) return null;
         AirflowService.Shape shape = mapped(system);
         if (shape == null) return null;
         return SizingModel.assess(shape.owned(), shape.water(), shape.openings(), registry.equipmentFor(system), mode,
-                settings, sizing);
+                profile, settings, sizing);
+    }
+
+    /**
+     * How fast a system loses heat (heating) or coolness (cooling) to the
+     * outdoors while it runs, in °F an in-game hour, as updateThermostat steps
+     * it: 0 when the outdoors is on its side.
+     */
+    double lossFPerHour(Thermostat thermostat, OperatingMode mode) {
+        double outside = outdoor.driftBaselineFor(thermostat);
+        boolean against = mode == OperatingMode.HEATING ? outside < thermostat.roomF()
+                : mode == OperatingMode.COOLING && outside > thermostat.roomF();
+        if (!against) return 0.0;
+        OutdoorTemperatureService.Outdoor out = thermostat.pool() ? null : outdoor.cachedClimateFor(thermostat);
+        double leak = out == null ? 1.0
+                : outdoor.climate().wind().infiltrationFactor(out.windMs()) * openness(thermostat.system());
+        return settings.activeLeakFPerHour() * Math.max(1.0, leak);
+    }
+
+    /** Systems that, flat out, lost more than they made this cycle (BETA 1.0 Pilot 2). */
+    private final Set<SystemId> lagging = new HashSet<>();
+
+    /** The hold a running system's units are asked for at least (BETA 1.0 Pilot 2). */
+    private PerformanceModel.Hold hold(Thermostat thermostat) {
+        OperatingMode mode = thermostat.mode();
+        List<PerformanceModel.Unit> units = new ArrayList<>();
+        for (EquipmentUnit unit : registry.equipmentFor(thermostat.system())) {
+            if (!unit.enabled() || !unit.type().supports(mode)) continue;
+            if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
+            units.add(new PerformanceModel.Unit(unit.type(), unit.tier()));
+        }
+        return PerformanceModel.hold(units, mode, registry.profileFor(thermostat.system()),
+                sizeFactor(thermostat.system()), lossFPerHour(thermostat, mode), settings);
     }
 
     /** One system's sizing, for listings: its name, both modes, and how short it falls at worst (1 = sized). */
@@ -188,6 +226,8 @@ public final class HvacController {
                                                            Set<EquipmentUnit> stopped) {
         Map<SystemId, Delivery> deliveries = new HashMap<>();
         Map<SystemId, OperatingProfile> sharedProfiles = new HashMap<>();
+        Map<SystemId, PerformanceModel.Hold> holds = new HashMap<>();
+        lagging.clear();
         Set<BlockKey> reservedOutputs = new HashSet<>();
         List<EquipmentUnit> ordered = new ArrayList<>(registry.equipment());
         ordered.sort(Comparator.comparing(EquipmentUnit::position));
@@ -205,9 +245,12 @@ public final class HvacController {
                     continue;
                 }
                 // Each unit is asked what its tier can do (3.1): every variable unit of a system
-                // gets the same command, as before, and the other tiers their stage.
-                double requested = PerformanceModel.stagedRequest(unit.tier(),
-                        Math.abs(controller.roomF() - controller.targetF()), settings);
+                // gets the same command, as before, and the other tiers their stage. Never less
+                // than the system's hold (BETA 1.0 Pilot 2), so easing down can't stall it short.
+                PerformanceModel.Hold hold = holds.computeIfAbsent(unit.system(), system -> hold(controller));
+                if (!hold.keepsUp()) lagging.add(unit.system());
+                double requested = PerformanceModel.withHold(unit.tier(), PerformanceModel.stagedRequest(unit.tier(),
+                        Math.abs(controller.roomF() - controller.targetF()), settings), hold.request());
                 OperatingProfile profile = unit.type().fixedSpeed()
                         ? OperatingProfile.NORMAL : sharedProfiles.computeIfAbsent(
                         unit.system(), registry::profileFor);
@@ -288,7 +331,9 @@ public final class HvacController {
                 thermostat.targetF(), settings) : null;
         SizingModel.Assessment sized = needed == null ? null : assess(thermostat.system(), needed);
         return Attention.of(!registry.equipmentFor(thermostat.system()).isEmpty(), vented,
-                thermostat.waitingOnUnits() != null, sized != null && sized.installed() > 0.0 && sized.undersized());
+                thermostat.waitingOnUnits() != null,
+                thermostat.mode() != OperatingMode.IDLE && lagging.contains(thermostat.system()),
+                sized != null && sized.installed() > 0.0 && sized.undersized());
     }
 
     /** The mode a system runs, or would start in as the room stands; null when it would stay idle. */

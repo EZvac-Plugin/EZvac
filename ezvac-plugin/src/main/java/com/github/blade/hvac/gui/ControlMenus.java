@@ -145,7 +145,9 @@ public final class ControlMenus implements Listener {
         inventory.setItem(PROFILE, profile(registry.profileFor(thermostat.system())));
         SizingModel.Assessment cooling = assess(thermostat, OperatingMode.COOLING);
         SizingModel.Assessment heating = assess(thermostat, OperatingMode.HEATING);
-        inventory.setItem(ATTENTION, attention(thermostat.attention(), thermostat.pool(), cooling, heating));
+        OperatingProfile profile = registry.profileFor(thermostat.system());
+        inventory.setItem(ATTENTION, attention(thermostat.attention(), thermostat.pool(), cooling, heating, profile,
+                betterProfile(thermostat, profile)));
         inventory.setItem(SYSTEM, system(thermostat, cooling, heating));
     }
 
@@ -154,11 +156,36 @@ public final class ControlMenus implements Listener {
     }
 
     /**
+     * The first faster profile on which the system would no longer be
+     * undersized for what it is short of now (BETA 1.0 Pilot 2), or null when
+     * none would do or it isn't short.
+     */
+    private OperatingProfile betterProfile(Thermostat thermostat, OperatingProfile profile) {
+        if (plugin.controller() == null || !thermostat.attention().contains(Attention.UNDERSIZED)) return null;
+        for (OperatingProfile faster : List.of(OperatingProfile.NORMAL, OperatingProfile.TURBO)) {
+            if (faster.ordinal() <= profile.ordinal()) continue;
+            boolean enough = true;
+            for (OperatingMode mode : List.of(OperatingMode.COOLING, OperatingMode.HEATING)) {
+                SizingModel.Assessment sized = plugin.controller().assess(thermostat.system(), mode, faster);
+                if (sized != null && sized.installed() > 0.0 && sized.undersized()) enough = false;
+            }
+            if (enough) return faster;
+        }
+        return null;
+    }
+
+    /** {@code Eco}: a profile as players read it. */
+    private static String title(OperatingProfile profile) {
+        return profile.name().charAt(0) + profile.name().substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    /**
      * What needs attention, each with what to do about it, or that all is
      * well. The screen only counts them beside its ⚠.
      */
     static ItemStack attention(java.util.Set<Attention> attention, boolean pool, SizingModel.Assessment cooling,
-                               SizingModel.Assessment heating) {
+                               SizingModel.Assessment heating, OperatingProfile profile,
+                               OperatingProfile betterProfile) {
         if (attention.isEmpty())
             return item(Material.LIME_DYE, Component.text("All good", NamedTextColor.GREEN),
                     List.of(gray("Nothing needs your attention")));
@@ -178,12 +205,18 @@ public final class ControlMenus implements Listener {
                     lore.add(warning("Its units are switched off server-wide"));
                     lore.add(gray("  An admin switches them on in /hvac quicksettings"));
                 }
+                case CANT_KEEP_UP -> {
+                    lore.add(warning("Losing it faster than it can make it: it can't reach its target"));
+                    lore.add(gray("  Close openings, or add units"));
+                }
                 case UNDERSIZED -> {
                     for (SizingModel.Assessment sized : java.util.Arrays.asList(cooling, heating))
                         if (sized != null && sized.installed() > 0.0 && sized.undersized())
                             lore.add(warning("Undersized for " + (sized == cooling ? "cooling" : "heating")
+                                    + (profile == OperatingProfile.NORMAL ? "" : " on " + title(profile))
                                     + ": has " + sized.ratio().replace("/", " of ") + " ★★★"));
-                    lore.add(gray("  Add units, or vents to reach all of it"));
+                    lore.add(gray(betterProfile == null ? "  Add units, or vents to reach all of it"
+                            : "  " + title(betterProfile) + " would keep up, or add units"));
                 }
             }
         }
