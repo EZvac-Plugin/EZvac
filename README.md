@@ -28,9 +28,12 @@ biome and the weather.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
   power or items needed.
 
-> **Release status:** EZvac **BETA 1.0 Pilot 1** is the first BETA. It
-> runs on Minecraft 26.1 to 26.3 (Paper or Purpur), and still on 1.21.x
-> until BETA 2.x. Every screen is redesigned as a status strip coloured by
+> **Release status:** EZvac **BETA 1.0 Pilot 2** is the second pilot of the
+> first BETA. It adds **mini thermostats** on wall buttons, makes the
+> thermostat's menu the place to run a system (its profile, what needs
+> attention, its size), and lets owners pick an update channel. It runs on
+> Minecraft 26.1 to 26.3 (Paper or Purpur), and still on 1.21.x until
+> BETA 2.x. Every screen is redesigned as a status strip coloured by
 > what the device is doing. The pale garden, the dappled forest and the
 > sulfur caves get their own climate and air, and admins are told when a
 > newer EZvac is out. `/hvac quicksettings` gives owners one menu to switch
@@ -76,7 +79,7 @@ biome and the weather.
 
 ## Quick install
 
-1. Download `EzVac-BETA-1.0-P1.jar` from the
+1. Download `EzVac-BETA-1.0-P2.jar` from the
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
 2. Put it in your server's `plugins` folder. You need Paper 26.1 to 26.3 or
@@ -124,7 +127,7 @@ Paper 1.21.1 API, so one jar runs on 1.21.1 and on 26.1 to 26.3.
 mvn clean package
 ```
 
-The plugin is written to `ezvac-plugin/target/EzVac-BETA-1.0-P1.jar`. `mvn verify` also runs
+The plugin is written to `ezvac-plugin/target/EzVac-BETA-1.0-P2.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

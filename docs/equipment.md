@@ -192,8 +192,12 @@ bigger building needs more of it.
   unit in a normal house always has, a few minutes on a hot or cold day.
 - **Too few is slower:** with a third of what it needs, a system heats or
   cools at about a third of the pace. On a very hot or cold day it may never
-  get there. Its screen then says **Undersized 1/3**: what it has of what it
-  needs, in ★★★ units.
+  get there. Its screen counts it beside its ⚠, and its menu says what it has
+  of what it needs, in ★★★ units (BETA 1.0 Pilot 2; the screen said
+  **Undersized 1/3** in Pilot 1).
+- **The profile counts:** on Eco a heat pump or AC counts for 70% of its
+  unit, on Turbo for a little more. A system sized right on Normal can be
+  short on Eco; its menu then says Normal would keep up.
 - **A small room is quicker,** up to twice the pace.
 - **Pools** count water instead: one ★★★ pool heater per 1,500 blocks of
   water.

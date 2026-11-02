@@ -42,9 +42,25 @@ be small: a **mini thermostat** on a wall button. The save is unchanged
   admins are told how many thermostats have units but no vent,** since those
   no longer start.
 - **The screen counts what needs attention** in amber beside its glyph (`⚠2`):
-  no units, no vent, units switched off server-wide, or too few units for the
-  building's size. What keeps it from starting is said on its own line
-  ("Needs a vent"); the menu says what each is.
+  no units, no vent, units switched off server-wide, a system that can't keep
+  up, or too few units for the building's size. What keeps it from starting is
+  said on its own line ("Needs a vent"); the menu says what each is.
+- **Can't keep up:** when even flat out a system loses more than it makes (a
+  wide opening, a gale), its menu says so, with what to do: close openings, or
+  add units.
+- **Undersized counts the profile.** Eco caps compressors at 2,400 RPM, so a
+  heat pump or AC counts for 70% of a unit on Eco (and more on Turbo). The
+  menu says when a faster profile would keep up: "Undersized for heating on
+  Eco… Normal would keep up".
+
+### Reaching the target
+
+- **Units ease down near the target only as far as the room allows.** They
+  used to slow to their minimum close to the target, and a leaky room could
+  then lose as much as they made and sit just short of it for good. Now they
+  never run below what the room is losing, plus enough to keep closing, so it
+  gets there. In a sealed room nothing changes. A two-stage unit goes to its
+  high stage when its low one isn't enough. The ETA follows the same rule.
 
 ### Update channels
 
@@ -69,7 +85,8 @@ be small: a **mini thermostat** on a wall button. The save is unchanged
 
 - `WeatherStationView.areaRadius()` and `areaHeight()`: a station's coverage,
   for a map. The new MapPeek addon draws it.
-- `ThermostatView.profile()`, `mini()`, `attention()` and `blocked()`.
+- `ThermostatView.profile()`, `mini()`, `attention()` (including
+  `CANT_KEEP_UP`) and `blocked()`.
 - Nothing an addon built for 1.6 uses has changed.
 
 ## BETA 1.0 Pilot 1

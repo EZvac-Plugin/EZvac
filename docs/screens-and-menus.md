@@ -78,7 +78,9 @@ thermostat's button, to open its control menu:
 - **Along the top** (BETA 1.0 Pilot 2):
   - **left, what needs attention:** each thing the system needs, with how to
     fix it: no units, no vent (it won't start without one), units switched off
-    server-wide, or undersized for its building. "All good" when there's
+    server-wide, losing more than it makes even flat out ("can't keep up"),
+    or undersized for its building on its profile (and whether a faster
+    profile would do). "All good" when there's
     nothing. The thermostat's screen counts them beside a ⚠;
   - **middle, the profile:** Eco, Normal or Turbo (see
     [Operating profiles](equipment.md#operating-profiles)). Click for the

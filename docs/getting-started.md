@@ -9,7 +9,7 @@ You need Paper or Purpur for Minecraft **26.1 to 26.3**, on Java 25 (Paper's
 own requirement). Minecraft 1.21.x on Java 21 still works in BETA 1.x, with a
 warning, but BETA 2.x will drop it.
 
-1. Put `EzVac-BETA-1.0-P1.jar` in your server's `plugins` folder.
+1. Put `EzVac-BETA-1.0-P2.jar` in your server's `plugins` folder.
 2. Start the server. EZvac writes `plugins/EZvac/config.yml` and logs a line
    such as `EZvac enabled: 0 thermostat(s), ...`.
 3. In game, `/hvac help` lists the commands you can use.
