@@ -9,7 +9,7 @@ and tested on 26.x first; on 1.21.x, BETA 1.0 passes the automated tests on
 1.21.1, 1.21.4, 1.21.5, 1.21.8 and 1.21.11, and the versions in between
 aren't checked on their own.
 
-1. Put `EzVac-BETA-1.0-P1.jar` in the server's `plugins` folder.
+1. Put `EzVac-BETA-1.0-P2.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 

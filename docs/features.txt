@@ -822,6 +822,15 @@ BETA 1.0 PILOT 2
   changes, never saved), a green dot while idle, "Off", or a short reason
   (DisplayService.miniBlocked). Registry requireFree keeps a button a mini
   thermostat or a sensor, never both.
+- The hold (PerformanceModel.hold/withHold): a running system's units never
+  ask for less than what delivers its loss to the outdoors (lossFPerHour:
+  active leak x wind x openness, when the outdoors is against it, level with
+  the room included, PerformanceModel.against) plus 1 °F an in-game hour, on
+  their tier and profile (steadyCapacity, solved by bisection); two-stage goes
+  high when its low stage is short. Flat out still short: CANT_KEEP_UP, a
+  non-blocking Attention. EtaEstimator applies the same hold. Undersized
+  counts the profile (SizingModel.installed: variable units x profileShare,
+  Eco 0.7, Turbo about 1.15); the menu names a faster profile that would do.
 - Water vent bubbles: HvacAudioService.ventBubbles, on the bubble task, puts
   BUBBLE_COLUMN_UP over each water vent of an enabled pool thermostat that is
   HEATING, only with a player within the audio radius.
