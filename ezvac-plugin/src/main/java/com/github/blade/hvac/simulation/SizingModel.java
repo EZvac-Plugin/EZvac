@@ -6,6 +6,7 @@ import com.github.blade.hvac.config.SizingSettings;
 import com.github.blade.hvac.model.DeviceKind;
 import com.github.blade.hvac.model.EquipmentUnit;
 import com.github.blade.hvac.model.OperatingMode;
+import com.github.blade.hvac.model.OperatingProfile;
 
 import java.util.Locale;
 
@@ -39,11 +40,22 @@ public final class SizingModel {
      * its kind is switched off server-wide.
      */
     public static double installed(Iterable<EquipmentUnit> units, OperatingMode mode, HvacSettings settings) {
+        return installed(units, mode, OperatingProfile.NORMAL, settings);
+    }
+
+    /**
+     * The same on a profile (BETA 1.0 Pilot 2): Eco's lower top speed makes
+     * a variable unit count for less, Turbo's for more. Furnaces and boilers
+     * count the same on every profile.
+     */
+    public static double installed(Iterable<EquipmentUnit> units, OperatingMode mode, OperatingProfile profile,
+                                   HvacSettings settings) {
+        double share = PerformanceModel.profileShare(profile, settings);
         double total = 0.0;
         for (EquipmentUnit unit : units) {
             if (!unit.enabled() || !unit.type().supports(mode)) continue;
             if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
-            total += settings.tierCapacity(unit.tier());
+            total += settings.tierCapacity(unit.tier()) * (unit.type().fixedSpeed() ? 1.0 : share);
         }
         return total;
     }
@@ -108,8 +120,16 @@ public final class SizingModel {
 
     public static Assessment assess(int size, boolean water, int openings, Iterable<EquipmentUnit> units,
                                     OperatingMode mode, HvacSettings settings, SizingSettings sizing) {
-        return new Assessment(size, water, openings, required(size, water, sizing), installed(units, mode, settings),
-                factor(size, water, sizing), water ? 1.0 : openness(openings, size, sizing));
+        return assess(size, water, openings, units, mode, OperatingProfile.NORMAL, settings, sizing);
+    }
+
+    /** The same on a profile (BETA 1.0 Pilot 2): on Eco a system can be short that Normal sizes right. */
+    public static Assessment assess(int size, boolean water, int openings, Iterable<EquipmentUnit> units,
+                                    OperatingMode mode, OperatingProfile profile, HvacSettings settings,
+                                    SizingSettings sizing) {
+        return new Assessment(size, water, openings, required(size, water, sizing),
+                installed(units, mode, profile, settings), factor(size, water, sizing),
+                water ? 1.0 : openness(openings, size, sizing));
     }
 
     /** 1, 0.9, 2.6, and from 10 whole numbers (13, 108), so a screen line always fits. */

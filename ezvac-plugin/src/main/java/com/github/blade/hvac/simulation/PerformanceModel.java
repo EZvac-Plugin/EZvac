@@ -2,6 +2,7 @@ package com.github.blade.hvac.simulation;
 
 import com.github.blade.hvac.config.HvacSettings;
 import com.github.blade.hvac.model.EquipmentType;
+import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.OperatingProfile;
 import com.github.blade.hvac.model.Tier;
 
@@ -72,6 +73,98 @@ public final class PerformanceModel {
             case TWO_STAGE -> Math.abs(absoluteErrorF) <= settings.variableApproachBandF() ? settings.twoStageLow() : 1.0;
             case VARIABLE -> requestedVariableCapacity(absoluteErrorF, settings);
         };
+    }
+
+    /** A unit as the hold works it out: what it is, and its tier. */
+    public record Unit(EquipmentType type, Tier tier) {}
+
+    /**
+     * The least every unit of a running system is asked for, so it delivers
+     * what the room loses and keeps closing on the target (BETA 1.0 Pilot 2).
+     * Units ease down near the target, but a real one only slows as far as
+     * the room allows: with a room's leak at a fixed rate, easing down to the
+     * minimum could leave it short of the target for good.
+     *
+     * @param request  0 to 1: the least request, for every unit alike
+     * @param keepsUp  false when even flat out it loses more than it makes
+     */
+    public record Hold(double request, boolean keepsUp) {
+        public static final Hold NONE = new Hold(0.0, true);
+    }
+
+    /** How fast a held room still closes on its target, in °F an in-game hour, beyond its loss. */
+    public static final double HOLD_MARGIN_F_PER_HOUR = 1.0;
+
+    /**
+     * The hold for a system's units in a mode, losing {@code lossFPerHour} to
+     * the outdoors (0 when the outdoors helps), as {@code sizeFactor} scales
+     * them (NaN with building size off).
+     */
+    public static Hold hold(java.util.List<Unit> units, OperatingMode mode, OperatingProfile profile,
+                            double sizeFactor, double lossFPerHour, HvacSettings settings) {
+        if (mode == OperatingMode.IDLE || !(lossFPerHour > 0.0) || units.isEmpty()) return Hold.NONE;
+        double rate = mode == OperatingMode.HEATING ? settings.heatingRateFPerHour() : settings.coolingRateFPerHour();
+        double loss = lossFPerHour / rate, needed = (lossFPerHour + HOLD_MARGIN_F_PER_HOUR) / rate;
+        double flatOut = delivered(units, 1.0, profile, sizeFactor, settings);
+        if (flatOut < needed) return new Hold(1.0, flatOut > loss);
+        double low = 0.0, high = 1.0;
+        for (int i = 0; i < 30; i++) {
+            double middle = (low + high) / 2.0;
+            if (delivered(units, middle, profile, sizeFactor, settings) >= needed) high = middle;
+            else low = middle;
+        }
+        return new Hold(high, true);
+    }
+
+    /** What a system's units deliver together, steady, all asked for the same. */
+    static double delivered(java.util.List<Unit> units, double request, OperatingProfile profile, double sizeFactor,
+                            HvacSettings settings) {
+        double fixed = 0.0, variable = 0.0;
+        for (Unit unit : units) {
+            double capacity = steadyCapacity(unit.type(), unit.tier(), request, profile, settings);
+            if (unit.type().fixedSpeed()) fixed += capacity;
+            else variable += capacity;
+        }
+        return SizingModel.combine(fixed, variable, sizeFactor, settings);
+    }
+
+    /**
+     * What a unit delivers once its motor has caught up with a request: flat
+     * out for single-stage, its low stage or flat out for two-stage, and on
+     * the curve for variable, as EquipmentUnit's motor works it out.
+     */
+    public static double steadyCapacity(EquipmentType type, Tier tier, double request, OperatingProfile profile,
+                                        HvacSettings settings) {
+        double asked = switch (tier) {
+            case SINGLE_STAGE -> 1.0;
+            case TWO_STAGE -> request <= settings.twoStageLow() + 1e-9 ? settings.twoStageLow() : 1.0;
+            case VARIABLE -> request;
+        };
+        if (type.fixedSpeed())
+            return settings.tierCapacity(tier) * Math.max(settings.variableMinimumCapacity(), Math.min(1.0, asked));
+        return settings.tierCapacity(tier) * variableCapacityFromRpm(variableTargetRpm(asked, profile, settings), settings);
+    }
+
+    /**
+     * A unit's request with the system's hold under it: a variable unit runs
+     * no slower than the hold, and a two-stage one goes to its high stage when
+     * its low one isn't enough.
+     */
+    public static double withHold(Tier tier, double staged, double hold) {
+        return switch (tier) {
+            case SINGLE_STAGE -> 1.0;
+            case TWO_STAGE -> staged >= hold ? staged : 1.0;
+            case VARIABLE -> Math.max(staged, hold);
+        };
+    }
+
+    /**
+     * How a profile scales a variable unit's flat out (BETA 1.0 Pilot 2): 1
+     * on Normal, less on Eco, more on Turbo. Furnaces and boilers ignore it.
+     */
+    public static double profileShare(OperatingProfile profile, HvacSettings settings) {
+        return variableCapacityFromRpm(variableTargetRpm(1.0, profile, settings), settings)
+                / variableCapacityFromRpm(variableTargetRpm(1.0, OperatingProfile.NORMAL, settings), settings);
     }
 
     /**

@@ -86,6 +86,8 @@ public record ThermostatView(String id, String system, Position position, double
         NO_VENTS,
         /** It needs heating or cooling, but every unit that could is switched off server-wide. */
         UNITS_OFF,
+        /** Even flat out it loses more than it makes, to openings or the wind: it can't reach its target. */
+        CANT_KEEP_UP,
         /** Too few units for the building's size, for the mode it runs or needs. */
         UNDERSIZED
     }

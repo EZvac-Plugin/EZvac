@@ -87,21 +87,23 @@ public final class EtaEstimator {
         }
         if (furnaces.isEmpty() && variableCount == 0) return OptionalLong.empty();
 
+        // The same hold under every unit as the controller asks for (BETA 1.0 Pilot 2).
+        double hold = holdRequest(units, roomF, outdoorF, mode, profile, settings, leakFactor, sizeFactor);
         double room = roomF;
         for (long elapsed = STEP_TICKS; elapsed <= MAXIMUM_ETA_TICKS; elapsed += STEP_TICKS) {
             double error = Math.abs(room - targetF);
             // Each unit runs as its tier does (3.1): flat out, on a stage, or modulating.
             double fixedEquivalent = 0.0;
             for (Tier tier : furnaces) {
-                double share = Math.max(settings.variableMinimumCapacity(),
-                        Math.min(1.0, PerformanceModel.stagedRequest(tier, error, settings)));
+                double share = Math.max(settings.variableMinimumCapacity(), Math.min(1.0,
+                        PerformanceModel.withHold(tier, PerformanceModel.stagedRequest(tier, error, settings), hold)));
                 fixedEquivalent += settings.tierCapacity(tier) * share;
             }
             double variableEquivalent = 0.0;
             for (int index = 0; index < variableCount; index++) {
                 Tier tier = variableTiers[index];
-                double targetRpm = PerformanceModel.variableTargetRpm(
-                        PerformanceModel.stagedRequest(tier, error, settings), profile, settings);
+                double targetRpm = PerformanceModel.variableTargetRpm(PerformanceModel.withHold(tier,
+                        PerformanceModel.stagedRequest(tier, error, settings), hold), profile, settings);
                 double rpm = PerformanceModel.approach(variableRpms[index], targetRpm,
                         STEP_TICKS / 20.0, settings.variableRampUpRpmPerSecond(),
                         settings.variableRampDownRpmPerSecond());
@@ -114,6 +116,19 @@ public final class EtaEstimator {
             if (reached(room, targetF, mode)) return OptionalLong.of(elapsed);
         }
         return OptionalLong.empty();
+    }
+
+    /** The controller's hold for these units: what the room loses while they run, when the outdoors is against it. */
+    static double holdRequest(List<UnitSnapshot> units, double roomF, double outdoorF, OperatingMode mode,
+                              OperatingProfile profile, HvacSettings settings, double leakFactor, double sizeFactor) {
+        boolean against = mode == OperatingMode.HEATING ? outdoorF < roomF
+                : mode == OperatingMode.COOLING && outdoorF > roomF;
+        if (!against) return 0.0;
+        List<PerformanceModel.Unit> running = new ArrayList<>();
+        for (UnitSnapshot unit : units)
+            if (unit.type().supports(mode)) running.add(new PerformanceModel.Unit(unit.type(), unit.tier()));
+        double loss = settings.activeLeakFPerHour() * (Double.isFinite(leakFactor) ? Math.max(1.0, leakFactor) : 1.0);
+        return PerformanceModel.hold(running, mode, profile, sizeFactor, loss, settings).request();
     }
 
     private static boolean reached(double roomF, double targetF, OperatingMode mode) {

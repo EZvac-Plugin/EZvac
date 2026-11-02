@@ -20,20 +20,21 @@ class AttentionTest {
 
     @Test
     void aWellSetUpSystemNeedsNothing() {
-        assertEquals(Set.of(), Attention.of(true, true, false, false));
+        assertEquals(Set.of(), Attention.of(true, true, false, false, false));
     }
 
     @Test
     void eachProblemCountsOnceInTheOrderTheMenuListsThem() {
-        assertEquals(List.of(Attention.NO_UNITS, Attention.NO_VENTS, Attention.UNITS_OFF, Attention.UNDERSIZED),
-                List.copyOf(Attention.of(false, false, true, true)));
-        assertEquals(EnumSet.of(Attention.NO_VENTS), Attention.of(true, false, false, false));
+        assertEquals(List.of(Attention.NO_UNITS, Attention.NO_VENTS, Attention.UNITS_OFF, Attention.CANT_KEEP_UP,
+                Attention.UNDERSIZED), List.copyOf(Attention.of(false, false, true, true, true)));
+        assertEquals(EnumSet.of(Attention.NO_VENTS), Attention.of(true, false, false, false, false));
     }
 
     @Test
-    void onlyUndersizedLetsTheSystemStart() {
+    void undersizedAndLaggingStillLetTheSystemRun() {
         for (Attention attention : Attention.values())
-            assertEquals(attention != Attention.UNDERSIZED, attention.blocking(), attention.name());
+            assertEquals(attention != Attention.UNDERSIZED && attention != Attention.CANT_KEEP_UP, attention.blocking(),
+                    attention.name());
     }
 
     @Test
