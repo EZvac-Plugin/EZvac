@@ -36,14 +36,22 @@ class HudFormatterTest {
 
     @Test
     void theSeasonLineShowsOnlyWhereThereAreSeasons() {
+        // Since BETA 1.0 Pilot 3 the stock one ends with the time of day, and keeps it without seasons.
         List<String> lines = HudSettings.defaults().sidebarLines();
-        String seasonLine = "<gray> {season}, day {season_day}";
+        String seasonLine = HudSettings.SEASON_CLOCK_LINE;
         assertTrue(lines.contains(seasonLine));
-        assertFalse(format.shownLines(lines, cooled(72.0)).contains(seasonLine));
-        assertEquals(lines.size() - 1, format.shownLines(lines, cooled(72.0)).size());
-        ClimateSnapshot summer = cooled(72.0).inSeason("Summer", 3);
+        List<String> noSeasons = format.shownLines(lines, cooled(72.0).at("14:30"));
+        assertFalse(noSeasons.contains(seasonLine));
+        assertTrue(noSeasons.contains(HudSettings.CLOCK_LINE), "the clock stays");
+        assertEquals(lines.size(), noSeasons.size());
+        assertEquals(" 14:30", plain(format.render(HudSettings.CLOCK_LINE, cooled(72.0).at("14:30"))));
+        ClimateSnapshot summer = cooled(72.0).inSeason("Summer", 3).at("14:30");
         assertSame(lines, format.shownLines(lines, summer));
-        assertEquals(" Summer, day 3", plain(format.render(seasonLine, summer)));
+        assertEquals(" Summer, day 3 · 14:30", plain(format.render(seasonLine, summer)));
+        String ownSeasonLine = "<gray> {season}, day {season_day}";
+        assertTrue(format.shownLines(List.of(ownSeasonLine), cooled(72.0)).isEmpty(),
+                "a server's own season line still goes without seasons");
+        assertEquals(" Summer, day 3", plain(format.render(ownSeasonLine, summer)));
     }
 
     @Test

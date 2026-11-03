@@ -17,7 +17,7 @@ public final class PlaceholderResolver {
             "influence", "zone", "conditioned", "medium",
             "feels_like", "feels_like_f", "feels_like_c", "humidity", "weather", "season", "season_day",
             "aqi", "aqi_colored", "aqi_band", "pm25", "pm10", "pollen", "pollen_count",
-            "wind", "wind_level", "wind_speed", "wind_ms", "wind_kmh", "wind_mph", "wind_direction", "wind_degrees");
+            "wind", "wind_level", "wind_speed", "wind_ms", "wind_kmh", "wind_mph", "wind_direction", "wind_degrees", "time");
 
     private final HudFormatter format;
 
@@ -76,6 +76,7 @@ public final class PlaceholderResolver {
             case "wind_ms" -> windNumber(snapshot, 1.0);
             case "wind_kmh" -> windNumber(snapshot, 3.6);
             case "wind_mph" -> windNumber(snapshot, 2.236_936);
+            case "time" -> format.time(snapshot);
             case "wind_direction" -> snapshot.windDirection().isEmpty() ? format.settings().noneText()
                     : snapshot.windDirection();
             case "wind_degrees" -> snapshot.windDirection().isEmpty() ? format.settings().noneText()

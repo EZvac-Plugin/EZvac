@@ -27,7 +27,8 @@ reach (gold under 50%), and **Outside** where no system reaches.
 - **Sidebar** (default): a scoreboard sidebar with the score numbers hidden,
   in three sections since BETA 1.0: **Here** (the temperature and feels-like,
   the comfort gauge, humidity and air), **Outside** (the temperature and
-  weather, wind and season) and **System** (what the system is doing, and the
+  weather, wind, and the season with the time of day: `Summer, day 3 · 14:30`)
+  and **System** (what the system is doing, and the
   airflow). Each section has an accent heading with a rule under it.
 - **The gauge** (BETA 1.0) runs from cold to hot in the comfort colours,
   blue through green to red, with a white ◆ where it feels. `hud.bar.style:
@@ -75,6 +76,7 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`; empty in dry biomes) |
 | `%ezvac_season%` | `Summer` (`Spring`, `Autumn`, `Winter`; empty where there are no seasons) |
 | `%ezvac_season_day%` | `3`, the day of that season |
+| `%ezvac_time%` | `14:30`, Minecraft's time of day on a 24-hour clock (sunrise is 06:00); `none` in the Nether and the End (BETA 1.0 Pilot 3) |
 | `%ezvac_outdoor%` (`_outdoor_f`, `_outdoor_c`) | `88.0°F` |
 | `%ezvac_bar%` / `%ezvac_bar_plain%` | `━━━━━◆━━━━` (coloured / plain; `▮▮▮▮▮▯▯▯▯▯` with `bar.style: blocks`) |
 | `%ezvac_comfort%` | `Comfortable` |
@@ -101,8 +103,14 @@ and these tokens:
 
 `{temp}` `{feels}` `{humidity}` `{aqi}` `{aqi_band}` `{pollen}` `{wind}`
 `{wind_level}` `{bar}` `{comfort}` `{outdoor}` `{weather}` `{season}`
-`{season_day}` `{system}` `{thermostat}` `{mode}` `{system_mode}` `{mode_icon}`
-`{target}` `{zone}` `{version}`
+`{season_day}` `{time}` `{wind_direction}` `{wind_degrees}` `{system}`
+`{thermostat}` `{mode}` `{system_mode}` `{mode_icon}` `{target}` `{zone}`
+`{version}`
+
+`{time}` is the time of day, `14:30` (BETA 1.0 Pilot 3). The stock sidebar
+shows it at the end of the season line; with seasons off, that line shows the
+time alone. A sidebar still on the stock BETA 1.0 lines gains it when you
+upgrade.
 
 `{aqi}` is the Air Quality Index in its band's colour (3.2). The air values
 read `none` where the air isn't measured: in water, or with `air-quality`

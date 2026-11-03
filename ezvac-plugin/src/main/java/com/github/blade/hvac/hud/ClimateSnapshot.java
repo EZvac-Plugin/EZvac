@@ -29,13 +29,14 @@ import com.github.blade.hvac.simulation.AirQualityModel;
  * @param windLevel    how it reads (Calm .. Gale), empty in water, outside the overworld or with wind off
  * @param windSpeed    its speed in the server's units ({@code 22 km/h}), empty with windLevel
  * @param windFromDegrees where it blows from (BETA 1.0 Pilot 3); NaN where it's calm or there is none
+ * @param clock        the world's time of day, {@code 14:30} (BETA 1.0 Pilot 3); empty where it has no sun
  */
 public record ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
                               String system, String thermostat, String mode, double targetF,
                               boolean core, boolean water, double humidity, double feelsLikeF,
                               String weather, String season, int seasonDay, AirQualityModel.Air air,
                               String pollen, double windMs, String windLevel, String windSpeed,
-                              double windFromDegrees) {
+                              double windFromDegrees, String clock) {
     /** The mode of an idle system whose units are switched off server-wide (BETA 1.0). */
     public static final String UNITS_OFF = "UNITS_OFF";
 
@@ -50,6 +51,18 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
         if (windSpeed == null || windLevel.isEmpty()) windSpeed = "";
         windMs = Double.isFinite(windMs) && !windLevel.isEmpty() ? Math.max(0.0, windMs) : 0.0;
         if (windLevel.isEmpty() || windLevel.equals("Calm")) windFromDegrees = Double.NaN;
+        if (clock == null) clock = "";
+    }
+
+    /** A snapshot without the time of day. */
+    public ClimateSnapshot(double localF, double outdoorF, double influence, int distance,
+                           String system, String thermostat, String mode, double targetF,
+                           boolean core, boolean water, double humidity, double feelsLikeF,
+                           String weather, String season, int seasonDay, AirQualityModel.Air air,
+                           String pollen, double windMs, String windLevel, String windSpeed,
+                           double windFromDegrees) {
+        this(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core, water, humidity,
+                feelsLikeF, weather, season, seasonDay, air, pollen, windMs, windLevel, windSpeed, windFromDegrees, "");
     }
 
     /** A snapshot whose wind has no direction, as in 3.2. */
@@ -93,14 +106,21 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
     public ClimateSnapshot inSeason(String season, int day) {
         return new ClimateSnapshot(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core,
                 water, humidity, feelsLikeF, weather, season, day, air, pollen, windMs, windLevel, windSpeed,
-                windFromDegrees);
+                windFromDegrees, clock);
     }
 
     /** The same snapshot, with the air and its pollen level (3.2). */
     public ClimateSnapshot withAir(AirQualityModel.Air air, String pollen) {
         return new ClimateSnapshot(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core,
                 water, humidity, feelsLikeF, weather, season, seasonDay, air, pollen, windMs, windLevel, windSpeed,
-                windFromDegrees);
+                windFromDegrees, clock);
+    }
+
+    /** The same snapshot, at this time of day (BETA 1.0 Pilot 3). */
+    public ClimateSnapshot at(String clock) {
+        return new ClimateSnapshot(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core,
+                water, humidity, feelsLikeF, weather, season, seasonDay, air, pollen, windMs, windLevel, windSpeed,
+                windFromDegrees, clock);
     }
 
     /** The same snapshot, with the wind (3.2). */
@@ -112,7 +132,7 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
     public ClimateSnapshot withWind(double windMs, String level, String speed, double fromDegrees) {
         return new ClimateSnapshot(localF, outdoorF, influence, distance, system, thermostat, mode, targetF, core,
                 water, humidity, feelsLikeF, weather, season, seasonDay, air, pollen, windMs, level, speed,
-                fromDegrees);
+                fromDegrees, clock);
     }
 
     /** {@code Calm}, or {@code Windy 22 km/h W}; empty where there is no wind to read. */
