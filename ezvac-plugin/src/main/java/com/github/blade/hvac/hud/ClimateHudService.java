@@ -220,7 +220,7 @@ public final class ClimateHudService implements Listener {
             WindSettings.Units units = WindText.units(wind,
                     format.settings().celsius() ? TemperatureUnit.C : TemperatureUnit.F);
             snapshot = snapshot.withWind(reading.windMs(), WindText.level(reading.windMs(), wind).displayName(),
-                    WindText.speed(reading.windMs(), units));
+                    WindText.speed(reading.windMs(), units), reading.windFromDegrees());
         }
         UUID world = player.getWorld().getUID();
         if (seasons == null || !seasons.settings().enabled() || !seasons.tracks(world)) return snapshot;

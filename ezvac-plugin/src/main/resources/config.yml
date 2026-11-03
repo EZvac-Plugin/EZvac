@@ -181,9 +181,11 @@ biome-blend:
   radius-blocks: 24
 
 # The seasons (2.1). Each world with a sun keeps its own calendar in
-# seasons.yml, starting on the first day of spring; /hvac season shows it and
-# admins can change it (set, next, pause, resume). It counts the world's days,
-# so sleeping moves it on, but setting the clock back never resets the year.
+# seasons.yml, starting from Minecraft's own day count (day 0 of a world is
+# the first day of spring); /hvac season shows it and admins can change it
+# (set, next, pause, resume). It follows the world's days, so sleeping and
+# /time add move it on by every day they pass (BETA 1.0 Pilot 3), but setting
+# the clock back never resets the year.
 # Seasons only move temperatures: biomes, rain and snow stay as they are.
 # How far each biome moves is its own (plains: 90 F at noon in mid-summer,
 # 54 F in mid-winter; a jungle barely changes); strength scales them all,
@@ -394,6 +396,11 @@ air-quality:
 # feel colder, makes rooms leakier (they drift toward the outdoors faster,
 # and systems work harder), lifts dust in dry biomes, thins smoke and
 # spreads pollen. /hvac wind shows today's and the next days'.
+# BETA 1.0 Pilot 3: it blows from a direction, and differs from one region to
+# the next. Hot climates lie in the trade winds (from the east-northeast),
+# temperate ones in the westerlies (from the west-southwest), cold ones in
+# the polar easterlies (from the northeast); rain passing through turns the
+# westerlies, south ahead of it, southwest while it rains, northwest after.
 wind:
   # false: the fixed weather.wind-clear-ms, and wind changes nothing else.
   enabled: true
@@ -429,6 +436,21 @@ wind:
   # forest, 1.4 a mountain top, 0 no wind at all. For example:
   #   minecraft:plains: 1.2
   biomes: {}
+  # Where it blows from (BETA 1.0 Pilot 3). variation: how far a day strays
+  # from its climate's usual direction, 0 (never) to 2; fronts: whether the
+  # wind turns ahead of and behind rain.
+  direction:
+    variation: 1.0
+    fronts: true
+  # Regions (BETA 1.0 Pilot 3): areas about size-blocks across where the wind
+  # is windier or calmer than the day's, by up to strength (0.4: 40%) and
+  # never by more than about a level. They drift downwind through the day.
+  # enabled: false blows the same wind everywhere, terrain aside, as in 3.2.
+  regions:
+    enabled: true
+    size-blocks: 1500
+    strength: 0.4
+    drift-blocks-per-hour: 150
 
 # Weather stations (BETA 1.0): a tower of copper and iron with a sign, built
 # by an admin (/hvac create weatherstation). It measures the outdoor climate

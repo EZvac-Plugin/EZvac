@@ -735,10 +735,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private static final int FORECAST_DAYS = 3;
 
     /**
-     * {@code /hvac wind [set <calm|breezy|windy|gale|auto>] [world]} (3.2):
-     * anyone may look at today's wind and the next days', admins may set
+     * {@code /hvac wind [set <calm|breezy|windy|gale|auto> [direction]] [world]}
+     * (3.2): anyone may look at today's wind and the next days', admins may set
      * today's. From the console the world can be named last; it defaults to
-     * the main world.
+     * the main world. A player sees their own region's wind (BETA 1.0 Pilot 3),
+     * the console the world's.
      */
     private void wind(CommandSender sender, String[] args) {
         WindService wind = outdoor.wind();
@@ -766,7 +767,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "info" -> { }
             case "set" -> {
                 if (!requireAdmin(sender)) return;
-                if (rest.size() < 2) throw new IllegalArgumentException("Usage: /hvac wind set <calm|breezy|windy|gale|auto>");
+                if (rest.size() < 2) throw new IllegalArgumentException(
+                        "Usage: /hvac wind set <calm|breezy|windy|gale|auto> [direction, such as nw or 270]");
                 if (rest.get(1).equalsIgnoreCase("auto")) {
                     wind.hold(world, null);
                     sender.sendMessage(green("The wind in '" + world.getName() + "' blows as it would again: "
@@ -776,36 +778,53 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 WindModel.Level level = WindModel.Level.parse(rest.get(1));
                 if (level == null) throw new IllegalArgumentException("'" + rest.get(1)
                         + "' is not a wind: calm, breezy, windy, gale, or auto.");
-                wind.hold(world, level);
+                double from = Double.NaN;
+                if (rest.size() > 2) {
+                    from = WindText.parseDirection(rest.get(2));
+                    if (Double.isNaN(from)) throw new IllegalArgumentException("'" + rest.get(2)
+                            + "' is not a direction: a compass point such as nw, or degrees from 0 to 360.");
+                }
+                wind.hold(world, level, from);
                 sender.sendMessage(green("It is " + day(wind.day(world), units) + " in '" + world.getName()
                         + "' until the day ends. /hvac wind set auto lets it blow as it would."));
                 return;
             }
-            default -> throw new IllegalArgumentException("Usage: /hvac wind [set <calm|breezy|windy|gale|auto>]");
+            default -> throw new IllegalArgumentException(
+                    "Usage: /hvac wind [set <calm|breezy|windy|gale|auto> [direction]]");
         }
-        List<WindModel.Day> forecast = wind.forecast(world, FORECAST_DAYS);
-        Component line = join(gold("Wind"), gray(" | Today: "), white(day(forecast.get(0), units)));
+        Player here = sender instanceof Player player && player.getWorld().equals(world) ? player : null;
+        List<WindModel.Day> forecast = here == null ? wind.forecast(world, FORECAST_DAYS)
+                : wind.forecastAt(world, here.getLocation().getX(), here.getLocation().getZ(), FORECAST_DAYS);
+        Component line = join(gold("Wind"), gray(here == null ? " | Today: " : " | Today around here: "),
+                white(day(forecast.get(0), units)));
         if (wind.held(world)) line = line.append(yellow(" (set by an admin)"));
+        else if (here != null && forecast.get(0).level() != wind.day(world).level())
+            line = line.append(gray(" (" + wind.day(world).level().displayName() + " across the world)"));
         sender.sendMessage(line);
-        if (sender instanceof Player player && player.getWorld().equals(world)) {
-            AirflowService.TemperatureReading here =
-                    airflow.temperatureForBody(player.getLocation(), player.getEyeLocation());
+        if (here != null) {
+            AirflowService.TemperatureReading reading =
+                    airflow.temperatureForBody(here.getLocation(), here.getEyeLocation());
+            OutdoorTemperatureService.Outdoor open = outdoor.climateAt(here.getLocation());
             sender.sendMessage(join(gray("Here: "),
-                    white(here.water() ? "in water" : WindText.describe(here.windMs(), wind.settings(),
-                            settings.units())),
+                    white(reading.water() ? "in water" : WindText.describe(reading.windMs(),
+                            reading.windFromDegrees(), wind.settings(), settings.units())),
                     gray(" | Out in the open: "),
-                    white(WindText.describe(outdoor.climateAt(player.getLocation()).windMs(), wind.settings(),
+                    white(WindText.describe(open.windMs(), open.windFromDegrees(), wind.settings(),
                             settings.units()))));
         }
         Component ahead = gray("Next days: ");
-        for (int index = 1; index < forecast.size(); index++)
-            ahead = ahead.append(white((index > 1 ? ", " : "") + forecast.get(index).level().displayName()));
+        for (int index = 1; index < forecast.size(); index++) {
+            WindModel.Day next = forecast.get(index);
+            ahead = ahead.append(white((index > 1 ? ", " : "") + next.level().displayName()
+                    + (next.level() == WindModel.Level.CALM ? "" : " from the " + WindText.compass(next.fromDegrees()))));
+        }
         sender.sendMessage(ahead);
     }
 
-    /** "Windy, about 22 km/h". */
+    /** "Windy, about 22 km/h from the W"; a calm day has no direction. */
     private static String day(WindModel.Day day, WindSettings.Units units) {
-        return day.level().displayName() + ", about " + WindText.speed(day.meanMs(), units);
+        String text = day.level().displayName() + ", about " + WindText.speed(day.meanMs(), units);
+        return day.level() == WindModel.Level.CALM ? text : text + " from the " + WindText.compass(day.fromDegrees());
     }
 
     /** "Summer, day 3 of 15". */
@@ -1362,6 +1381,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             if (args.length == 2) return admin ? filter(args[1], "set") : List.of();
             if (args.length == 3 && args[1].equalsIgnoreCase("set"))
                 return filter(args[2], "calm", "breezy", "windy", "gale", "auto");
+            if (args.length == 4 && args[1].equalsIgnoreCase("set") && !args[2].equalsIgnoreCase("auto")) {
+                List<String> directions = new ArrayList<>(filter(args[3], "n", "ne", "e", "se", "s", "sw", "w", "nw"));
+                directions.addAll(filter(args[3], plugin.getServer().getWorlds().stream()
+                        .filter(WindService::hasWind).map(World::getName).toArray(String[]::new)));
+                return directions;
+            }
             return filter(args[args.length - 1], plugin.getServer().getWorlds().stream()
                     .filter(WindService::hasWind).map(World::getName).toArray(String[]::new));
         }

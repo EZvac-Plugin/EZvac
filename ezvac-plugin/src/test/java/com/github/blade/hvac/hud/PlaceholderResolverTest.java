@@ -34,7 +34,8 @@ class PlaceholderResolverTest {
                 Map.entry("pollen_count", "none"),
                 // Nor any wind: in water, outside the overworld, or with wind off.
                 Map.entry("wind", "none"), Map.entry("wind_level", "none"), Map.entry("wind_speed", "none"),
-                Map.entry("wind_ms", "none"), Map.entry("wind_kmh", "none"), Map.entry("wind_mph", "none")));
+                Map.entry("wind_ms", "none"), Map.entry("wind_kmh", "none"), Map.entry("wind_mph", "none"),
+                Map.entry("wind_direction", "none"), Map.entry("wind_degrees", "none")));
         for (String key : PlaceholderResolver.KEYS) {
             String value = resolver.resolve(cooled, key);
             assertNotNull(value, key);
@@ -55,6 +56,12 @@ class PlaceholderResolverTest {
         ClimateSnapshot calm = cooled.withWind(0.4, "Calm", "1 mph");
         assertEquals("Calm", resolver.resolve(calm, "wind"), "a calm day shows no speed");
         assertEquals("0", resolver.resolve(calm, "wind_ms"));
+        // Where it blows from (BETA 1.0 Pilot 3); a calm day has no direction.
+        ClimateSnapshot fromNorthwest = cooled.withWind(10.0, "Windy", "22 mph", 312.0);
+        assertEquals("Windy 22 mph NW", resolver.resolve(fromNorthwest, "wind"));
+        assertEquals("NW", resolver.resolve(fromNorthwest, "wind_direction"));
+        assertEquals("312", resolver.resolve(fromNorthwest, "wind_degrees"));
+        assertEquals("none", resolver.resolve(cooled.withWind(0.4, "Calm", "1 mph", 312.0), "wind_direction"));
     }
 
     @Test
