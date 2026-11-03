@@ -197,6 +197,44 @@ public interface EzvacApi {
     }
 
     /**
+     * A region's wind for today and the days after it, {@code days} in all:
+     * the wind around {@code location}, which can be up to a level windier or
+     * calmer than the world's, with where it blows from there. Empty where
+     * there is no wind.
+     *
+     * @since 1.8
+     */
+    default List<Wind.Day> windForecast(Location location, int days) {
+        return location == null ? List.of() : windForecast(location.getWorld(), days);
+    }
+
+    /**
+     * The wind on open, level ground at a spot right now, with where it blows
+     * from: as a weather vane in a field there would read it, before terrain
+     * and buildings. Works anywhere, explored or not, and never loads a
+     * chunk, so a map can draw it everywhere. Calm where there is no wind.
+     * Main thread only.
+     *
+     * @since 1.8
+     */
+    default Wind windAt(World world, int x, int z) {
+        return Wind.CALM;
+    }
+
+    /**
+     * The outdoor air in the open at a spot right now: its biomes' air with
+     * the season's pollen, the rain and the wind, as a weather station there
+     * would read it; no indoor smoke. Works anywhere, explored or not, and
+     * never loads a chunk. Empty with air quality switched off or outside the
+     * overworld. Main thread only.
+     *
+     * @since 1.8
+     */
+    default Optional<AirQuality> outdoorAirAt(World world, int x, int z) {
+        return Optional.empty();
+    }
+
+    /**
      * Addon sections on the climate HUD. Check {@link #apiVersion()} first
      * when the addon should also run on API 1.0, which doesn't have it.
      *
