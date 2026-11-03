@@ -21,27 +21,55 @@ import java.util.UUID;
  * calendar paused, it is the world's own day count. Only worlds with a sky
  * have wind. An admin can set today's level with {@code /hvac wind set}; that
  * holds until the day ends and is never saved.
+ *
+ * <p>BETA 1.0 Pilot 3: the wind has a direction and differs from region to
+ * region. A spot's direction comes from its climate belts, read across the map
+ * by {@link RegionClimate}, and turns with rain passing through, read from the
+ * world's weather clocks. When it last started and stopped raining is kept in
+ * memory only, so after a restart a front simply begins again.
  */
 public final class WindService {
     private final WindSettings settings;
     /** Null outside a running server (tests): the wind then has no seasons. */
     private final SeasonService seasons;
 
+    /** Null outside a running server (tests): everywhere is then in the westerlies. */
+    private final RegionClimate regions;
+
     private record Today(long day, WindModel.Day today, WindModel.Day yesterday) {}
-    private record Held(long day, WindModel.Level level) {}
+    /** A level an admin set for the day, and the direction, NaN to leave it as it would blow. */
+    private record Held(long day, WindModel.Level level, double fromDegrees) {}
     private record Speed(long fullTime, long day, double speedMs) {}
+    /** When it was last seen to start and stop raining, in game ticks; -1 when not seen. */
+    private static final class Rain {
+        boolean raining;
+        boolean seen;
+        long started = -1L;
+        long ended = -1L;
+        long checked = Long.MIN_VALUE;
+        WindModel.Front front = WindModel.Front.NONE;
+    }
 
     private final Map<UUID, Today> days = new HashMap<>();
     private final Map<UUID, Held> held = new HashMap<>();
     /** The last speed worked out per world: many readings ask in the same tick. */
     private final Map<UUID, Speed> speeds = new HashMap<>();
+    private final Map<UUID, Rain> rain = new HashMap<>();
 
     public WindService(WindSettings settings, SeasonService seasons) {
+        this(settings, seasons, null);
+    }
+
+    public WindService(WindSettings settings, SeasonService seasons, RegionClimate regions) {
         this.settings = Objects.requireNonNull(settings, "settings");
         this.seasons = seasons;
+        this.regions = regions;
     }
 
     public WindSettings settings() { return settings; }
+
+    /** Null outside a running server. */
+    public RegionClimate regions() { return regions; }
     public boolean enabled() { return settings.enabled(); }
 
     /** Whether the wind blows in this world at all: only under a sky. */
@@ -68,6 +96,48 @@ public final class WindService {
     }
 
     /**
+     * The wind on open, level ground at a spot right now (BETA 1.0 Pilot 3):
+     * its region's, from its climate belts' direction. No speed and no
+     * direction (NaN) where there is no wind.
+     */
+    public WindModel.Spot at(World world, double x, double z) {
+        if (!enabled() || !hasWind(world)) return new WindModel.Spot(0.0, Double.NaN);
+        Today today = today(world);
+        return WindModel.at(world.getSeed(), world.getFullTime(), x, z, today.today(), today.yesterday(),
+                belts(world, x, z), front(world), settings);
+    }
+
+    /** Today and the days after it at a spot's region, {@code count} in all (BETA 1.0 Pilot 3). */
+    public List<WindModel.Day> forecastAt(World world, double x, double z, int count) {
+        WindModel.Belts belts = belts(world, x, z);
+        return forecast(world, count).stream()
+                .map(day -> WindModel.dayAt(world.getSeed(), day, x, z, belts, settings)).toList();
+    }
+
+    /** How much a spot lies in each climate belt. */
+    public WindModel.Belts belts(World world, double x, double z) {
+        return regions == null ? WindModel.Belts.WESTERLIES : regions.belts(world, x, z);
+    }
+
+    /** The rain passing through a world as the wind feels it, from its weather clocks. */
+    public WindModel.Front front(World world) {
+        Rain seen = rain.computeIfAbsent(world.getUID(), ignored -> new Rain());
+        long now = world.getGameTime();
+        if (seen.checked == now) return seen.front;
+        boolean raining = world.hasStorm();
+        if (seen.seen && raining != seen.raining) {
+            if (raining) seen.started = now;
+            else seen.ended = now;
+        }
+        seen.seen = true;
+        seen.raining = raining;
+        seen.checked = now;
+        seen.front = WindModel.front(raining, world.getWeatherDuration(), world.getClearWeatherDuration(),
+                seen.started < 0 ? -1L : now - seen.started, seen.ended < 0 ? -1L : now - seen.ended);
+        return seen.front;
+    }
+
+    /**
      * Today and the days after it, {@code count} in all. A level set for
      * today shows for today only.
      */
@@ -81,9 +151,17 @@ public final class WindService {
 
     /** Holds today's wind at a level until the day ends; null lets it blow as it would. */
     public void hold(World world, WindModel.Level level) {
+        hold(world, level, Double.NaN);
+    }
+
+    /**
+     * Holds today's wind at a level, and from a direction unless that is NaN
+     * (BETA 1.0 Pilot 3), until the day ends; a null level lets it blow as it would.
+     */
+    public void hold(World world, WindModel.Level level, double fromDegrees) {
         UUID id = world.getUID();
         if (level == null) held.remove(id);
-        else held.put(id, new Held(dayOf(world), level));
+        else held.put(id, new Held(dayOf(world), level, fromDegrees));
         days.remove(id);
         speeds.remove(id);
     }
@@ -100,6 +178,8 @@ public final class WindService {
         days.remove(id);
         held.remove(id);
         speeds.remove(id);
+        rain.remove(id);
+        if (regions != null) regions.forget(world);
     }
 
     /** The day the wind is drawn for: the season calendar's while it runs, else the world's own. */
@@ -121,6 +201,7 @@ public final class WindService {
         }
         WindModel.Day today = level != null ? WindModel.day(world.getSeed(), day, level.level(), settings)
                 : drawn(world, day, 0);
+        if (level != null && Double.isFinite(level.fromDegrees())) today = today.from(level.fromDegrees());
         // Yesterday as it was drawn, for the dawn ease: a level held then has run out. A level held
         // now takes hold at once, with no ease from yesterday's wind.
         Today computed = new Today(day, today, level != null ? null : drawn(world, day - 1, -1));
