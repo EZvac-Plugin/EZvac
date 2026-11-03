@@ -35,7 +35,9 @@ class PlaceholderResolverTest {
                 // Nor any wind: in water, outside the overworld, or with wind off.
                 Map.entry("wind", "none"), Map.entry("wind_level", "none"), Map.entry("wind_speed", "none"),
                 Map.entry("wind_ms", "none"), Map.entry("wind_kmh", "none"), Map.entry("wind_mph", "none"),
-                Map.entry("wind_direction", "none"), Map.entry("wind_degrees", "none")));
+                Map.entry("wind_direction", "none"), Map.entry("wind_degrees", "none"),
+                // Nor any time of day: a world without a sun (BETA 1.0 Pilot 3).
+                Map.entry("time", "none")));
         for (String key : PlaceholderResolver.KEYS) {
             String value = resolver.resolve(cooled, key);
             assertNotNull(value, key);

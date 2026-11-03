@@ -59,6 +59,15 @@ nothing new is saved.
 - Setting the clock back still never resets the year: vanilla `/time set day`
   restarts Minecraft's day count.
 
+### A clock on the HUD
+
+- **The time of day** joins the season on the sidebar: `Summer, day 3 · 14:30`,
+  Minecraft's clock with sunrise at 06:00. With seasons off it shows alone.
+  A sidebar still on the stock BETA 1.0 lines gains it on upgrade; one you've
+  made your own is left as it is.
+- New `{time}` token and `%ezvac_time%` placeholder (`none` in the Nether and
+  the End).
+
 ### Config
 
 - New `wind.direction` (`variation`, `fronts`) and `wind.regions`

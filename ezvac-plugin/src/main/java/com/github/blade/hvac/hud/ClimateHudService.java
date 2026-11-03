@@ -2,6 +2,7 @@ package com.github.blade.hvac.hud;
 
 import com.github.blade.hvac.config.WindSettings;
 import com.github.blade.hvac.config.TemperatureUnit;
+import com.github.blade.hvac.service.ClockText;
 import com.github.blade.hvac.service.WindService;
 import com.github.blade.hvac.service.WindText;
 import com.github.blade.hvac.config.AirQualitySettings;
@@ -222,6 +223,9 @@ public final class ClimateHudService implements Listener {
             snapshot = snapshot.withWind(reading.windMs(), WindText.level(reading.windMs(), wind).displayName(),
                     WindText.speed(reading.windMs(), units), reading.windFromDegrees());
         }
+        // The time of day where the world has a sun (BETA 1.0 Pilot 3).
+        if (player.getWorld().getEnvironment() == org.bukkit.World.Environment.NORMAL)
+            snapshot = snapshot.at(ClockText.clock(player.getWorld().getTime()));
         UUID world = player.getWorld().getUID();
         if (seasons == null || !seasons.settings().enabled() || !seasons.tracks(world)) return snapshot;
         return snapshot.inSeason(seasons.season(world).displayName(), seasons.dayOfSeason(world));

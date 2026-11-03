@@ -315,12 +315,35 @@ public record HudSettings(
             "<gray> Circulation: <white>{zone}",
             "<dark_gray><font:uniform>Version: {version}</font>");
 
+    /** The stock sidebar's season line since BETA 1.0 Pilot 3, with the time of day after it... */
+    public static final String SEASON_CLOCK_LINE = "<gray> {season}, day {season_day} <dark_gray>· <white>{time}";
+    /** ...which, without seasons, shows the time alone. */
+    public static final String CLOCK_LINE = "<gray> {time}";
+
     /**
-     * The stock sidebar since BETA 1.0, in sections: Here, Outside and
-     * System, each under an accent heading with a rule, its lines indented
-     * a space. The system's line starts with what it's doing as an icon.
+     * The stock sidebar since BETA 1.0 Pilot 3, in sections: Here, Outside
+     * and System, each under an accent heading with a rule, its lines
+     * indented a space. The system's line starts with what it's doing as an
+     * icon; the season line ends with the time of day.
      */
     static final List<String> SECTIONED = List.of(
+            "<aqua>▍<white>Here <dark_gray>──────────",
+            " <white>{temp} <gray>feels <white>{feels}",
+            " {bar} {comfort}",
+            "<gray> Humidity <white>{humidity}",
+            "<gray> Air {aqi} <white>{aqi_band} <dark_gray>· <gray>✿ <white>{pollen}",
+            "<aqua>▍<white>Outside <dark_gray>────────",
+            " <white>{outdoor} <gray>{weather}",
+            "<gray> Wind <white>{wind}",
+            SEASON_CLOCK_LINE,
+            ADDONS_LINE,
+            "<aqua>▍<white>System <dark_gray>─────────",
+            " {mode_icon} {system_mode}",
+            "<gray> Airflow <white>{zone}",
+            "<dark_gray><font:uniform>Version: {version}</font>");
+
+    /** The stock sidebar from BETA 1.0 Pilot 1 to Pilot 2: the season line had no clock. */
+    static final List<String> SECTIONED_BEFORE_CLOCK = List.of(
             "<aqua>▍<white>Here <dark_gray>──────────",
             " <white>{temp} <gray>feels <white>{feels}",
             " {bar} {comfort}",
@@ -424,7 +447,8 @@ public record HudSettings(
      * with accent headings, whenever EZvac starts. Any other is left alone.
      */
     public static void adoptAccents(YamlConfiguration config, List<String> added) {
-        adopt(config, "hud.sidebar.lines", List.of(PREVIEW_SECTIONED), SECTIONED, added);
+        // A stock BETA 1.0 sidebar gains the clock on its season line (Pilot 3).
+        adopt(config, "hud.sidebar.lines", List.of(PREVIEW_SECTIONED, SECTIONED_BEFORE_CLOCK), SECTIONED, added);
         adopt(config, "hud.water.sidebar.lines", List.of(PREVIEW_WATER_SECTIONED), WATER_SECTIONED, added);
     }
 

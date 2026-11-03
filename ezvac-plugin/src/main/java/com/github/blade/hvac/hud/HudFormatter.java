@@ -319,7 +319,15 @@ public final class HudFormatter {
     /** The sidebar lines worth showing: a season line is left out where there are no seasons. */
     public List<String> shownLines(List<String> templates, ClimateSnapshot snapshot) {
         if (!snapshot.season().isEmpty()) return templates;
-        return templates.stream().filter(template -> !template.contains("{season")).toList();
+        // The stock season line keeps its clock without seasons (BETA 1.0 Pilot 3).
+        return templates.stream().map(template -> template.equals(HudSettings.SEASON_CLOCK_LINE)
+                        ? HudSettings.CLOCK_LINE : template)
+                .filter(template -> !template.contains("{season")).toList();
+    }
+
+    /** The time of day, {@code 14:30} (BETA 1.0 Pilot 3); the none-text where the world has no sun. */
+    public String time(ClimateSnapshot snapshot) {
+        return snapshot.clock().isEmpty() ? settings.noneText() : snapshot.clock();
     }
 
     /** Replaces the tokens in a MiniMessage template. Plain values are escaped. */
@@ -337,6 +345,7 @@ public final class HudFormatter {
                 .replace("{weather}", escape(snapshot.weather()))
                 .replace("{season_day}", snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "")
                 .replace("{season}", escape(snapshot.season()))
+                .replace("{time}", escape(time(snapshot)))
                 .replace("{bar}", barMini(snapshot.comfortF(), medium))
                 .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
                 .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
