@@ -36,6 +36,17 @@ class RegionalWindTest {
     }
 
     @Test
+    void aHeldLevelIsThatLevelEverywhere() {
+        // Found live: a held gale read Windy in a calmer region, which is no use for testing a build in a gale.
+        WindModel.Day gale = WindModel.day(SEED, 4, WindModel.Level.GALE, SETTINGS).holding();
+        for (int x = -30_000; x <= 30_000; x += 1_500) {
+            WindModel.Day here = WindModel.dayAt(SEED, gale, x, -x / 2.0, WindModel.Belts.WESTERLIES, SETTINGS);
+            assertEquals(WindModel.Level.GALE, here.level(), "at " + x);
+            assertTrue(here.held());
+        }
+    }
+
+    @Test
     void farApartTheWindDiffersAndNearbyItDoesNot() {
         WindModel.Day wind = WindModel.day(SEED, 12, WindModel.Level.WINDY, SETTINGS);
         double spread = 0.0;

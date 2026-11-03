@@ -630,7 +630,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%"));
             if (windShown(player.getWorld()))
                 feels = feels.append(join(gray(" | Wind: "),
-                        white(WindText.describe(reading.windMs(), outdoor.climate().wind(), settings.units()))));
+                        white(WindText.describe(reading.windMs(), reading.windFromDegrees(), outdoor.climate().wind(),
+                                settings.units()))));
             player.sendMessage(feels);
         }
         if (!water && units.air().enabled() && reading.air().known())
@@ -1051,7 +1052,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case HUMIDITY -> humidity;
             case BOTH -> temp(reading.localF()) + " | " + humidity + " | feels " + temp(reading.feelsLikeF());
             case AIR -> AirText.summary(reading.air(), units.air().settings());
-            case WIND -> WindText.describe(reading.windMs(), outdoor.climate().wind(), settings.units());
+            case WIND -> WindText.describe(reading.windMs(), reading.windFromDegrees(), outdoor.climate().wind(),
+                    settings.units());
             case WEATHER -> throw new AssertionError("handled above");
         };
         String where = reading.conditioned() ? "system " + SystemNames.label(registry, reading.system()) : "no system";

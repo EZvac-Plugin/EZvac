@@ -61,10 +61,18 @@ public final class WindModel {
     /**
      * One day's wind: its level, its mean speed on open, level ground, and
      * where it blows from in each climate belt (BETA 1.0 Pilot 3).
+     *
+     * @param held an admin set its level ({@code /hvac wind set}): regions then keep within that level,
+     *             so a held gale is a gale everywhere
      */
-    public record Day(long day, Level level, double meanMs, Directions directions) {
+    public record Day(long day, Level level, double meanMs, Directions directions, boolean held) {
         public Day {
             directions = directions == null ? Directions.TYPICAL : directions;
+        }
+
+        /** A day as it would blow, from these directions. */
+        public Day(long day, Level level, double meanMs, Directions directions) {
+            this(day, level, meanMs, directions, false);
         }
 
         /** A day blowing from each belt's usual direction. */
@@ -81,7 +89,12 @@ public final class WindModel {
         /** The same day blowing from one direction everywhere, as {@code /hvac wind set} holds it. */
         public Day from(double degrees) {
             double from = normalize(degrees);
-            return new Day(day, level, meanMs, new Directions(from, from, from));
+            return new Day(day, level, meanMs, new Directions(from, from, from), held);
+        }
+
+        /** The same day held at its level by an admin. */
+        public Day holding() {
+            return new Day(day, level, meanMs, directions, true);
         }
     }
 
@@ -273,7 +286,7 @@ public final class WindModel {
         double mean = regionalMean(seed, day, x, z, noon, settings);
         Belts in = belts == null ? Belts.WESTERLIES : belts;
         double from = day.fromDegrees(in) + bend(seed, day, x, z, noon, settings);
-        return new Day(day.day(), Level.of(mean, settings.speeds()), mean, new Directions(from, from, from));
+        return new Day(day.day(), Level.of(mean, settings.speeds()), mean, new Directions(from, from, from), day.held());
     }
 
     /** The day's mean where the region makes it windier or calmer, kept within a level of the day's. */
@@ -283,8 +296,10 @@ public final class WindModel {
         double scaled = day.meanMs() * (1.0 + regions.strength() * field(seed, day, 0x2E610L, x, z, hours, regions));
         Level[] levels = Level.values();
         int at = day.level().ordinal();
-        double lowest = settings.speeds().of(levels[Math.max(0, at - 1)]).from();
-        double highest = settings.speeds().of(levels[Math.min(levels.length - 1, at + 1)]).to();
+        // Within a level either way; a held day within its own, so it reads as held everywhere.
+        int spread = day.held() ? 0 : 1;
+        double lowest = settings.speeds().of(levels[Math.max(0, at - spread)]).from();
+        double highest = settings.speeds().of(levels[Math.min(levels.length - 1, at + spread)]).to();
         return Math.max(lowest, Math.min(highest, scaled));
     }
 
