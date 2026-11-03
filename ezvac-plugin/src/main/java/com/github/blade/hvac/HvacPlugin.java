@@ -103,7 +103,7 @@ public final class HvacPlugin extends JavaPlugin {
             seasons.load();
             advanceSeasons();
             outdoor = new OutdoorTemperatureService(climate, weather, seasons,
-                    new WindService(climate.wind(), seasons));
+                    new WindService(climate.wind(), seasons, new RegionClimate(climate, getLogger()::warning)));
             airflow = new AirflowService(registry, outdoor, settings);
             SizingSettings sizing = SizingSettings.load(getConfig(), getLogger()::warning);
             airflow.setSizing(sizing);

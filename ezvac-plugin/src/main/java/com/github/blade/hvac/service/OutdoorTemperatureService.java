@@ -51,12 +51,19 @@ public final class OutdoorTemperatureService {
      * @param windMs    outdoor wind, for apparent temperature
      * @param weather   Clear, Rain, Thunder or Snow; empty where weather never reaches
      * @param air       what is in the outdoor air right now (3.2)
+     * @param windFromDegrees where the wind blows from (BETA 1.0 Pilot 3); NaN where there is none
      */
     public record Outdoor(double airF, double waterF, double dewPointF, double windMs, String weather,
-                          AirQualityModel.Air air) {
+                          AirQualityModel.Air air, double windFromDegrees) {
         public Outdoor {
             air = air == null || !air.known() ? OutdoorAir.now(OutdoorAir.Baseline.DEFAULT,
                     OutdoorAir.SUMMER_POLLEN, 0.0) : air;
+        }
+
+        /** As in 3.2, with no direction to the wind. */
+        public Outdoor(double airF, double waterF, double dewPointF, double windMs, String weather,
+                       AirQualityModel.Air air) {
+            this(airF, waterF, dewPointF, windMs, weather, air, Double.NaN);
         }
 
         /** Without air: the default countryside's. */
@@ -202,6 +209,24 @@ public final class OutdoorTemperatureService {
         // The day's wind, rain and thunder adding to it, as much of it as reaches this spot (3.2).
         return WeatherModel.effect(local, conditions, climate.weather(), wind.speedMs(world))
                 .windScaled(WindService.hasWind(world) ? local.windExposure() : 0.0);
+    }
+
+    /** The same with a spot's own wind (BETA 1.0 Pilot 3): its region's, rather than the world's day. */
+    private WeatherModel.Effect effect(World world, BiomeBlend.Blended local, WindModel.Spot spot) {
+        WeatherModel.Conditions conditions = weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
+        if (wind == null || !wind.enabled() || spot == null) return effect(world, local);
+        return WeatherModel.effect(local, conditions, climate.weather(), spot.speedMs())
+                .windScaled(WindService.hasWind(world) ? local.windExposure() : 0.0);
+    }
+
+    /** How wet the weather is in a world right now, 0 clear .. 1 raining, eased (BETA 1.0 Pilot 3, stations). */
+    public double wetness(World world) {
+        return weather == null || world == null ? 0.0 : weather.conditions(world).wetness();
+    }
+
+    /** The wind at a spot, or null outside a running server or with wind off. */
+    private WindModel.Spot windAt(World world, double x, double z) {
+        return wind == null || !wind.enabled() ? null : wind.at(world, x, z);
     }
 
     /** The weather word for a spot: the kind of weather its surroundings mostly get. */
@@ -431,7 +456,8 @@ public final class OutdoorTemperatureService {
             return new Outdoor(air, ThermalModel.naturalWaterTemperature(thermostat.outdoorNoonF(),
                     thermostat.outdoorMidnightF()), dew, climate.weather().windClearMs(), "");
         }
-        return outdoor(world, thermostat.outdoorClimate(), air);
+        return outdoor(world, thermostat.outdoorClimate(), air,
+                windAt(world, thermostat.position().x() + 0.5, thermostat.position().z() + 0.5));
     }
 
     /**
@@ -476,16 +502,17 @@ public final class OutdoorTemperatureService {
         }
         World world = location.getWorld();
         BiomeBlend.Blended local = blendedAt(location);
-        return outdoor(world, local, air(world, local));
+        return outdoor(world, local, air(world, local), windAt(world, location.getX(), location.getZ()));
     }
 
-    private Outdoor outdoor(World world, BiomeBlend.Blended local, double airF) {
-        WeatherModel.Effect effect = effect(world, local);
+    private Outdoor outdoor(World world, BiomeBlend.Blended local, double airF, WindModel.Spot spot) {
+        WeatherModel.Effect effect = effect(world, local, spot);
         BiomeBlend.Blended now = inSeason(world, local);
         double dew = HumidityModel.outdoorDewPointF(now.noonF(), now.midnightF(), now.downfall(), effect, airF,
                 climate.humidity());
+        double from = spot == null || !(effect.windMs() > 0.0) ? Double.NaN : spot.fromDegrees();
         return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local),
-                outdoorAir(world, local, effect));
+                outdoorAir(world, local, effect), from);
     }
 
     /** The outdoor air right now: the biome's, its season's pollen, and rain washing it out (3.2). */

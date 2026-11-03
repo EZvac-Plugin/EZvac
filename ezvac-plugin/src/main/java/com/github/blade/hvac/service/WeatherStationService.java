@@ -7,6 +7,8 @@ import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.DeviceKind;
 import com.github.blade.hvac.model.StationShape;
 import com.github.blade.hvac.model.WeatherStation;
+import com.github.blade.hvac.simulation.AirQualityIndex;
+import com.github.blade.hvac.simulation.AirQualityModel;
 import com.github.blade.hvac.simulation.BiomeBlend;
 import com.github.blade.hvac.simulation.Forecast;
 import com.github.blade.hvac.simulation.OutdoorAir;
@@ -227,7 +229,11 @@ public final class WeatherStationService implements Listener {
         Forecast.Chances odds = chances.computeIfAbsent(world.getUID(),
                 ignored -> Forecast.chances(clocks, world.getSeed() ^ Math.floorDiv(world.getFullTime(), 12_000L)));
         WindService wind = outdoor.wind();
-        List<WindModel.Day> winds = wind != null && wind.enabled() ? wind.forecast(world, Forecast.DAYS) : null;
+        double x = centreX(station), z = centreZ(station);
+        // Its own region's wind (BETA 1.0 Pilot 3), from its climate belts' direction.
+        List<WindModel.Day> winds = wind != null && wind.enabled() && WindService.hasWind(world)
+                ? wind.forecastAt(world, x, z, Forecast.DAYS) : null;
+        WindModel.Belts belts = wind == null ? WindModel.Belts.WESTERLIES : wind.belts(world, x, z);
         SeasonService seasons = outdoor.seasons();
         boolean snow = area.snowShare() > area.rainShare();
         boolean dry = area.rainShare() + area.snowShare() < 0.1;
@@ -235,19 +241,59 @@ public final class WeatherStationService implements Listener {
         List<Forecast.Day> days = new ArrayList<>(Forecast.DAYS);
         for (int ahead = 0; ahead < Forecast.DAYS; ahead++) {
             WindModel.Day windDay = winds == null ? null : winds.get(ahead);
+            double rain = dry ? 0.0 : odds.rain()[ahead];
+            // A day of rain brings its front: in the westerlies the wind comes round to the southwest.
+            if (windDay != null && rain >= 0.5 && climate.wind().direction().fronts())
+                windDay = windDay.from(WindModel.between(windDay.fromDegrees(), WindModel.RAIN_FROM,
+                        WindModel.FRONT_WEIGHT * belts.westerlies()));
             double windMs = windDay == null ? climate.weather().windClearMs() : windDay.meanMs() * area.windExposure();
-            double pollen = Double.NaN;
-            if (climate.airQuality().enabled() && climate.airQuality().pollen()) {
-                double factor = seasons == null ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactorIn(world.getUID(), ahead);
-                pollen = OutdoorAir.now(baseline, factor, dry ? 0.0 : odds.rain()[ahead], windMs, area.downfall(),
-                        climate.wind()).pollen();
-            }
+            double factor = seasons == null ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactorIn(world.getUID(), ahead);
+            var air = OutdoorAir.now(baseline, factor, rain, windMs, area.downfall(), climate.wind());
+            double pollen = climate.airQuality().enabled() && climate.airQuality().pollen() ? air.pollen() : Double.NaN;
+            int aqi = climate.airQuality().enabled() ? AirQualityIndex.aqi(air) : -1;
             days.add(Forecast.day(ahead, area, outdoor.seasonShiftIn(world, area.seasonalF(), ahead),
                     odds.rain()[ahead], odds.thunder()[ahead], windDay, pollen,
-                    Forecast.note(clocks, ahead, snow, dry), climate.weather()));
+                    Forecast.note(clocks, ahead, snow, dry), climate.weather()).withAqi(aqi));
         }
         return days;
     }
+
+    /**
+     * The wind over a station's area right now (BETA 1.0 Pilot 3): its
+     * region's, as much as reaches its open ground. Null with wind switched
+     * off, before it has measured its area, or where there is no wind.
+     */
+    public WindModel.Spot windNow(WeatherStation station) {
+        World world = station.position().world();
+        WindService wind = outdoor.wind();
+        if (world == null || station.area() == null || wind == null || !wind.enabled() || !WindService.hasWind(world))
+            return null;
+        WindModel.Spot spot = wind.at(world, centreX(station), centreZ(station));
+        return new WindModel.Spot(spot.speedMs() * station.area().windExposure(), spot.fromDegrees());
+    }
+
+    /**
+     * The outdoor air over a station's area right now (BETA 1.0 Pilot 3): its
+     * biomes' air with the season's pollen, the rain and the wind. Null with
+     * air quality switched off or before it has measured its area.
+     */
+    public AirQualityModel.Air airNow(WeatherStation station) {
+        World world = station.position().world();
+        WeatherStation.Area area = station.area();
+        if (world == null || area == null || !climate.airQuality().enabled()) return null;
+        SeasonService seasons = outdoor.seasons();
+        double pollen = !climate.airQuality().pollen() ? 0.0
+                : seasons == null ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactor(world.getUID());
+        boolean dry = area.rainShare() + area.snowShare() < 0.1;
+        WindModel.Spot wind = windNow(station);
+        return OutdoorAir.now(new OutdoorAir.Baseline(area.fine(), area.coarse(), area.pollen()), pollen,
+                dry ? 0.0 : outdoor.wetness(world), wind == null ? climate.weather().windClearMs() : wind.speedMs(),
+                area.downfall(), climate.wind());
+    }
+
+    private static double centreX(WeatherStation station) { return station.position().x() + 0.5; }
+
+    private static double centreZ(WeatherStation station) { return station.position().z() + 0.5; }
 
     static Forecast.Clocks clocks(World world) {
         return new Forecast.Clocks(world.hasStorm(), world.getWeatherDuration(), world.isThundering(),

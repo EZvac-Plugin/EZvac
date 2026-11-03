@@ -57,9 +57,20 @@ public final class Forecast {
      * the day, such as {@code Rain from 15:00} (to the nearest hour), or empty.
      */
     public record Day(int ahead, double highF, double lowF, double rainChance, double thunderChance, Sky sky,
-                      WindModel.Day wind, double pollen, String note) {
+                      WindModel.Day wind, double pollen, String note, int aqi) {
+        /** As in BETA 1.0, before the day had an AQI. */
+        public Day(int ahead, double highF, double lowF, double rainChance, double thunderChance, Sky sky,
+                   WindModel.Day wind, double pollen, String note) {
+            this(ahead, highF, lowF, rainChance, thunderChance, sky, wind, pollen, note, -1);
+        }
+
         /** The day's wind on open ground, m/s; 0 with wind switched off. */
         public double windMs() { return wind == null ? 0.0 : wind.meanMs(); }
+
+        /** The same day with its AQI (BETA 1.0 Pilot 3); -1 with air quality switched off. */
+        public Day withAqi(int aqi) {
+            return new Day(ahead, highF, lowF, rainChance, thunderChance, sky, wind, pollen, note, aqi);
+        }
     }
 
     private Forecast() {}

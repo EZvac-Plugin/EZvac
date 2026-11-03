@@ -29,10 +29,13 @@ import java.util.function.Supplier;
  * @param pollenSpread       share the wind adds to the outdoor pollen per m/s
  * @param units              how speeds are shown
  * @param biomes             the server's own exposure per biome id, over EZvac's figures
+ * @param direction          where the wind blows from (BETA 1.0 Pilot 3)
+ * @param regions            how the wind differs from one region to the next (BETA 1.0 Pilot 3)
  */
 public record WindSettings(boolean enabled, Chances chances, Speeds speeds, SeasonWindiness seasons, double gusts,
                            double infiltrationPerMs, double maximumInfiltration, double dust, double smokeDispersal,
-                           double pollenSpread, Units units, Map<String, Double> biomes) {
+                           double pollenSpread, Units units, Map<String, Double> biomes, Direction direction,
+                           Regions regions) {
     public WindSettings {
         if (!Double.isFinite(gusts) || gusts < 0.0 || gusts > 0.9)
             throw new IllegalArgumentException("wind.gusts must be 0-0.9");
@@ -45,6 +48,52 @@ public record WindSettings(boolean enabled, Chances chances, Speeds speeds, Seas
         requireNonNegative("wind.pollen-spread", pollenSpread);
         units = units == null ? Units.AUTO : units;
         biomes = Map.copyOf(biomes == null ? Map.of() : biomes);
+        direction = direction == null ? Direction.DEFAULT : direction;
+        regions = regions == null ? Regions.DEFAULT : regions;
+    }
+
+    /** As in 3.2, before the wind had a direction and regions: their defaults. */
+    public WindSettings(boolean enabled, Chances chances, Speeds speeds, SeasonWindiness seasons, double gusts,
+                        double infiltrationPerMs, double maximumInfiltration, double dust, double smokeDispersal,
+                        double pollenSpread, Units units, Map<String, Double> biomes) {
+        this(enabled, chances, speeds, seasons, gusts, infiltrationPerMs, maximumInfiltration, dust, smokeDispersal,
+                pollenSpread, units, biomes, Direction.DEFAULT, Regions.DEFAULT);
+    }
+
+    /**
+     * Where the wind blows from (BETA 1.0 Pilot 3).
+     *
+     * @param variation how far a day strays from its climate belt's usual direction: 0 never, 1 as in nature, up to 2
+     * @param fronts    whether the wind turns ahead of and behind rain
+     */
+    public record Direction(double variation, boolean fronts) {
+        public static final Direction DEFAULT = new Direction(1.0, true);
+
+        public Direction {
+            if (!Double.isFinite(variation) || variation < 0.0 || variation > 2.0)
+                throw new IllegalArgumentException("wind.direction.variation must be 0-2");
+        }
+    }
+
+    /**
+     * How the wind differs across a world (BETA 1.0 Pilot 3).
+     *
+     * @param enabled             false: the same wind everywhere, terrain aside, as in 3.2
+     * @param sizeBlocks          about how far across a region is
+     * @param strength            how much windier or calmer a region can be, as a share of the day's speed
+     * @param driftBlocksPerHour  how fast the regions move downwind
+     */
+    public record Regions(boolean enabled, int sizeBlocks, double strength, double driftBlocksPerHour) {
+        public static final Regions DEFAULT = new Regions(true, 1500, 0.4, 150.0);
+
+        public Regions {
+            if (sizeBlocks < 200 || sizeBlocks > 20_000)
+                throw new IllegalArgumentException("wind.regions.size-blocks must be 200-20000");
+            if (!Double.isFinite(strength) || strength < 0.0 || strength > 0.8)
+                throw new IllegalArgumentException("wind.regions.strength must be 0-0.8");
+            if (!Double.isFinite(driftBlocksPerHour) || driftBlocksPerHour < 0.0 || driftBlocksPerHour > 2000.0)
+                throw new IllegalArgumentException("wind.regions.drift-blocks-per-hour must be 0-2000");
+        }
     }
 
     /** On a running server, what /hvac quicksettings says (BETA 1.0); config.yml's value otherwise. */
@@ -173,8 +222,16 @@ public record WindSettings(boolean enabled, Chances chances, Speeds speeds, Seas
         Units units = section("wind.units", d.units, warn, () -> Units.parse(config.getString(root + "units")));
         boolean enabled = config.getBoolean(root + "enabled", d.enabled);
         Map<String, Double> biomes = biomes(config.getConfigurationSection(root + "biomes"), warn);
+        Direction direction = section("wind.direction", d.direction, warn, () -> new Direction(
+                config.getDouble(root + "direction.variation", d.direction.variation()),
+                config.getBoolean(root + "direction.fronts", d.direction.fronts())));
+        Regions regions = section("wind.regions", d.regions, warn, () -> new Regions(
+                config.getBoolean(root + "regions.enabled", d.regions.enabled()),
+                config.getInt(root + "regions.size-blocks", d.regions.sizeBlocks()),
+                config.getDouble(root + "regions.strength", d.regions.strength()),
+                config.getDouble(root + "regions.drift-blocks-per-hour", d.regions.driftBlocksPerHour())));
         return section("wind", new WindSettings(enabled, chances, speeds, seasons, d.gusts, d.infiltrationPerMs,
-                d.maximumInfiltration, d.dust, d.smokeDispersal, d.pollenSpread, units, biomes), warn,
+                d.maximumInfiltration, d.dust, d.smokeDispersal, d.pollenSpread, units, biomes, direction, regions), warn,
                 () -> new WindSettings(enabled, chances, speeds, seasons,
                         config.getDouble(root + "gusts", d.gusts),
                         config.getDouble(root + "infiltration-per-ms", d.infiltrationPerMs),
@@ -182,7 +239,7 @@ public record WindSettings(boolean enabled, Chances chances, Speeds speeds, Seas
                         config.getDouble(root + "dust", d.dust),
                         config.getDouble(root + "smoke-dispersal", d.smokeDispersal),
                         config.getDouble(root + "pollen-spread", d.pollenSpread),
-                        units, biomes));
+                        units, biomes, direction, regions));
     }
 
     /** {@code [3, 6]}; missing keeps the default. */

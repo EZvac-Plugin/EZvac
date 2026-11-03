@@ -58,8 +58,32 @@ public final class WindModel {
         }
     }
 
-    /** One day's wind: its level, and its mean speed on open, level ground. */
-    public record Day(long day, Level level, double meanMs) {}
+    /**
+     * One day's wind: its level, its mean speed on open, level ground, and
+     * where it blows from in each climate belt (BETA 1.0 Pilot 3).
+     */
+    public record Day(long day, Level level, double meanMs, Directions directions) {
+        public Day {
+            directions = directions == null ? Directions.TYPICAL : directions;
+        }
+
+        /** A day blowing from each belt's usual direction. */
+        public Day(long day, Level level, double meanMs) {
+            this(day, level, meanMs, Directions.TYPICAL);
+        }
+
+        /** Where it blows from in the westerlies, as a whole world's day reads. */
+        public double fromDegrees() { return directions.westerlies(); }
+
+        /** Where it blows from for a spot in these belts. */
+        public double fromDegrees(Belts belts) { return directions.blend(belts); }
+
+        /** The same day blowing from one direction everywhere, as {@code /hvac wind set} holds it. */
+        public Day from(double degrees) {
+            double from = normalize(degrees);
+            return new Day(day, level, meanMs, new Directions(from, from, from));
+        }
+    }
 
     /**
      * A day's wind.
@@ -74,7 +98,268 @@ public final class WindModel {
     public static Day day(long seed, long day, Level level, WindSettings settings) {
         WindSettings.Range range = settings.speeds().of(level);
         double t = random(seed, day, 0x5EED_5BEEDL).nextDouble();
-        return new Day(day, level, range.from() + (range.to() - range.from()) * t);
+        return new Day(day, level, range.from() + (range.to() - range.from()) * t,
+                directions(seed, day, settings.direction().variation()));
+    }
+
+    // ---- direction (BETA 1.0 Pilot 3) ----
+
+    /**
+     * Where the wind blows from in each climate belt that day, in degrees
+     * (0 north, 90 east: Minecraft's -Z is north).
+     */
+    public record Directions(double trades, double westerlies, double polar) {
+        /** Each belt's usual direction. */
+        public static final Directions TYPICAL = new Directions(TRADES_FROM, WESTERLIES_FROM, POLAR_FROM);
+
+        public Directions {
+            trades = normalize(trades);
+            westerlies = normalize(westerlies);
+            polar = normalize(polar);
+        }
+
+        /** The direction for a spot in these belts, blended as arrows so there is no jump at north. */
+        public double blend(Belts belts) {
+            double x = belts.trades() * east(trades) + belts.westerlies() * east(westerlies)
+                    + belts.polar() * east(polar);
+            double z = belts.trades() * south(trades) + belts.westerlies() * south(westerlies)
+                    + belts.polar() * south(polar);
+            return x * x + z * z < 1e-12 ? westerlies : degrees(x, z);
+        }
+    }
+
+    /** The trade winds of hot climates come from the east-northeast... */
+    public static final double TRADES_FROM = 70.0;
+    /** ...temperate ones lie in the westerlies, from the west-southwest... */
+    public static final double WESTERLIES_FROM = 255.0;
+    /** ...and cold ones in the polar easterlies, from the northeast. */
+    public static final double POLAR_FROM = 60.0;
+
+    /**
+     * How much a spot lies in each climate belt, adding up to 1: the trade
+     * winds where the year averages 77 °F and up, the polar easterlies at 32 °F
+     * and below, the westerlies between, blended across the edges.
+     */
+    public record Belts(double trades, double westerlies, double polar) {
+        public static final Belts WESTERLIES = new Belts(0.0, 1.0, 0.0);
+    }
+
+    /** The belts for a climate whose year averages {@code meanF}. */
+    public static Belts belts(double meanF) {
+        if (!Double.isFinite(meanF)) return Belts.WESTERLIES;
+        double trades = smoothstep(68.0, 80.0, meanF);
+        double polar = 1.0 - smoothstep(28.0, 40.0, meanF);
+        return new Belts(trades, Math.max(0.0, 1.0 - trades - polar), polar);
+    }
+
+    /**
+     * The day's direction in each belt: the trades keep close to theirs, the
+     * westerlies wander most and now and then blow from anywhere, the polar
+     * easterlies between. {@code variation} scales how far.
+     */
+    static Directions directions(long seed, long day, double variation) {
+        SplittableRandom random = random(seed, day, 0xD1EC7L);
+        double trades = TRADES_FROM + 25.0 * variation * normal(random);
+        double westerlies = random.nextDouble() < 0.10 * Math.min(1.0, variation)
+                ? random.nextDouble() * 360.0 : WESTERLIES_FROM + 50.0 * variation * normal(random);
+        double polar = POLAR_FROM + 40.0 * variation * normal(random);
+        return new Directions(trades, westerlies, polar);
+    }
+
+    /** A bell-curve draw, kept within 2.5 of the middle. */
+    private static double normal(SplittableRandom random) {
+        return Math.max(-2.5, Math.min(2.5, random.nextGaussian()));
+    }
+
+    // ---- weather fronts (BETA 1.0 Pilot 3) ----
+
+    /** Where the wind turns from ahead of rain... */
+    public static final double AHEAD_FROM = 190.0;
+    /** ...while it rains... */
+    public static final double RAIN_FROM = 225.0;
+    /** ...and once it has cleared. */
+    public static final double BEHIND_FROM = 300.0;
+    /** A front is felt this many in-game hours ahead and behind... */
+    public static final double FRONT_HOURS = 6.0;
+    /** ...and turns the westerlies this much of the way to it. */
+    public static final double FRONT_WEIGHT = 0.7;
+
+    /**
+     * Rain passing through, as the westerlies feel it: the wind backs to the
+     * south ahead of it, blows from the southwest while it rains and veers to
+     * the west-northwest once it clears.
+     *
+     * @param fromDegrees where the front turns the wind toward
+     * @param strength    how far, 0 (not at all) .. 1
+     */
+    public record Front(Kind kind, double fromDegrees, double strength) {
+        public static final Front NONE = new Front(Kind.NONE, WESTERLIES_FROM, 0.0);
+
+        public enum Kind { NONE, AHEAD, RAIN, BEHIND }
+    }
+
+    /**
+     * The front from the world's weather clocks.
+     *
+     * @param rainTicks        while clear, the ticks until rain; while raining, until it stops
+     * @param clearTicks       above 0 while {@code /weather clear} holds the sky clear
+     * @param sinceRainStarted ticks since it began raining, or -1 when not known
+     * @param sinceRainEnded   ticks since it stopped raining, or -1 when not known
+     */
+    public static Front front(boolean raining, int rainTicks, int clearTicks, long sinceRainStarted,
+                              long sinceRainEnded) {
+        double hour = ThermalModel.MINECRAFT_TICKS_PER_HOUR;
+        double span = FRONT_HOURS * hour;
+        if (raining) {
+            // Swinging round from where it blew ahead of the rain over its first hour.
+            double t = sinceRainStarted < 0 ? 1.0 : Math.min(1.0, sinceRainStarted / hour);
+            return new Front(Front.Kind.RAIN, between(AHEAD_FROM, RAIN_FROM, t), 1.0);
+        }
+        if (sinceRainEnded >= 0 && sinceRainEnded < span) {
+            double t = Math.min(1.0, sinceRainEnded / hour);
+            return new Front(Front.Kind.BEHIND, between(RAIN_FROM, BEHIND_FROM, t), 1.0 - sinceRainEnded / span);
+        }
+        if (clearTicks <= 0 && rainTicks >= 0 && rainTicks < span)
+            return new Front(Front.Kind.AHEAD, AHEAD_FROM, 1.0 - rainTicks / span);
+        return Front.NONE;
+    }
+
+    // ---- regions (BETA 1.0 Pilot 3) ----
+
+    /** Regions bend the direction up to this many degrees either way... */
+    public static final double REGION_BEND = 20.0;
+    /** ...and through the day it swings this much. */
+    public static final double HOURLY_SWING = 15.0;
+
+    /** The wind at one spot on open, level ground. */
+    public record Spot(double speedMs, double fromDegrees) {}
+
+    /**
+     * The wind at a spot on open, level ground at this moment: the day's
+     * mean, made windier or calmer by the region it lies in (never more than
+     * about a level either way), eased over from yesterday's after dawn and
+     * gusting; from the direction of its climate belts, bent by the region,
+     * swinging through the day, and turned by any front passing.
+     */
+    public static Spot at(long seed, long fullTime, double x, double z, Day today, Day yesterday, Belts belts,
+                          Front front, WindSettings settings) {
+        double hours = Math.floorMod(fullTime, DAY_TICKS) / ThermalModel.MINECRAFT_TICKS_PER_HOUR;
+        Belts in = belts == null ? Belts.WESTERLIES : belts;
+        double mean = regionalMean(seed, today, x, z, hours, settings);
+        double from = today.fromDegrees(in) + bend(seed, today, x, z, hours, settings);
+        if (yesterday != null && hours < EASE_HOURS) {
+            double t = hours / EASE_HOURS;
+            double smooth = t * t * (3.0 - 2.0 * t);
+            double before = regionalMean(seed, yesterday, x, z, hours + 24.0, settings);
+            mean = before + (mean - before) * smooth;
+            from = between(yesterday.fromDegrees(in) + bend(seed, yesterday, x, z, hours + 24.0, settings), from,
+                    smooth);
+        }
+        double absolute = fullTime / ThermalModel.MINECRAFT_TICKS_PER_HOUR;
+        double speed = Math.max(0.0, mean * (1.0 + settings.gusts() * gust(seed, absolute)));
+        from += HOURLY_SWING * Math.min(1.0, settings.direction().variation()) * gust(seed ^ 0x5714_6L, absolute);
+        if (front != null && settings.direction().fronts() && front.strength() > 0.0)
+            from = between(from, front.fromDegrees(),
+                    FRONT_WEIGHT * Math.min(1.0, front.strength()) * in.westerlies());
+        return new Spot(speed, normalize(from));
+    }
+
+    /**
+     * A region's day, as a forecast gives it: its mean at midday, the level
+     * that reads as, and where it blows from then.
+     */
+    public static Day dayAt(long seed, Day day, double x, double z, Belts belts, WindSettings settings) {
+        double noon = 6.0;
+        double mean = regionalMean(seed, day, x, z, noon, settings);
+        Belts in = belts == null ? Belts.WESTERLIES : belts;
+        double from = day.fromDegrees(in) + bend(seed, day, x, z, noon, settings);
+        return new Day(day.day(), Level.of(mean, settings.speeds()), mean, new Directions(from, from, from));
+    }
+
+    /** The day's mean where the region makes it windier or calmer, kept within a level of the day's. */
+    static double regionalMean(long seed, Day day, double x, double z, double hours, WindSettings settings) {
+        WindSettings.Regions regions = settings.regions();
+        if (!regions.enabled() || regions.strength() <= 0.0) return day.meanMs();
+        double scaled = day.meanMs() * (1.0 + regions.strength() * field(seed, day, 0x2E610L, x, z, hours, regions));
+        Level[] levels = Level.values();
+        int at = day.level().ordinal();
+        double lowest = settings.speeds().of(levels[Math.max(0, at - 1)]).from();
+        double highest = settings.speeds().of(levels[Math.min(levels.length - 1, at + 1)]).to();
+        return Math.max(lowest, Math.min(highest, scaled));
+    }
+
+    /** How far the region turns the wind, in degrees. */
+    static double bend(long seed, Day day, double x, double z, double hours, WindSettings settings) {
+        WindSettings.Regions regions = settings.regions();
+        if (!regions.enabled()) return 0.0;
+        return REGION_BEND * field(seed, day, 0xBE4DL, x, z, hours, regions);
+    }
+
+    /**
+     * A day's regions: smooth noise between -1 and 1 about
+     * {@code size-blocks} across, drifting downwind as the hours go by so a
+     * windy patch passes over. Each day has its own.
+     */
+    static double field(long seed, Day day, long salt, double x, double z, double hours,
+                        WindSettings.Regions regions) {
+        double drift = regions.driftBlocksPerHour() * hours;
+        double toward = Math.toRadians(day.fromDegrees() + 180.0);
+        double u = (x - Math.sin(toward) * drift) / regions.sizeBlocks();
+        double v = (z + Math.cos(toward) * drift) / regions.sizeBlocks();
+        long daySeed = mix(seed ^ mix(day.day() * 0x9E3779B97F4A7C15L + salt));
+        double noise = 0.75 * value(daySeed, u, v) + 0.25 * value(daySeed ^ 0x0C7A5EL, u * 2.3 + 17.0, v * 2.3 - 5.0);
+        // Smooth noise keeps to the middle; spread it so some regions reach the edges.
+        return Math.max(-1.0, Math.min(1.0, 1.6 * noise));
+    }
+
+    /** Value noise: a seeded value at each whole point, eased between them. */
+    private static double value(long seed, double u, double v) {
+        long iu = (long) Math.floor(u), iv = (long) Math.floor(v);
+        double fu = u - iu, fv = v - iv;
+        double su = fu * fu * (3.0 - 2.0 * fu), sv = fv * fv * (3.0 - 2.0 * fv);
+        double a = lattice(seed, iu, iv), b = lattice(seed, iu + 1, iv);
+        double c = lattice(seed, iu, iv + 1), d = lattice(seed, iu + 1, iv + 1);
+        double top = a + (b - a) * su, bottom = c + (d - c) * su;
+        return top + (bottom - top) * sv;
+    }
+
+    private static double lattice(long seed, long i, long j) {
+        long hash = mix(seed ^ mix(i * 0xBF58476D1CE4E5B9L) ^ mix(j * 0x94D049BB133111EBL + 0x632BE5ABL));
+        return (hash >>> 11) * 0x1.0p-53 * 2.0 - 1.0;
+    }
+
+    private static long mix(long z) {
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return z ^ (z >>> 31);
+    }
+
+    // ---- angles ----
+
+    /** Degrees in 0 .. 360. */
+    public static double normalize(double degrees) {
+        if (!Double.isFinite(degrees)) return WESTERLIES_FROM;
+        double d = degrees % 360.0;
+        return d < 0.0 ? d + 360.0 : d;
+    }
+
+    /** The way from one direction to another the short way round, {@code t} of it. */
+    public static double between(double from, double to, double t) {
+        double turn = ((to - from) % 360.0 + 540.0) % 360.0 - 180.0;
+        return normalize(from + turn * Math.max(0.0, Math.min(1.0, t)));
+    }
+
+    private static double east(double degrees) { return Math.sin(Math.toRadians(degrees)); }
+
+    private static double south(double degrees) { return -Math.cos(Math.toRadians(degrees)); }
+
+    private static double degrees(double east, double south) {
+        return normalize(Math.toDegrees(Math.atan2(east, -south)));
+    }
+
+    private static double smoothstep(double from, double to, double value) {
+        double t = Math.max(0.0, Math.min(1.0, (value - from) / (to - from)));
+        return t * t * (3.0 - 2.0 * t);
     }
 
     /**
