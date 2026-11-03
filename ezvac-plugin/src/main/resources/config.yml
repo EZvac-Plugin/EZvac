@@ -470,14 +470,16 @@ weather-stations:
 # Players turn the HUD on or off for themselves with /hvac hud. Text uses
 # MiniMessage (https://docs.advntr.dev/minimessage/format.html). Tokens:
 # {temp} {feels} {humidity} {bar} {comfort} {outdoor} {weather} {season} {season_day}
-# {aqi} {aqi_band} {pollen} {wind} {wind_level} {system} {thermostat} {mode} {target}
-# {zone} {mode_icon} {version}
+# {aqi} {aqi_band} {pollen} {wind} {wind_level} {wind_direction} {wind_degrees}
+# {system} {thermostat} {mode} {target} {zone} {mode_icon} {version}
 # {mode_icon} is what the system is doing as an icon (BETA 1.0): ♨ heating,
 # ❄ cooling, ● holding, ⚠ its units are switched off, ○ outside any system.
 # {aqi} is the Air Quality Index in its band's colour; {aqi_band} is Good,
 # Moderate, Sensitive, Unhealthy, Very bad or Hazardous (3.2).
-# {wind} is the wind you feel, such as "Windy 22 km/h"; {wind_level} just the
-# word: Calm, Breezy, Windy or Gale (3.2).
+# {wind} is the wind you feel, such as "Windy 22 km/h W"; {wind_level} just the
+# word: Calm, Breezy, Windy or Gale (3.2). {wind_direction} is where it blows
+# from, N to NW, and {wind_degrees} the same in degrees, 0 north (BETA 1.0
+# Pilot 3); a calm day has none.
 # {system} is the label of the thermostat whose air you are in (3.0); {group}, its
 # old name, still works.
 # In air, {bar} and {comfort} follow {feels}: humid heat reads hotter, wind colder.
