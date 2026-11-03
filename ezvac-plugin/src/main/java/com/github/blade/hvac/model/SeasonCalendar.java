@@ -3,22 +3,22 @@ package com.github.blade.hvac.model;
 import com.github.blade.hvac.simulation.Seasons;
 
 /**
- * One world's own calendar (2.1). It counts the world's days as they
- * pass, so sleeping through the night or {@code /time add} moves it on, but
- * setting the clock back (vanilla {@code /time set day} restarts the day count)
- * never sends the year back to spring. Its days start with the world's, and
- * the time of day is always the world's own. Main thread only.
+ * One world's own calendar (2.1). It follows the world's days as they
+ * pass, so sleeping through the night or {@code /time add} moves it on by
+ * every day they pass (BETA 1.0 Pilot 3: before, one day at most per look at
+ * the clock), but setting the clock back (vanilla {@code /time set day}
+ * restarts the day count) never sends the year back to spring. A new one
+ * starts on Minecraft's own day count (BETA 1.0 Pilot 3), so day 0 of a world
+ * is the first day of spring; the time of day is always the world's own. Main
+ * thread only.
  */
 public final class SeasonCalendar {
-    /** At most this many days count from one look at the clock to the next, so a stray huge /time set can't skip a season. */
-    static final long MAXIMUM_DAYS_PER_STEP = 1L;
-
     private long day;
     private long lastWorldDay;
     private boolean seen;
     private boolean paused;
 
-    /** A new calendar: the first day of spring, from the next time it sees the world's clock. */
+    /** A new calendar: on the world's own day, from the next time it sees the world's clock. */
     public SeasonCalendar() {}
 
     /** A saved calendar. */
@@ -48,12 +48,15 @@ public final class SeasonCalendar {
         if (!seen) {
             seen = true;
             lastWorldDay = worldDay;
-            return false;
+            long start = Math.max(0L, worldDay);
+            boolean moved = start != day;
+            day = start;
+            return moved;
         }
         long passed = worldDay - lastWorldDay;
         lastWorldDay = worldDay;
         if (paused || passed <= 0) return false;
-        day += Math.min(passed, MAXIMUM_DAYS_PER_STEP);
+        day += passed;
         return true;
     }
 
