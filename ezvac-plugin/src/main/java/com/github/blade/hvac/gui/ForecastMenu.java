@@ -5,6 +5,7 @@ import com.github.blade.hvac.config.AirQualitySettings;
 import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.WeatherStation;
+import com.github.blade.hvac.service.AirText;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.service.SeasonService;
@@ -164,7 +165,14 @@ public final class ForecastMenu implements Listener {
             if (!dry) lore.add(gray((snow ? "Snow " : "Rain ") + StationText.percent(day.rainChance())
                     + " · Thunder " + StationText.percent(day.thunderChance())));
             if (day.wind() != null)
-                lore.add(gray("Wind: " + WindText.describe(day.windMs(), plugin.climate().wind(), units)));
+                lore.add(gray("Wind: " + WindText.describe(day.windMs(), day.wind().fromDegrees(),
+                        plugin.climate().wind(), units)));
+            // The day's air (BETA 1.0 Pilot 3), coloured by its band as AQI readings are.
+            if (day.aqi() >= 0) {
+                AirQualityIndex.Band band = AirQualityIndex.Band.of(day.aqi());
+                lore.add(Component.text("AQI " + day.aqi() + " (" + band.displayName() + ")", AirText.color(band))
+                        .decoration(TextDecoration.ITALIC, false));
+            }
             if (Double.isFinite(day.pollen()))
                 lore.add(gray("Pollen: " + AirQualityIndex.PollenLevel.of(day.pollen(), air.pollenLevels()).displayName()));
             if (!day.note().isEmpty())

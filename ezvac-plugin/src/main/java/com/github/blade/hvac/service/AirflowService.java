@@ -37,14 +37,24 @@ public final class AirflowService {
      * @param feelsLikeF apparent temperature; in water, the water temperature
      * @param weather    the outdoor weather word, empty where weather never reaches
      * @param air        what is in the air at the spot (3.2); unknown in water
+     * @param windFromDegrees where the wind felt here blows from (BETA 1.0 Pilot 3); NaN where none is felt
      */
     public record TemperatureReading(double localF, double outdoorF, double influence,
                                      int airflowDistance, SystemId system, Thermostat thermostat,
                                      boolean water, double humidity, double feelsLikeF, String weather,
-                                     AirQualityModel.Air air, double windMs) {
+                                     AirQualityModel.Air air, double windMs, double windFromDegrees) {
         public TemperatureReading {
             air = air == null ? AirQualityModel.Air.UNKNOWN : air;
             windMs = Double.isFinite(windMs) ? Math.max(0.0, windMs) : 0.0;
+            if (!(windMs > 0.0)) windFromDegrees = Double.NaN;
+        }
+
+        /** A reading with wind but no direction to it, as in 3.2. */
+        public TemperatureReading(double localF, double outdoorF, double influence, int airflowDistance,
+                                  SystemId system, Thermostat thermostat, boolean water, double humidity,
+                                  double feelsLikeF, String weather, AirQualityModel.Air air, double windMs) {
+            this(localF, outdoorF, influence, airflowDistance, system, thermostat, water, humidity, feelsLikeF,
+                    weather, air, windMs, Double.NaN);
         }
 
         /** A reading without wind. */
@@ -837,7 +847,7 @@ public final class AirflowService {
         double wind = out.windMs() * (1.0 - influence) * shelter(location);
         double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, wind);
         return new TemperatureReading(localF, outdoorF, influence, distance, system, thermostat,
-                false, humidity, feelsLike, out.weather(), air, wind);
+                false, humidity, feelsLike, out.weather(), air, wind, out.windFromDegrees());
     }
 
     /**

@@ -194,11 +194,15 @@ public final class DisplayService {
                 : days.isEmpty() ? "Measuring" : "";
         Forecast.Day today = days.isEmpty() ? null : days.get(0);
         Forecast.Day tomorrow = days.size() > 1 ? days.get(1) : null;
+        // Today's wind and where it blows from, then the air (BETA 1.0 Pilot 3); the AQI gives way first.
         String windLine = today == null || today.wind() == null ? ""
-                : WindText.sign(today.windMs(), outdoor.climate().wind(), units);
+                : WindText.sign(today.windMs(), today.wind().fromDegrees(), outdoor.climate().wind(), units);
+        AirQualityModel.Air air = today == null ? null : stations.airNow(station);
+        String airLine = air == null ? "" : AirText.aqi(air);
+        String conditions = windLine.isEmpty() ? airLine : airLine.isEmpty() ? windLine : windLine + " · " + airLine;
         String fingerprint = String.join("|", station.label(), state, StationText.temperature(nowF, units),
                 today == null ? "" : StationText.sky(today, snow) + StationText.highLow(today, units) + today.note(),
-                tomorrow == null ? "" : StationText.sky(tomorrow, snow), windLine);
+                tomorrow == null ? "" : StationText.sky(tomorrow, snow), conditions);
         render(station.position(), fingerprint, force, lines -> {
             lines.set(0, station.label(), NamedTextColor.AQUA);
             if (today == null) {
@@ -221,7 +225,7 @@ public final class DisplayService {
             screen.tone(tone(today.sky())).big(StationText.temperature(nowF, units))
                     .line(StationText.sky(today, snow), NamedTextColor.WHITE)
                     .line(StationText.highLow(today, units), NamedTextColor.GRAY);
-            if (!windLine.isEmpty()) screen.line(windLine, NamedTextColor.GRAY);
+            if (!conditions.isEmpty()) screen.line(conditions, NamedTextColor.GRAY);
             if (!today.note().isEmpty()) screen.line(today.note(), NamedTextColor.GOLD);
             else if (tomorrow != null) screen.line(StationText.tomorrow(tomorrow, snow), NamedTextColor.AQUA);
             return screen;
@@ -230,9 +234,18 @@ public final class DisplayService {
 
     /** What a sensor read, before it is fitted to a sign. */
     private record SensorReading(Sensor sensor, boolean loaded, double temperatureF, double humidity,
-                                 String weather, TemperatureUnit units) {
+                                 String weather, TemperatureUnit units, String shorter) {
+        SensorReading(Sensor sensor, boolean loaded, double temperatureF, double humidity, String weather,
+                      TemperatureUnit units) {
+            this(sensor, loaded, temperatureF, humidity, weather, units, null);
+        }
+
+        /** Its line; with {@code shorter} (a wind sensor's, without direction) where the full one would cut the label. */
         String line(int width) {
-            return SensorLine.format(sensor.label(), sensor.reads(), loaded, temperatureF, humidity, weather, width,
+            String line = SensorLine.format(sensor.label(), sensor.reads(), loaded, temperatureF, humidity, weather,
+                    width, units);
+            if (shorter == null || line.startsWith(sensor.label() + " ")) return line;
+            return SensorLine.format(sensor.label(), sensor.reads(), loaded, temperatureF, humidity, shorter, width,
                     units);
         }
     }
@@ -251,7 +264,8 @@ public final class DisplayService {
                     airSettings().enabled() ? AirText.aqi(reading.air()) : "Off", units);
         if (sensor.reads() == Sensor.Kind.WIND)
             return new SensorReading(sensor, true, Double.NaN, Double.NaN,
-                    WindText.sign(reading.windMs(), outdoor.climate().wind(), units), units);
+                    WindText.sign(reading.windMs(), reading.windFromDegrees(), outdoor.climate().wind(), units), units,
+                    WindText.sign(reading.windMs(), outdoor.climate().wind(), units));
         return new SensorReading(sensor, true, reading.localF(), reading.humidity(), "", units);
     }
 
