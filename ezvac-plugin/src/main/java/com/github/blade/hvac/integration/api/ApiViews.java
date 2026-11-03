@@ -101,15 +101,21 @@ public final class ApiViews {
     /** The same, with the area it measures (API 1.7): its coverage on a map. */
     public static WeatherStationView weatherStation(WeatherStation station, double outdoorF, List<Forecast.Day> days,
                                                     int areaRadius, int areaHeight) {
+        return weatherStation(station, outdoorF, days, areaRadius, areaHeight, Wind.CALM, Optional.empty());
+    }
+
+    /** The same, with the wind and air over its area right now (API 1.8). */
+    public static WeatherStationView weatherStation(WeatherStation station, double outdoorF, List<Forecast.Day> days,
+                                                    int areaRadius, int areaHeight, Wind wind,
+                                                    Optional<AirQuality> air) {
         List<WeatherStationView.ForecastDay> forecast = new ArrayList<>(days.size());
         for (Forecast.Day day : days)
             forecast.add(new WeatherStationView.ForecastDay(day.ahead(), day.highF(), day.lowF(),
                     WeatherStationView.Sky.valueOf(day.sky().name()), day.rainChance(), day.thunderChance(),
-                    day.wind() == null ? Optional.empty()
-                            : Optional.of(new Wind.Day(day.wind().day(), level(day.wind().level()), day.wind().meanMs())),
-                    day.pollen(), day.note()));
+                    day.wind() == null ? Optional.empty() : Optional.of(windDay(day.wind())),
+                    day.pollen(), day.note(), day.aqi()));
         return new WeatherStationView(station.label(), position(station.position()), station.enabled(),
-                station.intact(), station.strikes(), outdoorF, forecast, areaRadius, areaHeight);
+                station.intact(), station.strikes(), outdoorF, forecast, areaRadius, areaHeight, wind, air);
     }
 
     /** A system's size and what it needs (API 1.6), from its cooling and heating assessments. */
@@ -220,13 +226,18 @@ public final class ApiViews {
                 conditioned ? Optional.of(reading.thermostat().id()) : Optional.empty(),
                 conditioned ? Optional.of(reading.system().key()) : Optional.empty(),
                 conditioned ? reading.influence() : 0.0, airQuality(reading.air(), air),
-                wind(reading.windMs(), wind));
+                wind(reading.windMs(), reading.windFromDegrees(), wind));
     }
 
     /** The wind as the API shows it; calm with wind switched off. */
     public static Wind wind(double speedMs, WindSettings settings) {
+        return wind(speedMs, Double.NaN, settings);
+    }
+
+    /** The same, with where it blows from (API 1.8). */
+    public static Wind wind(double speedMs, double fromDegrees, WindSettings settings) {
         if (settings == null || !settings.enabled() || !(speedMs > 0.0)) return Wind.CALM;
-        return new Wind(speedMs, level(WindModel.Level.of(speedMs, settings.speeds())));
+        return new Wind(speedMs, level(WindModel.Level.of(speedMs, settings.speeds())), fromDegrees);
     }
 
     public static Wind.Level level(WindModel.Level level) {
@@ -239,7 +250,7 @@ public final class ApiViews {
     }
 
     public static Wind.Day windDay(WindModel.Day day) {
-        return new Wind.Day(day.day(), level(day.level()), day.meanMs());
+        return new Wind.Day(day.day(), level(day.level()), day.meanMs(), day.fromDegrees());
     }
 
     /** A piece of equipment as the API shows it (API 1.2; its tier since 1.4). */

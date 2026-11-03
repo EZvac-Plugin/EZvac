@@ -21,15 +21,29 @@ import java.util.Optional;
  *                         off server-wide, or not measured yet)
  * @param areaRadius       how far each way it measures, in blocks: its coverage, as a map shows it (1.7)
  * @param areaHeight       how far above it it measures, in blocks (1.7)
+ * @param wind             the wind over its area right now, with its direction; calm with wind switched off,
+ *                         where there is none, or before it has measured its area (1.8)
+ * @param airQuality       the outdoor air over its area right now; empty with air quality switched off or
+ *                         before it has measured its area (1.8)
  * @since 1.6
  */
 public record WeatherStationView(String label, Position position, boolean enabled, boolean intact,
                                  long lightningStrikes, double outdoorF, List<ForecastDay> forecast,
-                                 int areaRadius, int areaHeight) {
+                                 int areaRadius, int areaHeight, Wind wind, Optional<AirQuality> airQuality) {
     public WeatherStationView {
         Objects.requireNonNull(label, "label");
         Objects.requireNonNull(position, "position");
         forecast = forecast == null ? List.of() : List.copyOf(forecast);
+        wind = wind == null ? Wind.CALM : wind;
+        airQuality = airQuality == null ? Optional.empty() : airQuality;
+    }
+
+    /** A view as in API 1.7, before its wind and air were known. */
+    public WeatherStationView(String label, Position position, boolean enabled, boolean intact,
+                              long lightningStrikes, double outdoorF, List<ForecastDay> forecast,
+                              int areaRadius, int areaHeight) {
+        this(label, position, enabled, intact, lightningStrikes, outdoorF, forecast, areaRadius, areaHeight,
+                Wind.CALM, Optional.empty());
     }
 
     /** A view as in API 1.6, before its coverage was known: 100 blocks each way and 20 up, the default. */
@@ -57,16 +71,25 @@ public record WeatherStationView(String label, Position position, boolean enable
      * @param sky           its weather: the likeliest, at an even chance or more
      * @param rainChance    0..1, rain (or snow where it's cold); 0 in a dry area
      * @param thunderChance 0..1
-     * @param wind          the day's wind on open ground; empty with wind switched off
+     * @param wind          the day's wind on open ground over its area, with its direction since 1.8; empty with
+     *                      wind switched off
      * @param pollen        grains/m³; NaN with air quality or pollen switched off
      * @param note          what is certain about the day, such as {@code Rain from 15:00}, or empty
+     * @param aqi           the day's expected outdoor AQI (US EPA); -1 with air quality switched off (1.8)
      */
     public record ForecastDay(int daysAhead, double highF, double lowF, Sky sky, double rainChance,
-                              double thunderChance, Optional<Wind.Day> wind, double pollen, String note) {
+                              double thunderChance, Optional<Wind.Day> wind, double pollen, String note, int aqi) {
         public ForecastDay {
             Objects.requireNonNull(sky, "sky");
             wind = wind == null ? Optional.empty() : wind;
             note = note == null ? "" : note;
+            aqi = Math.max(-1, aqi);
+        }
+
+        /** A day as in API 1.6, before its AQI was forecast. */
+        public ForecastDay(int daysAhead, double highF, double lowF, Sky sky, double rainChance,
+                           double thunderChance, Optional<Wind.Day> wind, double pollen, String note) {
+            this(daysAhead, highF, lowF, sky, rainChance, thunderChance, wind, pollen, note, -1);
         }
 
         public double highC() { return Temperatures.celsius(highF); }

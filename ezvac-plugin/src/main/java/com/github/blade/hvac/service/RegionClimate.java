@@ -27,9 +27,13 @@ public final class RegionClimate {
     /** Biomes are read this many blocks apart. */
     public static final int CELL = 256;
 
-    /** What one grid point reads. */
-    record Cell(double meanF, OutdoorAir.Baseline air, double exposure) {
-        static final Cell TEMPERATE = new Cell(55.0, OutdoorAir.Baseline.DEFAULT, 1.0);
+    /**
+     * What one grid point reads.
+     *
+     * @param downfall how wet its ground is, 0 (desert) .. 1, roughly: rain biomes 0.6, snow 0.5, dry ones 0
+     */
+    record Cell(double meanF, OutdoorAir.Baseline air, double exposure, double downfall) {
+        static final Cell TEMPERATE = new Cell(55.0, OutdoorAir.Baseline.DEFAULT, 1.0, 0.6);
     }
 
     private final ClimateSettings climate;
@@ -56,6 +60,11 @@ public final class RegionClimate {
     /** How open the spot's biomes are to the wind, at sea level. */
     public double exposure(World world, double x, double z) {
         return blended(world, x, z, Cell::exposure);
+    }
+
+    /** Roughly how wet the spot's ground is, for the dust the wind lifts. */
+    public double downfall(World world, double x, double z) {
+        return blended(world, x, z, Cell::downfall);
     }
 
     /** Drops what is kept for a world, when it unloads. */
@@ -114,6 +123,11 @@ public final class RegionClimate {
         String key = biome.getKey().toString();
         BiomeClimate.Climate found = climate.biomes().climate(key);
         double meanF = found == null ? Cell.TEMPERATE.meanF() : (found.noonF() + found.midnightF()) / 2.0;
-        return new Cell(meanF, climate.airQuality().baseline(key), climate.wind().exposure(key));
+        double downfall = found == null ? Cell.TEMPERATE.downfall() : switch (found.precipitation()) {
+            case NONE -> 0.0;
+            case SNOW -> 0.5;
+            case RAIN -> 0.6;
+        };
+        return new Cell(meanF, climate.airQuality().baseline(key), climate.wind().exposure(key), downfall);
     }
 }

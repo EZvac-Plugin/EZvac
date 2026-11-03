@@ -27,13 +27,53 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** API 1.6 and 1.7: what EZvac BETA 1.0 and its Pilot 2 added, for addons. */
+/** API 1.6 to 1.8: what EZvac BETA 1.0 and its pilots added, for addons. */
 class ApiBetaTest {
     private static final UUID WORLD = UUID.randomUUID();
 
     @Test
-    void theApiIsVersion17() {
+    void theApiIsVersion18() {
         assertEquals("1.8", EzvacApi.API_VERSION);
+    }
+
+    @Test
+    void theWindHasADirection() {
+        // API 1.8 (EZvac BETA 1.0 Pilot 3).
+        Wind wind = new Wind(10.0, Wind.Level.WINDY, 300.0);
+        assertEquals("NW", wind.compass());
+        assertEquals(120.0, wind.towardDegrees(), 1e-9, "an arrow points where it blows to");
+        assertTrue(wind.hasDirection());
+        Wind old = new Wind(10.0, Wind.Level.WINDY);
+        assertFalse(old.hasDirection(), "the 1.5 constructor has none");
+        assertEquals("", old.compass());
+        assertTrue(Double.isNaN(old.towardDegrees()));
+        assertEquals(10.0, new Wind(1, Wind.Level.CALM, 370.0).fromDegrees(), 1e-9);
+        assertEquals("SW", new Wind.Day(5, Wind.Level.GALE, 18.0, 225.0).compass());
+        assertEquals("", new Wind.Day(5, Wind.Level.GALE, 18.0).compass());
+        assertEquals(Wind.CALM, ApiViews.wind(0.0, 270.0, com.github.blade.hvac.config.WindSettings.defaults()));
+    }
+
+    @Test
+    void aWeatherStationSaysItsWindAndAir() {
+        // API 1.8 (EZvac BETA 1.0 Pilot 3): MapPeek draws the arrow and the AQI.
+        WeatherStation station = new WeatherStation(new BlockKey(WORLD, 10, 64, 20), "Harbour");
+        Forecast.Day today = new Forecast.Day(0, 74.0, 55.0, 0.3, 0.1, Forecast.Sky.CLEAR,
+                new WindModel.Day(812, WindModel.Level.WINDY, 9.0).from(225.0), 60.0, "").withAqi(42);
+        var air = ApiViews.airQuality(new com.github.blade.hvac.simulation.AirQualityModel.Air(10.0, 20.0, 50.0),
+                com.github.blade.hvac.config.AirQualitySettings.defaults());
+        WeatherStationView view = ApiViews.weatherStation(station, 70.4, List.of(today), 100, 20,
+                new Wind(9.5, Wind.Level.WINDY, 230.0), air);
+        assertEquals("SW", view.wind().compass());
+        assertTrue(view.airQuality().isPresent());
+        WeatherStationView.ForecastDay day = view.forecast().get(0);
+        assertEquals(42, day.aqi());
+        assertEquals(225.0, day.wind().orElseThrow().fromDegrees(), 1e-9);
+        WeatherStationView older = new WeatherStationView("Old", new Position(WORLD, 0, 64, 0), true, true, 0,
+                70.0, List.of(), 100, 20);
+        assertEquals(Wind.CALM, older.wind(), "the 1.7 constructor has no wind...");
+        assertEquals(Optional.empty(), older.airQuality(), "...and no air");
+        assertEquals(-1, new WeatherStationView.ForecastDay(0, 70, 50, WeatherStationView.Sky.CLEAR, 0, 0,
+                Optional.empty(), Double.NaN, "").aqi(), "a 1.6 day has no AQI");
     }
 
     @Test
@@ -50,7 +90,8 @@ class ApiBetaTest {
         WeatherStationView.ForecastDay day = view.forecast().get(0);
         assertEquals(WeatherStationView.Sky.CLEAR, day.sky());
         assertEquals(74.0, day.highF());
-        assertEquals(Optional.of(new Wind.Day(812, Wind.Level.BREEZY, 5.0)), day.wind());
+        assertEquals(Optional.of(new Wind.Day(812, Wind.Level.BREEZY, 5.0, WindModel.WESTERLIES_FROM)), day.wind(),
+                "since 1.8 with where it blows from");
         assertEquals("Rain from 15:00", day.note());
         assertFalse(ApiViews.weatherStation(station, Double.NaN, List.of()).working(), "not forecasting");
         Forecast.Day still = new Forecast.Day(1, 70, 50, 0, 0, Forecast.Sky.CLEAR, null, Double.NaN, "");

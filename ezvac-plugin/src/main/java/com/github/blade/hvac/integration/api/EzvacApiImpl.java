@@ -1,6 +1,9 @@
 package com.github.blade.hvac.integration.api;
 
+import com.github.blade.hvac.api.AirQuality;
 import com.github.blade.hvac.api.Wind;
+import com.github.blade.hvac.simulation.AirQualityModel;
+import com.github.blade.hvac.simulation.WindModel;
 import com.github.blade.hvac.config.WindSettings;
 import com.github.blade.hvac.service.WindService;
 import com.github.blade.hvac.simulation.SizingModel;
@@ -169,9 +172,14 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     }
 
     private WeatherStationView stationView(WeatherStation station) {
+        boolean working = WeatherStationService.working(station);
+        WindModel.Spot windNow = working ? stations.windNow(station) : null;
+        AirQualityModel.Air airNow = working ? stations.airNow(station) : null;
         return ApiViews.weatherStation(station, stations.nowF(station),
-                WeatherStationService.working(station) ? stations.forecast(station) : List.of(),
-                stations.settings().areaRadius(), stations.settings().areaHeight());
+                working ? stations.forecast(station) : List.of(),
+                stations.settings().areaRadius(), stations.settings().areaHeight(),
+                windNow == null ? Wind.CALM : ApiViews.wind(windNow.speedMs(), windNow.fromDegrees(), wind()),
+                airNow == null ? Optional.empty() : ApiViews.airQuality(airNow, air()));
     }
 
     @Override
@@ -216,7 +224,8 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     public OutdoorClimate outdoorAt(Location location) {
         OutdoorTemperatureService.Outdoor out = outdoor.climateAt(location);
         return new OutdoorClimate(out.airF(), out.waterF(), out.humidity(), out.dewPointF(), out.feelsLikeF(),
-                out.weather(), outdoor.seasonShiftAt(location), ApiViews.wind(out.windMs(), wind()));
+                out.weather(), outdoor.seasonShiftAt(location),
+                ApiViews.wind(out.windMs(), out.windFromDegrees(), wind()));
     }
 
     @Override
@@ -411,6 +420,30 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         if (world == null || days < 1 || wind == null || !wind.enabled() || !WindService.hasWind(world))
             return List.of();
         return wind.forecast(world, Math.min(days, 30)).stream().map(ApiViews::windDay).toList();
+    }
+
+    @Override
+    public List<Wind.Day> windForecast(Location location, int days) {
+        WindService wind = outdoor.wind();
+        World world = location == null ? null : location.getWorld();
+        if (world == null || days < 1 || wind == null || !wind.enabled() || !WindService.hasWind(world))
+            return List.of();
+        return wind.forecastAt(world, location.getX(), location.getZ(), Math.min(days, 30)).stream()
+                .map(ApiViews::windDay).toList();
+    }
+
+    @Override
+    public Wind windAt(World world, int x, int z) {
+        WindService wind = outdoor.wind();
+        if (world == null || wind == null || !wind.enabled() || !WindService.hasWind(world)) return Wind.CALM;
+        WindModel.Spot spot = wind.at(world, x + 0.5, z + 0.5);
+        return ApiViews.wind(spot.speedMs(), spot.fromDegrees(), wind());
+    }
+
+    @Override
+    public Optional<AirQuality> outdoorAirAt(World world, int x, int z) {
+        AirQualityModel.Air open = outdoor.openAirAt(world, x + 0.5, z + 0.5);
+        return open == null ? Optional.empty() : ApiViews.airQuality(open, air());
     }
 
     private Optional<SeasonView.Season> seasonOf(World world) {

@@ -229,6 +229,27 @@ public final class OutdoorTemperatureService {
         return wind == null || !wind.enabled() ? null : wind.at(world, x, z);
     }
 
+    /**
+     * The open air at a spot anywhere in a world, explored or not (BETA 1.0
+     * Pilot 3, for maps): its biomes' air read from the seed, the season's
+     * pollen, the rain and the wind there. Never loads a chunk. Null with air
+     * quality switched off, outside a running server, or outside the overworld.
+     */
+    public AirQualityModel.Air openAirAt(World world, double x, double z) {
+        if (world == null || !climate.airQuality().enabled() || wind == null || wind.regions() == null
+                || world.getEnvironment() != World.Environment.NORMAL) return null;
+        RegionClimate regions = wind.regions();
+        double pollen = !climate.airQuality().pollen() ? 0.0
+                : seasons == null ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactor(world.getUID());
+        WindModel.Spot spot = windAt(world, x, z);
+        double windMs = spot == null ? climate.weather().windClearMs()
+                : spot.speedMs() * regions.exposure(world, x, z);
+        double downfall = regions.downfall(world, x, z);
+        // Rain only falls where the ground gets any.
+        double wet = downfall > 0.0 ? wetness(world) : 0.0;
+        return OutdoorAir.now(regions.air(world, x, z), pollen, wet, windMs, downfall, climate.wind());
+    }
+
     /** The weather word for a spot: the kind of weather its surroundings mostly get. */
     private String weatherWord(World world, BiomeBlend.Blended local) {
         if (!climate.weather().enabled()) return "";
