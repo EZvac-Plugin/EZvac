@@ -74,7 +74,7 @@ public final class SeasonService {
 
     public ClimateSettings.Seasons settings() { return settings; }
 
-    /** Reads seasons.yml. A file that can't be read is kept aside and every world starts on the first day of spring. */
+    /** Reads seasons.yml. A file that can't be read is kept aside and every world starts again on its own day. */
     public void load() {
         worlds.clear();
         if (!file.isFile()) return;
@@ -89,7 +89,7 @@ public final class SeasonService {
                 // Still start: the calendar is not worth refusing to run over.
             }
             warn.accept("seasons.yml could not be read (" + failure.getMessage() + "), so every world's calendar"
-                    + " starts again on the first day of spring. The old file was kept as " + aside.getName() + ".");
+                    + " starts again from Minecraft's own day count. The old file was kept as " + aside.getName() + ".");
             return;
         }
         ConfigurationSection section = yaml.getConfigurationSection("worlds");

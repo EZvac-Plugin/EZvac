@@ -57,10 +57,11 @@ class WindServiceTest {
         SeasonService seasons = seasons(true);
         WindService wind = new WindService(SETTINGS, seasons);
         clock(seasons, 900 * DAY + 6_000);
-        assertEquals(0, wind.day(world).day(), "a new calendar's first day, whatever the world's clock says");
+        assertEquals(900, wind.day(world).day(), "a new calendar starts on the world's own day (BETA 1.0 Pilot 3)");
 
         seasons.set(ID, Seasons.Season.WINTER, 5);
-        long winterDay5 = 3L * seasons.settings().daysPerSeason() + 4;
+        long year = 4L * seasons.settings().daysPerSeason();
+        long winterDay5 = 900 - 900 % year + 3L * seasons.settings().daysPerSeason() + 4;
         WindModel.Day winter = wind.day(world);
         assertEquals(winterDay5, winter.day(), "/hvac season set brings that day's wind at once");
         assertEquals(WindModel.day(SEED, winterDay5, SETTINGS.seasons().winter(), SETTINGS), winter,
@@ -71,8 +72,10 @@ class WindServiceTest {
         assertEquals(winter, wind.day(world), "the same day, later on");
         clock(seasons, 1_000);
         assertEquals(winter, wind.day(world), "/time set day sends the world's clock back, not the wind");
-        clock(seasons, 2 * DAY + 1_000);
+        clock(seasons, DAY + 1_000);
         assertEquals(winterDay5 + 1, wind.day(world).day(), "a day passes: the next day's wind");
+        clock(seasons, 3 * DAY + 1_000);
+        assertEquals(winterDay5 + 3, wind.day(world).day(), "/time add of two days: both count (BETA 1.0 Pilot 3)");
     }
 
     @Test
