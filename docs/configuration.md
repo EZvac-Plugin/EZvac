@@ -318,6 +318,12 @@ The daily wind (3.2). See [Wind](wind.md).
 | `dust` | 1.5 | How much dust a wind over 6 m/s lifts where the ground is dry |
 | `smoke-dispersal` | 0.03 | Share of the outdoor PM2.5 the wind thins out per m/s, at most 40% |
 | `pollen-spread` | 0.06 | Share the wind adds to the outdoor pollen per m/s, at most 1.8x |
+| `direction.variation` | 1.0 | How far each day strays from its climate's usual direction: 0 never, 1 as in nature, up to 2 (BETA 1.0 Pilot 3) |
+| `direction.fronts` | true | Whether rain turns the westerlies: south ahead of it, southwest while it rains, west-northwest after |
+| `regions.enabled` | true | `false`: the same wind everywhere, terrain aside, as in 3.2 |
+| `regions.size-blocks` | 1500 | About how far across a region is (200-20000) |
+| `regions.strength` | 0.4 | How much windier or calmer a region can be, as a share of the day's speed (0-0.8); never more than about a level |
+| `regions.drift-blocks-per-hour` | 150 | How fast regions move downwind, per in-game hour (0-2000) |
 | `units` | auto | `auto` (km/h with `units: C`, mph with `units: F`), `ms`, `kmh` or `mph` |
 | `biomes` | `{}` | Your own exposure per biome: 1 open ground, 0.5 a dense forest, 1.4 a mountain top, 0 none. For example `minecraft:plains: 1.2` |
 

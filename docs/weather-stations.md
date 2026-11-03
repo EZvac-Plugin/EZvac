@@ -67,13 +67,18 @@ its chunk is unloaded.
 ## The forecast
 
 Seven days, today first, each with its weather, high and low (whole
-degrees), chance of rain or snow, chance of thunder, wind and pollen. A
-station is honest about what EZvac knows:
+degrees), chance of rain or snow, chance of thunder, wind and where it blows
+from, the AQI, and pollen. A station is honest about what EZvac knows:
 
 - **Temperatures are exact.** Each day's high and low come from the area's
   climate and that day's season, with the cooling its chance of rain brings.
 - **The wind is exact.** EZvac draws each day's wind from the world's seed,
-  so the forecast shows the very wind that will blow.
+  so the forecast shows the very wind that will blow over the station's own
+  region, with its direction (BETA 1.0 Pilot 3). On a day likely to rain, the
+  direction is the southwest the rain brings. See [Wind](wind.md).
+- **The AQI** (BETA 1.0 Pilot 3) is the area's outdoor air that day, with its
+  rain washing it out and its wind lifting dust or thinning smoke, shown in
+  its band's colour. See [Air quality](air-quality.md).
 - **Pollen** follows the season, so it's predictable too.
 - **Rain and thunder are chances.** Minecraft keeps a countdown to when the
   current spell of weather ends, so a station knows that for certain: "Rain
@@ -86,7 +91,8 @@ station is honest about what EZvac knows:
 ## Using it
 
 - **The screen** shows the outdoor temperature big and today's weather,
-  high and low, and wind. Below that comes what's certain about today, or
+  high and low, and wind with its direction and the air right now
+  (`Windy 29km/h W · AQI 42`). Below that comes what's certain about today, or
   else tomorrow's weather. Its header is coloured by today's sky: ☀, ☂, ❄ or ⚡.
 - **Clicking it** (anyone with `ezvac.use`) opens its forecast.
 - **`/hvac forecast`** opens the forecast of the stations within **400

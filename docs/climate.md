@@ -69,12 +69,17 @@ mid-spring and mid-autumn.
   north, weak in the tropics. `seasons.strength` scales them all, such as 0.5
   for mild seasons.
 - Lakes and the sea follow a few days behind the air and move a little less.
-- EZvac keeps its own calendar for each world, in `seasons.yml`. It counts the
-  world's days, so sleeping through the night moves it on, but setting the
-  clock back (`/time set day`) never sends the year back to spring. With
+- EZvac keeps its own calendar for each world, in `seasons.yml`. It follows
+  the world's days, so sleeping through the night or `/time add` moves it on
+  by every day they pass (BETA 1.0 Pilot 3: before, one day at most at a
+  time), but setting the clock back (`/time set day`, which restarts
+  Minecraft's day count) never sends the year back to spring. With
   `doDaylightCycle` off, the season stands still.
-- The first time a world runs 2.1, its calendar starts on the first
-  day of spring.
+- A new calendar starts on Minecraft's own day count (BETA 1.0 Pilot 3), so
+  day 0 of a world is the first day of spring and a world on day 500 starts
+  where day 500 falls. A world that already has a calendar keeps its season
+  and day. (From 2.1 to Pilot 2, a new calendar started on the first day of
+  spring whatever the world's day.)
 - `/hvac season` shows the season and how much it warms or cools outside
   here; admins can change it any time (see [Commands](commands.md#seasons)).
 - The HUD shows the season, and `%ezvac_season%` and `%ezvac_season_day%`

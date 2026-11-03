@@ -68,9 +68,10 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_aqi_band%` | `Good` (`Moderate`, `Sensitive`, `Unhealthy`, `Very bad`, `Hazardous`) |
 | `%ezvac_pm25%`, `%ezvac_pm10%` | `6.4`, `18`: particles in µg/m³ |
 | `%ezvac_pollen%`, `%ezvac_pollen_count%` | `High`, `95`: the pollen level (`Low`, `Med`, `High`, `V.High`; before BETA 1.0 `Moderate` and `Very high`, shortened to keep sidebars narrow), and grains/m³ |
-| `%ezvac_wind%` | `Windy 22 km/h`, or `Calm` (3.2) |
+| `%ezvac_wind%` | `Windy 22 km/h W`, or `Calm` (3.2; the direction since BETA 1.0 Pilot 3) |
 | `%ezvac_wind_level%`, `%ezvac_wind_speed%` | `Windy`, `22 km/h`: the level, and the speed in the server's units |
 | `%ezvac_wind_ms%`, `%ezvac_wind_kmh%`, `%ezvac_wind_mph%` | `6`, `22`, `14`: the speed as a whole number |
+| `%ezvac_wind_direction%`, `%ezvac_wind_degrees%` | `W`, `270`: where it blows from, as a compass point and in degrees (0 north); `none` when calm (BETA 1.0 Pilot 3) |
 | `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`; empty in dry biomes) |
 | `%ezvac_season%` | `Summer` (`Spring`, `Autumn`, `Winter`; empty where there are no seasons) |
 | `%ezvac_season_day%` | `3`, the day of that season |
@@ -108,8 +109,9 @@ read `none` where the air isn't measured: in water, or with `air-quality`
 switched off. A sidebar that still has the stock lines gains the air line
 when you upgrade to 3.2.
 
-`{wind}` is the wind you feel, `Calm` or `Windy 22 km/h`, and `{wind_level}`
-just the word (3.2). They read `none` in water, in the Nether and the End,
+`{wind}` is the wind you feel, `Calm` or `Windy 22 km/h W`, and `{wind_level}`
+just the word (3.2). `{wind_direction}` and `{wind_degrees}` give where it
+blows from (BETA 1.0 Pilot 3). They read `none` in water, in the Nether and the End,
 and with `wind` switched off. A stock sidebar gains a wind line too.
 
 `{system}` is the label of the thermostat whose air you're in, or `Headless`;

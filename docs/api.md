@@ -88,6 +88,9 @@ server runs.
 | `devices(world)` | Every device in a world, of every kind (1.2) |
 | `season(world)` | The season and its day, or empty where there are no seasons |
 | `windForecast(world, days)` | Today's wind and the next days', each a `Wind.Day` with its level and mean speed; empty where there is no wind (1.5) |
+| `windForecast(location, days)` | The same for the region around a spot, which can be up to a level windier or calmer than the world's (1.8) |
+| `windAt(world, x, z)` | The wind on open, level ground there right now, with its direction: anywhere, explored or not, without loading a chunk, so a map can draw it (1.8) |
+| `outdoorAirAt(world, x, z)` | The open outdoor air there right now as an `AirQuality`: its biomes' air with the season's pollen, the rain and the wind; anywhere, without loading a chunk (1.8) |
 | `units()` | Whether the server shows players °F or °C |
 | `systemSize(world, system)` | A system's size in blocks of air (or water), its openings and how much faster it leaks, what equipment it has and needs for cooling and heating, and the systems its air touches; empty while its air isn't mapped or with building size off (1.6) |
 | `serverSettings()` | What the owner has switched in `/hvac quicksettings`: device kinds off server-wide (by their `devices.disabled` names), air quality, pollen, wind, seasons and building size (1.6) |
@@ -106,14 +109,22 @@ could heat or cool its system is switched off server-wide.
 A `WeatherStationView` (1.6) holds its `forecast()`: seven `ForecastDay`s,
 today first, each with its high and low, `Sky` (`CLEAR`, `RAIN`, `SNOW`,
 `THUNDER`), chance of rain and of thunder, the day's `Wind.Day`, pollen, and
-a `note()` of what is certain about the day (`Rain from 15:00`). It is empty
-while the station isn't forecasting. Weather stations are not `HvacDevice`s:
-a `switch` over every device kind an addon was built with stays complete.
+a `note()` of what is certain about the day (`Rain from 15:00`), and since 1.8
+its expected `aqi()` (-1 with air quality off). It is empty while the station
+isn't forecasting. Since 1.8 a station also gives the `wind()` and
+`airQuality()` over its area right now, and its `areaRadius()` (1.7), which is
+what MapPeek draws. Weather stations are not `HvacDevice`s: a `switch` over
+every device kind an addon was built with stays complete.
 
 A `Wind` (1.5) holds the speed in m/s (`kmh()` and `mph()` convert it) and its
 `Level`: `CALM`, `BREEZY`, `WINDY` or `GALE`. It is calm indoors, in water,
 where a system conditions the spot, outside the overworld and on servers with
-`wind.enabled: false`.
+`wind.enabled: false`. Since 1.8 it has `fromDegrees()`, where it blows from
+(0 north, which is Minecraft's -Z, then 90 east), with `compass()` (`NW`) and
+`towardDegrees()`, the way an arrow on a map points; `hasDirection()` is false
+where it isn't known. A `Wind.Day` has its `fromDegrees()` too: for a world, as
+it blows in the temperate westerlies; for a region or a station, as it blows
+there. See [Wind](wind.md).
 
 An `AirQuality` (1.5) holds PM2.5 and PM10 in µg/m³, pollen in grains/m³, the
 AQI (0-500) with its `Band`, the `dominant()` pollutant (PM2.5 reads as smoke,
@@ -312,5 +323,7 @@ depend: [EZvac]
   `ServerSettingsView`, weather stations, `airflowStrength()`, `unitsOff()`),
   and 1.7 with BETA 1.0 Pilot 2 (`WeatherStationView.areaRadius()` and
   `areaHeight()`, `ThermostatView.profile()`, `mini()`, `attention()` and
-  `blocked()`).
+  `blocked()`), and 1.8 with BETA 1.0 Pilot 3 (the wind's direction,
+  `windAt()`, `outdoorAirAt()`, `windForecast(location, days)`, and a
+  station's `wind()`, `airQuality()` and each day's `aqi()`).
   Depend on the oldest EZvac whose API has what you use.

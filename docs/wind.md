@@ -2,7 +2,9 @@
 
 Since 3.2, every day has its own wind. It makes the outdoors feel colder,
 makes buildings leakier, and moves the outdoor air around: dust storms in the
-desert, thinner smoke, more pollen.
+desert, thinner smoke, more pollen. Since BETA 1.0 Pilot 3 it blows from a
+direction, set by the climate and the weather, and differs from one region
+to the next.
 
 ## Each day's wind
 
@@ -31,6 +33,46 @@ At dawn each day draws a level:
   so a gale doesn't start at the stroke of six.
 - **Rain and thunder add to it:** 1.5 m/s in rain and 3.5 m/s in thunder, by
   default.
+
+## Where it blows from
+
+Directions are where the wind comes **from**, as forecasts give them: a west
+wind blows from the west, toward the east. North is Minecraft's -Z.
+
+**Each climate has its prevailing wind,** like the real world's belts:
+
+| Climate | Wind | Usually from | Day to day |
+| --- | --- | --- | --- |
+| Hot: deserts, savannas, jungles, badlands | the trade winds | the east-northeast | keeps close to it, about 25° either way |
+| Temperate: plains, forests, the sea | the westerlies | the west-southwest | wanders about 50° either way; one day in ten blows from anywhere |
+| Cold: snowy plains, frozen peaks, ice spikes | the polar easterlies | the northeast | about 40° either way |
+
+- **The belts follow the land at a large scale.** EZvac reads the biomes
+  every 256 blocks from the world seed (so it knows places no one has
+  explored, and never loads a chunk) and blends between them. Crossing from
+  a desert into plains, the wind turns gradually over a few hundred blocks.
+- **Rain turns the westerlies,** as a weather front does. Up to six hours
+  before rain the wind backs round to the south. While it rains it blows from
+  the southwest, and once it clears it veers to the west-northwest for a few
+  hours. The trade winds and polar easterlies keep their direction.
+- **It swings a little through the day,** about 15° either way, rising and
+  falling with the gusts.
+- **A calm day has no direction** to speak of: displays show just `Calm`.
+
+## Regions
+
+The wind isn't the same everywhere in a world. Areas about 1,500 blocks
+across are windier or calmer than the day's wind, by up to 40%:
+
+- **Never more than about a level apart.** On a Windy day one area can be
+  Breezy and another a Gale, but a Calm area never sits next to a Gale.
+- **They drift downwind** through the day, about 150 blocks an in-game hour,
+  so a windy patch passes over a town like a squall.
+- **They bend the direction** a little too, up to 20° either way.
+- **Each day has its own regions,** easing over from the day before's after
+  dawn, like the speed.
+- **Weather stations forecast their own area's wind,** so two stations far
+  apart can give different days.
 
 ## Where it blows
 
@@ -79,29 +121,43 @@ See [Air quality](air-quality.md) for the air itself.
 
 ## Seeing the wind
 
-- **`/hvac wind`** shows today's level and speed, the wind where you stand
-  and out in the open, and the next two days' levels.
+- **`/hvac wind`** shows today's wind around you, with where it blows from,
+  the wind where you stand and out in the open, and the next two days. When
+  your area differs from the world's day it says so: `Windy, about 29 km/h
+  from the W (Breezy across the world)`. From the console it shows the
+  world's day.
 - **`/hvac temperature`** adds the wind you feel: `Wind: Windy 22 km/h`.
-- **The HUD:** `{wind}` shows `Calm` or `Windy 22 km/h`, and `{wind_level}`
-  just the word. A stock sidebar gains a wind line under the outdoor line.
-  See [HUD and placeholders](hud-and-placeholders.md).
+- **The HUD:** `{wind}` shows `Calm` or `Windy 22 km/h W`, `{wind_level}`
+  just the word, `{wind_direction}` the compass point (`W`) and
+  `{wind_degrees}` the degrees (`270`). A stock sidebar gains a wind line
+  under the outdoor line. See [HUD and placeholders](hud-and-placeholders.md).
 - **A wind sensor** is a bamboo button: look at it and run
-  `/hvac create sensor [label]`. On a sensor hub it reads `Roof Gale 61km/h`.
-  It reads the wind at its own spot, so put it up high in the open: walls,
-  roofs and trees shelter it. See [Sensors](sensors.md).
+  `/hvac create sensor [label]`. On a sensor hub it reads
+  `Roof Gale 61km/h NW`; where the direction would cut its label short, it
+  leaves the direction out. It reads the wind at its own spot, so put it up
+  high in the open: walls, roofs and trees shelter it. See
+  [Sensors](sensors.md).
+- **Weather stations** show today's wind and direction on their screen, and
+  each day's in their forecast. See [Weather stations](weather-stations.md).
+- **On a web map,** the MapPeek addon draws an arrow on each weather station
+  and, if you like, the wind across the whole map.
 
 Speeds show in km/h with `units: C` and mph with `units: F`; `wind.units`
 can pick m/s, km/h or mph instead.
 
 ## For admins
 
-- **`/hvac wind set <calm|breezy|windy|gale>`** sets today's wind until the
-  day ends, or until `/hvac season` moves the calendar; `/hvac wind set auto`
-  lets it blow as it would. Handy for
-  testing a build in a gale. It isn't saved.
+- **`/hvac wind set <calm|breezy|windy|gale> [direction]`** sets today's wind
+  until the day ends, or until `/hvac season` moves the calendar; `/hvac wind
+  set auto` lets it blow as it would. The direction is a compass point
+  (`nw`, `wsw`) or degrees (`270`), and holds everywhere, though regions and
+  the day still bend it a little. Handy for testing a build in a gale. It
+  isn't saved.
 - **Tune it** under `wind` in config.yml: the chances, each level's speeds,
   the seasons, the gusts, how much leakier wind makes rooms, the dust, smoke
-  and pollen, and each biome's exposure. See
-  [Configuration](configuration.md#wind).
+  and pollen, each biome's exposure, how far each day's direction strays and
+  whether rain turns it (`wind.direction`), and the regions' size, strength
+  and drift (`wind.regions`; `enabled: false` blows the same wind everywhere,
+  as in 3.2). See [Configuration](configuration.md#wind).
 - **`wind.enabled: false`** goes back to 3.1's fixed light wind
   (`weather.wind-clear-ms`), and wind changes nothing else.
