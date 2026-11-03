@@ -273,6 +273,64 @@ WIND (3.2)
   Wind.Day, EzvacApi.windForecast(world, days), InstrumentView.Kind
   WIND_SENSOR.
 
+WIND DIRECTION AND REGIONS (BETA 1.0 Pilot 3)
+---------------------------------------------
+
+- Degrees the wind blows FROM: 0 north (-Z), 90 east. Nothing is saved.
+- Belts (WindModel.belts, by the area's year-round mean): trades weight =
+  smoothstep(68, 80 F), polar = 1 - smoothstep(28, 40 F), westerlies the
+  rest. Usual directions 70 (trades), 255 (westerlies), 60 (polar).
+- RegionClimate reads biomes from World.vanillaBiomeProvider() (no chunk
+  loads) on a 256-block grid at sea level + 8 (+ 64 when that lands in a cave
+  biome), caches each cell in memory (mean F, air baseline, exposure, rough
+  downfall: none 0, snow 0.5, rain 0.6), and blends cells bilinearly. If the
+  provider throws it warns once and uses the westerlies for that world.
+- Day.directions: each day draws one per belt from the seed (salt 0xD1EC7):
+  trades 70 + 25 v N, westerlies 255 + 50 v N (or uniform with chance
+  0.1 min(1, v)), polar 60 + 40 v N; N a normal draw clamped to +-2.5, v
+  wind.direction.variation (0-2). A spot blends them as unit vectors.
+- Regions: value noise (0.75 at size-blocks, 0.25 at size/2.3), x1.6 and
+  clamped to -1..1, its own per day, sampled at the spot minus drift x hours
+  along the day's westerly direction. Speed = day mean x (1 + strength x
+  noise), clamped to [level below's from, level above's to]. Direction bent
+  by 20 x a second noise channel. Before 2 h after dawn both ease from
+  yesterday's field at hour + 24.
+- Hourly swing: +-15 x min(1, v) x gust noise (salted). Gusts as in 3.2.
+- Fronts (WindModel.front, WindService.front once per tick per world): RAIN
+  while raining (from 190 swinging to 225 over its first hour); BEHIND for
+  6 h after it stops (225 to 300 over the first hour, strength 1 - h / 6);
+  AHEAD when clear, no /weather clear hold, and rain due within 6 h (190,
+  strength 1 - h / 6). Applied as between(direction, front, 0.7 x strength x
+  westerlies weight). When rain last started or stopped is kept in memory.
+- WindService.at(world, x, z) gives a Spot (speed, from) on open level
+  ground; OutdoorTemperatureService takes it for climateAt/climateFor
+  (Outdoor.windFromDegrees), so readings, the leak factor and sensors use the
+  region's wind. Temperatures still use the world's day (wind doesn't move
+  them). forecastAt gives each day's regional mean at noon, its level and
+  direction (WindModel.dayAt).
+- Stations: forecast uses forecastAt at the station; a day with rain chance
+  >= 0.5 turns its direction toward 225 (x 0.7 x westerlies). windNow and
+  airNow give the area's wind (x area exposure) and outdoor air now;
+  Forecast.Day.aqi from OutdoorAir.now at the day's rain chance and wind.
+- /hvac wind set <level> [dir]: Held(level, from); Day.from(deg) sets every
+  belt's direction to it. WindText.compass: 8 points; parseDirection takes 16
+  points or 0-360.
+- Display: {wind} "Windy 22 km/h W"; {wind_direction}, {wind_degrees}. Wind
+  sensor line drops the direction when it would cut the label. Station screen
+  "wind · AQI n" (ScreenText.fitted drops the AQI first).
+- API 1.8: Wind.fromDegrees (+ compass, towardDegrees, hasDirection),
+  Wind.Day.fromDegrees, WeatherStationView.wind / airQuality,
+  ForecastDay.aqi, EzvacApi.windAt(world, x, z), outdoorAirAt(world, x, z)
+  (OutdoorTemperatureService.openAirAt), windForecast(location, days). Old
+  constructors kept.
+
+SEASON CALENDAR (BETA 1.0 Pilot 3)
+----------------------------------
+
+- SeasonCalendar: a new one starts at max(0, world fullTime / 24000); each
+  look adds every day passed (no more one-day cap); a clock set back still
+  changes nothing. seasons.yml unchanged.
+
 
 HUMIDITY AND FEELS LIKE
 -----------------------

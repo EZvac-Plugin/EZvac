@@ -2,6 +2,82 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 3
+
+**The wind blows from a direction now, and differs from region to region.**
+Weather stations forecast their own area's wind and air, and the season
+calendar follows Minecraft's own days. The save is unchanged (format 8), and
+nothing new is saved.
+
+### Wind direction
+
+- **Each climate has its prevailing wind,** like the real world's belts: the
+  trade winds from the east-northeast in hot climates (deserts, savannas,
+  jungles), the westerlies from the west-southwest in temperate ones, and the
+  polar easterlies from the northeast in cold ones. Day to day it varies
+  around that, the westerlies most.
+- **Rain turns it,** as a weather front does: the westerlies back to the
+  south ahead of rain, blow from the southwest while it rains, and veer to
+  the west-northwest once it clears.
+- **The belts follow the land at a large scale.** EZvac reads the biomes
+  from the world seed, so it knows places no one has explored and never
+  loads a chunk; the wind turns gradually from one climate to the next.
+- **It shows everywhere the wind does:** wind sensors (`Roof Gale 61km/h NW`;
+  the direction gives way before a label is cut), the HUD's `{wind}`, new
+  `{wind_direction}` and `{wind_degrees}` placeholders, `/hvac wind`, weather
+  station screens and the forecast menu. A calm day shows no direction.
+- **`/hvac wind set <level> [direction]`:** a compass point (`nw`, `wsw`) or
+  degrees (`270`).
+
+### Regional wind
+
+- **Areas about 1,500 blocks across** are windier or calmer than the day's
+  wind, by up to 40% but never more than about a level: on a Windy day one
+  area can be Breezy and another a Gale.
+- **They drift downwind** through the day, so a windy patch passes over.
+- **`/hvac wind` gives your own area's wind,** and says when it differs from
+  the world's day. Rooms, sensors and feels-like use the wind where they are.
+- Tune it under `wind.regions`, or switch it off for one wind everywhere as
+  before.
+
+### Weather stations
+
+- **Each station forecasts its own area's wind,** with its direction: on a
+  rainy day, the southwest the rain brings.
+- **Air quality:** the screen shows the area's AQI after the wind
+  (`Windy 29km/h W · AQI 42`), and the forecast menu each day's expected AQI
+  in its band's colour, with rain washing the air and wind lifting dust.
+
+### The season calendar
+
+- **`/time add`, sleeping or a skip moves the seasons on by every day it
+  passes.** Before, only one day counted at a time.
+- **A new calendar starts on Minecraft's own day,** so day 0 of a world is
+  the first day of spring, and EZvac added to an old world picks up where its
+  day count falls. Worlds that already have a calendar keep their season and
+  day.
+- Setting the clock back still never resets the year: vanilla `/time set day`
+  restarts Minecraft's day count.
+
+### Config
+
+- New `wind.direction` (`variation`, `fronts`) and `wind.regions`
+  (`enabled`, `size-blocks`, `strength`, `drift-blocks-per-hour`), added to
+  config.yml on upgrade.
+
+### For addons: API 1.8
+
+- `Wind` and `Wind.Day` gain `fromDegrees()`, with `compass()`,
+  `towardDegrees()` and `hasDirection()`.
+- `WeatherStationView` gains its area's `wind()` and `airQuality()` right
+  now, and each `ForecastDay` its `aqi()`.
+- New `windAt(world, x, z)` and `outdoorAirAt(world, x, z)`: the open wind and
+  air anywhere, without loading a chunk, for maps. `windForecast(location,
+  days)` gives a region's days.
+- Every older constructor is kept, so addons built for 1.7 keep working.
+- **MapPeek 0.2.0** uses it: wind arrows on weather stations, and optional
+  Wind and Air quality layers across the map.
+
 ## BETA 1.0 Pilot 2
 
 **The thermostat's menu is where you run a system now,** and a thermostat can

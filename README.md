@@ -28,10 +28,14 @@ biome and the weather.
 - **Fahrenheit or Celsius**, server wide, and configurable sounds. No fuel,
   power or items needed.
 
-> **Release status:** EZvac **BETA 1.0 Pilot 2** is the second pilot of the
-> first BETA. It adds **mini thermostats** on wall buttons, makes the
+> **Release status:** EZvac **BETA 1.0 Pilot 3** is the third pilot of the
+> first BETA. The **wind blows from a direction**, set by the climate (trade
+> winds, westerlies, polar easterlies) and turned by passing rain, and it
+> **differs from region to region**. Weather stations forecast their own
+> area's wind and its AQI, and the season calendar follows Minecraft's own
+> days. Pilot 2 added **mini thermostats** on wall buttons, made the
 > thermostat's menu the place to run a system (its profile, what needs
-> attention, its size), and lets owners pick an update channel. It runs on
+> attention, its size), and let owners pick an update channel. It runs on
 > Minecraft 26.1 to 26.3 (Paper or Purpur), and still on 1.21.x until
 > BETA 2.x. Every screen is redesigned as a status strip coloured by
 > what the device is doing. The pale garden, the dappled forest and the
