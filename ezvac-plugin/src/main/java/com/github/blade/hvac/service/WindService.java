@@ -199,7 +199,7 @@ public final class WindService {
             held.remove(id);
             level = null;
         }
-        WindModel.Day today = level != null ? WindModel.day(world.getSeed(), day, level.level(), settings)
+        WindModel.Day today = level != null ? WindModel.day(world.getSeed(), day, level.level(), settings).holding()
                 : drawn(world, day, 0);
         if (level != null && Double.isFinite(level.fromDegrees())) today = today.from(level.fromDegrees());
         // Yesterday as it was drawn, for the dawn ease: a level held then has run out. A level held
