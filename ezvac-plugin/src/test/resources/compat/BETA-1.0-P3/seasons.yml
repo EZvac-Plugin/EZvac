@@ -1,0 +1,9 @@
+# EZvac's own calendar for each world (2.1). Use /hvac season to change it;
+# day 0 is the first day of spring. Edit only while the server is stopped.
+
+worlds:
+  b9bff999-d8d4-4113-894b-9bd99c140665:
+    name: world
+    day: 22
+    last-world-day: 0
+    paused: false
