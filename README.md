@@ -83,7 +83,7 @@ biome and the weather.
 
 ## Quick install
 
-1. Download `EzVac-BETA-1.0-P2.jar` from the
+1. Download `EzVac-BETA-1.0-P3.jar` from the
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
 2. Put it in your server's `plugins` folder. You need Paper 26.1 to 26.3 or
@@ -131,7 +131,7 @@ Paper 1.21.1 API, so one jar runs on 1.21.1 and on 26.1 to 26.3.
 mvn clean package
 ```
 
-The plugin is written to `ezvac-plugin/target/EzVac-BETA-1.0-P2.jar`. `mvn verify` also runs
+The plugin is written to `ezvac-plugin/target/EzVac-BETA-1.0-P3.jar`. `mvn verify` also runs
 the test suite, as GitHub Actions does on every push and pull request. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
