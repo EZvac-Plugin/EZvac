@@ -84,8 +84,16 @@ nothing new is saved.
   air anywhere, without loading a chunk, for maps. `windForecast(location,
   days)` gives a region's days.
 - Every older constructor is kept, so addons built for 1.7 keep working.
-- **MapPeek 0.2.0** uses it: wind arrows on weather stations, and optional
-  Wind and Air quality layers across the map.
+- **MapPeek 0.2.0** uses it, on squaremap and now BlueMap too: wind arrows
+  and icons on weather stations, Wind and Air quality layers across the
+  explored map, the time and season, an optional animated wind, and a
+  `/mappeek` menu.
+
+### Tested
+
+Live on Purpur 26.1.2 and 1.21.1, and on 26.3 with squaremap 1.4.3 and
+BlueMap 5.29 on a freshly generated world. 1.21.x is still supported, but
+not play-tested on every version.
 
 ## BETA 1.0 Pilot 2
 

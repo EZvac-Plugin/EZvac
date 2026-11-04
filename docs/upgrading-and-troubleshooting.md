@@ -9,7 +9,7 @@ and tested on 26.x first; on 1.21.x, BETA 1.0 passes the automated tests on
 1.21.1, 1.21.4, 1.21.5, 1.21.8 and 1.21.11, and the versions in between
 aren't checked on their own.
 
-1. Put `EzVac-BETA-1.0-P2.jar` in the server's `plugins` folder.
+1. Put `EzVac-BETA-1.0-P3.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 
@@ -27,6 +27,11 @@ covered by the test suite.
 - **From 3.2 to BETA 1.0,** swap the jar: the save stays **format 8**, on
   1.21.x and on 26.x alike. Your config.yml gains `updates`. Going back to
   3.2 is a jar swap too, as long as the server is still on 1.21.x.
+- **From Pilot 2 to Pilot 3,** swap the jar: nothing new is saved. Your
+  config.yml gains `wind.direction` and `wind.regions`, and a sidebar still
+  on the stock BETA 1.0 lines gains the clock on its season line. Each world
+  keeps its season and day; only a world EZvac hasn't seen before starts on
+  Minecraft's own day count.
 
 > **2.x to 3.0 is a one-way upgrade.** 3.0 converts `hvac.yml` to **format
 > 7** the first time it saves. Your 2.x file is kept as
