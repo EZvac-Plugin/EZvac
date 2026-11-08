@@ -335,7 +335,10 @@ public final class OutdoorTemperatureService {
         WeatherModel.Conditions conditions = conditions(world);
         ClimateSettings.Altitude altitude = climate.altitude();
         int from = altitude.fromY();
-        int y = Math.max(from, world.getSeaLevel());
+        // Measured at the ground where it's loaded, so a hill's own biome counts and not one inside it.
+        int ground = world.isChunkLoaded(x >> 4, z >> 4)
+                ? world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1 : world.getSeaLevel();
+        int y = Math.max(from, ground);
         BiomeBlend.Blended local = surroundingsAt(world, x, y, z)
                 .warmer(-BiomeClimate.lapseF(y, from, altitude.lapseFPerBlock()));
         double airF = air(world, local);
