@@ -446,6 +446,20 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         return open == null ? Optional.empty() : ApiViews.airQuality(open, air());
     }
 
+    @Override
+    public com.github.blade.hvac.api.Precipitation precipitationAt(World world, int x, int y, int z) {
+        return switch (outdoor.fallingAt(world, x, y, z)) {
+            case NONE -> com.github.blade.hvac.api.Precipitation.NONE;
+            case RAIN -> com.github.blade.hvac.api.Precipitation.RAIN;
+            case SNOW -> com.github.blade.hvac.api.Precipitation.SNOW;
+        };
+    }
+
+    @Override
+    public double snowLineAt(World world, int x, int z) {
+        return outdoor.snowLineAt(world, x, z);
+    }
+
     private Optional<SeasonView.Season> seasonOf(World world) {
         return season(world).map(SeasonView::season);
     }

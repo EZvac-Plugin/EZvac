@@ -3,6 +3,7 @@ package com.github.blade.hvac.integration.api;
 import com.github.blade.hvac.api.ClimateReading;
 import com.github.blade.hvac.api.EzvacApi;
 import com.github.blade.hvac.api.Position;
+import com.github.blade.hvac.api.SeasonView;
 import com.github.blade.hvac.api.ServerSettingsView;
 import com.github.blade.hvac.api.SystemSize;
 import com.github.blade.hvac.api.ThermostatView;
@@ -27,13 +28,34 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-/** API 1.6 to 1.8: what EZvac BETA 1.0 and its pilots added, for addons. */
+/** API 1.6 to 1.9: what EZvac BETA 1.0 and its pilots added, for addons. */
 class ApiBetaTest {
     private static final UUID WORLD = UUID.randomUUID();
 
     @Test
-    void theApiIsVersion18() {
-        assertEquals("1.8", EzvacApi.API_VERSION);
+    void theApiIsVersion19() {
+        assertEquals("1.9", EzvacApi.API_VERSION);
+    }
+
+    @Test
+    void aSeasonSaysHowFarThroughTheYearItIs() {
+        // API 1.9 (EZvac BETA 1.0 Pilot 4), for EZclimates' colour stages.
+        assertEquals(0.5 / 120, new SeasonView(SeasonView.Season.SPRING, 1, 30, false).progress(), 1e-12);
+        assertEquals(0.5, new SeasonView(SeasonView.Season.AUTUMN, 1, 30, false).progress(), 0.01);
+        assertEquals(119.5 / 120, new SeasonView(SeasonView.Season.WINTER, 30, 30, false).progress(), 1e-12);
+        assertEquals(new SeasonView(SeasonView.Season.SUMMER, 8, 15, false).progress(),
+                new SeasonView(SeasonView.Season.SUMMER, 16, 30, false).progress(), 0.02,
+                "about the same point of the year, whatever the length");
+    }
+
+    @Test
+    void anOlderAddonsApiSaysNothingFalls() {
+        // API 1.9: what an implementation without it answers.
+        EzvacApi old = (EzvacApi) java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[]{EzvacApi.class}, (proxy, method, args) -> method.isDefault()
+                        ? java.lang.reflect.InvocationHandler.invokeDefault(proxy, method, args) : null);
+        assertEquals(com.github.blade.hvac.api.Precipitation.NONE, old.precipitationAt(null, 0, 64, 0));
+        assertTrue(Double.isNaN(old.snowLineAt(null, 0, 0)));
     }
 
     @Test

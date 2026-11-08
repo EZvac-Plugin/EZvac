@@ -16,5 +16,18 @@ public record SeasonView(Season season, int dayOfSeason, int daysPerSeason, bool
         Objects.requireNonNull(season, "season");
     }
 
+    /**
+     * How far through the year the world is, from 0 at the start of spring
+     * toward 1 at the end of winter, at the middle of today: for an addon
+     * that changes gradually through the year, such as leaf colours.
+     *
+     * @since 1.9
+     */
+    public double progress() {
+        int days = Math.max(1, daysPerSeason);
+        int day = Math.max(1, Math.min(days, dayOfSeason));
+        return (season.ordinal() * days + day - 0.5) / (4.0 * days);
+    }
+
     public enum Season { SPRING, SUMMER, AUTUMN, WINTER }
 }
