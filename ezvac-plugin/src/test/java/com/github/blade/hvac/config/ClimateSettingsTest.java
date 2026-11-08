@@ -84,5 +84,28 @@ class ClimateSettingsTest {
         assertEquals(0.0, new ClimateSettings.Seasons(false, 15, 1.0, 5.0).effectiveStrength());
         assertThrows(IllegalArgumentException.class, () -> new ClimateSettings.Seasons(true, 0, 1.0, 0.0));
         assertThrows(IllegalArgumentException.class, () -> new ClimateSettings.Seasons(true, 4, 1.0, 9.0));
+        YamlConfiguration short_ = new YamlConfiguration();
+        short_.set("seasons.days-per-season", 4);
+        ClimateSettings quick = ClimateSettings.load(short_, warnings::add);
+        assertEquals(4, quick.seasons().daysPerSeason(), "short seasons without a lag of their own still load");
+        assertEquals(4 / 3.0, quick.seasons().waterLagDays(), 1e-9, "water lags a third of a season");
+    }
+
+    @Test
+    void rainAndSnowSettingsLoadLeniently() {
+        // BETA 1.0 Pilot 4.
+        assertEquals(33.0, ClimateSettings.defaults().weather().snowAtOrBelowF());
+        assertEquals(ClimateSettings.Weather.DryAreas.THUNDER, ClimateSettings.defaults().weather().dryAreas());
+        YamlConfiguration config = new YamlConfiguration();
+        config.set("weather.dry-areas", "Always");
+        config.set("weather.snow-at-or-below-f", 30.0);
+        List<String> warnings = new ArrayList<>();
+        ClimateSettings.Weather weather = ClimateSettings.load(config, warnings::add).weather();
+        assertEquals(ClimateSettings.Weather.DryAreas.ALWAYS, weather.dryAreas());
+        assertEquals(30.0, weather.snowAtOrBelowF());
+        config.set("weather.dry-areas", "sometimes");
+        assertEquals(ClimateSettings.defaults().weather(), ClimateSettings.load(config, warnings::add).weather());
+        assertEquals(1, warnings.size(), String.valueOf(warnings));
+        assertTrue(warnings.get(0).contains("dry-areas"), warnings.get(0));
     }
 }

@@ -1,5 +1,7 @@
 package com.github.blade.hvac.simulation;
 
+import com.github.blade.hvac.service.OutdoorTemperatureService;
+
 import com.github.blade.hvac.config.ClimateSettings;
 import org.junit.jupiter.api.Test;
 
@@ -75,5 +77,36 @@ class WeatherModelTest {
         assertEquals(WeatherModel.Effect.calm(off), WeatherModel.effect(Precipitation.RAIN, rain, off),
                 "with the effects off, rain changes no temperature");
         assertEquals("Rain", WeatherModel.word(Precipitation.RAIN, rain), "but a weather sensor still sees it");
+    }
+
+    @Test
+    void rainTurnsToSnowByTheAirAndDryAreasFollowTheirRule() {
+        // BETA 1.0 Pilot 4.
+        ClimateSettings.Weather w = ClimateSettings.defaults().weather();
+        BiomeBlend.Blended plains = BiomeBlend.Blended.of(80, 60, 0.4, Precipitation.RAIN, 15, null);
+        BiomeBlend.Blended desert = BiomeBlend.Blended.of(100, 70, 0.0, Precipitation.NONE, 10, null);
+        WeatherModel.Conditions rain = WeatherModel.Conditions.settled(true, false);
+        WeatherModel.Conditions thunder = WeatherModel.Conditions.settled(true, true);
+        assertEquals(Precipitation.RAIN, WeatherModel.falling(plains, 34.0, rain, w));
+        assertEquals(Precipitation.SNOW, WeatherModel.falling(plains, 33.0, rain, w), "33 F and below snows");
+        assertEquals(Precipitation.NONE, WeatherModel.falling(plains, 20.0, WeatherModel.Conditions.CLEAR, w),
+                "nothing falls without rain");
+        assertEquals("Snow", WeatherModel.word(WeatherModel.kind(plains, 20.0, rain, w), rain));
+        assertEquals(Precipitation.NONE, WeatherModel.falling(desert, 90.0, rain, w), "ordinary rain skips a desert");
+        assertEquals(Precipitation.RAIN, WeatherModel.falling(desert, 90.0, thunder, w), "a thunderstorm doesn't");
+        assertEquals("Thunder", WeatherModel.word(WeatherModel.kind(desert, 90.0, thunder, w), thunder));
+        assertEquals("", WeatherModel.word(WeatherModel.kind(desert, 90.0, rain, w), rain));
+    }
+
+    @Test
+    void theSnowLineIsWhereTheAirCoolsToIt() {
+        // 43 F at 64, cooling 0.1 F a block above 64: 33 F at 64 + 100 = 164.
+        assertEquals(164.0, OutdoorTemperatureService.snowLine(43.0, 64, 64, 0.1, 33.0), 1e-9);
+        assertEquals(164.0, OutdoorTemperatureService.snowLine(35.0, 144, 64, 0.1, 33.0), 1e-9,
+                "the same air measured higher up");
+        assertEquals(Double.NEGATIVE_INFINITY, OutdoorTemperatureService.snowLine(30.0, 64, 64, 0.1, 33.0),
+                "snow at every height");
+        assertEquals(Double.POSITIVE_INFINITY, OutdoorTemperatureService.snowLine(50.0, 64, 64, 0.0, 33.0),
+                "air that never cools never snows");
     }
 }

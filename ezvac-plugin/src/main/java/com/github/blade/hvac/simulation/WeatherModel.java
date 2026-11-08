@@ -122,6 +122,35 @@ public final class WeatherModel {
                 wet.wetness() * rain + cold.wetness() * snow + calm.wetness() * dry);
     }
 
+    /**
+     * What weather brings to a spot (BETA 1.0 Pilot 4): NONE where it never
+     * reaches, otherwise snow where the air is at or below the snow line's
+     * temperature and rain above it. Vanilla decides by biome alone; here the
+     * season, height and time of day all count, through the air temperature.
+     * Dry surroundings (deserts, badlands, savannas: under half their blend
+     * gets weather) follow {@code weather.dry-areas}. Whether it is raining
+     * right now is {@link #falling}.
+     */
+    public static Precipitation kind(BiomeBlend.Blended climate, double airF, Conditions conditions,
+                                     ClimateSettings.Weather settings) {
+        if (climate == null || settings == null) return Precipitation.NONE;
+        if (climate.wetShare() < 0.5) {
+            switch (settings.dryAreas()) {
+                case NEVER -> { return Precipitation.NONE; }
+                case THUNDER -> { if (conditions == null || !conditions.thundering()) return Precipitation.NONE; }
+                case ALWAYS -> { }
+            }
+        }
+        return Double.isFinite(airF) && airF <= settings.snowAtOrBelowF() ? Precipitation.SNOW : Precipitation.RAIN;
+    }
+
+    /** What is falling at a spot right now: {@link #kind} while the world rains, NONE otherwise. */
+    public static Precipitation falling(BiomeBlend.Blended climate, double airF, Conditions conditions,
+                                        ClimateSettings.Weather settings) {
+        if (conditions == null || !conditions.raining()) return Precipitation.NONE;
+        return kind(climate, airF, conditions, settings);
+    }
+
     /** A short word for the HUD: Clear, Rain, Thunder or Snow, or empty where weather never reaches. */
     public static String word(Precipitation precipitation, Conditions conditions) {
         if (precipitation == Precipitation.NONE || conditions == null) return "";

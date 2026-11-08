@@ -85,11 +85,30 @@ class ForecastTest {
         assertEquals(Forecast.Sky.THUNDER, Forecast.day(1, PLAINS, 0.0, 0.9, 0.7, calm, 60.0, "", WEATHER).sky());
         assertEquals(Forecast.Sky.CLEAR, Forecast.day(1, PLAINS, 0.0, 0.3, 0.0, calm, 60.0, "", WEATHER).sky(),
                 "a 30% chance is still a clear day");
-        Forecast.Day desert = Forecast.day(1, DESERT, 0.0, 0.9, 0.9, calm, 20.0, "", WEATHER);
-        assertEquals(Forecast.Sky.CLEAR, desert.sky(), "it never rains in a desert");
-        assertEquals(0.0, desert.rainChance());
+        // BETA 1.0 Pilot 4: a desert gets rain only in thunderstorms (weather.dry-areas: thunder).
+        Forecast.Day storm = Forecast.day(1, DESERT, 0.0, 0.9, 0.9, calm, 20.0, "", WEATHER);
+        assertEquals(Forecast.Sky.THUNDER, storm.sky(), "a desert thunderstorm");
+        Forecast.Day showers = Forecast.day(1, DESERT, 0.0, 0.9, 0.0, calm, 20.0, "", WEATHER);
+        assertEquals(Forecast.Sky.CLEAR, showers.sky(), "but ordinary rain passes it by");
+        assertEquals(0.0, showers.rainChance());
+        ClimateSettings.Weather never = withDryAreas(ClimateSettings.Weather.DryAreas.NEVER);
+        assertEquals(Forecast.Sky.CLEAR, Forecast.day(1, DESERT, 0.0, 0.9, 0.9, calm, 20.0, "", never).sky(),
+                "never: as vanilla");
+        ClimateSettings.Weather always = withDryAreas(ClimateSettings.Weather.DryAreas.ALWAYS);
+        assertEquals(Forecast.Sky.RAIN, Forecast.day(1, DESERT, 0.0, 0.9, 0.0, calm, 20.0, "", always).sky());
         WeatherStation.Area tundra = new WeatherStation.Area(30.0, 15.0, 0.5, 0.0, 1.0, 10.0, 6.0, 10.0, 5.0, 1.0);
         assertEquals(Forecast.Sky.SNOW, Forecast.day(1, tundra, 0.0, 0.8, 0.0, calm, 5.0, "", WEATHER).sky());
+        assertEquals(Forecast.Sky.RAIN, Forecast.day(1, tundra, 30.0, 0.8, 0.0, calm, 5.0, "", WEATHER).sky(),
+                "a warm spell on the tundra rains");
+        assertEquals(Forecast.Sky.SNOW, Forecast.day(1, PLAINS, -60.0, 0.8, 0.0, calm, 5.0, "", WEATHER).sky(),
+                "a cold winter's day on the plains snows");
+    }
+
+    private static ClimateSettings.Weather withDryAreas(ClimateSettings.Weather.DryAreas rule) {
+        ClimateSettings.Weather w = WEATHER;
+        return new ClimateSettings.Weather(w.enabled(), w.easeHours(), w.rainCoolingF(), w.thunderCoolingF(),
+                w.snowCoolingF(), w.swingReduction(), w.waterShare(), w.windClearMs(), w.windRainMs(),
+                w.windThunderMs(), w.snowAtOrBelowF(), rule);
     }
 
     @Test

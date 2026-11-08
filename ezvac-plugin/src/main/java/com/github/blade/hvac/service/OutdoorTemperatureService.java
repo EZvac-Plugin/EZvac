@@ -250,11 +250,71 @@ public final class OutdoorTemperatureService {
         return OutdoorAir.now(regions.air(world, x, z), pollen, wet, windMs, downfall, climate.wind());
     }
 
-    /** The weather word for a spot: the kind of weather its surroundings mostly get. */
-    private String weatherWord(World world, BiomeBlend.Blended local) {
+    /**
+     * The weather word for a spot: what its weather brings, rain or snow by
+     * the air there (BETA 1.0 Pilot 4; before, the kind its surroundings
+     * mostly get in vanilla).
+     */
+    private String weatherWord(World world, BiomeBlend.Blended local, double airF) {
         if (!climate.weather().enabled()) return "";
-        WeatherModel.Conditions conditions = weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
-        return WeatherModel.word(local.dominant(), conditions);
+        WeatherModel.Conditions conditions = conditions(world);
+        return WeatherModel.word(kind(world, local, airF, conditions), conditions);
+    }
+
+    private WeatherModel.Conditions conditions(World world) {
+        return weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
+    }
+
+    /** Only worlds with a sky get weather: the Nether and the End never do, whatever dry-areas says. */
+    private Precipitation kind(World world, BiomeBlend.Blended local, double airF, WeatherModel.Conditions conditions) {
+        if (world == null || world.getEnvironment() != World.Environment.NORMAL) return Precipitation.NONE;
+        return WeatherModel.kind(local, airF, conditions, climate.weather());
+    }
+
+    /**
+     * What is falling at a block right now (BETA 1.0 Pilot 4): NONE when it
+     * isn't raining or weather never reaches there, otherwise RAIN or SNOW by
+     * the air at that block. Never loads a chunk.
+     */
+    public Precipitation fallingAt(World world, int x, int y, int z) {
+        if (world == null || !climate.weather().enabled()) return Precipitation.NONE;
+        WeatherModel.Conditions conditions = conditions(world);
+        if (!conditions.raining()) return Precipitation.NONE;
+        BiomeBlend.Blended local = blendedAt(world, x, y, z);
+        return kind(world, local, air(world, local), conditions);
+    }
+
+    /**
+     * The height above which it snows right now at a column (BETA 1.0 Pilot
+     * 4), out in the open: the air cools with height, so above this it snows
+     * and below it rains. Negative infinity when it snows at every height,
+     * positive infinity when it rains at every height, and NaN when nothing
+     * falls there now (no rain, or a dry area). Never loads a chunk.
+     */
+    public double snowLineAt(World world, int x, int z) {
+        if (world == null || !climate.weather().enabled()) return Double.NaN;
+        WeatherModel.Conditions conditions = conditions(world);
+        if (!conditions.raining()) return Double.NaN;
+        ClimateSettings.Altitude altitude = climate.altitude();
+        int from = altitude.fromY();
+        int y = Math.max(from, world.getSeaLevel());
+        BiomeBlend.Blended local = surroundingsAt(world, x, y, z)
+                .warmer(-BiomeClimate.lapseF(y, from, altitude.lapseFPerBlock()));
+        double airF = air(world, local);
+        if (kind(world, local, airF, conditions) == Precipitation.NONE) return Double.NaN;
+        return snowLine(airF, y, from, altitude.lapseFPerBlock(), climate.weather().snowAtOrBelowF());
+    }
+
+    /**
+     * Where the air reaches {@code snowF}, from {@code airF} measured at
+     * height {@code y}: it cools by {@code lapseFPerBlock} above
+     * {@code fromY} and stays the same below.
+     */
+    public static double snowLine(double airF, double y, double fromY, double lapseFPerBlock, double snowF) {
+        double atFrom = airF + lapseFPerBlock * Math.max(0.0, y - fromY);
+        if (atFrom <= snowF) return Double.NEGATIVE_INFINITY;
+        if (!(lapseFPerBlock > 0.0)) return Double.POSITIVE_INFINITY;
+        return fromY + (atFrom - snowF) / lapseFPerBlock;
     }
 
     /**
@@ -532,7 +592,7 @@ public final class OutdoorTemperatureService {
         double dew = HumidityModel.outdoorDewPointF(now.noonF(), now.midnightF(), now.downfall(), effect, airF,
                 climate.humidity());
         double from = spot == null || !(effect.windMs() > 0.0) ? Double.NaN : spot.fromDegrees();
-        return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local),
+        return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local, airF),
                 outdoorAir(world, local, effect), from);
     }
 

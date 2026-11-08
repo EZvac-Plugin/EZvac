@@ -67,6 +67,11 @@ public final class Forecast {
         /** The day's wind on open ground, m/s; 0 with wind switched off. */
         public double windMs() { return wind == null ? 0.0 : wind.meanMs(); }
 
+        /** The same day with another note (BETA 1.0 Pilot 4). */
+        public Day withNote(String note) {
+            return new Day(ahead, highF, lowF, rainChance, thunderChance, sky, wind, pollen, note, aqi);
+        }
+
         /** The same day with its AQI (BETA 1.0 Pilot 3); -1 with air quality switched off. */
         public Day withAqi(int aqi) {
             return new Day(ahead, highF, lowF, rainChance, thunderChance, sky, wind, pollen, note, aqi);
@@ -189,20 +194,37 @@ public final class Forecast {
     public static Day day(int ahead, WeatherStation.Area area, double seasonShiftF, double rainChance,
                           double thunderChance, WindModel.Day wind, double pollen, String note,
                           ClimateSettings.Weather weather) {
-        double wet = area.rainShare() + area.snowShare();
-        boolean dry = wet < DRY;
-        if (dry) { rainChance = 0.0; thunderChance = 0.0; }
-        Sky sky = thunderChance >= 0.5 ? Sky.THUNDER
-                : rainChance >= 0.5 ? (area.snowShare() > area.rainShare() ? Sky.SNOW : Sky.RAIN)
-                : Sky.CLEAR;
+        // A dry area's rain follows weather.dry-areas (BETA 1.0 Pilot 4): none, only thunderstorms', or all.
+        if (dry(area)) {
+            switch (weather.dryAreas()) {
+                case NEVER -> { rainChance = 0.0; thunderChance = 0.0; }
+                case THUNDER -> rainChance = thunderChance;
+                case ALWAYS -> { }
+            }
+        }
         BiomeBlend.Blended blended = new BiomeBlend.Blended(area.noonF() + seasonShiftF,
                 area.midnightF() + seasonShiftF, area.downfall(), area.rainShare(), area.snowShare(),
                 area.seasonalF(), null, area.windExposure());
         WeatherModel.Effect effect = WeatherModel.effect(blended,
                 new WeatherModel.Conditions(rainChance, thunderChance, rainChance >= 0.5, thunderChance >= 0.5),
                 weather, wind == null ? weather.windClearMs() : wind.meanMs());
-        return new Day(ahead, effect.noonF(blended.noonF(), blended.midnightF()),
-                effect.midnightF(blended.noonF(), blended.midnightF()), rainChance, thunderChance, sky, wind,
-                pollen, note);
+        double highF = effect.noonF(blended.noonF(), blended.midnightF());
+        double lowF = effect.midnightF(blended.noonF(), blended.midnightF());
+        // Snow or rain by the day's own air (BETA 1.0 Pilot 4; before, by the area's biomes).
+        Sky sky = rainChance >= 0.5 && snows(highF, lowF, weather) ? Sky.SNOW
+                : thunderChance >= 0.5 ? Sky.THUNDER
+                : rainChance >= 0.5 ? Sky.RAIN
+                : Sky.CLEAR;
+        return new Day(ahead, highF, lowF, rainChance, thunderChance, sky, wind, pollen, note);
+    }
+
+    /** An area vanilla keeps dry: deserts, badlands, savannas. */
+    public static boolean dry(WeatherStation.Area area) {
+        return area.rainShare() + area.snowShare() < DRY;
+    }
+
+    /** A day whose rain comes down as snow: its air, between its high and its low, at or below the snow line. */
+    public static boolean snows(double highF, double lowF, ClimateSettings.Weather weather) {
+        return (highF + lowF) / 2.0 <= weather.snowAtOrBelowF();
     }
 }
