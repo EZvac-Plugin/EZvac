@@ -100,7 +100,10 @@ public final class HvacPlugin extends JavaPlugin {
             }
             weather = new WeatherService(climate.weather());
             seasons = new SeasonService(getDataFolder(), climate.seasons(), getLogger()::warning);
-            seasons.load();
+            seasons.load(seasonDaysBefore > 0 ? seasonDaysBefore : climate.seasons().daysPerSeason());
+            if (seasons.converted() > 0)
+                getLogger().info("Seasons are now " + climate.seasons().daysPerSeason() + " days long: "
+                        + seasons.converted() + " world(s) kept their season and day of season.");
             advanceSeasons();
             outdoor = new OutdoorTemperatureService(climate, weather, seasons,
                     new WindService(climate.wind(), seasons, new RegionClimate(climate, getLogger()::warning)));
@@ -230,6 +233,8 @@ public final class HvacPlugin extends JavaPlugin {
             getLogger().log(Level.WARNING, "Could not read the bundled config.yml", failure);
             return;
         }
+        // What seasons.yml was counted in, if it doesn't say (BETA 1.0 Pilot 4).
+        seasonDaysBefore = current.getInt("seasons.days-per-season", 15);
         List<String> added = ConfigUpdater.upgrade(current, bundled);
         if (added.isEmpty()) return;
         // Building size arrived with this start, on an upgraded server: it starts off, and admins are told.
@@ -290,6 +295,8 @@ public final class HvacPlugin extends JavaPlugin {
     /** This start upgraded config.yml from before BETA 1.0, so building size starts off (and admins hear why). */
     private boolean sizingStartedOff;
     private boolean pilotTwoStart;
+    /** config.yml's season length before this start's upgrade; 0 when it wasn't read. */
+    private int seasonDaysBefore;
 
     /** Systems with units but no vent, which started before Pilot 2 and no longer do. */
     private int thermostatsWithoutVents() {

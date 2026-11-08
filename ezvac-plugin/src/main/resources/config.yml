@@ -186,15 +186,19 @@ biome-blend:
 # (set, next, pause, resume). It follows the world's days, so sleeping and
 # /time add move it on by every day they pass (BETA 1.0 Pilot 3), but setting
 # the clock back never resets the year.
-# Seasons only move temperatures: biomes, rain and snow stay as they are.
-# How far each biome moves is its own (plains: 90 F at noon in mid-summer,
-# 54 F in mid-winter; a jungle barely changes); strength scales them all,
-# 0.5 for mild seasons. Natural water follows water-lag-days behind the air.
+# Seasons move temperatures, and so whether rain falls as snow (BETA 1.0
+# Pilot 4: see weather.dry-areas); biomes stay as they are. How far each
+# biome moves is its own (plains: 90 F at noon in mid-summer, 54 F in
+# mid-winter; a jungle barely changes); strength scales them all, 0.5 for
+# mild seasons. Natural water follows water-lag-days behind the air.
+# days-per-season can be changed at any time (restart after): each world
+# keeps its season and day of season (BETA 1.0 Pilot 4; 30 by default since
+# then, 15 before, and a server on the stock 15 moved to 30).
 seasons:
   enabled: true
-  days-per-season: 15
+  days-per-season: 30
   strength: 1.0
-  water-lag-days: 5.0
+  water-lag-days: 10.0
 
 # Colder with height (2.1): the air cools lapse-f-per-block for every block
 # above from-y. Real air cools about 0.012 F per metre, but Minecraft's
@@ -242,6 +246,15 @@ weather:
   wind-clear-ms: 1.5
   wind-rain-ms: 3.0
   wind-thunder-ms: 5.0
+  # Rain or snow (BETA 1.0 Pilot 4): while it's raining, it snows wherever
+  # EZvac's air is at or below snow-at-or-below-f, season, height and time of
+  # day included, and rains elsewhere. Dry areas (deserts, badlands,
+  # savannas) stay dry in ordinary rain: dry-areas is never (always dry, as
+  # vanilla), thunder (rain only in thunderstorms) or always (rain like
+  # anywhere else). EZvac's weather word, the HUD and sensors follow this;
+  # an addon such as EZclimates can show it in the world.
+  snow-at-or-below-f: 33.0
+  dry-areas: thunder
 
 # Humidity (2.0). Moisture is simulated as a dew point and shown as relative
 # humidity, so heating a room lowers its RH and cooling dries it.

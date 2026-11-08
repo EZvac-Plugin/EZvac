@@ -75,4 +75,18 @@ class SeasonCalendarTest {
         calendar.setDay(-5);
         assertEquals(0, calendar.day());
     }
+
+    @Test
+    void aDayKeepsItsSeasonAndDayWhenTheSeasonsChangeLength() {
+        // BETA 1.0 Pilot 4. 15-day seasons: day 22 is summer day 8 (spring 0-14, summer 15-29).
+        assertEquals(30 + 7, SeasonCalendar.convert(22, 15, 30), "summer day 8 stays summer day 8");
+        assertEquals(22, SeasonCalendar.convert(37, 30, 15), "and back");
+        assertEquals(0, SeasonCalendar.convert(0, 15, 30), "the first day of spring");
+        assertEquals(120 + 90 + 14, SeasonCalendar.convert(60 + 45 + 14, 15, 30),
+                "the second year's winter day 15 stays in the second year");
+        assertEquals(14, SeasonCalendar.convert(25, 30, 15), "spring day 26 is past a 15-day spring: its last day");
+        assertEquals(59, SeasonCalendar.convert(59, 15, 15), "the same length changes nothing");
+        assertEquals(0, SeasonCalendar.convert(-3, 15, 30));
+        assertThrows(IllegalArgumentException.class, () -> SeasonCalendar.convert(1, 0, 30));
+    }
 }

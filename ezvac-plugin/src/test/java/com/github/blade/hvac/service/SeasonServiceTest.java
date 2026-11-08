@@ -36,7 +36,7 @@ class SeasonServiceTest {
     @Test
     void aNewWorldStartsInEarlySpring() {
         SeasonService seasons = service();
-        seasons.advance(WORLD, "world", 900 * DAY + 6_000);
+        seasons.advance(WORLD, "world", 960 * DAY + 6_000);   // eight 120-day years
         assertTrue(seasons.tracks(WORLD));
         assertEquals(Seasons.Season.SPRING, seasons.season(WORLD));
         assertEquals(1, seasons.dayOfSeason(WORLD));
@@ -50,9 +50,9 @@ class SeasonServiceTest {
     void commandsMoveTheCalendar() {
         SeasonService seasons = service();
         seasons.advance(WORLD, "world", 6_000);
-        seasons.set(WORLD, Seasons.Season.SUMMER, 8);
+        seasons.set(WORLD, Seasons.Season.SUMMER, 16);
         assertEquals(Seasons.Season.SUMMER, seasons.season(WORLD));
-        assertEquals(8, seasons.dayOfSeason(WORLD));
+        assertEquals(16, seasons.dayOfSeason(WORLD));
         assertEquals(1.0, seasons.airFactor(WORLD), 0.01, "mid-summer at noon");
         seasons.next(WORLD);
         assertEquals(Seasons.Season.AUTUMN, seasons.season(WORLD));
@@ -88,7 +88,9 @@ class SeasonServiceTest {
             Files.copy(java.util.Objects.requireNonNull(input, "missing fixture"), folder.resolve("seasons.yml"));
         }
         UUID world = UUID.fromString("b9bff999-d8d4-4113-894b-9bd99c140665");
-        SeasonService seasons = service();
+        // Counted in that release's 15-day seasons: since Pilot 4 it's summer day 8 of 30.
+        SeasonService seasons = new SeasonService(folder.toFile(), ClimateSettings.defaults().seasons(), warnings::add);
+        seasons.load(15);
         seasons.advance(world, "world", 6_000);
         assertEquals(Seasons.Season.SUMMER, seasons.season(world));
         assertEquals(8, seasons.dayOfSeason(world));
@@ -123,7 +125,7 @@ class SeasonServiceTest {
         seasons.advance(WORLD, "world", 6_000);                 // first sight: nothing turned
         seasons.advance(WORLD, "world", DAY + 6_000);           // spring day 2: same season
         assertTrue(turns.isEmpty(), turns::toString);
-        seasons.set(WORLD, Seasons.Season.SPRING, 15);
+        seasons.set(WORLD, Seasons.Season.SPRING, 30);
         assertTrue(turns.isEmpty(), "still spring");
         seasons.advance(WORLD, "world", 2 * DAY + 6_000);       // the next morning is summer
         assertEquals(List.of(Seasons.Season.SPRING), turns);
@@ -143,5 +145,44 @@ class SeasonServiceTest {
         seasons.advance(WORLD, "world", 6_000);
         assertEquals(Seasons.Season.SUMMER, seasons.season(WORLD));
         assertEquals(2, seasons.dayOfSeason(WORLD));
+    }
+
+    @Test
+    void aCalendarCountedInFifteenDaySeasonsKeepsItsSeasonAndDay() throws IOException {
+        // BETA 1.0 Pilot 4: a Pilot 3 seasons.yml, without a days-per-season, on summer day 8.
+        Files.writeString(folder.resolve("seasons.yml"), "worlds:\n  " + WORLD + ":\n    name: world\n"
+                + "    day: 22\n    last-world-day: 22\n    paused: false\n");
+        SeasonService seasons = new SeasonService(folder.toFile(), ClimateSettings.defaults().seasons(), warnings::add);
+        seasons.load(15);
+        assertEquals(1, seasons.converted());
+        seasons.advance(WORLD, "world", 22 * DAY + 6_000);
+        assertEquals(Seasons.Season.SUMMER, seasons.season(WORLD));
+        assertEquals(8, seasons.dayOfSeason(WORLD), "of 30 now");
+        assertTrue(Files.isRegularFile(folder.resolve("seasons.yml.before-30-day-seasons.bak")), "the old file kept");
+        String saved = Files.readString(folder.resolve("seasons.yml"));
+        assertTrue(saved.contains("days-per-season: 30"), saved);
+        assertTrue(saved.contains("day: 37"), saved);
+
+        SeasonService again = new SeasonService(folder.toFile(), ClimateSettings.defaults().seasons(), warnings::add);
+        again.load(15);
+        assertEquals(0, again.converted(), "the file says 30 now, so the next start changes nothing");
+
+        SeasonService shorter = new SeasonService(folder.toFile(), new ClimateSettings.Seasons(true, 10, 1.0, 5.0),
+                warnings::add);
+        shorter.load(15);
+        shorter.advance(WORLD, "world", 22 * DAY + 6_000);
+        assertEquals(Seasons.Season.SUMMER, shorter.season(WORLD), "an admin's own change converts too");
+        assertEquals(8, shorter.dayOfSeason(WORLD));
+        assertEquals(List.of(), warnings);
+    }
+
+    @Test
+    void aCalendarWithoutTheLengthCountsInTodaysWhenNothingChanged() throws IOException {
+        Files.writeString(folder.resolve("seasons.yml"), "worlds:\n  " + WORLD + ":\n    name: world\n"
+                + "    day: 22\n    last-world-day: 22\n    paused: false\n");
+        SeasonService seasons = service();
+        assertEquals(0, seasons.converted(), "a server already on 30 by its owner's choice");
+        seasons.advance(WORLD, "world", 22 * DAY + 6_000);
+        assertEquals(23, seasons.dayOfSeason(WORLD));
     }
 }

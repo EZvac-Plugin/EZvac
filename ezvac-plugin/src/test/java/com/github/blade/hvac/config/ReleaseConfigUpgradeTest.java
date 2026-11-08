@@ -36,7 +36,9 @@ class ReleaseConfigUpgradeTest {
      * their own below: the humidifier's deeper bubbles, and backups going on.
      */
     private static final Set<String> PILOT_2_MOVES = Set.of("audio.sounds.humidifier-bubbles",
-            "backups.auto-every-hours");
+            "backups.auto-every-hours",
+            // Pilot 4: the stock 15-day seasons move to 30, and water's stock lag with them.
+            "seasons.days-per-season", "seasons.water-lag-days");
 
     static Stream<String> releases() throws IOException, URISyntaxException {
         Path folder = Path.of(Objects.requireNonNull(ReleaseConfigUpgradeTest.class.getResource("/configs")).toURI());
@@ -95,6 +97,10 @@ class ReleaseConfigUpgradeTest {
         assertEquals(24, config.getInt("backups.auto-every-hours"), "automatic backups are on");
         assertEquals("auto", config.getString("updates.channel"));
 
+        // Pilot 4: stock 15-day seasons move to 30, natural water's stock 5-day lag to 10.
+        assertEquals(30, config.getInt("seasons.days-per-season"), "seasons are 30 days");
+        assertEquals(10.0, config.getDouble("seasons.water-lag-days"), "water lags 10 days");
+
         // Building size changes how existing builds heat and cool: it starts off on every server upgrading
         // from ALPHA. A BETA config already has the setting, and keeps its own.
         boolean sized = old.contains("sizing.enabled");
@@ -126,6 +132,29 @@ class ReleaseConfigUpgradeTest {
         assertEquals(List.of("block.bubble_column.upwards_ambient 0.2 1.4"),
                 chosen.getStringList("audio.sounds.humidifier-bubbles"));
         assertEquals(48, chosen.getInt("backups.auto-every-hours"));
+    }
+
+    @Test
+    void anOwnersOwnSeasonLengthIsKept() throws Exception {
+        YamlConfiguration chosen = load("/configs/BETA-1.0-P3.yml");
+        chosen.set("seasons.days-per-season", 20);
+        chosen.set("seasons.water-lag-days", 5.0);
+        ConfigUpdater.upgrade(chosen, load("/config.yml"));
+        assertEquals(20, chosen.getInt("seasons.days-per-season"), "a length the owner chose");
+        assertEquals(5.0, chosen.getDouble("seasons.water-lag-days"), "and the lag with it");
+        YamlConfiguration lagged = load("/configs/BETA-1.0-P3.yml");
+        lagged.set("seasons.water-lag-days", 3.0);
+        ConfigUpdater.upgrade(lagged, load("/config.yml"));
+        assertEquals(30, lagged.getInt("seasons.days-per-season"));
+        assertEquals(3.0, lagged.getDouble("seasons.water-lag-days"), "an owner's own lag is kept");
+    }
+
+    @Test
+    void theStepsRunOnlyOnTheFirstPilotFourStart() throws Exception {
+        YamlConfiguration current = load("/config.yml");
+        current.set("seasons.days-per-season", 15);
+        assertTrue(ConfigUpdater.upgrade(current, load("/config.yml")).isEmpty());
+        assertEquals(15, current.getInt("seasons.days-per-season"), "set back to 15 after Pilot 4: it stays");
     }
 
     @Test

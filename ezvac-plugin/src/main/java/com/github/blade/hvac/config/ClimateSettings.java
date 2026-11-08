@@ -250,7 +250,7 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Humidifier(30, 50_000, 3.0, 1_500, 40, List.of(30, 35, 40, 45, 50), 2.0),
                 new Variance(true, 0.5, 1.5, 0.3, 0.8, 0.3, 6.0, 3.0),
                 new BiomeBlend(24),
-                new Seasons(true, 15, 1.0, 5.0),
+                new Seasons(true, 30, 1.0, 10.0),
                 new Altitude(0.1, 64),
                 new Underground(true, 4, 20),
                 new Biomes(Map.of()),

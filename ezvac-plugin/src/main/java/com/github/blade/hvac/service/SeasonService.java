@@ -74,9 +74,23 @@ public final class SeasonService {
 
     public ClimateSettings.Seasons settings() { return settings; }
 
-    /** Reads seasons.yml. A file that can't be read is kept aside and every world starts again on its own day. */
+    /** Reads seasons.yml, counted with today's season length wherever it doesn't say. */
     public void load() {
+        load(settings.daysPerSeason());
+    }
+
+    /**
+     * Reads seasons.yml. A file that can't be read is kept aside and every
+     * world starts again on its own day. Each world's calendar says how long
+     * the seasons were when it was saved (BETA 1.0 Pilot 4); one that doesn't
+     * was counted with {@code unrecordedDays}, the length config.yml had
+     * before this start. A calendar counted with another length moves to the
+     * same season and day of season, so changing the length never sends a
+     * world into another season.
+     */
+    public void load(int unrecordedDays) {
         worlds.clear();
+        converted = 0;
         if (!file.isFile()) return;
         YamlConfiguration yaml = new YamlConfiguration();
         try {
@@ -104,11 +118,37 @@ public final class SeasonService {
                 continue;
             }
             if (entry == null) continue;
-            worlds.put(world, new World(new SeasonCalendar(entry.getLong("day", 0L),
+            long day = entry.getLong("day", 0L);
+            int counted = entry.getInt("days-per-season", unrecordedDays);
+            if (counted < 1 || counted > 365) counted = unrecordedDays;
+            if (counted != settings.daysPerSeason()) {
+                day = SeasonCalendar.convert(day, counted, settings.daysPerSeason());
+                converted++;
+                dirty = true;
+            } else if (!entry.contains("days-per-season")) {
+                dirty = true;
+            }
+            worlds.put(world, new World(new SeasonCalendar(day,
                     entry.getLong("last-world-day", 0L), entry.getBoolean("paused", false)),
                     entry.getString("name", "")));
         }
+        if (converted > 0) {
+            // The old file stays beside it, in case the length is set back by hand.
+            File before = new File(file.getParentFile(), "seasons.yml.before-" + settings.daysPerSeason()
+                    + "-day-seasons.bak");
+            try {
+                if (!before.exists()) Files.copy(file.toPath(), before.toPath());
+            } catch (IOException ignored) {
+                // Converting still goes ahead: the calendar is not worth refusing to run over.
+            }
+            save();
+        }
     }
+
+    private int converted;
+
+    /** How many worlds' calendars the last load moved to a new season length (BETA 1.0 Pilot 4). */
+    public int converted() { return converted; }
 
     /**
      * Looks at a world's clock, once per controller cycle: moves its calendar
@@ -281,6 +321,7 @@ public final class SeasonService {
             yaml.set(path + ".day", world.calendar.day());
             yaml.set(path + ".last-world-day", world.calendar.lastWorldDay());
             yaml.set(path + ".paused", world.calendar.paused());
+            yaml.set(path + ".days-per-season", settings.daysPerSeason());
         }
         File temporary = new File(file.getParentFile(), "seasons.yml.tmp");
         try {
