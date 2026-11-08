@@ -25,11 +25,44 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
      * @param waterShare    share of the air's weather shift that natural water follows
+     * @param snowAtOrBelowF while it rains, snow falls where the air is this cold or colder (BETA 1.0 Pilot 4)
+     * @param dryAreas      whether rain reaches places vanilla keeps dry (BETA 1.0 Pilot 4)
      */
     public record Weather(boolean enabled, double easeHours, double rainCoolingF, double thunderCoolingF,
                           double snowCoolingF, double swingReduction, double waterShare,
-                          double windClearMs, double windRainMs, double windThunderMs) {
+                          double windClearMs, double windRainMs, double windThunderMs,
+                          double snowAtOrBelowF, DryAreas dryAreas) {
+        /** Deserts, badlands and savannas in rain (BETA 1.0 Pilot 4). */
+        public enum DryAreas {
+            /** Always dry, as in vanilla. */
+            NEVER,
+            /** Rain only in thunderstorms. */
+            THUNDER,
+            /** Rain like anywhere else. */
+            ALWAYS;
+
+            /** The setting's value, or null when it is none of them. */
+            public static DryAreas parse(String value) {
+                if (value == null) return null;
+                for (DryAreas rule : values()) if (rule.name().equalsIgnoreCase(value.trim())) return rule;
+                return null;
+            }
+        }
+
+        /** The weather as before Pilot 4: snow at 33 F and below, dry areas rained on in thunder. */
+        public Weather(boolean enabled, double easeHours, double rainCoolingF, double thunderCoolingF,
+                       double snowCoolingF, double swingReduction, double waterShare,
+                       double windClearMs, double windRainMs, double windThunderMs) {
+            this(enabled, easeHours, rainCoolingF, thunderCoolingF, snowCoolingF, swingReduction, waterShare,
+                    windClearMs, windRainMs, windThunderMs, 33.0, DryAreas.THUNDER);
+        }
+
         public Weather {
+            requireFinite("weather.snow-at-or-below-f", snowAtOrBelowF);
+            if (snowAtOrBelowF < -40.0 || snowAtOrBelowF > 50.0)
+                throw new IllegalArgumentException("weather.snow-at-or-below-f must be -40 to 50");
+            if (dryAreas == null)
+                throw new IllegalArgumentException("weather.dry-areas must be never, thunder or always");
             requirePositive("weather.ease-hours", easeHours);
             requireNonNegative("weather.rain-cooling-f", rainCoolingF);
             requireNonNegative("weather.thunder-cooling-f", thunderCoolingF);
@@ -291,7 +324,10 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getDouble("weather.water-share", w.waterShare()),
                         config.getDouble("weather.wind-clear-ms", w.windClearMs()),
                         config.getDouble("weather.wind-rain-ms", w.windRainMs()),
-                        config.getDouble("weather.wind-thunder-ms", w.windThunderMs()))),
+                        config.getDouble("weather.wind-thunder-ms", w.windThunderMs()),
+                        config.getDouble("weather.snow-at-or-below-f", w.snowAtOrBelowF()),
+                        config.contains("weather.dry-areas")
+                                ? Weather.DryAreas.parse(config.getString("weather.dry-areas")) : w.dryAreas())),
                 section("humidity", h, warn, () -> new Humidity(config.getDouble("humidity.outdoor-rh-dry", h.outdoorRhDry()),
                         config.getDouble("humidity.outdoor-rh-wet", h.outdoorRhWet()),
                         config.getDouble("humidity.rain-rh", h.rainRh()),
@@ -329,7 +365,9 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 section("seasons", s, warn, () -> new Seasons(config.getBoolean("seasons.enabled", s.enabled()),
                         config.getInt("seasons.days-per-season", s.daysPerSeason()),
                         config.getDouble("seasons.strength", s.strength()),
-                        config.getDouble("seasons.water-lag-days", s.waterLagDays()))),
+                        // Unset, water lags a third of a season (BETA 1.0 Pilot 4): 10 days of 30, 5 of 15.
+                        config.getDouble("seasons.water-lag-days", config.contains("seasons.days-per-season")
+                                ? config.getInt("seasons.days-per-season") / 3.0 : s.waterLagDays()))),
                 section("altitude", a, warn, () -> new Altitude(
                         config.getDouble("altitude.lapse-f-per-block", a.lapseFPerBlock()),
                         config.getInt("altitude.from-y", a.fromY()))),
