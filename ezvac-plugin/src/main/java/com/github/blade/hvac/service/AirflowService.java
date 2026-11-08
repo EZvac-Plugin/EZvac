@@ -119,7 +119,7 @@ public final class AirflowService {
     /** Bordering water blocks a single map records; beyond this a space is simply "very wet". */
     private static final int MAXIMUM_WATER_CELLS = 4_096;
     /** Smoke sources one space notes at most (3.2); a room past this is a bonfire either way. */
-    private static final int MAXIMUM_SMOKE_CELLS = 256;
+    private static final int MAXIMUM_SMOKE_CELLS = 1024;
     private static final long[] NO_CELLS = new long[0];
 
     /**
@@ -627,9 +627,9 @@ public final class AirflowService {
                 }
                 return;
             }
-            // Fire is open air the walk passes through, and smoke where it burns.
-            if ((type == Material.FIRE || type == Material.SOUL_FIRE)
-                    && rebuild.smokeCells.size() < MAXIMUM_SMOKE_CELLS) rebuild.smokeCells.add(key);
+            // Fire and torches are open air the walk passes through, and smoke where they burn.
+            if (rebuild.smokeCells.size() < MAXIMUM_SMOKE_CELLS && SmokeSource.of(type) != null)
+                rebuild.smokeCells.add(key);
         }
         int outdoorStep = 0;
         boolean escaped = false;

@@ -109,11 +109,29 @@ class AirSpaceTest {
         assertEquals(SmokeSource.CAMPFIRE, SmokeSource.of(Material.SOUL_CAMPFIRE));
         assertEquals(SmokeSource.FIRE, SmokeSource.of(Material.SOUL_FIRE));
         assertEquals(SmokeSource.LAVA, SmokeSource.of(Material.LAVA));
-        assertEquals(SmokeSource.FURNACE, SmokeSource.of(Material.BLAST_FURNACE));
+        assertEquals(SmokeSource.FURNACE, SmokeSource.of(Material.FURNACE));
+        // BETA 1.0 Pilot 4: smokers and blast furnaces have rates of their own, and torches and lanterns count.
+        assertEquals(SmokeSource.SMOKER, SmokeSource.of(Material.SMOKER));
+        assertEquals(SmokeSource.BLAST_FURNACE, SmokeSource.of(Material.BLAST_FURNACE));
+        for (Material lit : List.of(Material.TORCH, Material.WALL_TORCH, Material.SOUL_TORCH, Material.SOUL_WALL_TORCH,
+                Material.LANTERN, Material.SOUL_LANTERN, Material.JACK_O_LANTERN))
+            assertEquals(SmokeSource.TORCH, SmokeSource.of(lit), lit.name());
+        assertEquals(SmokeSource.TORCH, SmokeSource.classify("COPPER_WALL_TORCH"), "copper ones, where they exist");
+        assertEquals(SmokeSource.TORCH, SmokeSource.classify("WAXED_OXIDIZED_COPPER_LANTERN"));
+        assertNull(SmokeSource.of(Material.REDSTONE_TORCH), "redstone torches don't burn");
+        assertNull(SmokeSource.of(Material.REDSTONE_WALL_TORCH));
+        assertNull(SmokeSource.of(Material.SEA_LANTERN), "a sea lantern is a block of light, not a flame");
+        assertNull(SmokeSource.of(Material.TORCHFLOWER), "a flower");
+        assertTrue(SmokeSource.TORCH.burning(null), "a torch always burns");
+        assertTrue(SmokeSource.BLAST_FURNACE.burning(lightable(true)));
+        assertFalse(SmokeSource.SMOKER.burning(lightable(false)));
+        assertEquals(new AirQualitySettings.Source(10.0, 5.0), SmokeSource.BLAST_FURNACE.emission(SETTINGS.sources()));
+        assertEquals(new AirQualitySettings.Source(6.0, 2.0), SmokeSource.SMOKER.emission(SETTINGS.sources()));
+        assertEquals(new AirQualitySettings.Source(0.3, 0.0), SmokeSource.TORCH.emission(SETTINGS.sources()));
+        assertEquals("Blast furnace", SmokeSource.BLAST_FURNACE.displayName());
         assertEquals(SmokeSource.CANDLE, SmokeSource.of(Material.CANDLE));
         assertEquals(SmokeSource.CANDLE, SmokeSource.of(Material.RED_CANDLE));
         assertEquals(SmokeSource.CANDLE, SmokeSource.of(Material.RED_CANDLE_CAKE));
-        assertNull(SmokeSource.of(Material.TORCH), "torches would make every room smoky");
         assertNull(SmokeSource.of(Material.DISPENSER), "EZvac's own furnaces are sealed");
         assertNull(SmokeSource.of(Material.STONE));
         assertTrue(SmokeSource.FIRE.burning(null), "fire always burns");

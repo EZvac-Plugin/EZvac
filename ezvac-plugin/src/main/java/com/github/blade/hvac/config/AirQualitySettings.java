@@ -60,10 +60,23 @@ public record AirQualitySettings(boolean enabled, int referenceCells, Rates sett
      * @param campfire a lit campfire or soul campfire
      * @param fire     fire or soul fire
      * @param lava     lava bordering the space
-     * @param furnace  a lit furnace, smoker or blast furnace
+     * @param furnace  a lit furnace (before BETA 1.0 Pilot 4, smokers and blast furnaces too)
      * @param candle   a lit candle, counted once per block
+     * @param smoker   a lit smoker (BETA 1.0 Pilot 4)
+     * @param blastFurnace a lit blast furnace (BETA 1.0 Pilot 4)
+     * @param torch    a torch or lantern, soul and copper ones too, but never a redstone torch (BETA 1.0 Pilot 4)
      */
-    public record Sources(Source campfire, Source fire, Source lava, Source furnace, Source candle) {}
+    public record Sources(Source campfire, Source fire, Source lava, Source furnace, Source candle,
+                          Source smoker, Source blastFurnace, Source torch) {
+        public static final Source SMOKER = new Source(6.0, 2.0);
+        public static final Source BLAST_FURNACE = new Source(10.0, 5.0);
+        public static final Source TORCH = new Source(0.3, 0.0);
+
+        /** The sources as before Pilot 4, with today's smoker, blast furnace and torch. */
+        public Sources(Source campfire, Source fire, Source lava, Source furnace, Source candle) {
+            this(campfire, fire, lava, furnace, candle, SMOKER, BLAST_FURNACE, TORCH);
+        }
+    }
 
     /** Grains/m³ where pollen turns Moderate, High and Very high. */
     public record PollenLevels(double moderate, double high, double veryHigh) {
@@ -166,7 +179,10 @@ public record AirQualitySettings(boolean enabled, int referenceCells, Rates sett
                         source(config, root + "sources.fire", d.sources.fire()),
                         source(config, root + "sources.lava", d.sources.lava()),
                         source(config, root + "sources.furnace", d.sources.furnace()),
-                        source(config, root + "sources.candle", d.sources.candle()))),
+                        source(config, root + "sources.candle", d.sources.candle()),
+                        source(config, root + "sources.smoker", d.sources.smoker()),
+                        source(config, root + "sources.blast-furnace", d.sources.blastFurnace()),
+                        source(config, root + "sources.torch", d.sources.torch()))),
                 section("air-quality.pollen-levels", d.pollenLevels, warn, () -> new PollenLevels(
                         config.getDouble(root + "pollen-levels.moderate", d.pollenLevels.moderate()),
                         config.getDouble(root + "pollen-levels.high", d.pollenLevels.high()),
