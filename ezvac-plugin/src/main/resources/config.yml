@@ -274,6 +274,18 @@ humidity:
   # water evaporates faster.
   evaporation-f-per-minecraft-hour: 30.0
 
+# Feels like in the sun (BETA 1.0 Pilot 4). Standing in the sun feels warmer
+# than the shade: most at noon in summer, less in winter's lower sun, little
+# under clouds or rain, none at night, and a breeze carries it away. A clear
+# summer noon in a field feels about 10 F warmer than the forest's shade
+# beside it. Only the "feels like" of the HUD, /hvac temperature,
+# thermometers and sensors changes: the air temperature, rooms and systems
+# don't, and weather stations' forecasts stay in the shade, as real ones do.
+# sun-strength scales it, 0 to 2.
+feels-like:
+  sun: true
+  sun-strength: 1.0
+
 # Small differences from spot to spot (2.0), so a house isn't one
 # number from wall to wall. Readings only: thermometers, sensors, the HUD,
 # /hvac temperature and placeholders vary; thermostats, equipment and the

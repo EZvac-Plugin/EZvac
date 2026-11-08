@@ -272,6 +272,28 @@ public final class OutdoorTemperatureService {
     }
 
     /**
+     * The sunshine a person at this spot takes in, W/m² (BETA 1.0 Pilot 4),
+     * for the feels-like: full where nothing is above it, a share of it by
+     * the sky light in shade, none at night, indoors or where the chunk
+     * isn't loaded.
+     */
+    public double sunshineAt(Location location) {
+        double strength = climate.feelsLike().effectiveStrength();
+        if (!(strength > 0.0) || location == null || location.getWorld() == null) return 0.0;
+        World world = location.getWorld();
+        if (world.getEnvironment() != World.Environment.NORMAL) return 0.0;
+        int x = location.getBlockX(), y = location.getBlockY(), z = location.getBlockZ();
+        if (!world.isChunkLoaded(x >> 4, z >> 4)) return 0.0;
+        int skyLight = location.getBlock().getLightFromSky();
+        if (skyLight <= 0) return 0.0;
+        boolean direct = y > world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING);
+        WeatherModel.Conditions conditions = conditions(world);
+        double season = seasons == null ? 0.0 : seasons.airFactor(world.getUID());
+        return com.github.blade.hvac.simulation.Sunshine.absorbedWm2(world.getTime(), season,
+                conditions.wetness(), conditions.storm(), direct, skyLight, strength);
+    }
+
+    /**
      * What is falling at a block right now (BETA 1.0 Pilot 4): NONE when it
      * isn't raining or weather never reaches there, otherwise RAIN or SNOW by
      * the air at that block. Never loads a chunk.

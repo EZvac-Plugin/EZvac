@@ -54,6 +54,21 @@ public final class Psychrometrics {
         return toF(c + 0.33 * vapourHpa - 0.70 * Math.max(0.0, windMs) - 4.00);
     }
 
+    /**
+     * How warm it feels in the sun (BETA 1.0 Pilot 4): the shade value above
+     * plus Steadman's radiation term, {@code 0.70 Q / (wind + 10)} in C. A
+     * breeze carries the sun's warmth away. With no sunshine it is exactly
+     * the shade value.
+     *
+     * @param sunWm2 sunshine a person takes in, W/m² ({@link Sunshine})
+     */
+    public static double apparentTemperatureF(double temperatureF, double relativeHumidity, double windMs,
+                                              double sunWm2) {
+        double shade = apparentTemperatureF(temperatureF, relativeHumidity, windMs);
+        if (!(sunWm2 > 0.0)) return shade;
+        return shade + 1.8 * 0.70 * sunWm2 / (Math.max(0.0, windMs) + 10.0);
+    }
+
     /** Saturation vapour pressure over water, hPa. */
     static double saturationPressure(double celsius) {
         return 6.1094 * Math.exp(A * celsius / (B + celsius));
