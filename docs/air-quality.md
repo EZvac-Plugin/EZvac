@@ -5,7 +5,7 @@ air. EZvac tracks three things:
 
 | | What it is | Comes from |
 | --- | --- | --- |
-| **PM2.5** | fine particles, in µg/m³ | smoke: campfires, fire, lava, lit furnaces and candles; the Nether's ash |
+| **PM2.5** | fine particles, in µg/m³ | smoke: campfires, fire, lava, lit furnaces, smokers and blast furnaces, candles, torches and lanterns; the Nether's ash |
 | **PM10** | every particle up to 10 µm, fine ones included | the above, plus dust: deserts, badlands, sea salt, the Nether's spores |
 | **Pollen** | grains/m³ | plants outdoors, through the seasons |
 
@@ -61,6 +61,24 @@ Each biome has its own air. Biome borders blend, like temperature.
   dry, so a desert gale is a dust storm, Unhealthy from the PM10. It thins
   the outdoor smoke and spreads pollen, and indoors it makes rooms follow the
   outdoor air faster. See [Wind](wind.md).
+- **Fires in the open add smoke (BETA 1.0 Pilot 4).** Lit campfires,
+  furnaces, smokers, blast furnaces and fire that no room counts as its own
+  spread their smoke into the outdoor air around them.
+  - **It follows the wind:** thickest beside the fire, stretching downwind and
+    widening and thinning as it goes, with next to none upwind. A strong wind
+    thins it; on a calm day it pools round the fire. It reaches 96 blocks at
+    most, and rain washes much of it out.
+  - **Ten campfires in a row** make the air 25 blocks downwind Unhealthy for
+    Sensitive Groups in a steady breeze, while 25 blocks upwind stays as clean
+    as before.
+  - **It shows wherever the outdoor air does:** outdoors on the HUD and
+    sensors, on weather stations nearby, on maps (MapPeek's air layer), and
+    indoors through each room's leaks, so a house beside a row of blast
+    furnaces gets smokier inside too.
+  - EZvac finds them as chunks load and as they are placed or lit, and looks
+    again every 5 seconds at those near players, so blocks set by commands
+    or WorldEdit count too. `air-quality.outdoor-smoke` sets how far and how
+    thick, or turns it off.
 
 ## Indoors
 
@@ -68,12 +86,16 @@ A room's air drifts toward the outdoor air through the gaps in the building,
 at the same rate its moisture does. On top of that:
 
 - **What burns adds smoke.** Lit campfires, fire, lava, lit furnaces, smokers,
-  blast furnaces and lit candles, inside the room or in its walls.
+  blast furnaces, lit candles, torches and lanterns, inside the room or in its
+  walls. A blast furnace smokes most of the furnaces, then a smoker, then a
+  furnace (BETA 1.0 Pilot 4; before, all three alike).
   - **A bigger room dilutes it;** a small one concentrates it, up to four
     times.
   - **A doused campfire or an unlit furnace adds nothing.**
-  - **Torches don't count,** and neither do EZvac's own furnaces and boilers,
-    which are sealed.
+  - **Torches and lanterns add a little each** (BETA 1.0 Pilot 4), soul and
+    copper ones too: a room lit by dozens of them gets a bit hazy. Redstone
+    torches don't burn, so they never count, and neither do EZvac's own
+    furnaces and boilers, which are sealed.
 - **Particles settle out of still air,** the big ones fastest. A closed room
   gets rid of dust and pollen on its own, but smoke lingers.
 - **A system's own filter** cleans its room while its equipment runs. It

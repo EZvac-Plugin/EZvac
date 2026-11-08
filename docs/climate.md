@@ -45,7 +45,7 @@ The air gets colder going up: 0.1 °F for every block above y=64, so about
 6 °F colder at y=128 and 14 °F colder at y=200. Real air cools far less per
 metre, but Minecraft's mountains are short, so the effect is stronger to be
 felt. Mountain lakes are colder too. High on a mountain, rain turns to snow
-where Minecraft itself snows.
+once the air there is cold enough (BETA 1.0 Pilot 4; see [Weather](#weather)).
 
 ## Underground
 
@@ -58,17 +58,23 @@ tempered. Caves inside a mountain, above sea level, keep the outdoor swing.
 
 ## Seasons
 
-Each world with a sun has a year of four seasons, 15 Minecraft days each by
-default (a 60-day year, about 20 hours of play). Temperatures follow a smooth
-curve: coldest in mid-winter, warmest in mid-summer, and average in
-mid-spring and mid-autumn.
+Each world with a sun has a year of four seasons, 30 Minecraft days each by
+default (a 120-day year, about 40 hours of play; 15 days before BETA 1.0
+Pilot 4). Temperatures follow a smooth curve: coldest in mid-winter, warmest
+in mid-summer, and average in mid-spring and mid-autumn.
 
-- Seasons only move temperatures. Biomes, rain and snow stay as Minecraft makes
-  them, so a savanna never snows.
+- Seasons move temperatures, and so whether rain falls as snow (BETA 1.0
+  Pilot 4): the plains snow in a cold winter. Biomes stay as Minecraft makes
+  them.
+- `seasons.days-per-season` can be changed at any time (restart after): every
+  world keeps its season and day of season, so summer day 8 stays summer
+  day 8. A server on the old stock 15 moved to 30 on its first Pilot 4 start,
+  the same way; a length an owner chose was kept.
 - How far a biome moves is its own (the *Seasons ±* column): strong in the cold
   north, weak in the tropics. `seasons.strength` scales them all, such as 0.5
   for mild seasons.
-- Lakes and the sea follow a few days behind the air and move a little less.
+- Lakes and the sea follow behind the air, 10 days by default (a third of a
+  season), and move a little less.
 - EZvac keeps its own calendar for each world, in `seasons.yml`. It follows
   the world's days, so sleeping through the night or `/time add` moves it on
   by every day they pass (BETA 1.0 Pilot 3: before, one day at most at a
@@ -111,8 +117,19 @@ step. The outdoors at a spot is the average of the biomes around it, within
   narrow the day/night swing; snow cools by 3 °F.
 - Vanilla weather switches in an instant, so the effect eases in and out over
   about two in-game hours.
-- Only biomes that get rain or snow react. Deserts, savannas, badlands, the
-  Nether and the End never do; snowy biomes, and high mountains, get snow.
+- **Rain or snow is EZvac's own call** (BETA 1.0 Pilot 4): while it rains, it
+  snows wherever the air is at or below 33 °F (`weather.snow-at-or-below-f`)
+  and rains elsewhere. Because the air counts the season, the height and the
+  time of day, a mountain can snow at the top and rain at its foot, a cold
+  night can turn evening rain to snow, and a warm spell rains on the tundra.
+  Vanilla decides by biome alone. The weather word on the HUD, sensors and
+  `%ezvac_weather%`, and weather stations' forecasts, follow it.
+- **Dry places** (deserts, savannas, badlands) follow `weather.dry-areas`:
+  `thunder` by default, so ordinary rain passes them by but a thunderstorm
+  rains on them; `never` keeps them dry as in vanilla, `always` rains on them
+  like anywhere else. The Nether and the End never get weather.
+- EZvac decides what falls; the world itself still shows Minecraft's own rain
+  and snow. An addon such as EZclimates can show EZvac's in the world.
 - Underground, weather doesn't reach.
 - Everything that uses the outdoor temperature follows: rooms drifting with
   nothing running, ETAs, thermometers, sensors, the HUD and pools. Natural water
@@ -143,6 +160,17 @@ humid heat feels hotter, dry air and wind feel cooler. Indoors there is no
 wind; at the edge of a system's reach the outdoor wind blends in. Walls and
 roofs shelter a spot from it too (3.2): you feel the wind by how much sky
 reaches you. See [Wind](wind.md).
+
+**In the sun** (BETA 1.0 Pilot 4) it feels warmer than in the shade: the sun
+adds Steadman's radiation term. It is strongest at noon in summer, less in
+winter's lower sun, little under clouds or rain, none at night, and a breeze
+carries it away. Full sun is where nothing is above you; under leaves or a
+roof you get a share of it by how much sky reaches you, and indoors none. A
+clear summer noon in a field feels about 8 to 10 °F warmer than the forest's
+shade beside it. Only the feels-like changes: the air temperature, rooms and
+systems don't, and weather stations stay in the shade, as real forecasts
+do. `feels-like.sun: false` turns it off; `feels-like.sun-strength` scales
+it.
 
 The HUD's comfort word, bar and colour follow "feels like" in air, so a humid
 84 °F room reads *Hot*. In water they follow the water temperature.

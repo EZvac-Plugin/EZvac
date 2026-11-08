@@ -78,7 +78,8 @@ public final class OutdoorSmokeService implements Listener {
     private void index(Chunk chunk) {
         World world = chunk.getWorld();
         if (world.getEnvironment() != World.Environment.NORMAL) return;
-        LongOpenHashSet found = null;
+        // Fire is no block entity: what the events noted stays until it burns out.
+        LongOpenHashSet found = fires(world, chunk.getX(), chunk.getZ());
         for (BlockState state : chunk.getTileEntities(block -> outdoorKind(SmokeSource.of(block.getType())), false)) {
             if (found == null) found = new LongOpenHashSet();
             found.add(AirflowService.pack(state.getX(), state.getY(), state.getZ()));
@@ -90,6 +91,23 @@ public final class OutdoorSmokeService implements Listener {
             return;
         }
         known.computeIfAbsent(world.getUID(), ignored -> new Long2ObjectOpenHashMap<>()).put(key, found);
+    }
+
+    /** The fires noted in a chunk that still burn, to keep when its block entities are read again. */
+    private LongOpenHashSet fires(World world, int chunkX, int chunkZ) {
+        Long2ObjectOpenHashMap<LongOpenHashSet> chunks = known.get(world.getUID());
+        LongOpenHashSet before = chunks == null ? null : chunks.get(chunkKey(chunkX, chunkZ));
+        if (before == null) return null;
+        LongOpenHashSet kept = null;
+        LongIterator cells = before.iterator();
+        while (cells.hasNext()) {
+            long cell = cells.nextLong();
+            if (SmokeSource.of(world.getBlockAt(AirflowService.unpackX(cell), AirflowService.unpackY(cell),
+                    AirflowService.unpackZ(cell)).getType()) != SmokeSource.FIRE) continue;
+            if (kept == null) kept = new LongOpenHashSet();
+            kept.add(cell);
+        }
+        return kept;
     }
 
     private void note(Block block) {
@@ -143,6 +161,8 @@ public final class OutdoorSmokeService implements Listener {
         AirQualitySettings.Sources rates = settings.sources();
         Map<UUID, Long2ObjectOpenHashMap<List<Burning>>> next = new HashMap<>();
         for (World world : worlds) {
+            // Blocks set by commands, WorldEdit or structures fire no place event: near players, chunks are read again.
+            if (world.getEnvironment() == World.Environment.NORMAL) reindexNearPlayers(world);
             Long2ObjectOpenHashMap<LongOpenHashSet> chunks = known.get(world.getUID());
             if (chunks == null || chunks.isEmpty()) continue;
             LongOpenHashSet indoors = roomCells.apply(world.getUID());
@@ -175,6 +195,20 @@ public final class OutdoorSmokeService implements Listener {
             if (!grid.isEmpty()) next.put(world.getUID(), grid);
         }
         burning = next;
+    }
+
+    /** How far round each player chunks are read again at every refresh, in chunks. */
+    static final int REINDEX_RADIUS = 4;
+
+    private void reindexNearPlayers(World world) {
+        if (world.getPlayers().isEmpty()) return;
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet done = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        for (org.bukkit.entity.Player player : world.getPlayers()) {
+            int cx = player.getLocation().getBlockX() >> 4, cz = player.getLocation().getBlockZ() >> 4;
+            for (int x = cx - REINDEX_RADIUS; x <= cx + REINDEX_RADIUS; x++)
+                for (int z = cz - REINDEX_RADIUS; z <= cz + REINDEX_RADIUS; z++)
+                    if (done.add(chunkKey(x, z)) && world.isChunkLoaded(x, z)) index(world.getChunkAt(x, z));
+        }
     }
 
     /**

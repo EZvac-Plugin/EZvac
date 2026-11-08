@@ -244,9 +244,9 @@ See [Climate](climate.md#biome-transitions).
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `enabled` | true | false turns the seasons off everywhere |
-| `days-per-season` | 15 | Minecraft days in each season; four make a year |
+| `days-per-season` | 30 | Minecraft days in each season; four make a year. Change it any time (restart after): each world keeps its season and day of season. 15 before BETA 1.0 Pilot 4; a server on the stock 15 moved to 30 |
 | `strength` | 1.0 | How much of each biome's seasonal swing applies: 1 is realistic, 0.5 mild, 0 none (0-3) |
-| `water-lag-days` | 5.0 | How many days lakes and the sea follow behind the air |
+| `water-lag-days` | 10.0 | How many days lakes and the sea follow behind the air; left out, a third of a season. 5 before Pilot 4, and a stock 5 moved to 10 with the seasons |
 
 The calendar itself is kept in `seasons.yml`, not here; change it with
 [`/hvac season`](commands.md#seasons). See [Climate](climate.md#seasons).
@@ -298,6 +298,8 @@ climate.
 | `swing-reduction` | 0.6 | Share of the day/night swing full rain takes away |
 | `water-share` | 0.1 | Share of the air's change natural water follows |
 | `wind-clear-ms`, `wind-rain-ms`, `wind-thunder-ms` | 1.5, 3, 5 | Outdoor wind for "feels like", in m/s. With the daily wind on, `wind-clear-ms` is unused and rain and thunder add their difference from it to the day's wind |
+| `snow-at-or-below-f` | 33 | While it rains, snow falls where EZvac's air is this cold or colder, and rain elsewhere (BETA 1.0 Pilot 4; -40 to 50) |
+| `dry-areas` | thunder | Deserts, savannas and badlands in rain: `never` (dry, as vanilla), `thunder` (rain only in thunderstorms) or `always` (BETA 1.0 Pilot 4) |
 
 With `enabled: false` temperatures ignore the weather, but weather sensors
 still report the sky. More in [Climate](climate.md#weather).
@@ -340,6 +342,15 @@ A bad value makes its section fall back to the defaults, with a warning.
 | `cooling-dry-f-per-minecraft-hour` | 4.0 | How fast cooling dries the air |
 | `evaporation-f-per-minecraft-hour` | 30.0 | How fast water in a room adds moisture |
 
+## feels-like
+
+New in BETA 1.0 Pilot 4. See [Climate](climate.md#feels-like).
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `sun` | true | Standing in the sun feels warmer than the shade. Only the feels-like of readings at a spot changes; weather stations stay in the shade |
+| `sun-strength` | 1.0 | How much: 1 as Steadman's formula (about 8 to 10 °F on a clear summer noon), 0 to 2 |
+
 ## variance
 
 | Setting | Default | Meaning |
@@ -381,8 +392,12 @@ are per in-game hour.
 | `sources.campfire` | fine 20, coarse 8 | What a lit campfire or soul campfire adds per hour, µg/m³ at `reference-cells` |
 | `sources.fire` | fine 25, coarse 10 | Fire and soul fire |
 | `sources.lava` | fine 6, coarse 4 | Lava in or around the space |
-| `sources.furnace` | fine 4, coarse 2 | A lit furnace, smoker or blast furnace (never EZvac's own) |
+| `sources.furnace` | fine 4, coarse 2 | A lit furnace (never EZvac's own). Before BETA 1.0 Pilot 4 smokers and blast furnaces too |
+| `sources.smoker`, `sources.blast-furnace` | fine 6, coarse 2; fine 10, coarse 5 | A lit smoker, a lit blast furnace (BETA 1.0 Pilot 4) |
 | `sources.candle` | fine 1, coarse 0 | A lit candle block |
+| `sources.torch` | fine 0.3, coarse 0 | Each torch or lantern, soul and copper ones too; never a redstone torch (BETA 1.0 Pilot 4) |
+| `outdoor-smoke.enabled` | true | Fires burning in the open (campfires, furnaces, smokers, blast furnaces, fire outside any room) spread smoke into the outdoor air downwind (BETA 1.0 Pilot 4) |
+| `outdoor-smoke.reach-blocks`, `outdoor-smoke.strength` | 96, 1.0 | How far it goes at most (8-256), and how thick it is (0-5) |
 | `pollen-levels` | 20, 80, 200 | Grains/m³ where pollen turns Moderate, High and Very high |
 | `purifier.range`, `purifier.maximum-cells` | 30, 50000 | Reach and size of a purifier's own space, as for a dehumidifier |
 | `purifier.rate` | fine 2.5, coarse 2.5, pollen 3.0 | Share of each kind one purifier takes out per hour on High, at `reference-cells` |

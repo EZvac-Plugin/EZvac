@@ -24,7 +24,7 @@ updates). Tab completion only offers commands you can run (BETA 1.0).
 | `/hvac temperature` (`temp`) | The temperature where you stand, the outdoor temperature and weather, the humidity and "feels like" in air, and which system reaches you, how far along its airflow and its strength there (100% in the core). In water: the water temperature and the air above |
 | `/hvac hud [on\|off]` | Shows or hides the on-screen HUD for yourself (`ezvac.hud`). With no argument it toggles; your choice is remembered |
 | `/hvac list` | The systems in your world, with mode, room and target temperature, and how many units are running |
-| `/hvac season` | The season and its day ("Summer, day 3 of 15"), and how much it warms or cools the outdoors where you stand |
+| `/hvac season` | The season and its day ("Summer, day 3 of 30"), and how much it warms or cools the outdoors where you stand |
 | `/hvac wind` | Today's wind around you ("Windy, about 22 km/h from the W"), the wind where you stand and out in the open, and the next two days' (3.2; your own region's, with directions, since BETA 1.0 Pilot 3) |
 | `/hvac forecast` | The next seven days from the weather stations within 400 blocks, nearest first (BETA 1.0, see [Weather stations](weather-stations.md)). Also `weatherfc` |
 | `/hvac info` | Details of the device you're looking at: a thermostat (with its room's humidity, feels-like and air), equipment, a vent, a thermometer, an RPM monitor, a settings panel, a dehumidifier, humidifier or air purifier, a sensor or a sensor hub |

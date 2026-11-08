@@ -261,8 +261,9 @@ public final class HvacPlugin extends JavaPlugin {
         }
         reloadConfig();
         getLogger().info("Added " + added.size() + " new setting(s) to config.yml ("
-                + String.join(", ", ConfigUpdater.topLevel(added)) + "). Existing settings were not changed;"
-                + " the previous file was kept as " + backup.getName() + ".");
+                + String.join(", ", ConfigUpdater.topLevel(added)) + "). Existing settings were not changed,"
+                + " except stock values this release moves on (see the changelog); the previous file was kept as "
+                + backup.getName() + ".");
     }
 
     /**

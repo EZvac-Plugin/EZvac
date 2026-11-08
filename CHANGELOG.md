@@ -2,6 +2,81 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 4
+
+**Seasons are 30 days long, and rain turns to snow by EZvac's own air.**
+Standing in the sun feels warmer than the shade, and fires burning in the
+open smoke up the air downwind. The save is unchanged (format 8).
+
+### 30-day seasons
+
+- **Each season is 30 Minecraft days by default** (a 120-day year), up from
+  15. Natural water lags the air by 10 days, up from 5.
+- **Every world keeps its season and day.** A server on the stock 15 moves to
+  30 on its first Pilot 4 start, and summer day 8 stays summer day 8. A
+  length an owner chose is kept.
+- **The length can be changed any time now** (restart after): `seasons.yml`
+  records each calendar's length, so changing it never sends a world into
+  another season. The old file is kept beside it.
+
+### Rain or snow
+
+- **While it rains, it snows wherever EZvac's air is at or below 33 °F,** and
+  rains elsewhere. The season, height and time of day all count: the plains
+  snow in a cold winter, a mountain can snow at the top and rain at its foot,
+  and a warm spell rains on the tundra. Vanilla decided by biome alone.
+- **Dry places get rain in thunderstorms:** deserts, savannas and badlands
+  stay dry in ordinary rain. `weather.dry-areas` (`never`, `thunder`,
+  `always`) sets it; `weather.snow-at-or-below-f` sets the snow line's
+  temperature.
+- **The weather word follows it** (the HUD, sensors, `%ezvac_weather%`), and
+  so do weather stations' forecasts.
+- This is what EZvac decides falls; the world still shows Minecraft's own
+  rain and snow. The upcoming EZclimates addon shows EZvac's in the world.
+
+### Feels like in the sun
+
+- **The sun makes it feel warmer than the shade:** most at noon in summer,
+  less in winter, little under clouds, none at night, and a breeze carries it
+  away. A clear summer noon in a field feels about 8 to 10 °F warmer than the
+  forest beside it.
+- Only the feels-like of readings at a spot changes (the HUD, `/hvac
+  temperature`, thermometers, sensors). The air temperature, rooms and
+  systems don't, and weather stations stay in the shade.
+- `feels-like.sun` and `feels-like.sun-strength`.
+
+### Smoke
+
+- **Smokers and blast furnaces smoke more than a furnace:** a smoker 6/2 and
+  a blast furnace 10/5 µg/m³ an hour (fine/coarse), against a furnace's 4/2;
+  before, all three were at the furnace's.
+- **Torches and lanterns add a little each,** soul and copper ones too, so a
+  room lit by dozens of them gets a bit hazy. Redstone torches never count.
+- **Fires in the open smoke up the air downwind.** Lit campfires, furnaces,
+  smokers, blast furnaces and fire that no room counts as its own spread
+  their smoke with the wind: thickest beside them, stretching downwind and
+  thinning as it goes, pooled round them on a calm day, up to 96 blocks.
+  Ten campfires in a row make the air 25 blocks downwind Unhealthy for
+  Sensitive Groups in a breeze, while upwind stays clean. It shows outdoors,
+  on weather stations nearby, on maps, and indoors through each room's
+  leaks. `air-quality.outdoor-smoke`.
+
+### API 1.9
+
+- `precipitationAt(world, x, y, z)` and the `Precipitation` enum: what is
+  falling at a block right now.
+- `snowLineAt(world, x, z)`: the height above which it snows at a column.
+- `SeasonView.progress()`: how far through the year a world is, 0 to 1.
+- `outdoorAirAt` includes the smoke of open fires nearby.
+
+### Upgrading
+
+- New settings are added to `config.yml` with their comments: `feels-like`,
+  `weather.snow-at-or-below-f` and `dry-areas`, `air-quality.sources.smoker`,
+  `blast-furnace` and `torch`, and `air-quality.outdoor-smoke`. A stock
+  `seasons.days-per-season: 15` moves to 30 and a stock
+  `water-lag-days: 5.0` to 10; the previous files are kept as backups.
+
 ## BETA 1.0 Pilot 3
 
 **The wind blows from a direction now, and differs from region to region.**
