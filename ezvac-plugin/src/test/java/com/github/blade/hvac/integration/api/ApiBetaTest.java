@@ -56,6 +56,7 @@ class ApiBetaTest {
                         ? java.lang.reflect.InvocationHandler.invokeDefault(proxy, method, args) : null);
         assertEquals(com.github.blade.hvac.api.Precipitation.NONE, old.precipitationAt(null, 0, 64, 0));
         assertTrue(Double.isNaN(old.snowLineAt(null, 0, 0)));
+        assertTrue(Double.isNaN(old.freezingWaterF(null, 0, 64, 0)));
     }
 
     @Test

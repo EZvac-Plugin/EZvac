@@ -265,6 +265,19 @@ public interface EzvacApi {
     }
 
     /**
+     * How cold natural water (a lake, a river, the sea, an unheated pool) is
+     * getting at a block: its temperature before EZvac holds liquid water at
+     * 33 F, so at or below 32 F a lake would be freezing over. It lags the
+     * air's seasons. {@link OutdoorClimate#waterF()} is the same held at
+     * liquid water's range. Never loads a chunk. Main thread only.
+     *
+     * @since 1.9
+     */
+    default double freezingWaterF(World world, int x, int y, int z) {
+        return Double.NaN;
+    }
+
+    /**
      * Addon sections on the climate HUD. Check {@link #apiVersion()} first
      * when the addon should also run on API 1.0, which doesn't have it.
      *

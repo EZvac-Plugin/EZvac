@@ -460,6 +460,11 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         return outdoor.snowLineAt(world, x, z);
     }
 
+    @Override
+    public double freezingWaterF(World world, int x, int y, int z) {
+        return outdoor.naturalWaterUnheldAt(world, x, y, z);
+    }
+
     private Optional<SeasonView.Season> seasonOf(World world) {
         return season(world).map(SeasonView::season);
     }

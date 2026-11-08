@@ -679,9 +679,25 @@ public final class OutdoorTemperatureService {
      * a small share of the weather.
      */
     private double water(World world, WeatherModel.Effect effect, BiomeBlend.Blended local) {
+        return Math.max(ThermalModel.NATURAL_WATER_MINIMUM_F, Math.min(ThermalModel.NATURAL_WATER_MAXIMUM_F,
+                waterUnheld(world, effect, local)));
+    }
+
+    /** Natural water before it is held at liquid water's minimum and maximum. */
+    private double waterUnheld(World world, WeatherModel.Effect effect, BiomeBlend.Blended local) {
         double season = seasonShiftF(world, local.seasonalF(), true);
-        double value = ThermalModel.naturalWaterTemperature(local.noonF() + season, local.midnightF() + season)
+        return ThermalModel.naturalWaterTemperature(local.noonF() + season, local.midnightF() + season)
                 + effect.meanShiftF() * climate.weather().waterShare();
-        return Math.max(ThermalModel.NATURAL_WATER_MINIMUM_F, Math.min(ThermalModel.NATURAL_WATER_MAXIMUM_F, value));
+    }
+
+    /**
+     * How cold natural water at a block is getting (BETA 1.0 Pilot 4): its
+     * temperature before EZvac holds liquid water at 33 F, so at or below 32
+     * it would be freezing. Lakes lag the air's seasons. Never loads a chunk.
+     */
+    public double naturalWaterUnheldAt(World world, int x, int y, int z) {
+        if (world == null) return 60.0;
+        BiomeBlend.Blended local = blendedAt(world, x, y, z);
+        return waterUnheld(world, effect(world, local), local);
     }
 }
