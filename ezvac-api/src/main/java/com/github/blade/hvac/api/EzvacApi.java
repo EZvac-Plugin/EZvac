@@ -248,13 +248,15 @@ public interface EzvacApi {
     }
 
     /**
-     * The height above which it is snowing right now at a column, out in the
-     * open: EZvac's air cools with height, so above it snow falls and below
-     * it rain. {@link Double#NEGATIVE_INFINITY} where it snows at every
-     * height, {@link Double#POSITIVE_INFINITY} where it rains at every
-     * height, and NaN where nothing falls now (it isn't raining, or a dry
-     * place the rain doesn't reach). One call answers for a whole chunk's
-     * column. Never loads a chunk. Main thread only.
+     * The height above which rain would come down as snow right now at a
+     * column, out in the open, whether or not it is raining: EZvac's air
+     * cools with height, so above it snow would fall and below it rain.
+     * {@link Double#NEGATIVE_INFINITY} where it would snow at every height,
+     * {@link Double#POSITIVE_INFINITY} where it would rain at every height,
+     * and NaN where rain doesn't reach now (a dry place outside a
+     * thunderstorm, by default). An addon can have the right look ready
+     * before the rain starts. One call answers for a whole chunk's column.
+     * Never loads a chunk. Main thread only.
      *
      * @since 1.9
      */
