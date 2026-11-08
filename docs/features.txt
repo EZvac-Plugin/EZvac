@@ -173,8 +173,9 @@ Hot 100/78):
   biome temperature and downfall: the mean follows the temperature, the
   day/night swing is 10 + 25 x (1 - downfall) F, the seasonal swing follows
   the mean (26 F when cold down to 3 F in the tropics).
-- A rain biome snows where vanilla does: above sea level + 17, where the
-  height-adjusted biome temperature is below 0.15.
+- A rain biome's snow share for the temperature effect follows vanilla:
+  above sea level + 17, where the height-adjusted biome temperature is below
+  0.15. What falls is decided by the air since BETA 1.0 Pilot 4 (below).
 - Altitude (altitude:): lapse-f-per-block (0.1) for every block above from-y
   (64), applied at the exact height after blending.
 - Underground (underground:): depth = min(sea level, surface height) - y,
@@ -185,7 +186,7 @@ Hot 100/78):
 - Seasons (seasons:): shift = seasonal swing x strength x
   sin(2 pi t / year - pi / 4), added to noon and midnight before the weather
   effect; t runs from the first day of spring, so mid-summer is +1 and
-  mid-winter -1. Natural water uses 0.8 x the shift, water-lag-days (5) later.
+  mid-winter -1. Natural water uses 0.8 x the shift, water-lag-days (10; 5 before Pilot 4) later.
   Not applied to the cached profile, only when a temperature is read.
 - The calendar (SeasonService, seasons.yml): per world with a sun, a day count
   that moves on when the world's day count (full time / 24000) does, by at
@@ -330,6 +331,53 @@ SEASON CALENDAR (BETA 1.0 Pilot 3)
 - SeasonCalendar: a new one starts at max(0, world fullTime / 24000); each
   look adds every day passed (no more one-day cap); a clock set back still
   changes nothing. seasons.yml unchanged.
+
+
+SEASONS, RAIN OR SNOW, SUN AND OPEN-AIR SMOKE (BETA 1.0 Pilot 4)
+---------------------------------------------------------------
+
+- 30-day seasons: seasons.yml records days-per-season per world (absent =
+  config.yml's length before this start's upgrade). SeasonService.load
+  converts a calendar counted in another length with SeasonCalendar.convert:
+  same year, season and day of season, clamped to the last day; the old file
+  is kept as seasons.yml.before-<N>-day-seasons.bak. ConfigUpdater.pilotFour
+  (marked by weather.dry-areas being added) moves a stock 15 to 30 and a
+  stock water lag of 5 to 10. An unset water-lag-days is days-per-season / 3.
+- Rain or snow: WeatherModel.kind = NONE where the blend's wet share < 0.5
+  and weather.dry-areas forbids it (never; thunder outside thunderstorms),
+  else SNOW at air <= weather.snow-at-or-below-f (33), else RAIN; falling()
+  is kind() while the world rains. Only NORMAL worlds. The weather word and
+  Forecast.day (snow when the day's (high + low) / 2 is at or below the line;
+  a dry area's rain chance follows dry-areas) use it. The temperature effect
+  of weather still uses the biomes' vanilla rain and snow shares.
+- snowLineAt: the air at max(altitude.from-y, sea level) with the lapse but
+  no underground factor; line = from-y + (air at from-y - 33) / lapse;
+  -inf when already at or below at from-y, +inf with no lapse, NaN when
+  nothing falls.
+- Sun: Sunshine.absorbedWm2 = 110 x sin(pi t / 12000) (0 from sunset to
+  sunrise) x (0.8 + 0.2 season factor) x clouds (1 - 0.7 wet - 0.2 storm, at
+  least 0.05) x exposure (1 where y > the MOTION_BLOCKING heightmap, else
+  0.25 x sky light / 15) x feels-like.sun-strength. Feels like adds
+  1.8 x 0.70 Q / (wind + 10) F (Steadman), times (1 - influence), in
+  AirflowService.reading only: Outdoor.feelsLikeF (stations, outdoorAt)
+  stays in the shade.
+- Smoke sources: SmokeSource gains SMOKER (6/2), BLAST_FURNACE (10/5) and
+  TORCH (0.3/0: names ending TORCH but not REDSTONE_*, or LANTERN but not
+  SEA_LANTERN; always burning). Room scans note sources on air paths too;
+  up to 1,024 per space.
+- Open-air smoke (OutdoorSmokeService): per world and chunk, the positions of
+  campfires, furnaces, smokers and blast furnaces from block entities on
+  ChunkLoad (and every 100 ticks within 4 chunks of each player), plus places
+  and ignitions (fire kept while it burns). Every 100 ticks the lit ones not
+  in any room's smoke cells (AirflowService.roomSmokeCells) go into a 32-block
+  grid. A reading sums emission x SmokePlume.share x 3 x strength x
+  (1 - 0.6 wet) over the cells within reach (96). SmokePlume.share =
+  max(near, (1 - w) pooled + w plume) x 3 / (wind + 3) x (1 - r / reach) x
+  exp(-(dy / 24)^2); near = exp(-(r / 4)^2), pooled = 1 / (1 + (r / 16)^2),
+  plume = 4 / (4 + 0.25 d) x exp(-c^2 / 2 width^2) for d > 0 downwind (c
+  across), w = (wind - 0.5) / 2 clamped, 0 without a direction. Added to
+  Outdoor.air (rooms, readings), openAirAt (maps, ignoring height) and
+  stations' airNow (at the centre).
 
 
 HUMIDITY AND FEELS LIKE

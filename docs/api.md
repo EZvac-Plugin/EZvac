@@ -21,7 +21,7 @@ player, drawn from `devices(world)` and the device events).
 
 The API is published through [JitPack](https://jitpack.io/#EZvac-Plugin/EZvac),
 built from EZvac's release tags: use the tag of the oldest EZvac whose API
-has what you need (`BETA-1.0-P3` for API 1.8, `BETA-1.0-P2` for 1.7, `BETA-1.0-P1` for 1.6, `ALPHA-3.2` for 1.5; see
+has what you need (`BETA-1.0-P4` for API 1.9, `BETA-1.0-P3` for 1.8, `BETA-1.0-P2` for 1.7, `BETA-1.0-P1` for 1.6, `ALPHA-3.2` for 1.5; see
 [Versions and promises](#versions-and-promises)). Use it with `provided` (Maven) or
 `compileOnly` (Gradle) scope: EZvac carries the API's classes at runtime, so
 never shade them into your jar.
@@ -86,11 +86,13 @@ server runs.
 | `vents()`, `vents(world)` | Vents: system, and whether they blow air or water (1.2) |
 | `instruments()`, `instruments(world)` | Thermometers and hygrometers, sensors, sensor hubs (with the sensors they show), RPM monitors and settings panels (1.2); air monitors, air sensors and wind sensors (1.5) |
 | `devices(world)` | Every device in a world, of every kind (1.2) |
-| `season(world)` | The season and its day, or empty where there are no seasons |
+| `season(world)` | The season and its day, or empty where there are no seasons. Its `progress()` is how far through the year it is, 0 to 1 (1.9) |
 | `windForecast(world, days)` | Today's wind and the next days', each a `Wind.Day` with its level and mean speed; empty where there is no wind (1.5) |
 | `windForecast(location, days)` | The same for the region around a spot, which can be up to a level windier or calmer than the world's (1.8) |
 | `windAt(world, x, z)` | The wind on open, level ground there right now, with its direction: anywhere, explored or not, without loading a chunk, so a map can draw it (1.8) |
-| `outdoorAirAt(world, x, z)` | The open outdoor air there right now as an `AirQuality`: its biomes' air with the season's pollen, the rain and the wind; anywhere, without loading a chunk (1.8) |
+| `outdoorAirAt(world, x, z)` | The open outdoor air there right now as an `AirQuality`: its biomes' air with the season's pollen, the rain and the wind, and since 1.9 the smoke of fires burning in the open nearby; anywhere, without loading a chunk (1.8) |
+| `precipitationAt(world, x, y, z)` | What is falling at a block right now: `Precipitation.NONE`, `RAIN` or `SNOW`, by EZvac's air there (1.9) |
+| `snowLineAt(world, x, z)` | The height above which it is snowing at a column right now: negative infinity where it snows at every height, positive infinity where it rains at every height, NaN where nothing falls (1.9) |
 | `units()` | Whether the server shows players °F or °C |
 | `systemSize(world, system)` | A system's size in blocks of air (or water), its openings and how much faster it leaks, what equipment it has and needs for cooling and heating, and the systems its air touches; empty while its air isn't mapped or with building size off (1.6) |
 | `serverSettings()` | What the owner has switched in `/hvac quicksettings`: device kinds off server-wide (by their `devices.disabled` names), air quality, pollen, wind, seasons and building size (1.6) |
@@ -325,5 +327,7 @@ depend: [EZvac]
   `areaHeight()`, `ThermostatView.profile()`, `mini()`, `attention()` and
   `blocked()`), and 1.8 with BETA 1.0 Pilot 3 (the wind's direction,
   `windAt()`, `outdoorAirAt()`, `windForecast(location, days)`, and a
-  station's `wind()`, `airQuality()` and each day's `aqi()`).
+  station's `wind()`, `airQuality()` and each day's `aqi()`), and 1.9 with
+  BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `Precipitation`
+  and `SeasonView.progress()`).
   Depend on the oldest EZvac whose API has what you use.
