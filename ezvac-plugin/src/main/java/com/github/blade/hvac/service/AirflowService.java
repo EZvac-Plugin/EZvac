@@ -884,6 +884,23 @@ public final class AirflowService {
         return exposures.getOrDefault(target, WaterExposure.NONE);
     }
 
+    /**
+     * Every smoke source some room or unit's zone in a world counts as its
+     * own (BETA 1.0 Pilot 4), packed like the airflow maps: those burn
+     * indoors, so they put no smoke into the outdoor air.
+     */
+    public it.unimi.dsi.fastutil.longs.LongOpenHashSet roomSmokeCells(java.util.UUID worldId) {
+        it.unimi.dsi.fastutil.longs.LongOpenHashSet cells = new it.unimi.dsi.fastutil.longs.LongOpenHashSet();
+        for (Map.Entry<AirflowTarget, long[]> entry : smoke.entrySet()) {
+            java.util.UUID world = switch (entry.getKey()) {
+                case SystemId system -> system.worldId();
+                case ZoneId zone -> zone.unit().worldId();
+            };
+            if (worldId.equals(world)) for (long cell : entry.getValue()) cells.add(cell);
+        }
+        return cells;
+    }
+
     /** Packed positions of the smoke sources a space's last scan found (3.2), burning or not. */
     public long[] smokeCells(AirflowTarget target) {
         return smoke.getOrDefault(target, NO_CELLS);
@@ -1304,7 +1321,7 @@ public final class AirflowService {
                 visitedCells, cappedRebuilds);
     }
 
-    static long pack(int x, int y, int z) {
+    public static long pack(int x, int y, int z) {
         return ((long) x & 0x3FFFFFFL) << 38
                 | ((long) z & 0x3FFFFFFL) << 12
                 | ((long) y & 0xFFFL);

@@ -379,6 +379,17 @@ air-quality:
     # room lit by dozens of them gets a little hazy. Redstone torches don't
     # burn, so they never count.
     torch: { fine: 0.3, coarse: 0.0 }
+  # Smoke out in the open (BETA 1.0 Pilot 4). Campfires, furnaces, smokers,
+  # blast furnaces and fire outside any room spread their smoke into the
+  # outdoor air: thickest beside them, stretching downwind with the wind and
+  # thinning as it goes, pooled round them on a calm day, thinner in a strong
+  # wind or rain. It shows outdoors, on weather stations nearby, on maps, and
+  # indoors through each room's leaks. reach-blocks is as far as it goes;
+  # strength scales how thick it is (0 to 5).
+  outdoor-smoke:
+    enabled: true
+    reach-blocks: 96
+    strength: 1.0
   # Pollen in grains/m³ where it turns Moderate, High and Very high.
   pollen-levels: { moderate: 20, high: 80, very-high: 200 }
   # Air purifiers: an iron block on a tube coral block, which is the filter,

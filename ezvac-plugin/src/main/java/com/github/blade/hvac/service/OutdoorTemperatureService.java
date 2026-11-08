@@ -247,7 +247,22 @@ public final class OutdoorTemperatureService {
         double downfall = regions.downfall(world, x, z);
         // Rain only falls where the ground gets any.
         double wet = downfall > 0.0 ? wetness(world) : 0.0;
-        return OutdoorAir.now(regions.air(world, x, z), pollen, wet, windMs, downfall, climate.wind());
+        AirQualityModel.Air open = OutdoorAir.now(regions.air(world, x, z), pollen, wet, windMs, downfall,
+                climate.wind());
+        return withSmoke(open, world, x, Double.NaN, z, windMs, spot == null ? Double.NaN : spot.fromDegrees(), wet);
+    }
+
+    private OutdoorSmokeService smoke;
+
+    /** Smoke from fires in the open (BETA 1.0 Pilot 4); null outside a running server. */
+    public void setSmoke(OutdoorSmokeService smoke) { this.smoke = smoke; }
+
+    /** The outdoor air with the smoke of open fires within reach added (BETA 1.0 Pilot 4). */
+    public AirQualityModel.Air withSmoke(AirQualityModel.Air air, World world, double x, double y, double z,
+                                         double windMs, double fromDegrees, double wetness) {
+        if (smoke == null || air == null || !air.known() || !climate.airQuality().outdoorSmokeOn()) return air;
+        AirQualityModel.Air plume = smoke.at(world, x, y, z, windMs, fromDegrees, wetness);
+        return plume == AirQualityModel.Air.NONE ? air : air.plus(plume);
     }
 
     /**
@@ -560,7 +575,8 @@ public final class OutdoorTemperatureService {
                     thermostat.outdoorMidnightF()), dew, climate.weather().windClearMs(), "");
         }
         return outdoor(world, thermostat.outdoorClimate(), air,
-                windAt(world, thermostat.position().x() + 0.5, thermostat.position().z() + 0.5));
+                windAt(world, thermostat.position().x() + 0.5, thermostat.position().z() + 0.5),
+                thermostat.position().x() + 0.5, thermostat.position().y() + 0.5, thermostat.position().z() + 0.5);
     }
 
     /**
@@ -605,17 +621,20 @@ public final class OutdoorTemperatureService {
         }
         World world = location.getWorld();
         BiomeBlend.Blended local = blendedAt(location);
-        return outdoor(world, local, air(world, local), windAt(world, location.getX(), location.getZ()));
+        return outdoor(world, local, air(world, local), windAt(world, location.getX(), location.getZ()),
+                location.getX(), location.getY(), location.getZ());
     }
 
-    private Outdoor outdoor(World world, BiomeBlend.Blended local, double airF, WindModel.Spot spot) {
+    private Outdoor outdoor(World world, BiomeBlend.Blended local, double airF, WindModel.Spot spot,
+                            double x, double y, double z) {
         WeatherModel.Effect effect = effect(world, local, spot);
         BiomeBlend.Blended now = inSeason(world, local);
         double dew = HumidityModel.outdoorDewPointF(now.noonF(), now.midnightF(), now.downfall(), effect, airF,
                 climate.humidity());
         double from = spot == null || !(effect.windMs() > 0.0) ? Double.NaN : spot.fromDegrees();
         return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local, airF),
-                outdoorAir(world, local, effect), from);
+                withSmoke(outdoorAir(world, local, effect), world, x, y, z, effect.windMs(), from, effect.wetness()),
+                from);
     }
 
     /** The outdoor air right now: the biome's, its season's pollen, and rain washing it out (3.2). */
