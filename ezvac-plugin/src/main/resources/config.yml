@@ -368,10 +368,17 @@ air-quality:
     campfire: { fine: 20.0, coarse: 8.0 }
     fire: { fine: 25.0, coarse: 10.0 }
     lava: { fine: 6.0, coarse: 4.0 }
-    # A lit furnace, smoker or blast furnace. EZvac's own furnaces and boilers
-    # are sealed and add nothing.
+    # A lit furnace, smoker and blast furnace (BETA 1.0 Pilot 4: each its own;
+    # before, all three at furnace's). EZvac's own furnaces and boilers are
+    # sealed and add nothing.
     furnace: { fine: 4.0, coarse: 2.0 }
+    smoker: { fine: 6.0, coarse: 2.0 }
+    blast-furnace: { fine: 10.0, coarse: 5.0 }
     candle: { fine: 1.0, coarse: 0.0 }
+    # Each torch or lantern (BETA 1.0 Pilot 4), soul and copper ones too: a
+    # room lit by dozens of them gets a little hazy. Redstone torches don't
+    # burn, so they never count.
+    torch: { fine: 0.3, coarse: 0.0 }
   # Pollen in grains/m³ where it turns Moderate, High and Very high.
   pollen-levels: { moderate: 20, high: 80, very-high: 200 }
   # Air purifiers: an iron block on a tube coral block, which is the filter,
