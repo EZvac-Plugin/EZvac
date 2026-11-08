@@ -352,8 +352,8 @@ SEASONS, RAIN OR SNOW, SUN AND OPEN-AIR SMOKE (BETA 1.0 Pilot 4)
   of weather still uses the biomes' vanilla rain and snow shares.
 - snowLineAt: the air at max(altitude.from-y, sea level) with the lapse but
   no underground factor; line = from-y + (air at from-y - 33) / lapse;
-  -inf when already at or below at from-y, +inf with no lapse, NaN when
-  nothing falls.
+  -inf when already at or below at from-y, +inf with no lapse, NaN where
+  rain doesn't reach now (dry-areas); given whether or not it rains.
 - Sun: Sunshine.absorbedWm2 = 110 x sin(pi t / 12000) (0 from sunset to
   sunrise) x (0.8 + 0.2 season factor) x clouds (1 - 0.7 wet - 0.2 storm, at
   least 0.05) x exposure (1 where y > the MOTION_BLOCKING heightmap, else

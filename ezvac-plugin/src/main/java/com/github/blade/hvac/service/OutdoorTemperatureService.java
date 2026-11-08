@@ -322,16 +322,17 @@ public final class OutdoorTemperatureService {
     }
 
     /**
-     * The height above which it snows right now at a column (BETA 1.0 Pilot
-     * 4), out in the open: the air cools with height, so above this it snows
-     * and below it rains. Negative infinity when it snows at every height,
-     * positive infinity when it rains at every height, and NaN when nothing
-     * falls there now (no rain, or a dry area). Never loads a chunk.
+     * The height above which rain would come down as snow right now at a
+     * column (BETA 1.0 Pilot 4), whether or not it is raining, out in the
+     * open: the air cools with height, so above this it snows and below it
+     * rains. Negative infinity when it would snow at every height, positive
+     * infinity when it would rain at every height, and NaN where rain
+     * doesn't reach now (a dry area outside a thunderstorm, or weather off).
+     * Never loads a chunk.
      */
     public double snowLineAt(World world, int x, int z) {
         if (world == null || !climate.weather().enabled()) return Double.NaN;
         WeatherModel.Conditions conditions = conditions(world);
-        if (!conditions.raining()) return Double.NaN;
         ClimateSettings.Altitude altitude = climate.altitude();
         int from = altitude.fromY();
         int y = Math.max(from, world.getSeaLevel());

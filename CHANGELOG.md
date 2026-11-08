@@ -65,7 +65,8 @@ open smoke up the air downwind. The save is unchanged (format 8).
 
 - `precipitationAt(world, x, y, z)` and the `Precipitation` enum: what is
   falling at a block right now.
-- `snowLineAt(world, x, z)`: the height above which it snows at a column.
+- `snowLineAt(world, x, z)`: the height above which rain would come down as
+  snow at a column, raining or not.
 - `SeasonView.progress()`: how far through the year a world is, 0 to 1.
 - `outdoorAirAt` includes the smoke of open fires nearby.
 
