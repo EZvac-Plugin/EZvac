@@ -70,6 +70,8 @@ public final class HvacPlugin extends JavaPlugin {
     private WeatherStationService weatherStations;
     private ForecastMenu forecastMenu;
     private BukkitTask stationTask;
+    private BukkitTask smokeTask;
+    private OutdoorSmokeService outdoorSmoke;
     private BukkitTask sparkTask;
     /** Unregisters %ezvac_*%; null unless PlaceholderAPI is installed. */
     private Runnable placeholderUnregister;
@@ -108,6 +110,9 @@ public final class HvacPlugin extends JavaPlugin {
             outdoor = new OutdoorTemperatureService(climate, weather, seasons,
                     new WindService(climate.wind(), seasons, new RegionClimate(climate, getLogger()::warning)));
             airflow = new AirflowService(registry, outdoor, settings);
+            // Smoke from fires out in the open (BETA 1.0 Pilot 4): their sources are learned as chunks load.
+            outdoorSmoke = new OutdoorSmokeService(climate.airQuality(), airflow::roomSmokeCells);
+            outdoor.setSmoke(outdoorSmoke);
             SizingSettings sizing = SizingSettings.load(getConfig(), getLogger()::warning);
             airflow.setSizing(sizing);
             displays = new DisplayService(this, registry, airflow, outdoor, settings,
@@ -157,6 +162,10 @@ public final class HvacPlugin extends JavaPlugin {
             airflowTask = getServer().getScheduler().runTaskTimer(this, airflow::tick, 1L, 1L);
             // Weather stations measure at sunrise and sunset; the check is one comparison per world.
             stationTask = getServer().getScheduler().runTaskTimer(this, weatherStations::tick, 40L, 40L);
+            getServer().getPluginManager().registerEvents(outdoorSmoke, this);
+            outdoorSmoke.start(getServer().getWorlds());
+            smokeTask = getServer().getScheduler().runTaskTimer(this, () -> outdoorSmoke.refresh(getServer().getWorlds()),
+                    OutdoorSmokeService.REFRESH_TICKS, OutdoorSmokeService.REFRESH_TICKS);
             sparkTask = getServer().getScheduler().runTaskTimer(this, weatherStations::watch, 20L, 20L);
             bubbleTask = getServer().getScheduler().runTaskTimer(this,
                     () -> { audio.bubble(runningUnits); audio.ventBubbles(registry); }, HvacAudioService.BUBBLE_PERIOD_TICKS,
@@ -342,6 +351,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (quickSettings != null) quickSettings.closeAll();
         if (forecastMenu != null) forecastMenu.closeAll();
         if (stationTask != null) stationTask.cancel();
+        if (smokeTask != null) smokeTask.cancel();
         if (sparkTask != null) sparkTask.cancel();
         if (backups != null) backups.stop();
         getServer().getServicesManager().unregisterAll(this);

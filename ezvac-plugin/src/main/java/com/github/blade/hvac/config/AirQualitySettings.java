@@ -23,8 +23,40 @@ import java.util.function.Supplier;
  */
 public record AirQualitySettings(boolean enabled, int referenceCells, Rates settling, Rates systemFilter,
                                  Sources sources, PollenLevels pollenLevels, Purifier purifier,
-                                 Map<String, OutdoorAir.Baseline> biomes) {
+                                 Map<String, OutdoorAir.Baseline> biomes, OutdoorSmoke outdoorSmoke) {
+    /**
+     * Smoke from fires burning out in the open (BETA 1.0 Pilot 4): campfires,
+     * furnaces, smokers, blast furnaces and fire outside any room spread into
+     * the outdoor air downwind.
+     *
+     * @param enabled     whether they count
+     * @param reachBlocks how far the smoke goes, at most
+     * @param strength    how thick it is, 1 as built in
+     */
+    public record OutdoorSmoke(boolean enabled, int reachBlocks, double strength) {
+        public static final OutdoorSmoke DEFAULT = new OutdoorSmoke(true, 96, 1.0);
+
+        public OutdoorSmoke {
+            if (reachBlocks < 8 || reachBlocks > 256)
+                throw new IllegalArgumentException("air-quality.outdoor-smoke.reach-blocks must be 8-256");
+            if (!Double.isFinite(strength) || strength < 0.0 || strength > 5.0)
+                throw new IllegalArgumentException("air-quality.outdoor-smoke.strength must be 0-5");
+        }
+    }
+
+    /** Without outdoor smoke settings, as before Pilot 4: today's defaults. */
+    public AirQualitySettings(boolean enabled, int referenceCells, Rates settling, Rates systemFilter,
+                              Sources sources, PollenLevels pollenLevels, Purifier purifier,
+                              Map<String, OutdoorAir.Baseline> biomes) {
+        this(enabled, referenceCells, settling, systemFilter, sources, pollenLevels, purifier, biomes,
+                OutdoorSmoke.DEFAULT);
+    }
+
+    /** Outdoor smoke counts: air quality on and its own switch on. */
+    public boolean outdoorSmokeOn() { return enabled() && outdoorSmoke.enabled() && outdoorSmoke.strength() > 0.0; }
+
     public AirQualitySettings {
+        outdoorSmoke = outdoorSmoke == null ? OutdoorSmoke.DEFAULT : outdoorSmoke;
         if (referenceCells < 1) throw new IllegalArgumentException("air-quality.reference-cells must be positive");
         biomes = Map.copyOf(biomes == null ? Map.of() : biomes);
     }
@@ -204,7 +236,11 @@ public record AirQualitySettings(boolean enabled, int referenceCells, Rates sett
                         config.getDouble(root + "purifier.filter-capacity", p.filterCapacity()),
                         config.getDouble(root + "purifier.maximum-life-days", p.maximumLifeDays()),
                         config.getDouble(root + "purifier.pollen-weight", p.pollenWeight()))),
-                biomes(config.getConfigurationSection(root + "biomes"), warn));
+                biomes(config.getConfigurationSection(root + "biomes"), warn),
+                section("air-quality.outdoor-smoke", d.outdoorSmoke, warn, () -> new OutdoorSmoke(
+                        config.getBoolean(root + "outdoor-smoke.enabled", d.outdoorSmoke.enabled()),
+                        config.getInt(root + "outdoor-smoke.reach-blocks", d.outdoorSmoke.reachBlocks()),
+                        config.getDouble(root + "outdoor-smoke.strength", d.outdoorSmoke.strength()))));
     }
 
     private static Rates rates(FileConfiguration config, String path, Rates fallback) {

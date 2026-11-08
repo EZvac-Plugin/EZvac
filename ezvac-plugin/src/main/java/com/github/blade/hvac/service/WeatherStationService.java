@@ -287,9 +287,13 @@ public final class WeatherStationService implements Listener {
                 : seasons == null ? OutdoorAir.SUMMER_POLLEN : seasons.pollenFactor(world.getUID());
         boolean dry = area.rainShare() + area.snowShare() < 0.1;
         WindModel.Spot wind = windNow(station);
-        return OutdoorAir.now(new OutdoorAir.Baseline(area.fine(), area.coarse(), area.pollen()), pollen,
-                dry ? 0.0 : outdoor.wetness(world), wind == null ? climate.weather().windClearMs() : wind.speedMs(),
-                area.downfall(), climate.wind());
+        double wet = dry ? 0.0 : outdoor.wetness(world);
+        double windMs = wind == null ? climate.weather().windClearMs() : wind.speedMs();
+        AirQualityModel.Air air = OutdoorAir.now(new OutdoorAir.Baseline(area.fine(), area.coarse(), area.pollen()),
+                pollen, wet, windMs, area.downfall(), climate.wind());
+        // Smoke from open fires near the station (BETA 1.0 Pilot 4), as its sensors at the centre take it in.
+        return outdoor.withSmoke(air, world, centreX(station), Double.NaN, centreZ(station), windMs,
+                wind == null ? Double.NaN : wind.fromDegrees(), wet);
     }
 
     private static double centreX(WeatherStation station) { return station.position().x() + 0.5; }
