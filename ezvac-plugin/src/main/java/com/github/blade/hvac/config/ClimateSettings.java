@@ -20,7 +20,24 @@ import java.util.function.Supplier;
 public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
                               Humidifier humidifier, Variance variance, BiomeBlend biomeBlend,
                               Seasons seasons, Altitude altitude, Underground underground, Biomes biomes,
-                              AirQualitySettings airQuality, WindSettings wind) {
+                              AirQualitySettings airQuality, WindSettings wind, FeelsLike feelsLike) {
+    /**
+     * How warm it feels in the sun (BETA 1.0 Pilot 4): only the feels-like
+     * of readings at a spot changes, never the air temperature.
+     *
+     * @param sun         whether the sun warms the feels-like
+     * @param sunStrength how much: 1 as Steadman's formula, 0 to 2
+     */
+    public record FeelsLike(boolean sun, double sunStrength) {
+        public FeelsLike {
+            if (!Double.isFinite(sunStrength) || sunStrength < 0.0 || sunStrength > 2.0)
+                throw new IllegalArgumentException("feels-like.sun-strength must be 0-2");
+        }
+
+        /** What the sun counts for: 0 when it's switched off. */
+        public double effectiveStrength() { return sun ? sunStrength : 0.0; }
+    }
+
     /**
      * @param easeHours     in-game hours for a full change of weather to take effect
      * @param swingReduction share of the day/night swing that full rain removes
@@ -288,7 +305,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Underground(true, 4, 20),
                 new Biomes(Map.of()),
                 AirQualitySettings.defaults(),
-                WindSettings.defaults());
+                WindSettings.defaults(),
+                new FeelsLike(true, 1.0));
     }
 
     /** Reads strictly: a value out of range throws. */
@@ -377,7 +395,10 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getInt("underground.full-depth", u.fullDepth()))),
                 biomes(config.getConfigurationSection("biomes"), warn),
                 AirQualitySettings.load(config, warn),
-                WindSettings.load(config, warn));
+                WindSettings.load(config, warn),
+                section("feels-like", defaults.feelsLike, warn, () -> new FeelsLike(
+                        config.getBoolean("feels-like.sun", defaults.feelsLike.sun()),
+                        config.getDouble("feels-like.sun-strength", defaults.feelsLike.sunStrength()))));
     }
 
     /**

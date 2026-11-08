@@ -845,7 +845,9 @@ public final class AirflowService {
         }
         double humidity = Psychrometrics.relativeHumidity(localF, dew);
         double wind = out.windMs() * (1.0 - influence) * shelter(location);
-        double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, wind);
+        // The sun warms what the system doesn't condition (BETA 1.0 Pilot 4), as the wind cools it.
+        double sun = influence >= 1.0 ? 0.0 : outdoor.sunshineAt(location) * (1.0 - influence);
+        double feelsLike = Psychrometrics.apparentTemperatureF(localF, humidity, wind, sun);
         return new TemperatureReading(localF, outdoorF, influence, distance, system, thermostat,
                 false, humidity, feelsLike, out.weather(), air, wind, out.windFromDegrees());
     }
