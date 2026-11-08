@@ -60,6 +60,24 @@ public final class SeasonCalendar {
         return true;
     }
 
+    /**
+     * A calendar day counted with seasons {@code fromDays} long, as the same
+     * season and day of season with seasons {@code toDays} long (BETA 1.0
+     * Pilot 4): summer day 8 stays summer day 8, in the same year. A day past
+     * the shorter season's end goes to its last day.
+     */
+    public static long convert(long day, int fromDays, int toDays) {
+        if (fromDays < 1 || toDays < 1) throw new IllegalArgumentException("a season is at least one day");
+        long safe = Math.max(0L, day);
+        if (fromDays == toDays) return safe;
+        long fromYear = 4L * fromDays;
+        long year = safe / fromYear;
+        long intoYear = safe % fromYear;
+        long season = intoYear / fromDays;
+        long dayOfSeason = Math.min(intoYear % fromDays, toDays - 1L);
+        return year * 4L * toDays + season * toDays + dayOfSeason;
+    }
+
     /** The calendar position in ticks, the world's time of day included. */
     public long ticks(long worldFullTime) {
         return day * Seasons.TICKS_PER_DAY + Math.floorMod(worldFullTime, Seasons.TICKS_PER_DAY);

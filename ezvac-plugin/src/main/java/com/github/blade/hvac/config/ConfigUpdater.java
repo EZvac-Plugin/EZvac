@@ -68,6 +68,7 @@ public final class ConfigUpdater {
         HudSettings.adoptAccents(target, added);
         SizingSettings.offOnUpgrade(target, added);
         pilotTwo(target, added);
+        pilotFour(target, added);
         return added;
     }
 
@@ -92,6 +93,25 @@ public final class ConfigUpdater {
         String backups = "backups.auto-every-hours";
         if (!added.contains(backups) && target.getInt(backups, 0) == 0)
             target.set(backups, com.github.blade.hvac.service.RegistryBackups.DEFAULT_HOURS);
+    }
+
+    /** Added in BETA 1.0 Pilot 4, so its being added marks a server's first Pilot 4 start. */
+    public static final String PILOT_4 = "weather.dry-areas";
+
+    /**
+     * A server's first Pilot 4 start: seasons still on the stock 15 days move
+     * to the new stock 30 (maintainer, 2026-11-07: "Move them, same season"),
+     * and natural water's stock 5-day lag to 10 with them. A length or lag an
+     * owner chose is kept. Each world's calendar is converted to the same
+     * season and day when seasons.yml is read.
+     */
+    static void pilotFour(YamlConfiguration target, List<String> added) {
+        if (!added.contains(PILOT_4)) return;
+        String days = "seasons.days-per-season";
+        if (added.contains(days) || target.getInt(days, 0) != 15) return;
+        target.set(days, 30);
+        String lag = "seasons.water-lag-days";
+        if (!added.contains(lag) && target.getDouble(lag, -1.0) == 5.0) target.set(lag, 10.0);
     }
 
     /** True when some parent of the path holds a plain value, which adding the path would overwrite. */
