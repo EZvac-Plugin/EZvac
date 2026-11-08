@@ -686,7 +686,7 @@ public final class OutdoorTemperatureService {
     /** Natural water before it is held at liquid water's minimum and maximum. */
     private double waterUnheld(World world, WeatherModel.Effect effect, BiomeBlend.Blended local) {
         double season = seasonShiftF(world, local.seasonalF(), true);
-        return ThermalModel.naturalWaterTemperature(local.noonF() + season, local.midnightF() + season)
+        return ThermalModel.naturalWaterUnheld(local.noonF() + season, local.midnightF() + season)
                 + effect.meanShiftF() * climate.weather().waterShare();
     }
 
