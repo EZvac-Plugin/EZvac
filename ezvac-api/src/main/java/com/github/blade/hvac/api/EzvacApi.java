@@ -43,7 +43,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.8";
+    String API_VERSION = "1.9";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -224,14 +224,42 @@ public interface EzvacApi {
     /**
      * The outdoor air in the open at a spot right now: its biomes' air with
      * the season's pollen, the rain and the wind, as a weather station there
-     * would read it; no indoor smoke. Works anywhere, explored or not, and
-     * never loads a chunk. Empty with air quality switched off or outside the
-     * overworld. Main thread only.
+     * would read it; no indoor smoke, but since EZvac BETA 1.0 Pilot 4 the
+     * smoke of fires burning in the open nearby, carried downwind. Works
+     * anywhere, explored or not, and never loads a chunk. Empty with air
+     * quality switched off or outside the overworld. Main thread only.
      *
      * @since 1.8
      */
     default Optional<AirQuality> outdoorAirAt(World world, int x, int z) {
         return Optional.empty();
+    }
+
+    /**
+     * What is falling at a block right now: nothing while the world isn't
+     * raining or where the rain doesn't reach, otherwise rain or snow by
+     * EZvac's air at that block. An addon can show it in the world, as
+     * EZclimates does. Never loads a chunk. Main thread only.
+     *
+     * @since 1.9
+     */
+    default Precipitation precipitationAt(World world, int x, int y, int z) {
+        return Precipitation.NONE;
+    }
+
+    /**
+     * The height above which it is snowing right now at a column, out in the
+     * open: EZvac's air cools with height, so above it snow falls and below
+     * it rain. {@link Double#NEGATIVE_INFINITY} where it snows at every
+     * height, {@link Double#POSITIVE_INFINITY} where it rains at every
+     * height, and NaN where nothing falls now (it isn't raining, or a dry
+     * place the rain doesn't reach). One call answers for a whole chunk's
+     * column. Never loads a chunk. Main thread only.
+     *
+     * @since 1.9
+     */
+    default double snowLineAt(World world, int x, int z) {
+        return Double.NaN;
     }
 
     /**
