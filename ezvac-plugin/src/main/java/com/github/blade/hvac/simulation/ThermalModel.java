@@ -166,8 +166,18 @@ public final class ThermalModel {
     public static double naturalWaterTemperature(double noonF, double midnightF) {
         requireFinite("noon temperature", noonF);
         requireFinite("midnight temperature", midnightF);
-        double mean = (noonF + midnightF) / 2.0;
-        return Math.max(NATURAL_WATER_MINIMUM_F, Math.min(NATURAL_WATER_MAXIMUM_F, mean * 0.85 + 8.0));
+        return Math.max(NATURAL_WATER_MINIMUM_F, Math.min(NATURAL_WATER_MAXIMUM_F, naturalWaterUnheld(noonF, midnightF)));
+    }
+
+    /**
+     * The same before it is held at liquid water's range (BETA 1.0 Pilot 4):
+     * at or below 32 F a lake would be freezing over. A daily mean of about
+     * 28 F brings it there.
+     */
+    public static double naturalWaterUnheld(double noonF, double midnightF) {
+        requireFinite("noon temperature", noonF);
+        requireFinite("midnight temperature", midnightF);
+        return (noonF + midnightF) / 2.0 * 0.85 + 8.0;
     }
 
     public static final double NATURAL_WATER_MINIMUM_F = 33.0;
