@@ -298,7 +298,8 @@ climate.
 | `swing-reduction` | 0.6 | Share of the day/night swing full rain takes away |
 | `water-share` | 0.1 | Share of the air's change natural water follows |
 | `wind-clear-ms`, `wind-rain-ms`, `wind-thunder-ms` | 1.5, 3, 5 | Outdoor wind for "feels like", in m/s. With the daily wind on, `wind-clear-ms` is unused and rain and thunder add their difference from it to the day's wind |
-| `snow-at-or-below-f` | 33 | While it rains, snow falls where EZvac's air is this cold or colder, and rain elsewhere (BETA 1.0 Pilot 4; -40 to 50) |
+| `snow-at-or-below-f` | 33 | While it rains, snow falls where EZvac's air is this cold or colder, and rain elsewhere; each 64-block area decides together, from the air at its ground (BETA 1.0 Pilot 4; -40 to 50) |
+| `snow-in-winter-below-f` | 40 | The same line in winter, higher: real snow often falls a few degrees above freezing. 200 snows all winter wherever weather reaches (BETA 1.0 Pilot 4) |
 | `dry-areas` | thunder | Deserts, savannas and badlands in rain: `never` (dry, as vanilla), `thunder` (rain only in thunderstorms) or `always` (BETA 1.0 Pilot 4) |
 
 With `enabled: false` temperatures ignore the weather, but weather sensors

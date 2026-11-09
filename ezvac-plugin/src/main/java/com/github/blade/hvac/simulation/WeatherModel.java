@@ -144,6 +144,26 @@ public final class WeatherModel {
         return Double.isFinite(airF) && airF <= settings.snowAtOrBelowF() ? Precipitation.SNOW : Precipitation.RAIN;
     }
 
+    /** A snowing area keeps snowing until its air is this much past the line, and a raining one the same. */
+    public static final double KEEP_F = 2.0;
+
+    /**
+     * What weather brings to an area (BETA 1.0 Pilot 4), against its own
+     * line ({@code snowBelowF}: lower outside winter), keeping what it
+     * already had until the air is {@link #KEEP_F} past the line.
+     *
+     * @param before what the area had; null for none yet
+     */
+    public static Precipitation kind(BiomeBlend.Blended climate, double airF, Conditions conditions,
+                                     ClimateSettings.Weather settings, double snowBelowF, Precipitation before) {
+        Precipitation reached = kind(climate, airF, conditions, settings);
+        if (reached == Precipitation.NONE) return Precipitation.NONE;
+        if (!Double.isFinite(airF)) return Precipitation.RAIN;
+        double line = before == Precipitation.SNOW ? snowBelowF + KEEP_F
+                : before == Precipitation.RAIN ? snowBelowF - KEEP_F : snowBelowF;
+        return airF <= line ? Precipitation.SNOW : Precipitation.RAIN;
+    }
+
     /** What is falling at a spot right now: {@link #kind} while the world rains, NONE otherwise. */
     public static Precipitation falling(BiomeBlend.Blended climate, double airF, Conditions conditions,
                                         ClimateSettings.Weather settings) {

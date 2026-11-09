@@ -345,15 +345,23 @@ SEASONS, RAIN OR SNOW, SUN AND OPEN-AIR SMOKE (BETA 1.0 Pilot 4)
   stock water lag of 5 to 10. An unset water-lag-days is days-per-season / 3.
 - Rain or snow: WeatherModel.kind = NONE where the blend's wet share < 0.5
   and weather.dry-areas forbids it (never; thunder outside thunderstorms),
-  else SNOW at air <= weather.snow-at-or-below-f (33), else RAIN; falling()
-  is kind() while the world rains. Only NORMAL worlds. The weather word and
+  else SNOW at air <= the line, else RAIN; the line is
+  weather.snow-at-or-below-f (33), or snow-in-winter-below-f (40) while the
+  calendar is in winter. Decided per 64-block area (OutdoorTemperatureService
+  .area) from the air at the area centre's ground (MOTION_BLOCKING_NO_LEAVES
+  + 1 where loaded, else sea level + 1), looked at again every 200 ticks; a
+  snowing area keeps snow until 2 F above the line, a raining one rain until
+  2 F below, and it changes at most once per 1000 ticks (at once after a
+  clock jump, or when rain stops reaching it). A block 48 or more above its
+  area's ground, in a raining area, snows by its own air. falling() is it
+  while the world rains. Only NORMAL worlds. The weather word and
   Forecast.day (snow when the day's (high + low) / 2 is at or below the line;
   a dry area's rain chance follows dry-areas) use it. The temperature effect
   of weather still uses the biomes' vanilla rain and snow shares.
-- snowLineAt: the air at max(altitude.from-y, sea level) with the lapse but
-  no underground factor; line = from-y + (air at from-y - 33) / lapse;
-  -inf when already at or below at from-y, +inf with no lapse, NaN where
-  rain doesn't reach now (dry-areas); given whether or not it rains.
+- snowLineAt: -inf where the column's area snows; in a raining area
+  max(area ground + 48, from-y + (air at from-y - line) / lapse) from the
+  area's air at its ground (+inf with no lapse); NaN where rain doesn't
+  reach now (dry-areas); given whether or not it rains.
 - Sun: Sunshine.absorbedWm2 = 110 x sin(pi t / 12000) (0 from sunset to
   sunrise) x (0.8 + 0.2 season factor) x clouds (1 - 0.7 wet - 0.2 storm, at
   least 0.05) x exposure (1 where y > the MOTION_BLOCKING heightmap, else

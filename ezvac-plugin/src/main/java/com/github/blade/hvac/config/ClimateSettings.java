@@ -44,11 +44,12 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
      * @param waterShare    share of the air's weather shift that natural water follows
      * @param snowAtOrBelowF while it rains, snow falls where the air is this cold or colder (BETA 1.0 Pilot 4)
      * @param dryAreas      whether rain reaches places vanilla keeps dry (BETA 1.0 Pilot 4)
+     * @param snowInWinterBelowF in winter, snow falls where the air is colder than this (BETA 1.0 Pilot 4)
      */
     public record Weather(boolean enabled, double easeHours, double rainCoolingF, double thunderCoolingF,
                           double snowCoolingF, double swingReduction, double waterShare,
                           double windClearMs, double windRainMs, double windThunderMs,
-                          double snowAtOrBelowF, DryAreas dryAreas) {
+                          double snowAtOrBelowF, DryAreas dryAreas, double snowInWinterBelowF) {
         /** Deserts, badlands and savannas in rain (BETA 1.0 Pilot 4). */
         public enum DryAreas {
             /** Always dry, as in vanilla. */
@@ -71,13 +72,16 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                        double snowCoolingF, double swingReduction, double waterShare,
                        double windClearMs, double windRainMs, double windThunderMs) {
             this(enabled, easeHours, rainCoolingF, thunderCoolingF, snowCoolingF, swingReduction, waterShare,
-                    windClearMs, windRainMs, windThunderMs, 33.0, DryAreas.THUNDER);
+                    windClearMs, windRainMs, windThunderMs, 33.0, DryAreas.THUNDER, 40.0);
         }
 
         public Weather {
             requireFinite("weather.snow-at-or-below-f", snowAtOrBelowF);
             if (snowAtOrBelowF < -40.0 || snowAtOrBelowF > 50.0)
                 throw new IllegalArgumentException("weather.snow-at-or-below-f must be -40 to 50");
+            requireFinite("weather.snow-in-winter-below-f", snowInWinterBelowF);
+            if (snowInWinterBelowF < snowAtOrBelowF || snowInWinterBelowF > 200.0)
+                throw new IllegalArgumentException("weather.snow-in-winter-below-f must be from snow-at-or-below-f to 200");
             if (dryAreas == null)
                 throw new IllegalArgumentException("weather.dry-areas must be never, thunder or always");
             requirePositive("weather.ease-hours", easeHours);
@@ -345,7 +349,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getDouble("weather.wind-thunder-ms", w.windThunderMs()),
                         config.getDouble("weather.snow-at-or-below-f", w.snowAtOrBelowF()),
                         config.contains("weather.dry-areas")
-                                ? Weather.DryAreas.parse(config.getString("weather.dry-areas")) : w.dryAreas())),
+                                ? Weather.DryAreas.parse(config.getString("weather.dry-areas")) : w.dryAreas(),
+                        config.getDouble("weather.snow-in-winter-below-f", w.snowInWinterBelowF()))),
                 section("humidity", h, warn, () -> new Humidity(config.getDouble("humidity.outdoor-rh-dry", h.outdoorRhDry()),
                         config.getDouble("humidity.outdoor-rh-wet", h.outdoorRhWet()),
                         config.getDouble("humidity.rain-rh", h.rainRh()),

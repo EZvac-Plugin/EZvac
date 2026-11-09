@@ -251,9 +251,11 @@ public final class WeatherStationService implements Listener {
             var air = OutdoorAir.now(baseline, factor, rain, windMs, area.downfall(), climate.wind());
             double pollen = climate.airQuality().enabled() && climate.airQuality().pollen() ? air.pollen() : Double.NaN;
             int aqi = climate.airQuality().enabled() ? AirQualityIndex.aqi(air) : -1;
+            boolean winter = seasons != null && climate.seasons().enabled() && seasons.tracks(world.getUID())
+                    && seasons.seasonIn(world.getUID(), ahead) == com.github.blade.hvac.simulation.Seasons.Season.WINTER;
             Forecast.Day day = Forecast.day(ahead, area, outdoor.seasonShiftIn(world, area.seasonalF(), ahead),
-                    odds.rain()[ahead], odds.thunder()[ahead], windDay, pollen, "", climate.weather());
-            boolean snow = Forecast.snows(day.highF(), day.lowF(), climate.weather());
+                    odds.rain()[ahead], odds.thunder()[ahead], windDay, pollen, "", climate.weather(), winter);
+            boolean snow = Forecast.snows(day.highF(), day.lowF(), climate.weather(), winter);
             days.add(day.withNote(Forecast.note(clocks, ahead, snow, dry)).withAqi(aqi));
         }
         return days;

@@ -270,20 +270,95 @@ public final class OutdoorTemperatureService {
      * the air there (BETA 1.0 Pilot 4; before, the kind its surroundings
      * mostly get in vanilla).
      */
-    private String weatherWord(World world, BiomeBlend.Blended local, double airF) {
-        if (!climate.weather().enabled()) return "";
+    private String weatherWord(World world, double x, double y, double z) {
+        if (!climate.weather().enabled() || world == null) return "";
         WeatherModel.Conditions conditions = conditions(world);
-        return WeatherModel.word(kind(world, local, airF, conditions), conditions);
+        return WeatherModel.word(kindAt(world, (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z),
+                conditions), conditions);
+    }
+
+    /** Areas that decide rain or snow together, in blocks (BETA 1.0 Pilot 4). */
+    static final int AREA_BLOCKS = 64;
+    /** Ground this far above its area's is a peak, which snows by its own air. */
+    static final int PEAK_ABOVE_BLOCKS = 48;
+    /** An area changes between rain and snow at most this often, in ticks: an in-game hour. */
+    static final long HOLD_TICKS = 1_000L;
+    /** How long an area's decision is trusted before it is looked at again, in ticks. */
+    static final long FRESH_TICKS = 200L;
+
+    /** One area's rain or snow: what it decided, when, and its ground and air when last looked at. */
+    private static final class Area {
+        Precipitation kind;
+        long decidedAt;
+        long checkedAt;
+        int groundY;
+        double airF;
+        double lineF;
+    }
+
+    private final Map<UUID, Long2ObjectOpenHashMap<Area>> areas = new HashMap<>();
+
+    /** The line between rain and snow now: higher in winter (BETA 1.0 Pilot 4). */
+    private double snowBelowF(World world) {
+        ClimateSettings.Weather settings = climate.weather();
+        boolean winter = seasons != null && climate.seasons().enabled() && seasons.tracks(world.getUID())
+                && seasons.season(world.getUID()) == Seasons.Season.WINTER;
+        return winter ? settings.snowInWinterBelowF() : settings.snowAtOrBelowF();
+    }
+
+    /**
+     * The area a block is in, looked at again when its decision is old: its
+     * ground (where loaded), the air there, and rain or snow, which only
+     * changes once an in-game hour has passed (at once when the clock jumps
+     * or rain stops reaching it).
+     */
+    private Area area(World world, int x, int z, WeatherModel.Conditions conditions) {
+        Long2ObjectOpenHashMap<Area> map = areas.computeIfAbsent(world.getUID(), ignored -> new Long2ObjectOpenHashMap<>());
+        int ax = Math.floorDiv(x, AREA_BLOCKS), az = Math.floorDiv(z, AREA_BLOCKS);
+        long key = HvacRegistry.cellKey(ax, az);
+        long now = world.getGameTime();
+        Area area = map.get(key);
+        if (area != null && now >= area.checkedAt && now - area.checkedAt < FRESH_TICKS) return area;
+        int cx = ax * AREA_BLOCKS + AREA_BLOCKS / 2, cz = az * AREA_BLOCKS + AREA_BLOCKS / 2;
+        int ground = world.isChunkLoaded(cx >> 4, cz >> 4)
+                ? world.getHighestBlockYAt(cx, cz, HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1 : world.getSeaLevel() + 1;
+        BiomeBlend.Blended local = blendedAt(world, cx, ground, cz);
+        double airF = air(world, local);
+        double line = snowBelowF(world);
+        boolean jumped = area == null || now < area.checkedAt || now - area.checkedAt > HOLD_TICKS * 2;
+        Precipitation fresh = WeatherModel.kind(local, airF, conditions, climate.weather(), line,
+                jumped ? null : area.kind);
+        if (area == null) {
+            area = new Area();
+            map.put(key, area);
+            if (map.size() > 20_000) map.clear();
+        }
+        if (jumped || area.kind == null || fresh == Precipitation.NONE || area.kind == Precipitation.NONE
+                || now - area.decidedAt >= HOLD_TICKS || now < area.decidedAt) {
+            if (fresh != area.kind) area.decidedAt = now;
+            area.kind = fresh;
+        }
+        area.checkedAt = now;
+        area.groundY = ground;
+        area.airF = airF;
+        area.lineF = line;
+        return area;
+    }
+
+    /**
+     * What weather brings to a block (BETA 1.0 Pilot 4): its area's rain or
+     * snow, or, on ground well above its area's (a peak), snow where its own
+     * air is at or below the line.
+     */
+    private Precipitation kindAt(World world, int x, int y, int z, WeatherModel.Conditions conditions) {
+        if (world.getEnvironment() != World.Environment.NORMAL) return Precipitation.NONE;
+        Area area = area(world, x, z, conditions);
+        if (area.kind != Precipitation.RAIN || y < area.groundY + PEAK_ABOVE_BLOCKS) return area.kind;
+        return air(world, blendedAt(world, x, y, z)) <= area.lineF ? Precipitation.SNOW : Precipitation.RAIN;
     }
 
     private WeatherModel.Conditions conditions(World world) {
         return weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
-    }
-
-    /** Only worlds with a sky get weather: the Nether and the End never do, whatever dry-areas says. */
-    private Precipitation kind(World world, BiomeBlend.Blended local, double airF, WeatherModel.Conditions conditions) {
-        if (world == null || world.getEnvironment() != World.Environment.NORMAL) return Precipitation.NONE;
-        return WeatherModel.kind(local, airF, conditions, climate.weather());
     }
 
     /**
@@ -317,33 +392,29 @@ public final class OutdoorTemperatureService {
         if (world == null || !climate.weather().enabled()) return Precipitation.NONE;
         WeatherModel.Conditions conditions = conditions(world);
         if (!conditions.raining()) return Precipitation.NONE;
-        BiomeBlend.Blended local = blendedAt(world, x, y, z);
-        return kind(world, local, air(world, local), conditions);
+        return kindAt(world, x, y, z, conditions);
     }
 
     /**
      * The height above which rain would come down as snow right now at a
-     * column (BETA 1.0 Pilot 4), whether or not it is raining, out in the
-     * open: the air cools with height, so above this it snows and below it
-     * rains. Negative infinity when it would snow at every height, positive
-     * infinity when it would rain at every height, and NaN where rain
-     * doesn't reach now (a dry area outside a thunderstorm, or weather off).
-     * Never loads a chunk.
+     * column (BETA 1.0 Pilot 4), whether or not it is raining: negative
+     * infinity where its area snows (at every height), and in a raining
+     * area the height where a peak's own air is cold enough, never less than
+     * 48 blocks above the area's ground (positive infinity if never). NaN
+     * where rain doesn't reach now (a dry area outside a thunderstorm, the
+     * Nether and the End, or weather off). Never loads a chunk.
      */
     public double snowLineAt(World world, int x, int z) {
-        if (world == null || !climate.weather().enabled()) return Double.NaN;
-        WeatherModel.Conditions conditions = conditions(world);
+        if (world == null || !climate.weather().enabled() || world.getEnvironment() != World.Environment.NORMAL)
+            return Double.NaN;
+        Area area = area(world, x, z, conditions(world));
+        if (area.kind == Precipitation.NONE) return Double.NaN;
+        if (area.kind == Precipitation.SNOW) return Double.NEGATIVE_INFINITY;
+        // A raining area: only peaks well above its ground snow, where their own air is cold enough.
         ClimateSettings.Altitude altitude = climate.altitude();
-        int from = altitude.fromY();
-        // Measured at the ground where it's loaded, so a hill's own biome counts and not one inside it.
-        int ground = world.isChunkLoaded(x >> 4, z >> 4)
-                ? world.getHighestBlockYAt(x, z, HeightMap.MOTION_BLOCKING_NO_LEAVES) + 1 : world.getSeaLevel();
-        int y = Math.max(from, ground);
-        BiomeBlend.Blended local = surroundingsAt(world, x, y, z)
-                .warmer(-BiomeClimate.lapseF(y, from, altitude.lapseFPerBlock()));
-        double airF = air(world, local);
-        if (kind(world, local, airF, conditions) == Precipitation.NONE) return Double.NaN;
-        return snowLine(airF, y, from, altitude.lapseFPerBlock(), climate.weather().snowAtOrBelowF());
+        double byHeight = snowLine(area.airF, Math.max(altitude.fromY(), area.groundY), altitude.fromY(),
+                altitude.lapseFPerBlock(), area.lineF);
+        return Math.max(area.groundY + PEAK_ABOVE_BLOCKS, byHeight);
     }
 
     /**
@@ -636,7 +707,7 @@ public final class OutdoorTemperatureService {
         double dew = HumidityModel.outdoorDewPointF(now.noonF(), now.midnightF(), now.downfall(), effect, airF,
                 climate.humidity());
         double from = spot == null || !(effect.windMs() > 0.0) ? Double.NaN : spot.fromDegrees();
-        return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, local, airF),
+        return new Outdoor(airF, water(world, effect, local), dew, effect.windMs(), weatherWord(world, x, y, z),
                 withSmoke(outdoorAir(world, local, effect), world, x, y, z, effect.windMs(), from, effect.wetness()),
                 from);
     }

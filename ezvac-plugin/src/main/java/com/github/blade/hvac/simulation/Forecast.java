@@ -194,6 +194,13 @@ public final class Forecast {
     public static Day day(int ahead, WeatherStation.Area area, double seasonShiftF, double rainChance,
                           double thunderChance, WindModel.Day wind, double pollen, String note,
                           ClimateSettings.Weather weather) {
+        return day(ahead, area, seasonShiftF, rainChance, thunderChance, wind, pollen, note, weather, false);
+    }
+
+    /** The same, knowing whether the day falls in winter (BETA 1.0 Pilot 4). */
+    public static Day day(int ahead, WeatherStation.Area area, double seasonShiftF, double rainChance,
+                          double thunderChance, WindModel.Day wind, double pollen, String note,
+                          ClimateSettings.Weather weather, boolean winter) {
         // A dry area's rain follows weather.dry-areas (BETA 1.0 Pilot 4): none, only thunderstorms', or all.
         if (dry(area)) {
             switch (weather.dryAreas()) {
@@ -211,7 +218,7 @@ public final class Forecast {
         double highF = effect.noonF(blended.noonF(), blended.midnightF());
         double lowF = effect.midnightF(blended.noonF(), blended.midnightF());
         // Snow or rain by the day's own air (BETA 1.0 Pilot 4; before, by the area's biomes).
-        Sky sky = rainChance >= 0.5 && snows(highF, lowF, weather) ? Sky.SNOW
+        Sky sky = rainChance >= 0.5 && snows(highF, lowF, weather, winter) ? Sky.SNOW
                 : thunderChance >= 0.5 ? Sky.THUNDER
                 : rainChance >= 0.5 ? Sky.RAIN
                 : Sky.CLEAR;
@@ -225,6 +232,11 @@ public final class Forecast {
 
     /** A day whose rain comes down as snow: its air, between its high and its low, at or below the snow line. */
     public static boolean snows(double highF, double lowF, ClimateSettings.Weather weather) {
-        return (highF + lowF) / 2.0 <= weather.snowAtOrBelowF();
+        return snows(highF, lowF, weather, false);
+    }
+
+    /** The same on a winter day, whose line is higher (BETA 1.0 Pilot 4). */
+    public static boolean snows(double highF, double lowF, ClimateSettings.Weather weather, boolean winter) {
+        return (highF + lowF) / 2.0 <= (winter ? weather.snowInWinterBelowF() : weather.snowAtOrBelowF());
     }
 }

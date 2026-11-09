@@ -21,10 +21,16 @@ open smoke up the air downwind. The save is unchanged (format 8).
 
 ### Rain or snow
 
-- **While it rains, it snows wherever EZvac's air is at or below 33 °F,** and
-  rains elsewhere. The season, height and time of day all count: the plains
-  snow in a cold winter, a mountain can snow at the top and rain at its foot,
-  and a warm spell rains on the tundra. Vanilla decided by biome alone.
+- **Rain or snow by EZvac's air,** season and time of day included: the
+  plains snow in a cold winter, a warm spell rains on the tundra, and a
+  mountain top can be white while the valley rains. Vanilla decided by biome
+  alone.
+- **It snows below 33 °F, and in winter below 40 °F,** since real snow often
+  falls a few degrees above freezing, so plains and forests snow through
+  most of winter while savannas and jungles still rain.
+- **Each 64-block area decides together,** from the air at its ground, so rain
+  and snow meet along a line on the land, not in layers above you, and a
+  storm keeps its kind until the air is 2 °F past the line.
 - **Dry places get rain in thunderstorms:** deserts, savannas and badlands
   stay dry in ordinary rain. `weather.dry-areas` (`never`, `thunder`,
   `always`) sets it; `weather.snow-at-or-below-f` sets the snow line's
@@ -76,7 +82,8 @@ open smoke up the air downwind. The save is unchanged (format 8).
 
 - New settings are added to `config.yml` with their comments: `feels-like`,
   `weather.snow-at-or-below-f` and `dry-areas`, `air-quality.sources.smoker`,
-  `blast-furnace` and `torch`, and `air-quality.outdoor-smoke`. A stock
+  `blast-furnace` and `torch`, `air-quality.outdoor-smoke`, and
+  `weather.snow-in-winter-below-f`. A stock
   `seasons.days-per-season: 15` moves to 30 and a stock
   `water-lag-days: 5.0` to 10; the previous files are kept as backups.
 

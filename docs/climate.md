@@ -117,13 +117,26 @@ step. The outdoors at a spot is the average of the biomes around it, within
   narrow the day/night swing; snow cools by 3 °F.
 - Vanilla weather switches in an instant, so the effect eases in and out over
   about two in-game hours.
-- **Rain or snow is EZvac's own call** (BETA 1.0 Pilot 4): while it rains, it
-  snows wherever the air is at or below 33 °F (`weather.snow-at-or-below-f`)
-  and rains elsewhere. Because the air counts the season, the height and the
-  time of day, a mountain can snow at the top and rain at its foot, a cold
-  night can turn evening rain to snow, and a warm spell rains on the tundra.
-  Vanilla decides by biome alone. The weather word on the HUD, sensors and
-  `%ezvac_weather%`, and weather stations' forecasts, follow it.
+- **Rain or snow is EZvac's own call** (BETA 1.0 Pilot 4), by its air, so
+  the season and the time of day count: a cold night can turn evening rain
+  to snow, and a warm spell rains on the tundra. Vanilla decides by biome
+  alone.
+  - **Each 64-block area decides together,** from the air at its ground, so
+    rain and snow meet along a line on the land, never in layers above you.
+  - **It snows where that air is at or below 33 °F, and in winter below
+    40 °F** (`weather.snow-at-or-below-f`, `snow-in-winter-below-f`): real
+    snow often falls a few degrees above freezing. So the plains and forests
+    snow through most of winter and rain on a mild day, while savannas and
+    jungles still rain. Set the winter one to 200 for snow all winter
+    wherever weather reaches.
+  - **Peaks:** ground 48 blocks or more above its area's snows by its own
+    air, so a mountain top can be white while the valley rains.
+  - **A storm keeps its kind:** an area that is snowing keeps snowing until
+    its air is 2 °F above the line (and rain the same the other way), and
+    changes at most once an in-game hour, so it doesn't flicker at dawn.
+  - The weather word on the HUD, sensors and `%ezvac_weather%`, and weather
+    stations' forecasts (by the day's air, with winter's line on winter
+    days), follow it.
 - **Dry places** (deserts, savannas, badlands) follow `weather.dry-areas`:
   `thunder` by default, so ordinary rain passes them by but a thunderstorm
   rains on them; `never` keeps them dry as in vanilla, `always` rains on them
