@@ -36,7 +36,24 @@ public final class WindService {
     /** Null outside a running server (tests): everywhere is then in the westerlies. */
     private final RegionClimate regions;
 
-    private record Today(long day, WindModel.Day today, WindModel.Day yesterday) {}
+    private record Today(long day, WindModel.Day today, WindModel.Day yesterday, WindModel.Level floor) {}
+
+    private PlannedWeather planned = PlannedWeather.none();
+
+    /** An addon's weather plan (BETA 1.0 Pilot 4): a planned storm raises the day's wind. */
+    public void setPlannedWeather(PlannedWeather planned) {
+        this.planned = Objects.requireNonNull(planned, "planned");
+        days.clear();
+    }
+
+    /** The least wind a planned storm brings now: a snowstorm a gale, a thunderstorm windy. */
+    private WindModel.Level floor(World world) {
+        return planned.eventNow(world).map(event -> switch (event) {
+            case SNOWSTORM -> WindModel.Level.GALE;
+            case THUNDERSTORM -> WindModel.Level.WINDY;
+            default -> null;
+        }).orElse(null);
+    }
     /** A level an admin set for the day, and the direction, NaN to leave it as it would blow. */
     private record Held(long day, WindModel.Level level, double fromDegrees) {}
     private record Speed(long fullTime, long day, double speedMs) {}
@@ -192,8 +209,9 @@ public final class WindService {
         UUID id = world.getUID();
         // Keyed by the day, so a new season or day from /hvac season set redraws it at once.
         long day = dayOf(world);
+        WindModel.Level floor = floor(world);
         Today cached = days.get(id);
-        if (cached != null && cached.day() == day) return cached;
+        if (cached != null && cached.day() == day && cached.floor() == floor) return cached;
         Held level = held.get(id);
         if (level != null && level.day() != day) {
             held.remove(id);
@@ -202,9 +220,12 @@ public final class WindService {
         WindModel.Day today = level != null ? WindModel.day(world.getSeed(), day, level.level(), settings).holding()
                 : drawn(world, day, 0);
         if (level != null && Double.isFinite(level.fromDegrees())) today = today.from(level.fromDegrees());
+        // A planned storm (API 1.9) blows at least so hard, unless an admin set the day.
+        if (level == null && floor != null && today.level().ordinal() < floor.ordinal())
+            today = WindModel.day(world.getSeed(), day, floor, settings);
         // Yesterday as it was drawn, for the dawn ease: a level held then has run out. A level held
         // now takes hold at once, with no ease from yesterday's wind.
-        Today computed = new Today(day, today, level != null ? null : drawn(world, day - 1, -1));
+        Today computed = new Today(day, today, level != null ? null : drawn(world, day - 1, -1), floor);
         days.put(id, computed);
         return computed;
     }

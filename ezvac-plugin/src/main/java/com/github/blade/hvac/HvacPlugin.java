@@ -113,6 +113,8 @@ public final class HvacPlugin extends JavaPlugin {
             // Smoke from fires out in the open (BETA 1.0 Pilot 4): their sources are learned as chunks load.
             outdoorSmoke = new OutdoorSmokeService(climate.airQuality(), airflow::roomSmokeCells);
             outdoor.setSmoke(outdoorSmoke);
+            // An addon's weather plan (API 1.9), once one registers; until then Minecraft's own weather.
+            outdoor.setPlannedWeather(new PlannedWeather(getLogger()::warning));
             SizingSettings sizing = SizingSettings.load(getConfig(), getLogger()::warning);
             airflow.setSizing(sizing);
             displays = new DisplayService(this, registry, airflow, outdoor, settings,

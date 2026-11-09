@@ -465,6 +465,23 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         return outdoor.naturalWaterUnheldAt(world, x, y, z);
     }
 
+    @Override
+    public void setWeatherPlan(org.bukkit.plugin.Plugin plugin, com.github.blade.hvac.api.WeatherPlan plan) {
+        java.util.Objects.requireNonNull(plugin, "plugin");
+        outdoor.plannedWeather().set(plugin, plan);
+    }
+
+    @Override
+    public Optional<com.github.blade.hvac.api.WeatherPlan> weatherPlan() {
+        return outdoor.plannedWeather().plan();
+    }
+
+    /** A plugin's weather plan goes with it (API 1.9). */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onPlanOwnerDisable(org.bukkit.event.server.PluginDisableEvent event) {
+        outdoor.plannedWeather().dropFrom(event.getPlugin());
+    }
+
     private Optional<SeasonView.Season> seasonOf(World world) {
         return season(world).map(SeasonView::season);
     }
