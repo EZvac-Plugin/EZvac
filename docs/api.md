@@ -92,6 +92,7 @@ server runs.
 | `windAt(world, x, z)` | The wind on open, level ground there right now, with its direction: anywhere, explored or not, without loading a chunk, so a map can draw it (1.8) |
 | `outdoorAirAt(world, x, z)` | The open outdoor air there right now as an `AirQuality`: its biomes' air with the season's pollen, the rain and the wind, and since 1.9 the smoke of fires burning in the open nearby; anywhere, without loading a chunk (1.8) |
 | `precipitationAt(world, x, y, z)` | What is falling at a block right now: `Precipitation.NONE`, `RAIN` or `SNOW`, by EZvac's air there (1.9) |
+| `setWeatherPlan(plugin, plan)`, `weatherPlan()` | Plan the weather from an addon (1.9): a `WeatherPlan` gives each day's `Outlook` (rain and thunder chances, a temperature shift, a `WeatherEvent`: `SNOWSTORM`, `THUNDERSTORM`, `HEAT_WAVE`, `COLD_SNAP`, and a note), the shift and event right now. Stations forecast from it, the outdoor air takes its shift, a snowstorm's wind is a gale. One plan at a time; it goes with its plugin. The addon drives Minecraft's weather to match |
 | `freezingWaterF(world, x, y, z)` | How cold natural water is getting at a block, before EZvac holds liquid water at 33 °F: at or below 32 °F a lake would be freezing (1.9) |
 | `snowLineAt(world, x, z)` | The height above which rain would come down as snow at a column right now, raining or not: negative infinity where it would snow at every height, positive infinity where it would rain at every height, NaN where rain doesn't reach (a dry place outside a thunderstorm) (1.9) |
 | `units()` | Whether the server shows players °F or °C |
@@ -329,6 +330,6 @@ depend: [EZvac]
   `blocked()`), and 1.8 with BETA 1.0 Pilot 3 (the wind's direction,
   `windAt()`, `outdoorAirAt()`, `windForecast(location, days)`, and a
   station's `wind()`, `airQuality()` and each day's `aqi()`), and 1.9 with
-  BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `Precipitation`
+  BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `WeatherPlan`, `WeatherEvent`, `setWeatherPlan()`, `Precipitation`
   and `SeasonView.progress()`).
   Depend on the oldest EZvac whose API has what you use.
