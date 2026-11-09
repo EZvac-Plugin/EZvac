@@ -121,8 +121,11 @@ step. The outdoors at a spot is the average of the biomes around it, within
   the season and the time of day count: a cold night can turn evening rain
   to snow, and a warm spell rains on the tundra. Vanilla decides by biome
   alone.
-  - **Each 64-block area decides together,** from the air at its ground, so
-    rain and snow meet along a line on the land, never in layers above you.
+  - **Decided across the land, not by height:** each 64-block area works out
+    how far the air at its ground is from the line, every spot blends that
+    from the four nearest areas and a little noise is added, so rain and
+    snow meet along a wavy line on the land that follows the cold, never in
+    layers above you and never along a grid.
   - **It snows where that air is at or below 33 °F, and in winter below
     40 °F** (`weather.snow-at-or-below-f`, `snow-in-winter-below-f`): real
     snow often falls a few degrees above freezing. So the plains and forests
