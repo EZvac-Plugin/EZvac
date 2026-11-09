@@ -316,7 +316,8 @@ public final class OutdoorTemperatureService {
         Long2ObjectOpenHashMap<Area> map = areas.computeIfAbsent(world.getUID(), ignored -> new Long2ObjectOpenHashMap<>());
         int ax = Math.floorDiv(x, AREA_BLOCKS), az = Math.floorDiv(z, AREA_BLOCKS);
         long key = HvacRegistry.cellKey(ax, az);
-        long now = world.getGameTime();
+        // The world's clock, so /time set and sleeping count as the jumps they are.
+        long now = world.getFullTime();
         Area area = map.get(key);
         if (area != null && now >= area.checkedAt && now - area.checkedAt < FRESH_TICKS) return area;
         int cx = ax * AREA_BLOCKS + AREA_BLOCKS / 2, cz = az * AREA_BLOCKS + AREA_BLOCKS / 2;
@@ -325,7 +326,9 @@ public final class OutdoorTemperatureService {
         BiomeBlend.Blended local = blendedAt(world, cx, ground, cz);
         double airF = air(world, local);
         double line = snowBelowF(world);
-        boolean jumped = area == null || now < area.checkedAt || now - area.checkedAt > HOLD_TICKS * 2;
+        // A jump of the clock, or a new season's line (an admin's /hvac season set), applies at once.
+        boolean jumped = area == null || now < area.checkedAt || now - area.checkedAt > HOLD_TICKS * 2
+                || area.lineF != line;
         Precipitation fresh = WeatherModel.kind(local, airF, conditions, climate.weather(), line,
                 jumped ? null : area.kind);
         if (area == null) {
@@ -606,7 +609,8 @@ public final class OutdoorTemperatureService {
         if (world == null) return;
         // Biomes don't change, so a thermostat's blend is refreshed every few seconds rather than every cycle;
         // that still picks up neighbouring chunks that weren't loaded the first time.
-        long now = world.getGameTime();
+        // The world's clock, so /time set and sleeping count as the jumps they are.
+        long now = world.getFullTime();
         if (!thermostat.outdoorSampleDue(now, RESAMPLE_TICKS)) return;
         thermostat.setOutdoorClimate(blendedAt(world, position.x(), position.y(), position.z()));
         thermostat.markOutdoorSampled(now);
