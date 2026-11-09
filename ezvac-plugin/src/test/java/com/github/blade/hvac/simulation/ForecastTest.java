@@ -102,13 +102,17 @@ class ForecastTest {
                 "a warm spell on the tundra rains");
         assertEquals(Forecast.Sky.SNOW, Forecast.day(1, PLAINS, -60.0, 0.8, 0.0, calm, 5.0, "", WEATHER).sky(),
                 "a cold winter's day on the plains snows");
+        // A winter day's line is higher: 36 F rains in autumn but snows in winter.
+        assertTrue(Forecast.snows(40.0, 32.0, WEATHER, true));
+        assertFalse(Forecast.snows(40.0, 32.0, WEATHER, false));
+        assertFalse(Forecast.snows(50.0, 40.0, WEATHER, true), "a mild winter day still rains");
     }
 
     private static ClimateSettings.Weather withDryAreas(ClimateSettings.Weather.DryAreas rule) {
         ClimateSettings.Weather w = WEATHER;
         return new ClimateSettings.Weather(w.enabled(), w.easeHours(), w.rainCoolingF(), w.thunderCoolingF(),
                 w.snowCoolingF(), w.swingReduction(), w.waterShare(), w.windClearMs(), w.windRainMs(),
-                w.windThunderMs(), w.snowAtOrBelowF(), rule);
+                w.windThunderMs(), w.snowAtOrBelowF(), rule, w.snowInWinterBelowF());
     }
 
     @Test

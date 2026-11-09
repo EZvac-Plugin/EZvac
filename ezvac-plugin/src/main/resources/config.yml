@@ -246,14 +246,21 @@ weather:
   wind-clear-ms: 1.5
   wind-rain-ms: 3.0
   wind-thunder-ms: 5.0
-  # Rain or snow (BETA 1.0 Pilot 4): while it's raining, it snows wherever
-  # EZvac's air is at or below snow-at-or-below-f, season, height and time of
-  # day included, and rains elsewhere. Dry areas (deserts, badlands,
-  # savannas) stay dry in ordinary rain: dry-areas is never (always dry, as
-  # vanilla), thunder (rain only in thunderstorms) or always (rain like
-  # anywhere else). EZvac's weather word, the HUD and sensors follow this;
-  # an addon such as EZclimates can show it in the world.
+  # Rain or snow (BETA 1.0 Pilot 4). Each 64-block area decides together,
+  # from EZvac's air at its ground (season and time of day included): it
+  # snows where that is at or below snow-at-or-below-f, and in winter below
+  # snow-in-winter-below-f (real snow often falls a few degrees above
+  # freezing), and rains elsewhere. Ground well above its area (a peak) can
+  # snow while the valley rains. Once an area starts snowing or raining it
+  # keeps it until the air is 2 F past the line, so a storm doesn't flicker.
+  # Set snow-in-winter-below-f to 200 for snow all winter wherever weather
+  # reaches. Dry areas (deserts, badlands, savannas) stay dry in ordinary
+  # rain: dry-areas is never (always dry, as vanilla), thunder (rain only in
+  # thunderstorms) or always (rain like anywhere else). EZvac's weather word,
+  # the HUD, sensors and forecasts follow this; an addon such as EZclimates
+  # shows it in the world.
   snow-at-or-below-f: 33.0
+  snow-in-winter-below-f: 40.0
   dry-areas: thunder
 
 # Humidity (2.0). Moisture is simulated as a dew point and shown as relative

@@ -109,4 +109,24 @@ class WeatherModelTest {
         assertEquals(Double.POSITIVE_INFINITY, OutdoorTemperatureService.snowLine(50.0, 64, 64, 0.0, 33.0),
                 "air that never cools never snows");
     }
+
+    @Test
+    void anAreaKeepsItsSnowOrRainUntilTheAirIsWellPastTheLine() {
+        // BETA 1.0 Pilot 4: against a line of 40 F (winter), with 2 F to spare either way.
+        ClimateSettings.Weather w = ClimateSettings.defaults().weather();
+        BiomeBlend.Blended plains = BiomeBlend.Blended.of(80, 60, 0.4, Precipitation.RAIN, 15, null);
+        WeatherModel.Conditions rain = WeatherModel.Conditions.settled(true, false);
+        assertEquals(40.0, w.snowInWinterBelowF());
+        assertEquals(Precipitation.SNOW, WeatherModel.kind(plains, 39.0, rain, w, 40.0, null));
+        assertEquals(Precipitation.RAIN, WeatherModel.kind(plains, 41.0, rain, w, 40.0, null));
+        assertEquals(Precipitation.SNOW, WeatherModel.kind(plains, 41.5, rain, w, 40.0, Precipitation.SNOW),
+                "snowing at 41.5: it keeps snowing");
+        assertEquals(Precipitation.RAIN, WeatherModel.kind(plains, 42.5, rain, w, 40.0, Precipitation.SNOW));
+        assertEquals(Precipitation.RAIN, WeatherModel.kind(plains, 38.5, rain, w, 40.0, Precipitation.RAIN),
+                "raining at 38.5: it keeps raining");
+        assertEquals(Precipitation.SNOW, WeatherModel.kind(plains, 37.5, rain, w, 40.0, Precipitation.RAIN));
+        BiomeBlend.Blended desert = BiomeBlend.Blended.of(100, 70, 0.0, Precipitation.NONE, 10, null);
+        assertEquals(Precipitation.NONE, WeatherModel.kind(desert, 20.0, rain, w, 40.0, Precipitation.SNOW),
+                "a dry area stays dry whatever it had");
+    }
 }
