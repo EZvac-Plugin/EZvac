@@ -77,6 +77,11 @@ open smoke up the air downwind. The save is unchanged (format 8).
 - `freezingWaterF(world, x, y, z)`: how cold natural water is getting, before
   EZvac holds liquid water at 33 °F, so an addon can freeze lakes.
 - `SeasonView.progress()`: how far through the year a world is, 0 to 1.
+- `WeatherPlan` and `WeatherEvent`, with `setWeatherPlan(plugin, plan)`: an
+  addon can plan the weather. Stations forecast from its days, the outdoor
+  air takes on its heat waves and cold snaps, a snowstorm blows a gale and a
+  thunderstorm at least windy, and the weather word says Snowstorm, Heat wave
+  or Cold snap where they show. Without one, nothing changes.
 - `outdoorAirAt` includes the smoke of open fires nearby.
 
 ### Upgrading

@@ -86,7 +86,14 @@ from, the AQI, and pollen. A station is honest about what EZvac knows:
   lasts is random, so later days give a chance instead, worked out by playing
   Minecraft's weather forward hundreds of times. The chances stay the same
   each time you look; they change when the weather does.
-- **Dry biomes** (deserts, badlands) never get rain. Cold ones get snow.
+- **With a weather addon** (BETA 1.0 Pilot 4), such as EZclimates, the
+  weather is planned days ahead and stations forecast from that plan: today
+  and tomorrow are certain, later days are chances that grow less sure the
+  further out they are (the addon's settings say how sure). Its events show
+  too: "Snowstorm from 14:00", "Cold snap, day 2 of 4", "Heat wave likely",
+  and a heat wave or cold snap moves the day's high and low.
+- **Dry biomes** (deserts, badlands) get rain only as `weather.dry-areas`
+  allows (by default in thunderstorms). Cold ones get snow.
 
 ## Using it
 
