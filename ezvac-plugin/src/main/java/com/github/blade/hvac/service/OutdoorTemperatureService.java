@@ -274,9 +274,25 @@ public final class OutdoorTemperatureService {
     private String weatherWord(World world, double x, double y, double z) {
         if (!climate.weather().enabled() || world == null) return "";
         WeatherModel.Conditions conditions = conditions(world);
-        return WeatherModel.word(kindAt(world, (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z),
+        String word = WeatherModel.word(kindAt(world, (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z),
                 conditions), conditions);
+        // A planned event names itself where it shows (API 1.9): a snowstorm's snow, a heat wave's clear sky.
+        return planned.eventNow(world).map(event -> switch (event) {
+            case SNOWSTORM -> "Snow".equals(word) ? "Snowstorm" : word;
+            case HEAT_WAVE, COLD_SNAP -> "Clear".equals(word) ? event.displayName() : word;
+            default -> word;
+        }).orElse(word);
     }
+
+    private PlannedWeather planned = PlannedWeather.none();
+
+    /** An addon's weather plan (BETA 1.0 Pilot 4): its heat waves and cold snaps move the air, its storms the wind. */
+    public void setPlannedWeather(PlannedWeather planned) {
+        this.planned = Objects.requireNonNull(planned, "planned");
+        if (wind != null) wind.setPlannedWeather(planned);
+    }
+
+    public PlannedWeather plannedWeather() { return planned; }
 
     /** Areas that decide rain or snow together, in blocks (BETA 1.0 Pilot 4). */
     static final int AREA_BLOCKS = 64;
@@ -624,7 +640,8 @@ public final class OutdoorTemperatureService {
 
     /** The climate as it is at this point of the year. */
     private BiomeBlend.Blended inSeason(World world, BiomeBlend.Blended local) {
-        return local.warmer(seasonShiftF(world, local.seasonalF(), false));
+        // A planned heat wave or cold snap moves the air on top of the season (API 1.9).
+        return local.warmer(seasonShiftF(world, local.seasonalF(), false) + planned.shiftNowF(world));
     }
 
     /** How far the seasons move this spot's outdoor air right now, for /hvac season. */
@@ -795,7 +812,7 @@ public final class OutdoorTemperatureService {
 
     /** Natural water before it is held at liquid water's minimum and maximum. */
     private double waterUnheld(World world, WeatherModel.Effect effect, BiomeBlend.Blended local) {
-        double season = seasonShiftF(world, local.seasonalF(), true);
+        double season = seasonShiftF(world, local.seasonalF(), true) + planned.shiftNowF(world) * Seasons.WATER_SHARE;
         return ThermalModel.naturalWaterUnheld(local.noonF() + season, local.midnightF() + season)
                 + effect.meanShiftF() * climate.weather().waterShare();
     }

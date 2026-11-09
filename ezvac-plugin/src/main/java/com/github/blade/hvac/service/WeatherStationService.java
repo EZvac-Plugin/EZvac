@@ -239,9 +239,14 @@ public final class WeatherStationService implements Listener {
         boolean dry = Forecast.dry(area) && climate.weather().dryAreas() != ClimateSettings.Weather.DryAreas.ALWAYS;
         OutdoorAir.Baseline baseline = new OutdoorAir.Baseline(area.fine(), area.coarse(), area.pollen());
         List<Forecast.Day> days = new ArrayList<>(Forecast.DAYS);
+        // An addon's weather plan, where there is one (API 1.9): its chances, shifts and notes.
+        List<com.github.blade.hvac.api.WeatherPlan.Outlook> plan = outdoor.plannedWeather().outlook(world, Forecast.DAYS);
         for (int ahead = 0; ahead < Forecast.DAYS; ahead++) {
             WindModel.Day windDay = winds == null ? null : winds.get(ahead);
-            double rain = dry ? 0.0 : odds.rain()[ahead];
+            com.github.blade.hvac.api.WeatherPlan.Outlook planned = ahead < plan.size() ? plan.get(ahead) : null;
+            double rainOdds = planned != null ? planned.rainChance() : odds.rain()[ahead];
+            double thunderOdds = planned != null ? planned.thunderChance() : odds.thunder()[ahead];
+            double rain = dry ? 0.0 : rainOdds;
             // A day of rain brings its front: in the westerlies the wind comes round to the southwest.
             if (windDay != null && rain >= 0.5 && climate.wind().direction().fronts())
                 windDay = windDay.from(WindModel.between(windDay.fromDegrees(), WindModel.RAIN_FROM,
@@ -253,10 +258,14 @@ public final class WeatherStationService implements Listener {
             int aqi = climate.airQuality().enabled() ? AirQualityIndex.aqi(air) : -1;
             boolean winter = seasons != null && climate.seasons().enabled() && seasons.tracks(world.getUID())
                     && seasons.seasonIn(world.getUID(), ahead) == com.github.blade.hvac.simulation.Seasons.Season.WINTER;
-            Forecast.Day day = Forecast.day(ahead, area, outdoor.seasonShiftIn(world, area.seasonalF(), ahead),
-                    odds.rain()[ahead], odds.thunder()[ahead], windDay, pollen, "", climate.weather(), winter);
+            double shift = outdoor.seasonShiftIn(world, area.seasonalF(), ahead) + (planned == null ? 0.0 : planned.shiftF());
+            Forecast.Day day = Forecast.day(ahead, area, shift, rainOdds, thunderOdds, windDay, pollen, "",
+                    climate.weather(), winter);
             boolean snow = Forecast.snows(day.highF(), day.lowF(), climate.weather(), winter);
-            days.add(day.withNote(Forecast.note(clocks, ahead, snow, dry)).withAqi(aqi));
+            String note = Forecast.note(clocks, ahead, snow, dry);
+            if (planned != null && !planned.note().isEmpty())
+                note = note.isEmpty() ? planned.note() : note + ". " + planned.note();
+            days.add(day.withNote(note).withAqi(aqi));
         }
         return days;
     }

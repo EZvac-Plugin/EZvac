@@ -278,6 +278,23 @@ public interface EzvacApi {
     }
 
     /**
+     * Lets an addon plan the weather (see {@link WeatherPlan}): stations
+     * forecast from it, and the outdoor air takes on its heat waves, cold
+     * snaps and storms. One plan at a time; registering again replaces it,
+     * and it is dropped when its plugin disables. Null removes the plugin's
+     * own plan.
+     *
+     * @since 1.9
+     */
+    default void setWeatherPlan(org.bukkit.plugin.Plugin plugin, WeatherPlan plan) {
+    }
+
+    /** The weather plan an addon registered, if any. @since 1.9 */
+    default Optional<WeatherPlan> weatherPlan() {
+        return Optional.empty();
+    }
+
+    /**
      * Addon sections on the climate HUD. Check {@link #apiVersion()} first
      * when the addon should also run on API 1.0, which doesn't have it.
      *
