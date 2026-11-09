@@ -347,13 +347,18 @@ SEASONS, RAIN OR SNOW, SUN AND OPEN-AIR SMOKE (BETA 1.0 Pilot 4)
   and weather.dry-areas forbids it (never; thunder outside thunderstorms),
   else SNOW at air <= the line, else RAIN; the line is
   weather.snow-at-or-below-f (33), or snow-in-winter-below-f (40) while the
-  calendar is in winter. Decided per 64-block area (OutdoorTemperatureService
-  .area) from the air at the area centre's ground (MOTION_BLOCKING_NO_LEAVES
+  calendar is in winter. Each 64-block area (OutdoorTemperatureService.area)
+  works out a margin (line - air, SnowEdge.margin) from the air at its
+  centre's ground (MOTION_BLOCKING_NO_LEAVES
   + 1 where loaded, else sea level + 1), looked at again every 200 ticks; a
   snowing area keeps snow until 2 F above the line, a raining one rain until
   2 F below, and it changes at most once per 1000 ticks (at once after a
-  clock jump, or when rain stops reaching it). A block 48 or more above its
-  area's ground, in a raining area, snows by its own air. falling() is it
+  clock jump, or when the season's line changes); held, the margin keeps
+  its sign (at least 0.25 F). A column snows where the four nearest area
+  centres' margins, blended bilinearly, plus 1.5 F x smooth noise (16-block
+  lattice, world seed) are above 0; dry-areas is read at the column itself.
+  A block 48 or more above its area's ground, in a raining column, snows by
+  its own air. falling() is it
   while the world rains. Only NORMAL worlds. The weather word and
   Forecast.day (snow when the day's (high + low) / 2 is at or below the line;
   a dry area's rain chance follows dry-areas) use it. The temperature effect

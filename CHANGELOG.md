@@ -28,9 +28,10 @@ open smoke up the air downwind. The save is unchanged (format 8).
 - **It snows below 33 °F, and in winter below 40 °F,** since real snow often
   falls a few degrees above freezing, so plains and forests snow through
   most of winter while savannas and jungles still rain.
-- **Each 64-block area decides together,** from the air at its ground, so rain
-  and snow meet along a line on the land, not in layers above you, and a
-  storm keeps its kind until the air is 2 °F past the line.
+- **Decided across the land, not by height,** from the air at the ground, so
+  rain and snow meet along a wavy line that follows the cold (not in layers
+  above you, and not along a grid), and a storm keeps its kind until the
+  air is 2 °F past the line.
 - **Dry places get rain in thunderstorms:** deserts, savannas and badlands
   stay dry in ordinary rain. `weather.dry-areas` (`never`, `thunder`,
   `always`) sets it; `weather.snow-at-or-below-f` sets the snow line's

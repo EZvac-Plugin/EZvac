@@ -158,10 +158,8 @@ public final class WeatherModel {
                                      ClimateSettings.Weather settings, double snowBelowF, Precipitation before) {
         Precipitation reached = kind(climate, airF, conditions, settings);
         if (reached == Precipitation.NONE) return Precipitation.NONE;
-        if (!Double.isFinite(airF)) return Precipitation.RAIN;
-        double line = before == Precipitation.SNOW ? snowBelowF + KEEP_F
-                : before == Precipitation.RAIN ? snowBelowF - KEEP_F : snowBelowF;
-        return airF <= line ? Precipitation.SNOW : Precipitation.RAIN;
+        Boolean snowing = before == Precipitation.SNOW ? Boolean.TRUE : before == Precipitation.RAIN ? Boolean.FALSE : null;
+        return SnowEdge.margin(airF, snowBelowF, snowing, KEEP_F, false) >= 0.0 ? Precipitation.SNOW : Precipitation.RAIN;
     }
 
     /** What is falling at a spot right now: {@link #kind} while the world rains, NONE otherwise. */
