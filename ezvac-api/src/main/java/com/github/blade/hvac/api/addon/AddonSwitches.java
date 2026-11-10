@@ -19,6 +19,9 @@ public interface AddonSwitches {
     /** Whether the addon should run. */
     boolean active();
 
-    /** Whether one of its parts should run (true for a part the server never switched). */
+    /**
+     * Whether one of its parts should run: what the server switched, or for
+     * a part it never switched, {@link Addon.Part#startsOn()}.
+     */
     boolean partOn(String id);
 }

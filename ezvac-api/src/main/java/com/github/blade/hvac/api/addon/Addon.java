@@ -38,8 +38,15 @@ public interface Addon {
      * @param name        as the menu shows it: {@code Snow and ice}
      * @param description one line saying what switching it off stops
      * @param switcher    called with true or false when the server switches it
+     * @param startsOn    whether it runs on a server that has never switched it; false for a part a server
+     *                    should choose to have
      */
-    record Part(String id, String name, String description, Consumer<Boolean> switcher) {
+    record Part(String id, String name, String description, Consumer<Boolean> switcher, boolean startsOn) {
+        /** A part that runs unless a server switches it off. */
+        public Part(String id, String name, String description, Consumer<Boolean> switcher) {
+            this(id, name, description, switcher, true);
+        }
+
         public Part {
             Objects.requireNonNull(id, "id");
             Objects.requireNonNull(name, "name");

@@ -48,7 +48,8 @@ public final class AddonService implements Listener {
     private static final long FIRST_CHECK_TICKS = 20L * 20;
     private static final long PERIOD_TICKS = 20L * 60 * 60 * 6;
     private static final long JOIN_DELAY_TICKS = 60L;
-    private static final String OFF = "addons.disabled", PARTS_OFF = "addons.parts-disabled";
+    private static final String OFF = "addons.disabled", PARTS_OFF = "addons.parts-disabled",
+            PARTS_ON = "addons.parts-enabled";
 
     private record Registered(Plugin plugin, Addon addon) {}
 
@@ -78,6 +79,8 @@ public final class AddonService implements Listener {
     private final Map<String, Registered> registered = new LinkedHashMap<>();
     private final TreeSet<String> off = new TreeSet<>();
     private final TreeSet<String> partsOff = new TreeSet<>();
+    /** Parts a server switched on: what counts for a part that starts off. */
+    private final TreeSet<String> partsOn = new TreeSet<>();
     private volatile List<AddonCatalogue.Entry> catalogue;
     /** The newer release found for each addon, by its id. */
     private final Map<String, AddonVersion.Release> newer = new ConcurrentHashMap<>();
@@ -103,6 +106,7 @@ public final class AddonService implements Listener {
         this.pilots = pilots;
         off.addAll(config.getStringList(OFF));
         partsOff.addAll(config.getStringList(PARTS_OFF));
+        partsOn.addAll(config.getStringList(PARTS_ON));
         this.catalogue = builtIn();
     }
 
@@ -143,8 +147,18 @@ public final class AddonService implements Listener {
             public boolean active() { return !off.contains(name); }
 
             @Override
-            public boolean partOn(String id) { return !partsOff.contains(name + "/" + id); }
+            public boolean partOn(String id) {
+                for (Addon.Part part : partsOf(registered.get(name)))
+                    if (part.id().equals(id)) return on(name, part);
+                return !partsOff.contains(name + "/" + id);
+            }
         };
+    }
+
+    /** Whether a part is on: as the server switched it, or as it starts where it never did. */
+    private boolean on(String pluginName, Addon.Part part) {
+        String key = pluginName + "/" + part.id();
+        return !partsOff.contains(key) && (part.startsOn() || partsOn.contains(key));
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -171,8 +185,7 @@ public final class AddonService implements Listener {
             if (addon != null)
                 for (Addon.Part part : partsOf(addon))
                     parts.add(new PartView(part.id(), AddonCatalogue.clean(part.name(), 40),
-                            AddonCatalogue.clean(part.description(), 120),
-                            !partsOff.contains(entry.plugin() + "/" + part.id())));
+                            AddonCatalogue.clean(part.description(), 120), on(entry.plugin(), part)));
             AddonVersion.Release release = newer.get(entry.id());
             String version = there.getPluginMeta().getVersion();
             // A release found before the addon was updated on this server is no longer news.
@@ -186,6 +199,7 @@ public final class AddonService implements Listener {
     }
 
     private List<Addon.Part> partsOf(Registered addon) {
+        if (addon == null) return List.of();
         try {
             List<Addon.Part> parts = addon.addon().parts();
             return parts == null ? List.of() : parts;
@@ -248,8 +262,10 @@ public final class AddonService implements Listener {
                         + (on ? "on" : "off"), failure);
                 return false;
             }
-            if (on) partsOff.remove(pluginName + "/" + partId);
-            else partsOff.add(pluginName + "/" + partId);
+            // The choice is kept either way, so it holds whatever the part starts as.
+            String key = pluginName + "/" + partId;
+            (on ? partsOff : partsOn).remove(key);
+            (on ? partsOn : partsOff).add(key);
             save();
             return true;
         }
@@ -259,6 +275,7 @@ public final class AddonService implements Listener {
     private void save() {
         config.set(OFF, new ArrayList<>(off));
         config.set(PARTS_OFF, new ArrayList<>(partsOff));
+        config.set(PARTS_ON, new ArrayList<>(partsOn));
         saveConfig.run();
     }
 
