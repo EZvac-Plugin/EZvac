@@ -44,8 +44,9 @@ only. The save is unchanged (format 8).
   snow line's temperature.
 - **The weather word follows it** (the HUD, sensors, `%ezvac_weather%`), and
   so do weather stations' forecasts.
-- This is what EZvac decides falls; the world still shows Minecraft's own
-  rain and snow. The upcoming EZclimates addon shows EZvac's in the world.
+- This is what EZvac decides falls; on its own, the world still shows
+  Minecraft's rain and snow. The new EZclimates addon shows EZvac's in the
+  world.
 
 ### Feels like in the sun
 
