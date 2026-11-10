@@ -84,6 +84,18 @@ EZvac never downloads or installs an addon. With `updates.check` on, the
 list of official addons and each installed one's newest release are read
 from GitHub with EZvac's own update check.
 
+## ezdebug
+
+```yaml
+ezdebug:
+  enabled: true
+```
+
+The built-in EZdebug (BETA 1.0 Pilot 5): while an admin holds the link tool
+with a system selected, they see its equipment, signs and vents, the edge of
+its room and the openings it leaks through. It stands down while the
+EZdebug+ addon is installed and switched on. `/hvac addons` switches it.
+
 ## devices
 
 ```yaml

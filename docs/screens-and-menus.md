@@ -226,6 +226,20 @@ New in BETA 1.0 Pilot 4; `/hvac addons` opens it directly.
   for the link), and admins are told when they join. **Check now** asks
   GitHub at once; otherwise it follows `updates.check`.
 
+### EZdebug, built in
+
+New in BETA 1.0 Pilot 5. Listed first on the Addons page, with its switch.
+While you hold the link tool with a thermostat's system selected, you see
+that system as EZvac does:
+- its equipment glows through walls, its signs are framed, and its vents are marked;
+- its vents puff while they work, with a column rising out of them, cyan while cooling and orange while heating;
+- the edge of the space its air fills is dotted in near you;
+- the openings it leaks through (doorways, windows, holes) glow red, through walls.
+
+Only you see it. With the EZdebug+ addon installed and switched on, it
+stands down: EZdebug+ shows all of this, for every system at once, and
+more.
+
 ### Health
 
 Called Statistics before BETA 1.0 Pilot 4. **Tick cost** says what each part

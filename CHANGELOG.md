@@ -2,6 +2,32 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 5
+
+**EZdebug, built in: see the system you're linking as EZvac does,** its
+room's edge and the openings it leaks through included. The save is
+unchanged (format 8).
+
+### EZdebug
+
+- **While you hold the link tool with a thermostat's system selected,** you see:
+  - its equipment glowing through walls, its signs framed and its vents marked;
+  - its vents puffing while they work, bigger than EZdebug+ drew them before, with a column rising out of them;
+  - the edge of the space its air fills, dotted in near you;
+  - **the openings it leaks through** (doorways, windows, holes), glowing red, through walls.
+- **Only you see it,** and nothing is saved with the world.
+- **In `/hvac addons`** it's listed first, as EZdebug (built in), with its switch (`ezdebug.enabled`).
+- **EZdebug+** shows all this for every system at once, and more. While it's installed and switched on, the built-in one stands down.
+
+### API 1.10
+
+- `systemSpace(world, system)` and `SystemSpace`: the edge of the space a
+  system fills, and the openings it leaks through, as EZvac last mapped it.
+
+### Upgrading
+
+- `ezdebug` is added to `config.yml` with its comments.
+
 ## BETA 1.0 Pilot 4
 
 **Seasons are 30 days long, and rain turns to snow by EZvac's own air.**
