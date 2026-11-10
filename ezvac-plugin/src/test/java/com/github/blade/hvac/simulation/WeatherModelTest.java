@@ -92,10 +92,61 @@ class WeatherModelTest {
         assertEquals(Precipitation.NONE, WeatherModel.falling(plains, 20.0, WeatherModel.Conditions.CLEAR, w),
                 "nothing falls without rain");
         assertEquals("Snow", WeatherModel.word(WeatherModel.kind(plains, 20.0, rain, w), rain));
-        assertEquals(Precipitation.NONE, WeatherModel.falling(desert, 90.0, rain, w), "ordinary rain skips a desert");
-        assertEquals(Precipitation.RAIN, WeatherModel.falling(desert, 90.0, thunder, w), "a thunderstorm doesn't");
-        assertEquals("Thunder", WeatherModel.word(WeatherModel.kind(desert, 90.0, thunder, w), thunder));
+        // seasonal (the default): only a spell that rolled it reaches a desert, thunder or not.
+        assertEquals(ClimateSettings.Weather.DryAreas.SEASONAL, w.dryAreas());
+        WeatherModel.Conditions reaching = WeatherModel.Conditions.settled(true, false, true);
+        assertEquals(Precipitation.NONE, WeatherModel.falling(desert, 90.0, rain, w), "most rain skips a desert");
+        assertEquals(Precipitation.NONE, WeatherModel.falling(desert, 90.0, thunder, w), "a thunderstorm too");
+        assertEquals(Precipitation.RAIN, WeatherModel.falling(desert, 90.0, reaching, w), "a spell that reaches it");
+        assertEquals(Precipitation.SNOW, WeatherModel.falling(desert, 30.0, reaching, w), "as snow on a freezing night");
+        assertEquals("Rain", WeatherModel.word(WeatherModel.kind(desert, 90.0, reaching, w), reaching));
         assertEquals("", WeatherModel.word(WeatherModel.kind(desert, 90.0, rain, w), rain));
+        // The air there feels the rain that reaches it, and nothing of the rain that doesn't.
+        assertEquals(0.0, WeatherModel.effect(desert, rain, w).meanShiftF(), 1e-9);
+        assertEquals(-w.rainCoolingF(), WeatherModel.effect(desert, reaching, w).meanShiftF(), 1e-9);
+        assertEquals(WeatherModel.effect(plains, rain, w), WeatherModel.effect(plains, reaching, w),
+                "wet ground is the same either way");
+        // thunder: rain only in thunderstorms; never and always as they say.
+        ClimateSettings.Weather byThunder = withDryAreas(w, ClimateSettings.Weather.DryAreas.THUNDER);
+        assertEquals(Precipitation.NONE, WeatherModel.falling(desert, 90.0, reaching, byThunder));
+        assertEquals(Precipitation.RAIN, WeatherModel.falling(desert, 90.0, thunder, byThunder));
+        assertEquals("Thunder", WeatherModel.word(WeatherModel.kind(desert, 90.0, thunder, byThunder), thunder));
+        assertEquals(Precipitation.NONE, WeatherModel.falling(desert, 90.0, reaching,
+                withDryAreas(w, ClimateSettings.Weather.DryAreas.NEVER)));
+        assertEquals(Precipitation.RAIN, WeatherModel.falling(desert, 90.0, rain,
+                withDryAreas(w, ClimateSettings.Weather.DryAreas.ALWAYS)));
+    }
+
+    private static ClimateSettings.Weather withDryAreas(ClimateSettings.Weather w, ClimateSettings.Weather.DryAreas rule) {
+        return new ClimateSettings.Weather(w.enabled(), w.easeHours(), w.rainCoolingF(), w.thunderCoolingF(),
+                w.snowCoolingF(), w.swingReduction(), w.waterShare(), w.windClearMs(), w.windRainMs(),
+                w.windThunderMs(), w.snowAtOrBelowF(), rule, w.snowInWinterBelowF());
+    }
+
+    @Test
+    void aRainSpellRollsOnceWhetherItReachesDryAreas() {
+        // BETA 1.0 Pilot 4: mostly winter's spells, rarely the other seasons'.
+        ClimateSettings.Weather.DryRain shares = ClimateSettings.defaults().weather().dryRain();
+        assertEquals(0.6, shares.share(Seasons.Season.WINTER));
+        assertEquals(0.05, shares.share(Seasons.Season.SUMMER));
+        assertEquals(0.1, shares.share(null), "spring's without seasons");
+        int winter = 0, summer = 0;
+        for (long day = 0; day < 20_000; day++) {
+            boolean reaches = ClimateSettings.Weather.DryRain.reaches(42L, day, shares.winter());
+            assertEquals(reaches, ClimateSettings.Weather.DryRain.reaches(42L, day, shares.winter()), "the same every time");
+            if (reaches) winter++;
+            if (ClimateSettings.Weather.DryRain.reaches(42L, day, shares.summer())) summer++;
+        }
+        assertEquals(0.6, winter / 20_000.0, 0.02);
+        assertEquals(0.05, summer / 20_000.0, 0.01);
+        assertFalse(ClimateSettings.Weather.DryRain.reaches(7L, 3L, 0.0));
+        assertTrue(ClimateSettings.Weather.DryRain.reaches(7L, 3L, 1.0));
+        // A spell keeps its reach while it rains, and loses it when the rain stops.
+        WeatherModel.Conditions spell = WeatherModel.Conditions.settled(true, false, true);
+        assertTrue(spell.advance(true, true, 100, 2.0).reachesDry(), "thunder joining doesn't change it");
+        assertFalse(spell.advance(false, false, 100, 2.0).reachesDry());
+        assertFalse(WeatherModel.Conditions.settled(false, false, true).reachesDry(), "nothing reaches without rain");
+        assertTrue(WeatherModel.Conditions.CLEAR.advance(true, false, 100, 2.0, true).reachesDry());
     }
 
     @Test

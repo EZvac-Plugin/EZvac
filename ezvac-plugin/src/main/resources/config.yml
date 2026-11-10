@@ -253,14 +253,20 @@ weather:
   # snow while the valley rains. Once an area starts snowing or raining it
   # keeps it until the air is 2 F past the line, so a storm doesn't flicker.
   # Set snow-in-winter-below-f to 200 for snow all winter wherever weather
-  # reaches. Dry areas (deserts, badlands, savannas) stay dry in ordinary
-  # rain: dry-areas is never (always dry, as vanilla), thunder (rain only in
-  # thunderstorms) or always (rain like anywhere else). EZvac's weather word,
-  # the HUD, sensors and forecasts follow this; an addon such as EZclimates
-  # shows it in the world.
+  # reaches. Dry areas (deserts, badlands, savannas) get rain by the season:
+  # dry-areas is seasonal (some rain spells reach them: mostly winter's,
+  # rarely the other seasons'), never (always dry, as vanilla), thunder (rain
+  # only in thunderstorms) or always (rain like anywhere else). Under
+  # seasonal, dry-rain-chance is the share of rain spells that reach them in
+  # each season (0 to 1; spring's is used with seasons off); each spell is
+  # decided once, as it starts, for the whole world. Rain that reaches them
+  # cools and dampens the air there like anywhere else. EZvac's weather
+  # word, the HUD, sensors and forecasts follow this; an addon such as
+  # EZclimates shows it in the world.
   snow-at-or-below-f: 33.0
   snow-in-winter-below-f: 40.0
-  dry-areas: thunder
+  dry-areas: seasonal
+  dry-rain-chance: { spring: 0.1, summer: 0.05, autumn: 0.1, winter: 0.6 }
 
 # Humidity (2.0). Moisture is simulated as a dew point and shown as relative
 # humidity, so heating a room lowers its RH and cooling dries it.
