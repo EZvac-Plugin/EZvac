@@ -51,9 +51,10 @@ import static com.github.blade.hvac.gui.ControlMenus.item;
  */
 public final class QuickSettingsMenu implements Listener {
     enum Page {
-        MAIN("EZvac quick settings", 27), DEVICES("Quick settings › Devices", 36),
+        MAIN("EZvac quick settings", 36), DEVICES("Quick settings › Devices", 36),
         CLIMATE("Quick settings › Climate systems", 36), BACKUPS("Quick settings › Backups & registry", 36),
-        STATISTICS("Quick settings › Statistics", 36), UPDATES("Quick settings › Updates", 36),
+        STATISTICS("Quick settings › Health", 36), UPDATES("Quick settings › Updates", 36),
+        SEASONS("Quick settings › Seasons & wind", 36), DISPLAY("Quick settings › Display & sound", 36),
         ADDONS("Quick settings › Addons", 54), ADDON_PARTS("Quick settings › Addon", 36);
 
         final String title;
@@ -68,8 +69,19 @@ public final class QuickSettingsMenu implements Listener {
         int close() { return size - 1; }
     }
 
-    /** The main page's sections, in the middle row. */
-    static final int DEVICES = 11, CLIMATE = 12, BACKUPS = 13, STATISTICS = 14, UPDATES = 15, ADDONS = 16;
+    /**
+     * The main page's sections (regrouped in BETA 1.0 Pilot 4): the server's
+     * climate in the upper row, its upkeep in the lower.
+     */
+    static final int DEVICES = 10, CLIMATE = 12, SEASONS_AND_WIND = 14, DISPLAY = 16;
+    static final int ADDONS = 19, BACKUPS = 21, STATISTICS = 23, UPDATES = 25;
+    /** Seasons & wind: the world it is about, its calendar's buttons, and today's wind. */
+    static final int WORLD_INFO = 4, SEASON_NOW = 10, DAY_BACK = 11, DAY_ON = 12, NEXT_SEASON = 13, PAUSE = 14,
+            WIND_NOW = 16;
+    /** Display & sound: units, wind units, and device sounds with their switch beneath. */
+    static final int UNITS = 11, WIND_UNITS = 13, SOUNDS = 15;
+    /** Health: what each part of EZvac costs the tick. */
+    static final int TICK_COST = 16;
     /** The Addons page: installed addons with their switches beneath, the store's row, and the check. */
     static final int ADDONS_INFO = 4, INSTALLED_FROM = 10, STORE_FROM = 37, ADDONS_ROW = 7, CHECK_ADDONS = 49;
     /** An addon's own page: what it is, and its parts with their switches beneath. */
@@ -98,6 +110,8 @@ public final class QuickSettingsMenu implements Listener {
         boolean discardArmed;
         /** On an addon's own page: its plugin's name. */
         String addon;
+        /** On Seasons & wind: the world it is about. */
+        java.util.UUID world;
 
         Menu(Page page) { this.page = page; }
 
@@ -137,6 +151,7 @@ public final class QuickSettingsMenu implements Listener {
     private void open(Player player, Page page, String addon) {
         Menu menu = new Menu(page);
         menu.addon = addon;
+        menu.world = seasonalWorld(player);
         menu.inventory = Bukkit.createInventory(menu, page.size, Component.text(page.title));
         draw(menu);
         player.openInventory(menu.inventory);
@@ -160,7 +175,191 @@ public final class QuickSettingsMenu implements Listener {
             case UPDATES -> drawUpdates(inventory);
             case ADDONS -> drawAddons(inventory);
             case ADDON_PARTS -> drawAddonParts(inventory, menu.addon);
+            case SEASONS -> drawSeasons(inventory, menu.world);
+            case DISPLAY -> drawDisplay(inventory);
         }
+    }
+
+    /** The world Seasons & wind is about: the admin's own when it has a sky, else the first that has. */
+    private java.util.UUID seasonalWorld(Player player) {
+        if (player.getWorld().getEnvironment() == org.bukkit.World.Environment.NORMAL) return player.getWorld().getUID();
+        for (org.bukkit.World world : plugin.getServer().getWorlds())
+            if (world.getEnvironment() == org.bukkit.World.Environment.NORMAL) return world.getUID();
+        return null;
+    }
+
+    private static Material seasonIcon(com.github.blade.hvac.simulation.Seasons.Season season) {
+        return switch (season) {
+            case SPRING -> Material.PINK_TULIP;
+            case SUMMER -> Material.SUNFLOWER;
+            case AUTUMN -> Material.DEAD_BUSH;
+            case WINTER -> Material.SNOWBALL;
+        };
+    }
+
+    /**
+     * A world's calendar and today's wind (BETA 1.0 Pilot 4): what
+     * /hvac season and /hvac wind set do, a click at a time.
+     */
+    private void drawSeasons(Inventory inventory, java.util.UUID worldId) {
+        org.bukkit.World world = worldId == null ? null : plugin.getServer().getWorld(worldId);
+        if (world == null) {
+            inventory.setItem(WORLD_INFO, item(Material.BARRIER, Component.text("No world with a sky",
+                    NamedTextColor.RED), List.of(gray("Seasons and wind need one"))));
+            return;
+        }
+        inventory.setItem(WORLD_INFO, item(Material.GRASS_BLOCK,
+                Component.text("World: " + world.getName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
+                List.of(gray("The world you stand in, when it has"), gray("a sky; open this from another"),
+                        gray("world to change that one"))));
+        com.github.blade.hvac.service.SeasonService seasons = plugin.seasons();
+        if (!switches.seasons() || seasons == null || !seasons.tracks(worldId)) {
+            inventory.setItem(SEASON_NOW, item(Material.OAK_SAPLING, Component.text("Seasons: Off", NamedTextColor.RED),
+                    List.of(gray(switches.seasons() ? "This world's calendar hasn't started yet"
+                            : "Switch them on under Climate systems"))));
+        } else {
+            int days = seasons.settings().daysPerSeason(), day = seasons.dayOfSeason(worldId);
+            com.github.blade.hvac.simulation.Seasons.Season season = seasons.season(worldId);
+            boolean paused = seasons.paused(worldId);
+            inventory.setItem(SEASON_NOW, item(seasonIcon(season), Component.text(season.displayName() + ", day " + day
+                            + " of " + days, NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
+                    List.of(gray(paused ? "Paused: the days pass, the season stays" : "The calendar is running"),
+                            gray("A year is " + days * 4 + " days"))));
+            inventory.setItem(DAY_BACK, item(Material.RED_CANDLE, Component.text("A day back", NamedTextColor.YELLOW),
+                    List.of(gray(day > 1 ? "To day " + (day - 1) : "This is the season's first day"))));
+            inventory.setItem(DAY_ON, item(Material.LIME_CANDLE, Component.text("A day on", NamedTextColor.YELLOW),
+                    List.of(gray(day < days ? "To day " + (day + 1) : "To " + season.next().displayName() + ", day 1"))));
+            inventory.setItem(NEXT_SEASON, item(seasonIcon(season.next()), Component.text("Next season",
+                    NamedTextColor.YELLOW), List.of(gray("To " + season.next().displayName() + ", day 1"))));
+            inventory.setItem(PAUSE, item(paused ? Material.LIME_DYE : Material.GRAY_DYE,
+                    Component.text(paused ? "Resume the calendar" : "Pause the calendar", NamedTextColor.YELLOW),
+                    List.of(gray(paused ? "The seasons move on again" : "The season stays as it is"))));
+        }
+        com.github.blade.hvac.service.WindService wind = plugin.outdoor().wind();
+        if (!switches.wind() || wind == null || !com.github.blade.hvac.service.WindService.hasWind(world)) {
+            inventory.setItem(WIND_NOW, item(Material.FEATHER, Component.text("Wind: Off", NamedTextColor.RED),
+                    List.of(gray("Switch it on under Climate systems"))));
+            return;
+        }
+        com.github.blade.hvac.simulation.WindModel.Day today = wind.day(world);
+        boolean held = wind.held(world);
+        com.github.blade.hvac.simulation.WindModel.Level next = nextWind(held ? today.level() : null);
+        inventory.setItem(WIND_NOW, item(Material.FEATHER, Component.text("Wind today: " + today.level().displayName(),
+                        NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
+                List.of(gray("About " + com.github.blade.hvac.service.WindText.speed(today.meanMs(),
+                                com.github.blade.hvac.service.WindText.units(wind.settings(), plugin.settings().units()))),
+                        gray(held ? "Set by an admin, until the day ends" : "Blowing as it would"),
+                        yellow("Click for: " + (next == null ? "as it would blow" : next.displayName())))));
+    }
+
+    /** What a click on the wind sets: calm, breezy, windy, gale, then back to as it would blow (null). */
+    static com.github.blade.hvac.simulation.WindModel.Level nextWind(com.github.blade.hvac.simulation.WindModel.Level held) {
+        if (held == null) return com.github.blade.hvac.simulation.WindModel.Level.CALM;
+        com.github.blade.hvac.simulation.WindModel.Level[] levels = com.github.blade.hvac.simulation.WindModel.Level.values();
+        return held.ordinal() + 1 < levels.length ? levels[held.ordinal() + 1] : null;
+    }
+
+    private void clickSeasons(Player player, int slot, java.util.UUID worldId) {
+        org.bukkit.World world = worldId == null ? null : plugin.getServer().getWorld(worldId);
+        if (world == null) return;
+        if (slot == WIND_NOW) {
+            com.github.blade.hvac.service.WindService wind = plugin.outdoor().wind();
+            if (!switches.wind() || wind == null || !com.github.blade.hvac.service.WindService.hasWind(world)) {
+                click(player, false);
+                return;
+            }
+            com.github.blade.hvac.simulation.WindModel.Level next = nextWind(wind.held(world) ? wind.day(world).level() : null);
+            wind.hold(world, next);
+            click(player, true);
+            logChange(player, next == null ? "let the wind in " + world.getName() + " blow as it would"
+                    : "set today's wind in " + world.getName() + " to " + next.displayName().toLowerCase(Locale.ROOT));
+            plugin.requestImmediateSync();
+            displays.refreshAll(true);
+            return;
+        }
+        com.github.blade.hvac.service.SeasonService seasons = plugin.seasons();
+        if (!switches.seasons() || seasons == null || !seasons.tracks(worldId)) {
+            if (slot >= SEASON_NOW && slot <= PAUSE) click(player, false);
+            return;
+        }
+        int days = seasons.settings().daysPerSeason(), day = seasons.dayOfSeason(worldId);
+        switch (slot) {
+            case DAY_BACK -> {
+                if (day <= 1) {
+                    click(player, false);
+                    return;
+                }
+                seasons.set(worldId, seasons.season(worldId), day - 1);
+            }
+            case DAY_ON -> {
+                if (day >= days) seasons.next(worldId);
+                else seasons.set(worldId, seasons.season(worldId), day + 1);
+            }
+            case NEXT_SEASON -> seasons.next(worldId);
+            case PAUSE -> seasons.setPaused(worldId, !seasons.paused(worldId));
+            default -> {
+                return;
+            }
+        }
+        seasons.save();
+        click(player, true);
+        logChange(player, slot == PAUSE ? (seasons.paused(worldId) ? "paused" : "resumed") + " the calendar in "
+                + world.getName() : "moved " + world.getName() + " to " + seasons.season(worldId).displayName()
+                .toLowerCase(Locale.ROOT) + ", day " + seasons.dayOfSeason(worldId));
+        plugin.requestImmediateSync();
+        displays.refreshAll(true);
+    }
+
+    /** How readings are shown, and whether devices are heard (BETA 1.0 Pilot 4). */
+    private void drawDisplay(Inventory inventory) {
+        com.github.blade.hvac.config.TemperatureUnit unit = plugin.settings().units();
+        boolean fahrenheit = unit == com.github.blade.hvac.config.TemperatureUnit.F;
+        inventory.setItem(UNITS, item(fahrenheit ? Material.MAGMA_CREAM : Material.SNOWBALL,
+                Component.text("Temperatures: °" + unit.name(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
+                List.of(gray("On screens, the HUD, menus and chat"), gray("Setpoints keep their temperature"),
+                        yellow("Click for: °" + (fahrenheit ? "C" : "F")))));
+        com.github.blade.hvac.service.WindService wind = plugin.outdoor().wind();
+        com.github.blade.hvac.config.WindSettings.Units speeds = wind == null
+                ? com.github.blade.hvac.config.WindSettings.Units.AUTO : wind.settings().units();
+        inventory.setItem(WIND_UNITS, item(Material.FEATHER,
+                Component.text("Wind speeds: " + speeds.displayName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
+                List.of(gray("Auto: mph with °F, km/h with °C"),
+                        yellow("Click for: " + nextWindUnits(speeds).displayName()))));
+        boolean sounds = plugin.settings().audioEnabled();
+        placeSwitch(inventory, SOUNDS, Material.NOTE_BLOCK, "Device sounds", sounds, List.of(
+                gray("Units starting and stopping, their hum,"), gray("and air at the vents"), clickTo(sounds)));
+    }
+
+    static com.github.blade.hvac.config.WindSettings.Units nextWindUnits(com.github.blade.hvac.config.WindSettings.Units now) {
+        com.github.blade.hvac.config.WindSettings.Units[] all = com.github.blade.hvac.config.WindSettings.Units.values();
+        return all[(now.ordinal() + 1) % all.length];
+    }
+
+    private void clickDisplay(Player player, int slot) {
+        int at = switchedAt(slot);
+        if (slot == UNITS) {
+            com.github.blade.hvac.config.TemperatureUnit next = plugin.settings().units()
+                    == com.github.blade.hvac.config.TemperatureUnit.F ? com.github.blade.hvac.config.TemperatureUnit.C
+                    : com.github.blade.hvac.config.TemperatureUnit.F;
+            switches.setUnits(next);
+            logChange(player, "set temperatures to °" + next.name());
+        } else if (slot == WIND_UNITS) {
+            com.github.blade.hvac.service.WindService wind = plugin.outdoor().wind();
+            if (wind == null) {
+                click(player, false);
+                return;
+            }
+            com.github.blade.hvac.config.WindSettings.Units next = nextWindUnits(wind.settings().units());
+            switches.setWindUnits(next);
+            logChange(player, "set wind speeds to " + next.displayName());
+        } else if (at == SOUNDS) {
+            boolean on = !plugin.settings().audioEnabled();
+            switches.setSounds(on);
+            logChange(player, "switched device sounds " + (on ? "on" : "off"));
+        } else return;
+        click(player, true);
+        plugin.requestImmediateSync();
+        displays.refreshAll(true);
     }
 
     private static Material icon(AddonCatalogue.Entry entry) {
@@ -294,9 +493,21 @@ public final class QuickSettingsMenu implements Listener {
                 "Air quality, pollen, wind, seasons, size"));
         inventory.setItem(BACKUPS, section(Material.CHEST, "Backups & registry",
                 "Automatic: " + RegistryBackups.describe(backups.intervalHours()), "Back up hvac.yml; its health"));
-        inventory.setItem(STATISTICS, section(Material.BOOK, "Statistics",
-                registry.thermostats().size() + " thermostat(s), " + registry.equipment().size() + " unit(s)",
-                "What /hvac stats shows"));
+        List<com.github.blade.hvac.service.TickCost.Part> cost = plugin.tickCost().lastMinute();
+        inventory.setItem(STATISTICS, section(Material.BOOK, "Health",
+                cost.isEmpty() ? registry.thermostats().size() + " thermostat(s), " + registry.equipment().size()
+                        + " unit(s)" : String.format(Locale.US, "EZvac takes %.2f ms a tick",
+                        com.github.blade.hvac.service.TickCost.total(cost)),
+                "What EZvac costs, and its figures"));
+        org.bukkit.World here = plugin.getServer().getWorlds().isEmpty() ? null : plugin.getServer().getWorlds().get(0);
+        inventory.setItem(SEASONS_AND_WIND, section(Material.OAK_SAPLING, "Seasons & wind",
+                plugin.seasons() != null && switches.seasons() && here != null && plugin.seasons().tracks(here.getUID())
+                        ? plugin.seasons().season(here.getUID()).displayName() + ", day "
+                        + plugin.seasons().dayOfSeason(here.getUID()) + " in " + here.getName() : "The calendar and the wind",
+                "Move the season; set today's wind"));
+        inventory.setItem(DISPLAY, section(Material.PAINTING, "Display & sound",
+                "°" + plugin.settings().units().name() + ", sounds " + (plugin.settings().audioEnabled() ? "on" : "off"),
+                "Units, wind speeds, device sounds"));
         inventory.setItem(UPDATES, section(Material.CLOCK, "Updates", "Running " + updates.runningName(),
                 "Check GitHub for a newer EZvac"));
         int installed = addons.installed().size(), news = addons.updates().size();
@@ -397,6 +608,22 @@ public final class QuickSettingsMenu implements Listener {
                 gray("Maps that hit the size cap: " + figures.capped()))));
         inventory.setItem(REFRESH, item(Material.SPYGLASS, Component.text("Refresh", NamedTextColor.YELLOW),
                 List.of(gray("Read the figures again"))));
+        // What each part of EZvac costs the tick, over the last minute (BETA 1.0 Pilot 4).
+        List<com.github.blade.hvac.service.TickCost.Part> cost = plugin.tickCost().lastMinute();
+        List<Component> lines = new ArrayList<>();
+        if (cost.isEmpty()) lines.add(gray("Measuring: look again in a moment"));
+        else {
+            double total = com.github.blade.hvac.service.TickCost.total(cost);
+            lines.add(colored(String.format(Locale.US, "%.2f ms of each 50 ms tick", total),
+                    total < 5.0 ? NamedTextColor.GREEN : total < 15.0 ? NamedTextColor.GOLD : NamedTextColor.RED));
+            for (com.github.blade.hvac.service.TickCost.Part part : cost)
+                lines.add(gray(String.format(Locale.US, "%s: %.3f ms (longest %.1f)", part.name(), part.msPerTick(),
+                        part.worstMs())));
+            lines.add(gray("Averaged over the last minute;"));
+            lines.add(gray("longest is one run's time"));
+        }
+        inventory.setItem(TICK_COST, item(Material.REDSTONE,
+                Component.text("Tick cost", NamedTextColor.AQUA), lines));
     }
 
     private void drawUpdates(Inventory inventory) {
@@ -485,6 +712,8 @@ public final class QuickSettingsMenu implements Listener {
                     case STATISTICS -> Page.STATISTICS;
                     case UPDATES -> Page.UPDATES;
                     case ADDONS -> Page.ADDONS;
+                    case SEASONS_AND_WIND -> Page.SEASONS;
+                    case DISPLAY -> Page.DISPLAY;
                     default -> null;
                 };
                 if (page != null) {
@@ -506,6 +735,8 @@ public final class QuickSettingsMenu implements Listener {
                 if (clickAddons(player, slot, event.isShiftClick())) return;
             }
             case ADDON_PARTS -> clickAddonParts(player, slot, menu.addon);
+            case SEASONS -> clickSeasons(player, slot, menu.world);
+            case DISPLAY -> clickDisplay(player, slot);
         }
         draw(menu);
     }

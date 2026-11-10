@@ -31,6 +31,10 @@ public final class ServerSwitches {
     private volatile boolean sizing;
     /** Replaced whole on a change, so a reader off the main thread never sees it half-made. */
     private volatile Set<DeviceKind> off;
+    /** Set from the Display and sound page (BETA 1.0 Pilot 4); null until then, for config.yml's value. */
+    private volatile TemperatureUnit units;
+    private volatile WindSettings.Units windUnits;
+    private volatile Boolean sounds;
 
     private ServerSwitches(FileConfiguration config, Runnable saveConfig, Set<DeviceKind> off) {
         this.config = config;
@@ -86,6 +90,37 @@ public final class ServerSwitches {
     static boolean pollenOn() {
         ServerSwitches switches = live;
         return switches == null || switches.pollen;
+    }
+
+    /** The temperature unit players read: the one chosen in the menu, or config.yml's. */
+    static TemperatureUnit units(TemperatureUnit configured) {
+        ServerSwitches switches = live;
+        return switches == null || switches.units == null ? configured : switches.units;
+    }
+
+    static WindSettings.Units windUnits(WindSettings.Units configured) {
+        ServerSwitches switches = live;
+        return switches == null || switches.windUnits == null ? configured : switches.windUnits;
+    }
+
+    static boolean sounds(boolean configured) {
+        ServerSwitches switches = live;
+        return switches == null || switches.sounds == null ? configured : switches.sounds;
+    }
+
+    public void setUnits(TemperatureUnit unit) {
+        units = unit;
+        write("units", unit.name());
+    }
+
+    public void setWindUnits(WindSettings.Units unit) {
+        windUnits = unit;
+        write("wind.units", unit.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public void setSounds(boolean on) {
+        sounds = on;
+        write("audio.enabled", on);
     }
 
     /** Whether this kind is switched off server-wide right now. */
