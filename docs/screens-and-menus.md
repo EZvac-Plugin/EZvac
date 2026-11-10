@@ -51,10 +51,9 @@ All screens are the same size, so a wall of devices lines up.
   EZvac leaves nothing floating behind.
 - Placed on wall signs, standing signs and hanging signs alike.
 
-**Plain signs are no longer supported** (BETA 1.0). `displays.screens: false`
-in `config.yml` still turns screens off and shows the old four-line signs, but
-they get none of the new lines (such as **Undersized**) and may be removed in a
-later release. Bedrock players coming in through Geyser can't see screens.
+**Screens are the only display** (BETA 1.0 Pilot 4). Devices no longer write
+on their signs, and `displays.screens` is gone from `config.yml`. Bedrock
+players coming in through Geyser can't see screens.
 
 ## Control menus
 
@@ -111,8 +110,11 @@ settings that shape the whole server, so an owner can choose how much of
 EZvac runs without editing `config.yml` or restarting. It needs
 `ezvac.admin`.
 
-The main page has five sections. Each opens its own page, with **Back** in
-the bottom-left corner to return and **Close** in the bottom-right.
+The main page has eight sections in two rows (regrouped in BETA 1.0 Pilot
+4): **Devices**, **Climate systems**, **Seasons & wind** and **Display &
+sound** above, and **Addons**, **Backups & registry**, **Health** and
+**Updates** below. Each opens its own page, with **Back** in the bottom-left
+corner to return and **Close** in the bottom-right.
 
 - **Every change applies at once** and is written to `config.yml`, comments
   and all, so the file and the menu always agree. Editing the file by hand
@@ -184,9 +186,54 @@ opens a recovery menu instead: salvage the file, or restore a backup. See
 To restore one, see
 [Restoring a backup](upgrading-and-troubleshooting.md#restoring-a-backup).
 
-### Statistics
+### Seasons & wind
 
-What `/hvac stats` reports, written out: each kind of device with how many
+New in BETA 1.0 Pilot 4. For the world you stand in (open it from another
+world to change that one):
+
+- **The season and day,** with **A day back**, **A day on**, **Next season**
+  and **Pause the calendar**: what `/hvac season set`, `next` and `pause` do.
+- **Today's wind:** each click sets it to calm, breezy, windy, a gale, and
+  then back to blowing as it would, like `/hvac wind set`.
+
+### Display & sound
+
+New in BETA 1.0 Pilot 4. All three apply at once, on every screen and HUD:
+
+- **Temperatures** in °F or °C (`units`). Setpoints keep their temperature.
+- **Wind speeds** in mph, km/h or m/s, or auto: mph with °F, km/h with °C
+  (`wind.units`).
+- **Device sounds** on or off (`audio.enabled`).
+
+### Addons
+
+New in BETA 1.0 Pilot 4; `/hvac addons` opens it directly.
+
+- **The top row is what's installed:** EZvac's official addons on this
+  server, each with its version and a switch beneath it. Switched off, an
+  addon stays loaded but does nothing, until it is switched on again; the
+  choice is kept through restarts.
+- **Parts:** an addon with parts says how many are on. Click its icon for a
+  page with a switch for each; they only run while the addon itself is on.
+  EZclimates has seasonal looks, snow and ice, planned weather, and body
+  temperature (off until you switch it on).
+- **An addon from before this menu** runs, but says it needs updating to be
+  switched here.
+- **The bottom row is the store:** the official addons this server doesn't
+  have, with what each does and needs. A click closes the menu and puts the
+  addon's GitHub link in chat. EZvac never downloads or installs anything.
+- **Updates:** an installed addon with a newer release says so (shift-click
+  for the link), and admins are told when they join. **Check now** asks
+  GitHub at once; otherwise it follows `updates.check`.
+
+### Health
+
+Called Statistics before BETA 1.0 Pilot 4. **Tick cost** says what each part
+of EZvac took of the server's 50 ms tick over the last minute: the
+controller, screens, airflow, the HUD, weather stations and open-air smoke,
+each averaged over every tick, with its longest single run.
+
+It also has what `/hvac stats` reports, written out: each kind of device with how many
 run, the thermostats and other signs, and the airflow figures. When
 `hvac.yml` was last saved moved to the Backups & registry page in BETA 1.0. **Sizes** lists each system's size and what it has
 of the units it needs, for cooling and heating, the worst sized first.

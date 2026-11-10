@@ -222,6 +222,40 @@ for (HvacDevice device : ezvac.devices(world)) {
   of everyone's systems is the server's choice to make, so let admins switch
   it off.
 
+## The Addons menu
+
+Since API 1.9 an addon can register with EZvac's
+[Addons menu](screens-and-menus.md#addons), so a server can switch it on and
+off while it runs:
+
+```java
+AddonSwitches switches = ezvac.registerAddon(this, new Addon() {
+    @Override
+    public void setActive(boolean active) {
+        if (active) start(); else stop();
+    }
+
+    @Override
+    public List<Part> parts() {
+        return List.of(new Part("markers", "Map markers", "Off: no markers are drawn.", on -> markers = on));
+    }
+});
+if (switches.active()) start();
+markers = switches.partOn("markers");
+```
+
+- **Start in the state it hands back:** a server's choices are kept in
+  EZvac's `config.yml` through restarts.
+- **Switched off, stay loaded but do nothing:** stop tasks, take down what
+  you show, and let listeners do nothing.
+- **Parts are optional.** A part only runs while the addon itself is on. One
+  made with `startsOn` false is off until a server switches it on.
+- **The menu lists EZvac's official addons.** Any plugin may register; one
+  that isn't official is always on.
+- **Older EZvacs:** `registerAddon` is new in 1.9. To also run on older
+  ones, check `apiVersion()` first and keep the call in a class of its own,
+  so `Addon` is never loaded there.
+
 ## HUD sections
 
 Since API 1.1 an addon can add a few lines of its own to the climate HUD
@@ -330,6 +364,6 @@ depend: [EZvac]
   `blocked()`), and 1.8 with BETA 1.0 Pilot 3 (the wind's direction,
   `windAt()`, `outdoorAirAt()`, `windForecast(location, days)`, and a
   station's `wind()`, `airQuality()` and each day's `aqi()`), and 1.9 with
-  BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `WeatherPlan`, `WeatherEvent`, `setWeatherPlan()`, `Precipitation`
-  and `SeasonView.progress()`).
+  BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `WeatherPlan`, `WeatherEvent`, `setWeatherPlan()`, `Precipitation`,
+  `SeasonView.progress()`, and `registerAddon()` with `Addon` and `AddonSwitches`).
   Depend on the oldest EZvac whose API has what you use.

@@ -93,7 +93,8 @@ from, the AQI, and pollen. A station is honest about what EZvac knows:
   too: "Snowstorm from 14:00", "Cold snap, day 2 of 4", "Heat wave likely",
   and a heat wave or cold snap moves the day's high and low.
 - **Dry biomes** (deserts, badlands) get rain only as `weather.dry-areas`
-  allows (by default in thunderstorms). Cold ones get snow.
+  allows: by default the season's share of rain spells, so a desert station
+  shows a rain chance scaled down by it. Cold ones get snow.
 
 ## Using it
 

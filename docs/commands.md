@@ -146,8 +146,9 @@ game.
 
 | Command | Does |
 | --- | --- |
-| `/hvac quicksettings` (`qs`) | Opens the [quick settings](screens-and-menus.md#quick-settings) menu: device kinds and climate systems on or off, registry backups, statistics and updates (BETA 1.0) |
-| `/hvac stats` | Device totals and airflow statistics |
+| `/hvac quicksettings` (`qs`) | Opens the [quick settings](screens-and-menus.md#quick-settings) menu: device kinds and climate systems on or off, the season and the wind, units and sounds, addons, registry backups, health and updates (BETA 1.0) |
+| `/hvac addons` | Opens the [Addons](screens-and-menus.md#addons) page: EZvac's official addons on this server, switched on and off (with their parts), the ones it doesn't have with their links, and which have an update (BETA 1.0 Pilot 4) |
+| `/hvac stats` | Device totals and airflow statistics, and what each part of EZvac costs the server's tick over the last minute (BETA 1.0 Pilot 4) |
 | `/hvac stats sizes` | Every system's size and openings, and what it has of the units it needs for cooling and heating, the worst sized first (BETA 1.0, see [Sizing](equipment.md#sizing)) |
 | `/hvac sync` | Applies block and world changes straight away instead of on the next update, and maps every system's air again: run it after building with `/fill` or WorldEdit, which don't tell EZvac |
 | `/hvac registry` | How `hvac.yml` read at this start: recovered from a backup, and the entries kept aside and why (BETA 1.0) |
