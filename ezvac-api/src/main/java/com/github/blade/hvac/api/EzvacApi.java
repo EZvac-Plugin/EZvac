@@ -278,6 +278,20 @@ public interface EzvacApi {
     }
 
     /**
+     * Today's average outdoor air at a block, °F: halfway between its noon
+     * and its midnight, with the season, a planned heat wave or cold snap,
+     * the weather now and the height all counted. Snow on the ground
+     * answers to it rather than to the hour's air, so a cold night's snow
+     * outlasts a mild morning. NaN where it can't be told. Never loads a
+     * chunk. Main thread only.
+     *
+     * @since 1.9
+     */
+    default double dailyMeanAirF(World world, int x, int y, int z) {
+        return Double.NaN;
+    }
+
+    /**
      * Lets an addon plan the weather (see {@link WeatherPlan}): stations
      * forecast from it, and the outdoor air takes on its heat waves, cold
      * snaps and storms. One plan at a time; registering again replaces it,

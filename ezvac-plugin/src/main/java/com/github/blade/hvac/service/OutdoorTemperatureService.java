@@ -833,4 +833,19 @@ public final class OutdoorTemperatureService {
         BiomeBlend.Blended local = blendedAt(world, x, y, z);
         return waterUnheld(world, effect(world, local), local);
     }
+
+    /**
+     * Today's average outdoor air at a block (BETA 1.0 Pilot 4): halfway
+     * between its noon and its midnight, with the season, a planned heat
+     * wave or cold snap, the weather now and the height all counted. What
+     * snow lying on the ground answers to, rather than the hour's air.
+     * Never loads a chunk.
+     */
+    public double dailyMeanAt(World world, int x, int y, int z) {
+        if (world == null) return Double.NaN;
+        BiomeBlend.Blended local = blendedAt(world, x, y, z);
+        WeatherModel.Effect effect = effect(world, local);
+        BiomeBlend.Blended now = inSeason(world, local);
+        return (effect.noonF(now.noonF(), now.midnightF()) + effect.midnightF(now.noonF(), now.midnightF())) / 2.0;
+    }
 }

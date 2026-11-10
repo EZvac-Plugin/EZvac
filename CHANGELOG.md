@@ -120,6 +120,8 @@ only. The save is unchanged (format 8).
   falling at a block right now.
 - `snowLineAt(world, x, z)`: the height above which rain would come down as
   snow at a column, raining or not.
+- `dailyMeanAirF(world, x, y, z)`: today's average air at a block, which snow
+  on the ground answers to rather than the hour's air.
 - `freezingWaterF(world, x, y, z)`: how cold natural water is getting, before
   EZvac holds liquid water at 33 °F, so an addon can freeze lakes.
 - `SeasonView.progress()`: how far through the year a world is, 0 to 1.

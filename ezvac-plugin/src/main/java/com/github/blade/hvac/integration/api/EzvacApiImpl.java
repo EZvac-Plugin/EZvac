@@ -466,6 +466,11 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     }
 
     @Override
+    public double dailyMeanAirF(World world, int x, int y, int z) {
+        return outdoor.dailyMeanAt(world, x, y, z);
+    }
+
+    @Override
     public void setWeatherPlan(org.bukkit.plugin.Plugin plugin, com.github.blade.hvac.api.WeatherPlan plan) {
         java.util.Objects.requireNonNull(plugin, "plugin");
         outdoor.plannedWeather().set(plugin, plan);
