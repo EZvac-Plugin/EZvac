@@ -5,7 +5,7 @@
       "plugin": "EZclimates",
       "main": "com.github.blade.ezclimates.EzClimatesPlugin",
       "name": "EZclimates",
-      "description": "Seasons you can see: rain or snow by EZvac's air, snow that settles and melts, ice, leaves that turn, planned weather with storms and heat waves, and body temperature.",
+      "description": "Seasons you can see: rain or snow by EZvac's air, snow and ice that melt, leaves that turn, planned weather, crops that grow by the air (a heated greenhouse grows in winter), and body temperature.",
       "repository": "EZclimates",
       "minecraft": "26.1",
       "needs": "Minecraft 26.1 or newer, and packetevents",

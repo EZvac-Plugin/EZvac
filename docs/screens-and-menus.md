@@ -215,7 +215,7 @@ New in BETA 1.0 Pilot 4; `/hvac addons` opens it directly.
   choice is kept through restarts.
 - **Parts:** an addon with parts says how many are on. Click its icon for a
   page with a switch for each; they only run while the addon itself is on.
-  EZclimates has seasonal looks, snow and ice, planned weather, and body
+  EZclimates has seasonal looks, snow and ice, planned weather, plants, and body
   temperature (off until you switch it on).
 - **An addon from before this menu** runs, but says it needs updating to be
   switched here.
