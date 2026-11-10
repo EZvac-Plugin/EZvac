@@ -156,6 +156,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         { if (requireAdmin(player)) linkTool.give(player); }
                 case "remove" -> { if (requireAdmin(player)) remove(player, args); }
                 case "quicksettings", "qs" -> { if (requireAdmin(player)) plugin.quickSettings().open(player); }
+                case "addons", "addon" -> { if (requireAdmin(player)) plugin.quickSettings().openAddons(player); }
                 case "forecast", "weatherfc" -> plugin.forecastMenu().openForecast(player, null);
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
             }
@@ -1320,6 +1321,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "server" -> {
                 lines.add(gold("EZvac commands: running the server"));
                 lines.add(help("/hvac quicksettings", "devices, climate systems, backups, statistics, updates"));
+                lines.add(help("/hvac addons", "official addons: switch them, find more, see updates"));
                 lines.add(help("/hvac stats [sizes]", "device totals, or every system's size"));
                 lines.add(help("/hvac sync", "map every system's air again, after /fill or WorldEdit"));
                 lines.add(help("/hvac update", "check GitHub for a newer EZvac that runs here"));
@@ -1356,7 +1358,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 "forecast"));
         if (hud) words.add("hud");
         if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove",
-                "stats", "sync", "update", "quicksettings", "registry"));
+                "stats", "sync", "update", "quicksettings", "addons", "registry"));
         return words;
     }
 

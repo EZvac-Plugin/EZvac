@@ -1,0 +1,49 @@
+{
+  "addons": [
+    {
+      "id": "ezclimates",
+      "plugin": "EZclimates",
+      "main": "com.github.blade.ezclimates.EzClimatesPlugin",
+      "name": "EZclimates",
+      "description": "Seasons you can see: rain or snow by EZvac's air, snow that settles and melts, ice, leaves that turn, planned weather with storms and heat waves, and body temperature.",
+      "repository": "EZclimates",
+      "minecraft": "26.1",
+      "needs": "Minecraft 26.1 or newer, and packetevents",
+      "icon": "SNOWBALL"
+    },
+    {
+      "id": "liveexposure",
+      "plugin": "LiveExposure",
+      "main": "com.github.blade.liveexposure.LiveExposurePlugin",
+      "name": "LiveExposure",
+      "description": "Body temperature: heat and cold that wear down survival players caught in the elements.",
+      "repository": "LiveExposure",
+      "minecraft": "",
+      "needs": "",
+      "folded-into": "ezclimates",
+      "icon": "MAGMA_CREAM"
+    },
+    {
+      "id": "ezdebugplus",
+      "plugin": "EZdebugPlus",
+      "main": "com.github.blade.ezdebug.EzDebugPlugin",
+      "name": "EZdebug+",
+      "description": "A Debug Potion that shows EZvac's devices at work: airflow, links and what each unit is doing.",
+      "repository": "EZdebugPlus",
+      "minecraft": "",
+      "needs": "",
+      "icon": "POTION"
+    },
+    {
+      "id": "mappeek",
+      "plugin": "MapPeek",
+      "main": "com.github.blade.mappeek.MapPeekPlugin",
+      "name": "MapPeek",
+      "description": "EZvac on your web map: weather stations, the wind, air quality and the season on squaremap and BlueMap.",
+      "repository": "MapPeek",
+      "minecraft": "",
+      "needs": "squaremap or BlueMap",
+      "icon": "FILLED_MAP"
+    }
+  ]
+}

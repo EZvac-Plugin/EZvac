@@ -1,6 +1,8 @@
 package com.github.blade.hvac.gui;
 
 import com.github.blade.hvac.HvacPlugin;
+import com.github.blade.hvac.addons.AddonCatalogue;
+import com.github.blade.hvac.addons.AddonService;
 import com.github.blade.hvac.config.ServerSwitches;
 import com.github.blade.hvac.model.ClimateUnit;
 import com.github.blade.hvac.model.DeviceKind;
@@ -51,7 +53,8 @@ public final class QuickSettingsMenu implements Listener {
     enum Page {
         MAIN("EZvac quick settings", 27), DEVICES("Quick settings › Devices", 36),
         CLIMATE("Quick settings › Climate systems", 36), BACKUPS("Quick settings › Backups & registry", 36),
-        STATISTICS("Quick settings › Statistics", 36), UPDATES("Quick settings › Updates", 36);
+        STATISTICS("Quick settings › Statistics", 36), UPDATES("Quick settings › Updates", 36),
+        ADDONS("Quick settings › Addons", 54), ADDON_PARTS("Quick settings › Addon", 36);
 
         final String title;
         final int size;
@@ -66,7 +69,11 @@ public final class QuickSettingsMenu implements Listener {
     }
 
     /** The main page's sections, in the middle row. */
-    static final int DEVICES = 11, CLIMATE = 12, BACKUPS = 13, STATISTICS = 14, UPDATES = 15;
+    static final int DEVICES = 11, CLIMATE = 12, BACKUPS = 13, STATISTICS = 14, UPDATES = 15, ADDONS = 16;
+    /** The Addons page: installed addons with their switches beneath, the store's row, and the check. */
+    static final int ADDONS_INFO = 4, INSTALLED_FROM = 10, STORE_FROM = 37, ADDONS_ROW = 7, CHECK_ADDONS = 49;
+    /** An addon's own page: what it is, and its parts with their switches beneath. */
+    static final int ADDON_INFO = 4, PARTS_FROM = 9, PARTS_ROW = 9;
     /** The device kinds in the second row: the five sources, the three room units, weather stations; switches beneath. */
     static final int[] DEVICE_SLOTS = {9, 10, 11, 12, 13, 14, 15, 16, 17};
     /** Air quality, pollen, wind, seasons and building size, with their switches beneath. */
@@ -89,6 +96,8 @@ public final class QuickSettingsMenu implements Listener {
         Inventory inventory;
         /** Clicked once: the next click on the registry item discards what was kept aside. */
         boolean discardArmed;
+        /** On an addon's own page: its plugin's name. */
+        String addon;
 
         Menu(Page page) { this.page = page; }
 
@@ -103,9 +112,12 @@ public final class QuickSettingsMenu implements Listener {
     private final ServerSwitches switches;
     private final RegistryBackups backups;
     private final UpdateNotifier updates;
+    private final AddonService addons;
 
     public QuickSettingsMenu(HvacPlugin plugin, HvacRegistry registry, AirflowService airflow, DisplayService displays,
-                             ServerSwitches switches, RegistryBackups backups, UpdateNotifier updates) {
+                             ServerSwitches switches, RegistryBackups backups, UpdateNotifier updates,
+                             AddonService addons) {
+        this.addons = Objects.requireNonNull(addons, "addons");
         this.plugin = Objects.requireNonNull(plugin, "plugin");
         this.registry = Objects.requireNonNull(registry, "registry");
         this.airflow = Objects.requireNonNull(airflow, "airflow");
@@ -115,10 +127,16 @@ public final class QuickSettingsMenu implements Listener {
         this.updates = Objects.requireNonNull(updates, "updates");
     }
 
-    public void open(Player player) { open(player, Page.MAIN); }
+    public void open(Player player) { open(player, Page.MAIN, null); }
 
-    private void open(Player player, Page page) {
+    /** /hvac addons: straight to the Addons page. */
+    public void openAddons(Player player) { open(player, Page.ADDONS, null); }
+
+    private void open(Player player, Page page) { open(player, page, null); }
+
+    private void open(Player player, Page page, String addon) {
         Menu menu = new Menu(page);
+        menu.addon = addon;
         menu.inventory = Bukkit.createInventory(menu, page.size, Component.text(page.title));
         draw(menu);
         player.openInventory(menu.inventory);
@@ -132,7 +150,7 @@ public final class QuickSettingsMenu implements Listener {
                 List.of()));
         if (menu.page != Page.MAIN)
             inventory.setItem(menu.page.back(), item(Material.ARROW, Component.text("Back", NamedTextColor.YELLOW),
-                    List.of(gray("To the quick settings"))));
+                    List.of(gray(menu.page == Page.ADDON_PARTS ? "To the addons" : "To the quick settings"))));
         switch (menu.page) {
             case MAIN -> drawMain(inventory);
             case DEVICES -> drawDevices(inventory);
@@ -140,7 +158,129 @@ public final class QuickSettingsMenu implements Listener {
             case BACKUPS -> drawBackups(inventory, menu.discardArmed);
             case STATISTICS -> drawStatistics(inventory);
             case UPDATES -> drawUpdates(inventory);
+            case ADDONS -> drawAddons(inventory);
+            case ADDON_PARTS -> drawAddonParts(inventory, menu.addon);
         }
+    }
+
+    private static Material icon(AddonCatalogue.Entry entry) {
+        Material material = Material.matchMaterial(entry.icon());
+        return material == null || !material.isItem() ? Material.PAPER : material;
+    }
+
+    private static void describe(List<Component> lore, AddonCatalogue.Entry entry) {
+        for (String line : AddonCatalogue.wrap(entry.description(), 38)) lore.add(gray(line));
+    }
+
+    private static Component yellow(String text) {
+        return Component.text(text, NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false);
+    }
+
+    private static Component colored(String text, NamedTextColor color) {
+        return Component.text(text, color).decoration(TextDecoration.ITALIC, false);
+    }
+
+    /**
+     * The official addons (BETA 1.0 Pilot 4): those installed, each with its
+     * switch beneath, and beneath them the store, the ones this server
+     * doesn't have, which give their link when clicked.
+     */
+    private void drawAddons(Inventory inventory) {
+        List<AddonService.Installed> installed = addons.installed();
+        List<AddonCatalogue.Entry> store = addons.store();
+        inventory.setItem(ADDONS_INFO, item(Material.BOOKSHELF,
+                Component.text("Official addons", NamedTextColor.AQUA).decorate(TextDecoration.BOLD), List.of(
+                        gray(installed.size() + " installed, " + store.size() + " more in the store"),
+                        gray("Top row: installed. Click the dye"), gray("beneath one to switch it."),
+                        gray("Bottom row: the store. Click one"), gray("for its link; EZvac never"),
+                        gray("downloads or installs anything."))));
+        for (int i = 0; i < Math.min(ADDONS_ROW, installed.size()); i++) {
+            AddonService.Installed addon = installed.get(i);
+            AddonCatalogue.Entry entry = addon.entry();
+            List<Component> lore = new ArrayList<>();
+            lore.add(gray("Version " + addon.version()));
+            if (addon.update() != null) lore.add(colored("Update available: " + addon.update(), NamedTextColor.GOLD));
+            describe(lore, entry);
+            if (entry.folded()) {
+                AddonCatalogue.Entry into = addons.entry(entry.foldedInto());
+                lore.add(colored("Now part of " + (into == null ? entry.foldedInto() : into.name()),
+                        NamedTextColor.GOLD));
+            }
+            boolean on = addon.running() && addon.active();
+            if (!addon.running()) lore.add(colored("Its plugin isn't running: see the console", NamedTextColor.RED));
+            else if (!addon.switchable()) {
+                lore.add(gray("Runs, but can't be switched here:"));
+                lore.add(gray("update it for that"));
+            } else {
+                if (!addon.parts().isEmpty()) {
+                    long partsOn = addon.parts().stream().filter(AddonService.PartView::on).count();
+                    lore.add(gray(partsOn + " of " + addon.parts().size() + " parts on"));
+                    lore.add(yellow("Click for its parts"));
+                    lore.add(yellow("Click the dye to switch it " + (addon.active() ? "off" : "on")));
+                } else lore.add(clickTo(addon.active()));
+            }
+            if (addon.update() != null) lore.add(yellow("Shift-click for its link"));
+            placeSwitch(inventory, INSTALLED_FROM + i, icon(entry), entry.name(), on, lore);
+        }
+        if (installed.isEmpty())
+            inventory.setItem(INSTALLED_FROM + 3, item(Material.GLASS_BOTTLE, Component.text("No official addons yet",
+                    NamedTextColor.GRAY), List.of(gray("The store is in the row below"))));
+        for (int i = 0; i < Math.min(ADDONS_ROW, store.size()); i++) {
+            AddonCatalogue.Entry entry = store.get(i);
+            List<Component> lore = new ArrayList<>();
+            describe(lore, entry);
+            if (!entry.needs().isEmpty()) lore.add(gray("Needs " + entry.needs()));
+            if (!addons.runsHere(entry))
+                lore.add(colored("Needs Minecraft " + entry.minecraft() + " or newer", NamedTextColor.RED));
+            if (entry.folded()) {
+                AddonCatalogue.Entry into = addons.entry(entry.foldedInto());
+                lore.add(colored("Now part of " + (into == null ? entry.foldedInto() : into.name()),
+                        NamedTextColor.GOLD));
+            }
+            lore.add(yellow("Click for its link"));
+            inventory.setItem(STORE_FROM + i, item(icon(entry),
+                    Component.text(entry.name(), NamedTextColor.GREEN).decorate(TextDecoration.BOLD), lore));
+        }
+        if (store.isEmpty())
+            inventory.setItem(STORE_FROM + 3, item(Material.EMERALD, Component.text("Every official addon is installed",
+                    NamedTextColor.GREEN), List.of()));
+        List<String> news = addons.updates();
+        inventory.setItem(CHECK_ADDONS, item(Material.SPYGLASS,
+                Component.text("Check now", NamedTextColor.GREEN).decorate(TextDecoration.BOLD), List.of(
+                        gray("Asks GitHub for new addons and"), gray("newer releases of these."),
+                        gray(news.isEmpty() ? "No updates known" : "Updates: " + String.join(", ", news)),
+                        gray(updates.checking() ? "Also checked every 6 hours" : "Background checks are off"))));
+    }
+
+    /** One addon's parts, each with its switch beneath; they only run while the addon itself is on. */
+    private void drawAddonParts(Inventory inventory, String pluginName) {
+        AddonService.Installed addon = installed(pluginName);
+        if (addon == null) {
+            inventory.setItem(ADDON_INFO, item(Material.BARRIER, Component.text("No longer installed",
+                    NamedTextColor.RED), List.of()));
+            return;
+        }
+        List<Component> lore = new ArrayList<>();
+        lore.add(gray("Version " + addon.version()));
+        describe(lore, addon.entry());
+        lore.add(colored(addon.active() ? "On" : "Off: its parts wait until it is on",
+                addon.active() ? NamedTextColor.GREEN : NamedTextColor.RED));
+        inventory.setItem(ADDON_INFO, item(icon(addon.entry()),
+                Component.text(addon.entry().name(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD), lore));
+        for (int i = 0; i < Math.min(PARTS_ROW, addon.parts().size()); i++) {
+            AddonService.PartView part = addon.parts().get(i);
+            List<Component> partLore = new ArrayList<>();
+            for (String line : AddonCatalogue.wrap(part.description(), 38)) partLore.add(gray(line));
+            partLore.add(clickTo(part.on()));
+            placeSwitch(inventory, PARTS_FROM + i, part.on() ? Material.LIME_STAINED_GLASS : Material.RED_STAINED_GLASS,
+                    part.name(), part.on(), partLore);
+        }
+    }
+
+    private AddonService.Installed installed(String pluginName) {
+        for (AddonService.Installed addon : addons.installed())
+            if (addon.entry().plugin().equals(pluginName)) return addon;
+        return null;
     }
 
     private void drawMain(Inventory inventory) {
@@ -159,6 +299,10 @@ public final class QuickSettingsMenu implements Listener {
                 "What /hvac stats shows"));
         inventory.setItem(UPDATES, section(Material.CLOCK, "Updates", "Running " + updates.runningName(),
                 "Check GitHub for a newer EZvac"));
+        int installed = addons.installed().size(), news = addons.updates().size();
+        inventory.setItem(ADDONS, section(Material.BOOKSHELF, "Addons",
+                installed + " installed" + (news == 0 ? "" : ", " + news + " with an update"),
+                "Switch official addons; find more"));
     }
 
     private static ItemStack section(Material icon, String name, String state, String what) {
@@ -329,7 +473,7 @@ public final class QuickSettingsMenu implements Listener {
         }
         if (menu.page != Page.MAIN && slot == menu.page.back()) {
             click(player, true);
-            reopen(player, Page.MAIN);
+            reopen(player, menu.page == Page.ADDON_PARTS ? Page.ADDONS : Page.MAIN);
             return;
         }
         switch (menu.page) {
@@ -340,6 +484,7 @@ public final class QuickSettingsMenu implements Listener {
                     case BACKUPS -> Page.BACKUPS;
                     case STATISTICS -> Page.STATISTICS;
                     case UPDATES -> Page.UPDATES;
+                    case ADDONS -> Page.ADDONS;
                     default -> null;
                 };
                 if (page != null) {
@@ -357,8 +502,93 @@ public final class QuickSettingsMenu implements Listener {
             case UPDATES -> {
                 if (clickUpdates(player, slot)) return;
             }
+            case ADDONS -> {
+                if (clickAddons(player, slot, event.isShiftClick())) return;
+            }
+            case ADDON_PARTS -> clickAddonParts(player, slot, menu.addon);
         }
         draw(menu);
+    }
+
+    /** True when the menu closed or another page opens. */
+    private boolean clickAddons(Player player, int slot, boolean shift) {
+        if (slot == CHECK_ADDONS) {
+            click(player, true);
+            addons.refresh(answered -> {
+                if (!player.isOnline()) return;
+                List<String> news = addons.updates();
+                player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
+                        !answered ? "GitHub couldn't be reached; the addons are as last known."
+                                : news.isEmpty() ? "The addons here are up to date."
+                                : "Updates: " + String.join(", ", news) + ".",
+                        answered ? NamedTextColor.GREEN : NamedTextColor.YELLOW)));
+                if (player.getOpenInventory().getTopInventory().getHolder() instanceof Menu open
+                        && open.page == Page.ADDONS) draw(open);
+            });
+            return false;
+        }
+        if (slot >= STORE_FROM && slot < STORE_FROM + ADDONS_ROW) {
+            List<AddonCatalogue.Entry> store = addons.store();
+            if (slot - STORE_FROM >= store.size()) return false;
+            sendLink(player, store.get(slot - STORE_FROM), null);
+            return true;
+        }
+        boolean dye = slot >= 18 && slot < 27;
+        int index = switchedAt(slot) - INSTALLED_FROM;
+        List<AddonService.Installed> installed = addons.installed();
+        if (index < 0 || index >= Math.min(ADDONS_ROW, installed.size())) return false;
+        AddonService.Installed addon = installed.get(index);
+        if (shift && addon.update() != null) {
+            sendLink(player, addon.entry(), addon.update());
+            return true;
+        }
+        if (!addon.running() || !addon.switchable()) {
+            click(player, false);
+            return false;
+        }
+        if (!dye && !addon.parts().isEmpty()) {
+            click(player, true);
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (player.isOnline() && player.hasPermission(ADMIN)) open(player, Page.ADDON_PARTS, addon.entry().plugin());
+            });
+            return true;
+        }
+        boolean on = !addon.active();
+        if (addons.setActive(addon.entry().plugin(), on)) {
+            click(player, true);
+            logChange(player, "switched the addon " + addon.entry().name() + (on ? " on" : " off"));
+        } else {
+            click(player, false);
+            player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
+                    addon.entry().name() + " couldn't be switched: see the console.", NamedTextColor.RED)));
+        }
+        return false;
+    }
+
+    private void clickAddonParts(Player player, int slot, String pluginName) {
+        AddonService.Installed addon = installed(pluginName);
+        int index = switchedAt(slot) - PARTS_FROM;
+        if (addon == null || index < 0 || index >= Math.min(PARTS_ROW, addon.parts().size())) return;
+        AddonService.PartView part = addon.parts().get(index);
+        if (addons.setPart(pluginName, part.id(), !part.on())) {
+            click(player, true);
+            logChange(player, "switched " + addon.entry().name() + "'s " + part.name().toLowerCase(Locale.ROOT)
+                    + (part.on() ? " off" : " on"));
+        } else click(player, false);
+    }
+
+    /** Closes the menu and puts an addon's link in chat: its page, or its releases for an update. */
+    private void sendLink(Player player, AddonCatalogue.Entry entry, String update) {
+        click(player, true);
+        String url = update == null ? entry.url() : entry.url() + "/releases";
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            player.closeInventory();
+            player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD)
+                    .append(Component.text(entry.name() + (update == null ? ": " : " " + update + ": "),
+                            NamedTextColor.YELLOW))
+                    .append(Component.text(url, NamedTextColor.AQUA, TextDecoration.UNDERLINED)
+                            .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))));
+        });
     }
 
     /** Opening another inventory from inside a click is done a tick later, as Bukkit asks. */

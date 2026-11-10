@@ -121,7 +121,7 @@ public final class UpdateCheck {
     }
 
     /** Orders Minecraft versions by their numbers (1.21.11 before 26.1); unreadable ones count as newest. */
-    static int compareMinecraft(String a, String b) {
+    public static int compareMinecraft(String a, String b) {
         int[] left = numbers(a), right = numbers(b);
         if (left == null || right == null) return left == right ? 0 : left == null ? 1 : -1;
         for (int i = 0; i < Math.max(left.length, right.length); i++) {
