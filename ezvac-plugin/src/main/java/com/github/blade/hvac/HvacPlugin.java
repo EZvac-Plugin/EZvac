@@ -118,7 +118,7 @@ public final class HvacPlugin extends JavaPlugin {
             SizingSettings sizing = SizingSettings.load(getConfig(), getLogger()::warning);
             airflow.setSizing(sizing);
             displays = new DisplayService(this, registry, airflow, outdoor, settings,
-                    new ScreenService(this, getConfig().getBoolean("displays.screens", true)));
+                    screensOnly());
             weatherStations = new WeatherStationService(this, registry, outdoor, climate,
                     WeatherStationSettings.load(getConfig(), getLogger()::warning));
             weatherStations.setDisplays(displays);
@@ -226,6 +226,18 @@ public final class HvacPlugin extends JavaPlugin {
      * this, a server upgraded from an older release never saw new settings:
      * they applied with their defaults, but nobody knew they existed.
      */
+    /**
+     * Devices show on screens only (BETA 1.0 Pilot 4): a server that had
+     * them off is told once at start-up that the setting is gone.
+     */
+    private ScreenService screensOnly() {
+        if (getConfig().contains("displays.screens", true) && !getConfig().getBoolean("displays.screens", true))
+            getLogger().warning("displays.screens: false is no longer read. Devices show on screens only since"
+                    + " BETA 1.0 Pilot 4: they no longer write on their signs. The line can be removed from"
+                    + " config.yml.");
+        return new ScreenService(this);
+    }
+
     private void addNewSettingsToConfig() {
         File file = new File(getDataFolder(), "config.yml");
         YamlConfiguration current = new YamlConfiguration();

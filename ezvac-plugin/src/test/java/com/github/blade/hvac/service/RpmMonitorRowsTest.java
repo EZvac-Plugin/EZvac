@@ -59,38 +59,38 @@ class RpmMonitorRowsTest {
         for (EquipmentType type : EquipmentType.values())
             for (Tier tier : Tier.values())
                 for (int units = 1; units <= 9; units++) {
-                    String text = row(type, tier, units, 1, 4_150, SignText.SIGN_WIDTH);
-                    assertTrue(SignText.width(text) <= SignText.SIGN_WIDTH, text);
+                    String text = row(type, tier, units, 1, 4_150, 90);
+                    assertTrue(TextWidth.width(text) <= 90, text);
                     assertTrue(text.contains(" T" + tier.number()), "the tier fits: " + text);
                     assertTrue(text.endsWith(type.fixedSpeed() ? " on" : "4.2k")
                             || text.endsWith("4,150"), "and so does the speed: " + text);
                 }
-        assertEquals("HP T2 ×4 2,940", row(EquipmentType.HEAT_PUMP, Tier.TWO_STAGE, 4, 2, 2940, SignText.SIGN_WIDTH),
+        assertEquals("HP T2 ×4 2,940", row(EquipmentType.HEAT_PUMP, Tier.TWO_STAGE, 4, 2, 2940, 90),
                 "the kind is shortened first");
         assertEquals("PHP T2 ×40 2.9k", row(EquipmentType.POOL_HEAT_PUMP, Tier.TWO_STAGE, 40, 2, 2940,
-                SignText.SIGN_WIDTH), "then the speed");
+                90), "then the speed");
     }
 
     @Test
     void theSpeedIsNeverCutOffOnAnySignOrScreen() {
         // BETA 1.0: "PHP ★★★×12" and "Furn ★★★×10 o" on a wall sign, and almost every row on a hanging one.
-        for (int width : new int[]{SignText.SIGN_WIDTH, SignText.HANGING_SIGN_WIDTH, ScreenText.WIDTH})
+        for (int width : new int[]{90, 60, ScreenText.WIDTH})
             for (EquipmentType type : EquipmentType.values())
                 for (Tier tier : Tier.values())
                     for (int units = 1; units <= 120; units++)
                         for (int running = 0; running <= 1; running++)
                             for (double rpm : new double[]{1_250, 4_150, 12_400}) {
                                 String text = row(type, tier, units, running, rpm, width);
-                                assertTrue(SignText.width(text) <= width, width + ": " + text);
+                                assertTrue(TextWidth.width(text) <= width, width + ": " + text);
                                 assertTrue(running == 0 ? text.endsWith(" off") : type.fixedSpeed() ? text.endsWith(" on")
                                         : text.matches(".* [0-9][0-9,]*|.* [0-9]+\\.[0-9]k"), width + ": " + text);
                             }
-        assertEquals("Furn T3 ×10 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 10, 1, 715, SignText.SIGN_WIDTH));
+        assertEquals("Furn T3 ×10 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 10, 1, 715, 90));
         assertEquals("HP T3 4.2k", row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 2, 1, 4_150,
-                SignText.HANGING_SIGN_WIDTH));
+                60));
         assertEquals("PHP T3 4.2k", row(EquipmentType.POOL_HEAT_PUMP, Tier.VARIABLE, 12, 1, 4_150,
-                SignText.HANGING_SIGN_WIDTH), "the count goes before the speed");
-        assertEquals("Furn T3 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 120, 1, 715, SignText.HANGING_SIGN_WIDTH));
+                60), "the count goes before the speed");
+        assertEquals("Furn T3 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 120, 1, 715, 60));
     }
 
     @Test

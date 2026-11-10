@@ -1,21 +1,13 @@
 package com.github.blade.hvac.service;
 
 /**
- * Fits text to a sign line the way the client draws it. A sign line holds a
- * fixed number of pixels, not characters: the client wraps a wider line at a
- * space and shows only the first part, so {@code EZvac | Dehumidifier}
- * appeared as {@code EZvac |}. Widths follow the vanilla default font; any
- * character it doesn't list is counted wide, so a line measured here never
- * wraps. Pure.
+ * Measures text the way the client draws it, and fits it to a screen's line.
+ * A line holds a fixed number of pixels, not characters, and the client wraps
+ * a wider one. Widths follow the vanilla default font; any character it
+ * doesn't list is counted wide, so a line measured here never wraps. Pure.
+ * (SignText until BETA 1.0 Pilot 4, when devices stopped writing on signs.)
  */
-public final class SignText {
-    /** Pixels in a line of a standing or wall sign. */
-    public static final int SIGN_WIDTH = 90;
-    /** Pixels in a line of a hanging sign. */
-    public static final int HANGING_SIGN_WIDTH = 60;
-    /** The prefix headers carry when there is room for it. */
-    static final String PREFIX = "EZvac | ";
-
+public final class TextWidth {
     /** Counted for anything else outside printable ASCII: as wide as the client's fallback (unifont) glyphs. */
     private static final int UNKNOWN_WIDTH = 9;
     private static final int[] ASCII = new int[128];
@@ -39,7 +31,7 @@ public final class SignText {
         set(7, "@~");
     }
 
-    private SignText() {}
+    private TextWidth() {}
 
     private static void set(int width, String characters) {
         for (char character : characters.toCharArray()) ASCII[character] = width;
@@ -90,11 +82,5 @@ public final class SignText {
         String trimmed = cut.stripTrailing();
         while (trimmed.endsWith("|")) trimmed = trimmed.substring(0, trimmed.length() - 1).stripTrailing();
         return trimmed;
-    }
-
-    /** {@code EZvac | label} when that fits, otherwise the label alone, cut to fit. */
-    public static String titled(String label, int maxWidth) {
-        String titled = PREFIX + label;
-        return width(titled) <= maxWidth ? titled : fit(label, maxWidth);
     }
 }
