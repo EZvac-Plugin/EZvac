@@ -49,6 +49,37 @@ class ShapeTest {
     }
 
     @Test
+    void aSpaceKnowsItsEdgeAndWhereItLeaks() {
+        // BETA 1.0 Pilot 5: a 10x4x10 box of air, with a doorway's two blocks open to the sky.
+        AirflowService airflow = airflow();
+        long[] doorway = {AirflowService.pack(9, 64, 5), AirflowService.pack(9, 65, 5)};
+        airflow.putMappedSystem(A, room(0, 9, 0), false, 2, doorway);
+        AirflowService.Space space = airflow.space(A);
+        // Every block of a 10x4x10 box but its 8x2x8 inside touches outside it.
+        assertEquals(400 - 8 * 2 * 8, space.edge().length);
+        assertEquals(java.util.Set.of(doorway[0], doorway[1]),
+                java.util.Arrays.stream(space.openings()).boxed().collect(java.util.stream.Collectors.toSet()));
+        assertTrue(!space.capped() && !space.water());
+        // A new map replaces where it leaks.
+        airflow.putMappedSystem(A, room(0, 9, 0), false, 0, new long[0]);
+        assertEquals(0, airflow.space(A).openings().length);
+        assertEquals(null, airflow.space(B), "no map, no space");
+    }
+
+    @Test
+    void aBigSpacesEdgeIsThinnedOutTheSameWayEachTime() {
+        AirflowService airflow = airflow();
+        Long2ByteOpenHashMap big = new Long2ByteOpenHashMap();
+        for (int x = 0; x < 80; x++) for (int y = 64; y < 70; y++) for (int z = 0; z < 80; z++)
+            big.put(AirflowService.pack(x, y, z), (byte) 1);
+        airflow.putMappedSystem(A, big, false, 0);
+        AirflowService.Space space = airflow.space(A);
+        assertTrue(space.capped());
+        assertEquals(AirflowService.MAXIMUM_EDGE, space.edge().length);
+        assertEquals(java.util.Arrays.toString(space.edge()), java.util.Arrays.toString(airflow.space(A).edge()));
+    }
+
+    @Test
     void twoRoomsOpenToEachOtherSplitTheAirAndTouchAlongTheSeam() {
         AirflowService airflow = airflow();
         // Each walk floods the other room through the opening, as a real walk does.

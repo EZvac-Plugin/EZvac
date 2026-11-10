@@ -481,7 +481,7 @@ public final class AirflowService {
                 else smoke.put(active.target, active.smokeCells.toLongArray());
                 if (active.target instanceof SystemId system)
                     mapped(system, new Raw(system.worldId(), active.water, active.openings.size(), active.minimumX,
-                            active.maximumX, active.minimumZ, active.maximumZ));
+                            active.maximumX, active.minimumZ, active.maximumZ, active.openings.toLongArray()));
                 visitedCells += active.distances.size();
                 completedRebuilds++;
                 if (active.capped) cappedRebuilds++;
@@ -1045,9 +1045,15 @@ public final class AirflowService {
 
     /**
      * What a system's walk found besides its map: its medium, its openings to
-     * the sky, and the columns it spans, to find the systems it could meet.
+     * the sky (how many, and where: BETA 1.0 Pilot 5), and the columns it
+     * spans, to find the systems it could meet.
      */
-    record Raw(UUID worldId, boolean water, int openings, int minimumX, int maximumX, int minimumZ, int maximumZ) {
+    record Raw(UUID worldId, boolean water, int openings, int minimumX, int maximumX, int minimumZ, int maximumZ,
+               long[] openingCells) {
+        Raw(UUID worldId, boolean water, int openings, int minimumX, int maximumX, int minimumZ, int maximumZ) {
+            this(worldId, water, openings, minimumX, maximumX, minimumZ, maximumZ, new long[0]);
+        }
+
         /** Whether two systems' maps could share a block or a face. */
         boolean meets(Raw other) {
             return worldId.equals(other.worldId) && water == other.water
@@ -1255,8 +1261,50 @@ public final class AirflowService {
         return best;
     }
 
+    /** The most edge blocks {@link #space} gives; a bigger space's are thinned out evenly. */
+    public static final int MAXIMUM_EDGE = 4_096;
+
+    /**
+     * Where a system's space ends and where it leaks (BETA 1.0 Pilot 5), as
+     * packed positions: its edge (mapped blocks with a face beside something
+     * outside the map), thinned to {@link #MAXIMUM_EDGE}, and its openings to
+     * the sky. Null while it has no map.
+     */
+    public record Space(long[] edge, long[] openings, boolean water, boolean capped) {}
+
+    public Space space(SystemId system) {
+        Long2ByteMap map = completed.get(system);
+        if (map == null) return null;
+        Raw raw = raws.get(system);
+        it.unimi.dsi.fastutil.longs.LongArrayList edge = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        for (long key : map.keySet()) {
+            int x = unpackX(key), y = unpackY(key), z = unpackZ(key);
+            if (!map.containsKey(pack(x + 1, y, z)) || !map.containsKey(pack(x - 1, y, z))
+                    || !map.containsKey(pack(x, y + 1, z)) || !map.containsKey(pack(x, y - 1, z))
+                    || !map.containsKey(pack(x, y, z + 1)) || !map.containsKey(pack(x, y, z - 1)))
+                edge.add(key);
+        }
+        boolean capped = edge.size() > MAXIMUM_EDGE;
+        long[] kept;
+        if (!capped) kept = edge.toLongArray();
+        else {
+            // Every n-th of them, in a fixed order, so the same space always shows the same points.
+            long[] all = edge.toLongArray();
+            java.util.Arrays.sort(all);
+            kept = new long[MAXIMUM_EDGE];
+            for (int i = 0; i < MAXIMUM_EDGE; i++) kept[i] = all[(int) ((long) i * all.length / MAXIMUM_EDGE)];
+        }
+        return new Space(kept, raw == null ? new long[0] : raw.openingCells().clone(), raw != null && raw.water(),
+                capped);
+    }
+
     /** Test support: a finished map with what its walk found, worked out as a rebuild would leave it. */
     void putMappedSystem(SystemId system, Long2ByteMap map, boolean water, int openings) {
+        putMappedSystem(system, map, water, openings, new long[0]);
+    }
+
+    /** The same, with where its openings are. */
+    void putMappedSystem(SystemId system, Long2ByteMap map, boolean water, int openings, long[] openingCells) {
         completed.put(system, map);
         int minimumX = Integer.MAX_VALUE, maximumX = Integer.MIN_VALUE;
         int minimumZ = Integer.MAX_VALUE, maximumZ = Integer.MIN_VALUE;
@@ -1266,7 +1314,8 @@ public final class AirflowService {
             minimumZ = Math.min(minimumZ, unpackZ(key));
             maximumZ = Math.max(maximumZ, unpackZ(key));
         }
-        mapped(system, new Raw(system.worldId(), water, openings, minimumX, maximumX, minimumZ, maximumZ));
+        mapped(system, new Raw(system.worldId(), water, openings, minimumX, maximumX, minimumZ, maximumZ,
+                openingCells));
     }
 
     /** Test support: works out every queued shape. */
