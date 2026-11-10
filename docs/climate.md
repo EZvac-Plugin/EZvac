@@ -141,8 +141,11 @@ step. The outdoors at a spot is the average of the biomes around it, within
     stations' forecasts (by the day's air, with winter's line on winter
     days), follow it.
 - **Dry places** (deserts, savannas, badlands) follow `weather.dry-areas`:
-  `thunder` by default, so ordinary rain passes them by but a thunderstorm
-  rains on them; `never` keeps them dry as in vanilla, `always` rains on them
+  `seasonal` by default, so some rain spells reach them, mostly in winter
+  (6 in 10) and rarely in the other seasons (`weather.dry-rain-chance`).
+  Each spell is decided once as it starts, for the whole world, and rain
+  that reaches them cools and dampens the air there. `never` keeps them dry
+  as in vanilla, `thunder` rains on them only in thunderstorms, `always`
   like anywhere else. The Nether and the End never get weather.
 - EZvac decides what falls; the world itself still shows Minecraft's own rain
   and snow. An addon such as EZclimates can show EZvac's in the world.

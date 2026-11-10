@@ -6,7 +6,9 @@ All notable changes to EZvac are recorded here.
 
 **Seasons are 30 days long, and rain turns to snow by EZvac's own air.**
 Standing in the sun feels warmer than the shade, and fires burning in the
-open smoke up the air downwind. The save is unchanged (format 8).
+open smoke up the air downwind. Official addons are switched from a new
+Addons menu, quick settings has more in it, and devices show on screens
+only. The save is unchanged (format 8).
 
 ### 30-day seasons
 
@@ -32,10 +34,14 @@ open smoke up the air downwind. The save is unchanged (format 8).
   rain and snow meet along a wavy line that follows the cold (not in layers
   above you, and not along a grid), and a storm keeps its kind until the
   air is 2 °F past the line.
-- **Dry places get rain in thunderstorms:** deserts, savannas and badlands
-  stay dry in ordinary rain. `weather.dry-areas` (`never`, `thunder`,
-  `always`) sets it; `weather.snow-at-or-below-f` sets the snow line's
-  temperature.
+- **Dry places get rain by the season:** deserts, savannas and badlands get
+  some of the rain, mostly in winter (6 spells in 10) and rarely otherwise
+  (1 in 10 in spring and autumn, 1 in 20 in summer). Each rain spell is
+  decided once as it starts, for the whole world, and rain that reaches them
+  cools and dampens the air there like anywhere else.
+  `weather.dry-areas` (`seasonal`, `never`, `thunder`, `always`) and
+  `weather.dry-rain-chance` set it; `weather.snow-at-or-below-f` sets the
+  snow line's temperature.
 - **The weather word follows it** (the HUD, sensors, `%ezvac_weather%`), and
   so do weather stations' forecasts.
 - This is what EZvac decides falls; the world still shows Minecraft's own
@@ -68,6 +74,46 @@ open smoke up the air downwind. The save is unchanged (format 8).
   on weather stations nearby, on maps, and indoors through each room's
   leaks. `air-quality.outdoor-smoke`.
 
+### Official addons
+
+- **`/hvac addons`** (also a page of quick settings) lists EZvac's official
+  addons on the server, each with its version.
+- **Switch an addon on and off while the server runs.** Switched off, it
+  stays loaded but does nothing; the choice is kept through restarts
+  (`addons.disabled`). An addon with parts, such as EZclimates (seasonal
+  looks, snow and ice, planned weather, body temperature), has a switch for
+  each. An addon released before this says it needs updating to be switched.
+- **A store row** lists the official addons the server doesn't have, with
+  what each does and needs. A click puts its GitHub link in chat. EZvac
+  never downloads or installs anything.
+- **Updates:** a newer release of an installed addon shows on its item, and
+  admins are told when they join, with EZvac's own update check
+  (`updates.check`, `updates.notify-admins`).
+- The list ships with EZvac and is refreshed from the EZvac-Plugin
+  organisation on GitHub, so a new addon appears without an EZvac update.
+  Only links to that organisation are ever shown.
+
+### Quick settings
+
+- **Regrouped into two rows:** Devices, Climate systems, Seasons & wind and
+  Display & sound above; Addons, Backups & registry, Health and Updates
+  below.
+- **Seasons & wind:** move the world you stand in a day back or on, to the
+  next season, pause its calendar, and set today's wind, a click at a time.
+- **Display & sound:** temperatures in °F or °C, the wind's units, and
+  device sounds on or off, all at once and without a restart.
+- **Health** (Statistics before): what each part of EZvac costs the server's
+  tick over the last minute, in milliseconds, beside the figures it already
+  had. `/hvac stats` prints the same.
+
+### Screens only
+
+- **Devices no longer write on their signs.** Every device shows on its
+  screen; the sign stays behind it, blank, as the block you make it on and
+  click. Plain signs had been unsupported since BETA 1.0.
+- `displays.screens` is gone. A server that had it `false` is told once at
+  start-up, and gets screens.
+
 ### API 1.9
 
 - `precipitationAt(world, x, y, z)` and the `Precipitation` enum: what is
@@ -83,13 +129,17 @@ open smoke up the air downwind. The save is unchanged (format 8).
   thunderstorm at least windy, and the weather word says Snowstorm, Heat wave
   or Cold snap where they show. Without one, nothing changes.
 - `outdoorAirAt` includes the smoke of open fires nearby.
+- `registerAddon(plugin, addon)`, with `Addon`, `Addon.Part` and
+  `AddonSwitches` (`api.addon`): an addon registers to be switched from the
+  Addons menu, with parts of its own if it has them.
 
 ### Upgrading
 
 - New settings are added to `config.yml` with their comments: `feels-like`,
   `weather.snow-at-or-below-f` and `dry-areas`, `air-quality.sources.smoker`,
-  `blast-furnace` and `torch`, `air-quality.outdoor-smoke`, and
-  `weather.snow-in-winter-below-f`. A stock
+  `blast-furnace` and `torch`, `air-quality.outdoor-smoke`,
+  `weather.snow-in-winter-below-f`, `weather.dry-rain-chance` and `addons`.
+  A stock
   `seasons.days-per-season: 15` moves to 30 and a stock
   `water-lag-days: 5.0` to 10; the previous files are kept as backups.
 

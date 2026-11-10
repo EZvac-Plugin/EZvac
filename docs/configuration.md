@@ -67,6 +67,23 @@ releases.
 A failed check (no internet, GitHub busy) is logged once and tried again 6
 hours later.
 
+## addons
+
+```yaml
+addons:
+  disabled: []
+  parts-disabled: []
+  parts-enabled: []
+```
+
+What [`/hvac addons`](screens-and-menus.md#addons) has switched (BETA 1.0
+Pilot 4): an addon by its plugin's name (`EZclimates`), a part as
+`Name/part` (`EZclimates/snow-and-ice`). `parts-enabled` is for a part that
+is off until a server switches it on, such as EZclimates' body temperature.
+EZvac never downloads or installs an addon. With `updates.check` on, the
+list of official addons and each installed one's newest release are read
+from GitHub with EZvac's own update check.
+
 ## devices
 
 ```yaml
@@ -224,6 +241,10 @@ audio:
 
 ## displays
 
+Every device shows on a floating screen in front of its sign. Since BETA 1.0
+Pilot 4 that is the only display: `screens` is gone from this section, and a
+value left in an older file isn't read.
+
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `screens` | true | A floating screen in front of every EZvac sign; false shows the plain signs only, which are no longer supported (BETA 1.0): they get no new lines and may be removed |
@@ -300,7 +321,8 @@ climate.
 | `wind-clear-ms`, `wind-rain-ms`, `wind-thunder-ms` | 1.5, 3, 5 | Outdoor wind for "feels like", in m/s. With the daily wind on, `wind-clear-ms` is unused and rain and thunder add their difference from it to the day's wind |
 | `snow-at-or-below-f` | 33 | While it rains, snow falls where EZvac's air is this cold or colder, and rain elsewhere; each 64-block area decides together, from the air at its ground (BETA 1.0 Pilot 4; -40 to 50) |
 | `snow-in-winter-below-f` | 40 | The same line in winter, higher: real snow often falls a few degrees above freezing. 200 snows all winter wherever weather reaches (BETA 1.0 Pilot 4) |
-| `dry-areas` | thunder | Deserts, savannas and badlands in rain: `never` (dry, as vanilla), `thunder` (rain only in thunderstorms) or `always` (BETA 1.0 Pilot 4) |
+| `dry-areas` | seasonal | Deserts, savannas and badlands in rain: `seasonal` (some rain spells reach them, by `dry-rain-chance`), `never` (dry, as vanilla), `thunder` (rain only in thunderstorms) or `always` (BETA 1.0 Pilot 4) |
+| `dry-rain-chance` | spring 0.1, summer 0.05, autumn 0.1, winter 0.6 | Under `seasonal`, the share of rain spells that reach dry areas in each season (0 to 1). Each spell is decided once, as it starts, for the whole world; spring's is used with seasons off |
 
 With `enabled: false` temperatures ignore the weather, but weather sensors
 still report the sky. More in [Climate](climate.md#weather).

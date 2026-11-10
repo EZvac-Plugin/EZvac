@@ -367,6 +367,14 @@ SEASONS, RAIN OR SNOW, SUN AND OPEN-AIR SMOKE (BETA 1.0 Pilot 4)
   max(area ground + 48, from-y + (air at from-y - line) / lapse) from the
   area's air at its ground (+inf with no lapse); NaN where rain doesn't
   reach now (dry-areas); given whether or not it rains.
+- dry-areas: seasonal (the default): WeatherService rolls each rain spell
+  once as it starts (DryRain.reaches: world seed and day against the
+  season's share in dry-rain-chance; spring's with no seasons) and keeps it
+  in Conditions.reachesDry until the rain stops. WeatherModel.reachesDry is
+  the one rule for never, thunder, seasonal and always; where it holds,
+  WeatherModel.effect counts a blend's dry share as rain, so the air there
+  cools and dampens. Forecast.day scales a dry area's chances by the
+  season's share.
 - Sun: Sunshine.absorbedWm2 = 110 x sin(pi t / 12000) (0 from sunset to
   sunrise) x (0.8 + 0.2 season factor) x clouds (1 - 0.7 wet - 0.2 storm, at
   least 0.05) x exposure (1 where y > the MOTION_BLOCKING heightmap, else
@@ -645,8 +653,15 @@ DISPLAYS AND AUDIO
   system's profile (panelJoined), a thermostat joining one with a panel holds
   none (thermostatJoined), and a panel leaving hands it back
   (handProfileBack), so the system keeps its profile.
-- Display writes are fingerprinted so unchanged signs are not rewritten.
-- Screens (displays.screens, default true, 2.1): non-persistent text
+- Display writes are fingerprinted so unchanged screens are not redrawn.
+- Screens are the only display (BETA 1.0 Pilot 4): DisplayService.render
+  draws a device's screen and nothing else; the sign-text writers, the
+  Lines record and displays.screens are gone, and SignText is TextWidth (it
+  only measures screen lines). A config with displays.screens: false logs
+  one warning at start-up (HvacPlugin.screensOnly). The sign is read
+  (a block-entity snapshot) only the first time a device is drawn and on
+  forced refreshes, to blank it.
+- Screens (2.1): non-persistent text
   display entities in front of each device sign (ScreenService), placed by
   sign kind (wall, standing, hanging) and facing, scale 0.4 (0.34 on hanging
   signs), 100 px lines, full brightness. Since BETA 1.0 a screen is a status
@@ -672,13 +687,11 @@ DISPLAYS AND AUDIO
   refresh puts back a screen that its chunk unloading took away; removing a
   device (DisplayService.invalidate), a periodic sweep of screens without a
   device, and plugin disable take them down.
-- With screens on, the sign behind is kept blank (BETA 1.0: from 26.1 the
-  sign's text shows through a screen); a blank sign isn't sent again. With
-  screens off, the sign carries everything, as before.
-- Sign lines are measured in pixels with the vanilla font's widths (90 px on
-  standing and wall signs, 60 px on hanging signs) and cut to fit, so the
-  game never wraps one. Headers drop "EZvac | " when the label needs the room,
-  and a reading that doesn't fit is left off whole rather than cut.
+- The sign behind a screen is kept blank (BETA 1.0: from 26.1 the sign's
+  text shows through a screen); a blank sign isn't sent again.
+- Screen lines are measured in pixels with the vanilla font's widths
+  (TextWidth) and cut to fit, so the game never wraps one; a reading that
+  doesn't fit is left off whole rather than cut.
 - Breaking a registered device tells the player what was removed and which
   system it left, so a stray pickaxe cannot quietly unregister a thermostat.
   Thermometers are silent: they belong to no system, so there is nothing to
@@ -874,8 +887,34 @@ QUICK SETTINGS
 --------------
 
 - /hvac quicksettings (qs; ezvac.admin, players; BETA 1.0): a chest menu,
-  27 slots for the main page (sections in slots 11-15, Close in 26), 36 for
-  each subpage (Back in 27, Close in 35). A switch is an icon in the second
+  36 slots for the main page since Pilot 4 (Devices 10, Climate systems 12,
+  Seasons & wind 14, Display & sound 16; Addons 19, Backups & registry 21,
+  Health 23, Updates 25; Close in 35), 36 for each subpage (Back in 27,
+  Close in 35), 54 for Addons (Back 45, Check now 49, Close 53).
+- Seasons & wind (Pilot 4): the opener's world when it has a sky, else the
+  first that has; SeasonService.set/next/setPaused and WindService.hold
+  (calm, breezy, windy, gale, then null for as it would blow).
+- Display & sound (Pilot 4): ServerSwitches.setUnits, setWindUnits and
+  setSounds; HvacSettings.units() and audioEnabled() and
+  WindSettings.units() answer from the live switch once one is set.
+- Health (Pilot 4; Statistics before): TickCost times each scheduled task
+  (Controller, Screens, Airflow, HUD, Weather stations, Open-air smoke),
+  spread over every tick of a 1,200-tick window, with the longest single
+  run; /hvac stats prints the same on a second line.
+- Addons (Pilot 4): AddonService. The catalogue (addons.json in the jar,
+  refreshed from raw.githubusercontent.com/EZvac-Plugin/.github/main/
+  addons.json; AddonCatalogue.parse checks every name against a pattern
+  and only ever builds github.com/EZvac-Plugin/<repository> links); an
+  installed plugin is official when its name and main class match an
+  entry. EzvacApi.registerAddon (API 1.9) makes one switchable:
+  Addon.setActive and each Addon.Part's switcher are called from the menu,
+  and the choices are kept in addons.disabled, addons.parts-disabled and
+  addons.parts-enabled (a part with startsOn false is off until switched
+  on). Each installed addon's GitHub releases are compared with its running
+  version (AddonVersion; prereleases only on the Pilot channel) with the
+  background update check, on Check now, and told to admins on join.
+  Nothing is downloaded or installed. A main-page click on an installed
+  addon's icon opens its parts when it has any; its dye switches it. A switch is an icon in the second
   row with a lime or red dye beneath it; either toggles it. Clicks are
   cancelled, the permission is checked on every click, and the menus close
   when EZvac stops. Every change is logged with the player's name.
