@@ -137,6 +137,14 @@ public record HvacSettings(
         return load(config, warning -> { throw new IllegalArgumentException(warning); });
     }
 
+    /** On a running server, what /hvac quicksettings says (BETA 1.0 Pilot 4); config.yml's value otherwise. */
+    @Override
+    public TemperatureUnit units() { return ServerSwitches.units(units); }
+
+    /** On a running server, what /hvac quicksettings says (BETA 1.0 Pilot 4); config.yml's value otherwise. */
+    @Override
+    public boolean audioEnabled() { return ServerSwitches.sounds(audioEnabled); }
+
     /** As {@link #load(FileConfiguration)}, except that an unknown {@code units} is a warning, not a failure. */
     public static HvacSettings load(FileConfiguration config, java.util.function.Consumer<String> warn) {
         HvacSettings defaults = defaults();

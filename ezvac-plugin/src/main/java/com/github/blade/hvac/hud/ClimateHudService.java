@@ -116,10 +116,15 @@ public final class ClimateHudService implements Listener {
         return snapshots.get(player);
     }
 
+    /** Wraps the HUD's update so its cost can be measured (BETA 1.0 Pilot 4); set before {@link #start()}. */
+    private java.util.function.UnaryOperator<Runnable> timing = work -> work;
+
+    public void setTiming(java.util.function.UnaryOperator<Runnable> timing) { this.timing = timing; }
+
     public void start() {
         for (Player player : plugin.getServer().getOnlinePlayers()) restore(player);
         long period = format.settings().updateTicks();
-        task = plugin.getServer().getScheduler().runTaskTimer(plugin, this::update, 1L, period);
+        task = plugin.getServer().getScheduler().runTaskTimer(plugin, timing.apply(this::update), 1L, period);
     }
 
     public void shutdown() {

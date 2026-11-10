@@ -100,9 +100,23 @@ public record WindSettings(boolean enabled, Chances chances, Speeds speeds, Seas
     @Override
     public boolean enabled() { return ServerSwitches.wind(enabled); }
 
+    /** On a running server, what /hvac quicksettings says (BETA 1.0 Pilot 4); config.yml's value otherwise. */
+    @Override
+    public Units units() { return ServerSwitches.windUnits(units); }
+
     /** How speeds are shown: AUTO follows the temperature unit, km/h with °C and mph with °F. */
     public enum Units {
         AUTO, MS, KMH, MPH;
+
+        /** As the menu names it. */
+        public String displayName() {
+            return switch (this) {
+                case AUTO -> "Auto";
+                case MS -> "m/s";
+                case KMH -> "km/h";
+                case MPH -> "mph";
+            };
+        }
 
         static Units parse(String text) {
             if (text == null) return AUTO;

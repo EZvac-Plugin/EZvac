@@ -152,6 +152,7 @@ public final class HvacPlugin extends JavaPlugin {
             registerApi();
             api.setLinkTool(commandHandler.linkTool());
             api.setBeta(weatherStations, switches);
+            hud.setTiming(work -> tickCost.timed("HUD", work));
             hud.start();
             if (hud.sidebarYieldedTo() != null)
                 getLogger().info(hud.sidebarYieldedTo() + " draws its own scoreboard, so the /hvac hud overlay uses"
@@ -165,12 +166,14 @@ public final class HvacPlugin extends JavaPlugin {
             controllerTask = getServer().getScheduler().runTaskTimer(this,
                     () -> runController(settings.controllerPeriodTicks()),
                     settings.controllerPeriodTicks(), settings.controllerPeriodTicks());
-            airflowTask = getServer().getScheduler().runTaskTimer(this, airflow::tick, 1L, 1L);
+            airflowTask = getServer().getScheduler().runTaskTimer(this, tickCost.timed("Airflow", airflow::tick), 1L, 1L);
             // Weather stations measure at sunrise and sunset; the check is one comparison per world.
-            stationTask = getServer().getScheduler().runTaskTimer(this, weatherStations::tick, 40L, 40L);
+            stationTask = getServer().getScheduler().runTaskTimer(this,
+                    tickCost.timed("Weather stations", weatherStations::tick), 40L, 40L);
             getServer().getPluginManager().registerEvents(outdoorSmoke, this);
             outdoorSmoke.start(getServer().getWorlds());
-            smokeTask = getServer().getScheduler().runTaskTimer(this, () -> outdoorSmoke.refresh(getServer().getWorlds()),
+            smokeTask = getServer().getScheduler().runTaskTimer(this,
+                    tickCost.timed("Open-air smoke", () -> outdoorSmoke.refresh(getServer().getWorlds())),
                     OutdoorSmokeService.REFRESH_TICKS, OutdoorSmokeService.REFRESH_TICKS);
             sparkTask = getServer().getScheduler().runTaskTimer(this, weatherStations::watch, 20L, 20L);
             bubbleTask = getServer().getScheduler().runTaskTimer(this,
@@ -404,8 +407,15 @@ public final class HvacPlugin extends JavaPlugin {
             getLogger().info("EZvac disabled; owned loaded outputs were retracted and state was saved.");
     }
 
+    /** What each part of EZvac costs the tick (BETA 1.0 Pilot 4): quick settings' Health page and /hvac stats. */
+    private final com.github.blade.hvac.service.TickCost tickCost =
+            new com.github.blade.hvac.service.TickCost(() -> getServer().getCurrentTick());
+
+    public com.github.blade.hvac.service.TickCost tickCost() { return tickCost; }
+
     private void runController(long elapsedTicks) {
         if (!isEnabled() || controller == null) return;
+        long started = System.nanoTime(), screens = 0L;
         try {
             advanceSeasons();
             weather.advance(elapsedTicks);
@@ -426,24 +436,31 @@ public final class HvacPlugin extends JavaPlugin {
                 displays.advanceAutoFlip(elapsedTicks);
                 ticksSinceDisplay += elapsedTicks;
                 ticksSinceSave += elapsedTicks;
+                long drawing = System.nanoTime();
                 if (ticksSinceDisplay >= settings.displayPeriodTicks()) {
                     ticksSinceDisplay %= settings.displayPeriodTicks();
                     displays.refreshAll(true);
                 } else {
                     displays.refreshAll(false);
                 }
+                screens += System.nanoTime() - drawing;
                 if (ticksSinceSave >= settings.savePeriodTicks()) {
                     ticksSinceSave %= settings.savePeriodTicks();
                     registry.save();
                     seasons.save();
                 }
             } else {
+                long drawing = System.nanoTime();
                 displays.refreshAll(false);
+                screens += System.nanoTime() - drawing;
             }
         } catch (RuntimeException exception) {
             // Per-device failures are already isolated by HvacController. This
             // is the final lifecycle guard for truly systemic failures.
             getLogger().log(Level.SEVERE, "EZvac controller cycle failed", exception);
+        } finally {
+            tickCost.add("Controller", System.nanoTime() - started - screens);
+            tickCost.add("Screens", screens);
         }
     }
 

@@ -95,6 +95,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             sender.sendMessage(join(gold("EZvac: "), gray(registry.thermostats().size()
                     + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
                     + registry.settingsPanels().size() + " settings panel(s), " + airflow.stats())));
+            // What each part costs the tick, over the last minute (BETA 1.0 Pilot 4).
+            List<com.github.blade.hvac.service.TickCost.Part> cost = plugin.tickCost().lastMinute();
+            if (!cost.isEmpty()) {
+                List<String> parts = new ArrayList<>();
+                for (com.github.blade.hvac.service.TickCost.Part part : cost)
+                    parts.add(part.name().toLowerCase(Locale.ROOT) + String.format(Locale.US, " %.3f", part.msPerTick()));
+                sender.sendMessage(join(gold("Tick cost: "), gray(String.format(Locale.US, "%.3f ms a tick (",
+                        com.github.blade.hvac.service.TickCost.total(cost)) + String.join(", ", parts) + ")")));
+            }
             return true;
         }
         if (subcommand.equals("sync")) {
