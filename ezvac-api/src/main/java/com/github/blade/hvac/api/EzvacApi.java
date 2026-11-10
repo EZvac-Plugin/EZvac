@@ -43,7 +43,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.9";
+    String API_VERSION = "1.10";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -347,6 +347,17 @@ public interface EzvacApi {
      * @param system a system's key (see {@link #thermostatOf})
      * @since 1.6
      */
+    /**
+     * The space a system fills, as EZvac last mapped it: where it ends and
+     * where it leaks (see {@link SystemSpace}). Empty for a key that isn't
+     * a system, or one not mapped yet. Never loads a chunk. Main thread only.
+     *
+     * @since 1.10
+     */
+    default Optional<SystemSpace> systemSpace(World world, String system) {
+        return Optional.empty();
+    }
+
     default Optional<SystemSize> systemSize(World world, String system) {
         return Optional.empty();
     }

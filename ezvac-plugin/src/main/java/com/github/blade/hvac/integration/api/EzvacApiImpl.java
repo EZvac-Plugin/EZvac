@@ -138,6 +138,29 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     }
 
     @Override
+    public Optional<com.github.blade.hvac.api.SystemSpace> systemSpace(World world, String system) {
+        if (world == null || system == null) return Optional.empty();
+        SystemId id;
+        try {
+            id = new SystemId(world.getUID(), system);
+        } catch (IllegalArgumentException notAKey) {
+            return Optional.empty();
+        }
+        AirflowService.Space space = airflow.space(id);
+        if (space == null) return Optional.empty();
+        return Optional.of(new com.github.blade.hvac.api.SystemSpace(system, positions(world, space.edge()),
+                positions(world, space.openings()), space.water(), space.capped()));
+    }
+
+    private static java.util.List<com.github.blade.hvac.api.Position> positions(World world, long[] cells) {
+        java.util.List<com.github.blade.hvac.api.Position> out = new java.util.ArrayList<>(cells.length);
+        for (long cell : cells)
+            out.add(new com.github.blade.hvac.api.Position(world.getUID(), AirflowService.unpackX(cell),
+                    AirflowService.unpackY(cell), AirflowService.unpackZ(cell)));
+        return out;
+    }
+
+    @Override
     public ServerSettingsView serverSettings() {
         if (switches == null) return EzvacApi.super.serverSettings();
         java.util.Set<String> off = new java.util.TreeSet<>();
