@@ -20,6 +20,17 @@ updates:
   notify-admins: true
   channel: auto
 
+# EZvac's official addons (BETA 1.0 Pilot 4). /hvac addons lists the ones
+# installed, switches them and their parts on and off while the server runs,
+# and gives the link for the others; these two lists are what it switched
+# off (an addon by its plugin's name, a part as Name/part). EZvac never
+# downloads or installs anything. With updates.check on, the list of addons
+# and each installed one's newest release are read from GitHub with EZvac's
+# own update check.
+addons:
+  off: []
+  parts-off: []
+
 # Device kinds switched off server-wide (BETA 1.0): they stop, and no new one
 # can be made; switched back on, each runs again as it was set. The kinds:
 # heat-pump, air-conditioner, furnace, boiler, pool-heat-pump, dehumidifier,

@@ -471,6 +471,19 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         outdoor.plannedWeather().set(plugin, plan);
     }
 
+    private com.github.blade.hvac.addons.AddonService addons;
+
+    /** The Addons menu's service, once it is set up: addons register after EZvac has started. */
+    public void setAddons(com.github.blade.hvac.addons.AddonService addons) { this.addons = addons; }
+
+    @Override
+    public com.github.blade.hvac.api.addon.AddonSwitches registerAddon(org.bukkit.plugin.Plugin plugin,
+                                                                       com.github.blade.hvac.api.addon.Addon addon) {
+        java.util.Objects.requireNonNull(plugin, "plugin");
+        java.util.Objects.requireNonNull(addon, "addon");
+        return addons == null ? com.github.blade.hvac.api.addon.AddonSwitches.ALL_ON : addons.register(plugin, addon);
+    }
+
     @Override
     public Optional<com.github.blade.hvac.api.WeatherPlan> weatherPlan() {
         return outdoor.plannedWeather().plan();

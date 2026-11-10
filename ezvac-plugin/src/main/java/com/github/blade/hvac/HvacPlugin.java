@@ -50,6 +50,7 @@ public final class HvacPlugin extends JavaPlugin {
     private ClimateSettings climate;
     private WeatherService weather;
     private SeasonService seasons;
+    private com.github.blade.hvac.addons.AddonService addons;
     private HvacRegistry registry;
     private OutdoorTemperatureService outdoor;
     private AirflowService airflow;
@@ -184,9 +185,18 @@ public final class HvacPlugin extends JavaPlugin {
             updates.setChannel(getConfig().getString("updates.channel", "auto"));
             getServer().getPluginManager().registerEvents(updates, this);
             if (getConfig().getBoolean("updates.check", true)) updates.start();
+            // The official addons on this server (BETA 1.0 Pilot 4): switched, and checked for updates, from the menu.
+            addons = new com.github.blade.hvac.addons.AddonService(this, getConfig(), this::saveConfig,
+                    getPluginMeta().getVersion(), getServer().getMinecraftVersion(), updates::checking,
+                    updates::notifyAdmins,
+                    () -> updates.channel() == com.github.blade.hvac.update.UpdateCheck.Channel.PILOT);
+            getServer().getPluginManager().registerEvents(addons, this);
+            api.setAddons(addons);
+            addons.start();
             backups = new RegistryBackups(this, registry, getConfig(), this::saveConfig);
             backups.start();
-            quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates);
+            quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates,
+                    addons);
             getServer().getPluginManager().registerEvents(quickSettings, this);
             notices = StartupNotices.loaded(this, registry.recoveredFrom(), registry.setAside(),
                     registry.keptAside(), registry.migratedFrom(), sizingStartedOff,
@@ -377,6 +387,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (placeholderUnregister != null) placeholderUnregister.run();
         if (hud != null) hud.shutdown();
         if (updates != null) updates.stop();
+        if (addons != null) addons.stop();
         if (controllerTask != null) controllerTask.cancel();
         if (airflowTask != null) airflowTask.cancel();
         if (bubbleTask != null) bubbleTask.cancel();

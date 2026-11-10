@@ -295,6 +295,20 @@ public interface EzvacApi {
     }
 
     /**
+     * Registers an addon with EZvac's Addons menu (see
+     * {@link com.github.blade.hvac.api.addon.Addon}), so a server can switch
+     * it, and its parts, on and off while it runs. Call it once in
+     * {@code onEnable} and start in the state it hands back. The
+     * registration goes when the plugin disables.
+     *
+     * @since 1.9
+     */
+    default com.github.blade.hvac.api.addon.AddonSwitches registerAddon(org.bukkit.plugin.Plugin plugin,
+                                                                        com.github.blade.hvac.api.addon.Addon addon) {
+        return com.github.blade.hvac.api.addon.AddonSwitches.ALL_ON;
+    }
+
+    /**
      * Addon sections on the climate HUD. Check {@link #apiVersion()} first
      * when the addon should also run on API 1.0, which doesn't have it.
      *
