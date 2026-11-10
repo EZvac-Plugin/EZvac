@@ -20,7 +20,6 @@ import org.bukkit.HeightMap;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
-import org.bukkit.block.HangingSign;
 import org.bukkit.block.Sign;
 import org.bukkit.block.sign.Side;
 import org.bukkit.block.sign.SignSide;
@@ -28,7 +27,11 @@ import org.bukkit.block.sign.SignSide;
 import java.util.*;
 import java.util.logging.Level;
 
-/** Renders all sign devices from authoritative state with write de-duplication. */
+/**
+ * Draws every device's screen from authoritative state, sending only what
+ * changed. Screens are how devices show since BETA 1.0 Pilot 4: the sign a
+ * device is made on stays behind its screen, blank, to be clicked.
+ */
 public final class DisplayService {
     private final HvacPlugin plugin;
     private final HvacRegistry registry;
@@ -47,7 +50,7 @@ public final class DisplayService {
      * Fresh ETA forecasts per server tick at most (BETA 1.0). Many systems
      * changing mode at once (a device kind switched off, or a thousand
      * identical rooms reaching their target together) otherwise forecast all
-     * in one tick; past this, a sign keeps its last ETA until its next refresh.
+     * in one tick; past this, a screen keeps its last ETA until its next refresh.
      */
     static final int ETA_FORECASTS_PER_TICK = 64;
     private int etaTick = Integer.MIN_VALUE;
@@ -72,22 +75,22 @@ public final class DisplayService {
     public void setWeatherStations(WeatherStationService stations) { this.stations = stations; }
 
     /**
-     * How far from a player, in chunks, signs keep being rewritten: four
-     * chunks, 64 blocks and a little more, well past where sign text can be
-     * read. Rewriting a sign snapshots its whole tile entity, and in profiles
-     * it was EZvac's largest single cost.
+     * How far from a player, in chunks, screens keep being redrawn: four
+     * chunks, 64 blocks and a little more, well past where a screen can be
+     * read. Working out what each device shows was, with the old sign text,
+     * EZvac's largest single cost.
      */
     static final int WATCH_RADIUS_CHUNKS = 4;
 
     /**
-     * Rewrites the signs players could be looking at. Signs farther from
-     * every player are skipped and keep the text they last showed; they
+     * Redraws the screens players could be looking at. Devices farther from
+     * every player are skipped and keep what they last showed; they
      * remember it, so the first pass after someone comes near sees it is out
-     * of date and rewrites it. Nothing else depends on sign text: the
+     * of date and redraws it. Nothing else depends on a screen: the
      * simulation, equipment, saving and readings carry on regardless.
      */
     public void refreshAll(boolean force) {
-        if (force && screens.enabled()) screens.retainOnly(devicePositions());
+        if (force) screens.retainOnly(devicePositions());
         Map<UUID, LongOpenHashSet> watched = watchedChunks();
         if (watched.isEmpty()) return;
         for (Thermostat thermostat : registry.thermostats())
@@ -106,7 +109,7 @@ public final class DisplayService {
             if (watched(watched, station.position())) refreshWeatherStation(station, force);
     }
 
-    /** Every sign device, so the screens of devices that are gone can be taken down. */
+    /** Every device with a screen, so the screens of devices that are gone can be taken down. */
     private Set<BlockKey> devicePositions() {
         Set<BlockKey> positions = new HashSet<>();
         registry.thermostats().forEach(device -> positions.add(device.position()));
@@ -128,7 +131,7 @@ public final class DisplayService {
     }
 
     /**
-     * A sensor hub's sign: its label and page on the first line, then that
+     * A sensor hub's screen: its label and page in the header, then that
      * page's sensors, one to a line. A sensor in an unloaded chunk shows --.
      */
     public void refreshSensorHub(SensorHub hub, boolean force) {
@@ -139,21 +142,9 @@ public final class DisplayService {
         }
         String pageText = " " + (hub.page() + 1) + "/" + hub.pages();
         String fingerprint = hub.label() + pageText + "|" + String.join("|",
-                readings.stream().map(reading -> reading.line(SignText.SIGN_WIDTH)).toList());
-        render(hub.position(), fingerprint, force, lines -> {
-            lines.set(0, SensorLine.fit(hub.label(), lines.width() - SignText.width(pageText)) + pageText,
-                    NamedTextColor.AQUA);
-            if (hub.sensors().isEmpty()) {
-                lines.set(1, "No sensors", NamedTextColor.GRAY);
-                lines.set(2, "Link with", NamedTextColor.GRAY);
-                lines.set(3, "the sensor-tool", NamedTextColor.GRAY);
-                return;
-            }
-            for (int line = 0; line < SensorHub.PER_PAGE; line++)
-                lines.set(line + 1, line < readings.size() ? readings.get(line).line(lines.width()) : "",
-                        NamedTextColor.WHITE);
-        }, () -> {
-            // Up to six sensors fit on a screen at once; with more it pages along with the sign.
+                readings.stream().map(reading -> reading.line(ScreenText.WIDTH)).toList());
+        render(hub.position(), fingerprint, force, () -> {
+            // Up to six sensors fit on a screen at once; with more it pages.
             boolean all = hub.sensors().size() <= ScreenText.ROWS;
             ScreenText screen = ScreenText.titled(hub.label(), all ? "" : "page" + pageText);
             if (hub.sensors().isEmpty()) return screen.line("No sensors yet:", NamedTextColor.GRAY)
@@ -203,16 +194,7 @@ public final class DisplayService {
         String fingerprint = String.join("|", station.label(), state, StationText.temperature(nowF, units),
                 today == null ? "" : StationText.sky(today, snow) + StationText.highLow(today, units) + today.note(),
                 tomorrow == null ? "" : StationText.sky(tomorrow, snow), conditions);
-        render(station.position(), fingerprint, force, lines -> {
-            lines.set(0, station.label(), NamedTextColor.AQUA);
-            if (today == null) {
-                lines.set(1, state, NamedTextColor.GRAY);
-                return;
-            }
-            lines.set(1, StationText.temperature(nowF, units), NamedTextColor.WHITE);
-            lines.set(2, StationText.sky(today, snow), NamedTextColor.YELLOW);
-            lines.set(3, StationText.highLow(today, units), NamedTextColor.GRAY);
-        }, () -> {
+        render(station.position(), fingerprint, force, () -> {
             // No "belongs to" tag: the label needs the room, and the sky's glyph says what it is.
             ScreenText screen = ScreenText.titled(station.label(), "");
             if (today == null) {
@@ -232,7 +214,7 @@ public final class DisplayService {
         });
     }
 
-    /** What a sensor read, before it is fitted to a sign. */
+    /** What a sensor read, before it is fitted to a line. */
     private record SensorReading(Sensor sensor, boolean loaded, double temperatureF, double humidity,
                                  String weather, TemperatureUnit units, String shorter) {
         SensorReading(Sensor sensor, boolean loaded, double temperatureF, double humidity, String weather,
@@ -366,19 +348,7 @@ public final class DisplayService {
         String blocked = !thermostat.enabled() || waiting != null ? "" : blockedLine(attention, thermostat.pool());
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s|%s",
                 thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id(), attention);
-        render(thermostat.position(), fingerprint, force, lines -> {
-            lines.set(0, lines.titled(thermostat.id()), NamedTextColor.AQUA);
-            NamedTextColor color = waiting != null ? NamedTextColor.RED
-                    : thermostat.mode() == OperatingMode.COOLING ? NamedTextColor.AQUA
-                    : thermostat.mode() == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.GRAY;
-            lines.set(1, temp(thermostat.roomF()) + " | " + mode, color);
-            String setpoint = "Set " + temp(thermostat.targetF());
-            if (thermostat.mode() != OperatingMode.IDLE) setpoint += " | " + percent + "%";
-            lines.set(2, setpoint, NamedTextColor.WHITE);
-            lines.set(3, linked,
-                    eta.isPresent() && thermostat.mode() != OperatingMode.IDLE
-                            ? NamedTextColor.GREEN : NamedTextColor.GRAY);
-        }, () -> {
+        render(thermostat.position(), fingerprint, force, () -> {
             ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.pool() ? "Pool" : "")
                     .big(degrees(thermostat.roomF())).attention(attention.size());
             String target = degrees(thermostat.targetF());
@@ -466,36 +436,7 @@ public final class DisplayService {
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s|%s|%s", reading.localF(),
                 reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label(),
                 thermometer.reads() == Thermometer.Reads.AIR ? airLine : "", pollen);
-        render(thermometer.position(), fingerprint, force, lines -> {
-            lines.set(0, signTitle(thermometer), NamedTextColor.AQUA);
-            switch (thermometer.reads()) {
-                case TEMPERATURE -> {
-                    lines.set(1, "Thermometer", NamedTextColor.WHITE);
-                    lines.set(2, "Inside: " + temp(reading.localF()),
-                            NamedTextColor.YELLOW);
-                    lines.set(3, "Outside: " + temp(reading.outdoorF()),
-                            NamedTextColor.GRAY);
-                }
-                case HUMIDITY -> {
-                    lines.set(1, "Hygrometer", NamedTextColor.WHITE);
-                    lines.set(2, "Inside: " + inside, NamedTextColor.AQUA);
-                    lines.set(3, "Outside: " + outside, NamedTextColor.GRAY);
-                }
-                case BOTH -> {
-                    lines.set(1, "In " + temp(reading.localF()) + " " + inside,
-                            NamedTextColor.YELLOW);
-                    lines.set(2, "Feels " + temp(reading.feelsLikeF()),
-                            NamedTextColor.WHITE);
-                    lines.set(3, "Out " + temp(reading.outdoorF()) + " " + outside,
-                            NamedTextColor.GRAY);
-                }
-                case AIR -> {
-                    lines.set(1, "Air monitor", NamedTextColor.WHITE);
-                    lines.set(2, airLine, airOn ? AirText.color(reading.air()) : NamedTextColor.GRAY);
-                    lines.set(3, pollen, NamedTextColor.GRAY);
-                }
-            }
-        }, () -> {
+        render(thermometer.position(), fingerprint, force, () -> {
             ScreenText screen = ScreenText.titled(thermometer.label(), "");
             String sky = String.join(" · ", nonEmpty(outdoor.climateAt(location).weather(),
                     season(thermometer.position().worldId())));
@@ -529,15 +470,6 @@ public final class DisplayService {
         });
     }
 
-    /**
-     * A sensor's label as its sign shows it. The default thermo-hygrometer
-     * label is one letter too long for a sign line, so it is shortened there;
-     * the stored label, and any label a player chose, stay as they are.
-     */
-    static String signTitle(Thermometer sensor) {
-        return sensor.label().equalsIgnoreCase("Thermohygrometer") ? "T. Hygrometer" : sensor.label();
-    }
-
     /** "45%", or "--%" where there is no air to measure (a sign in water). */
     private static String percent(double humidity) {
         return Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%";
@@ -548,7 +480,7 @@ public final class DisplayService {
     }
 
     /**
-     * An RPM monitor's sign: its label (and page) on the first line, then a
+     * An RPM monitor's screen: its label (and page) in the header, then a
      * row for each kind of equipment in its system, three to a page.
      */
     public void refreshRpmMonitor(RpmMonitor monitor, boolean force) {
@@ -560,32 +492,13 @@ public final class DisplayService {
                 .append(monitor.system() == null ? "|unlinked" : "|linked");
         for (RpmMonitor.Row row : rows)
             fingerprint.append(String.format(Locale.US, "|%s %d %d %.0f", row.type(), row.units(), row.running(), row.rpm()));
-        render(monitor.position(), fingerprint.toString(), force, lines -> {
-            lines.set(0, SignText.fit(monitor.label(), lines.width() - SignText.width(pageText)) + pageText,
-                    NamedTextColor.AQUA);
-            if (monitor.system() == null) {
-                lines.set(1, "Not linked", NamedTextColor.GRAY);
-                lines.set(2, "Link with", NamedTextColor.GRAY);
-                lines.set(3, "the link-tool", NamedTextColor.GRAY);
-                return;
-            }
-            if (rows.isEmpty()) {
-                lines.set(1, "No equipment", NamedTextColor.RED);
-                return;
-            }
-            for (int line = 0; line < Pager.PER_PAGE; line++) {
-                if (line >= shown.size()) { lines.set(line + 1, "", NamedTextColor.WHITE); continue; }
-                RpmMonitor.Row row = shown.get(line);
-                lines.set(line + 1, rowText(row, lines.width()),
-                        row.running() > 0 ? NamedTextColor.GREEN : NamedTextColor.GRAY);
-            }
-        }, () -> {
+        render(monitor.position(), fingerprint.toString(), force, () -> {
             ScreenText screen = ScreenText.titled(monitor.label(),
                     monitor.system() == null ? "" : SystemNames.label(registry, monitor.system()));
             if (monitor.system() == null) return screen.line("Not linked:", NamedTextColor.GRAY)
                     .line("link with the", NamedTextColor.GRAY).line("link-tool", NamedTextColor.GRAY);
             if (rows.isEmpty()) return screen.line("No equipment", NamedTextColor.RED);
-            // A screen holds six rows; with more it pages along with the sign.
+            // A screen holds six rows; with more it pages.
             if (rows.stream().anyMatch(row -> row.running() > 0)) screen.tone(ScreenText.Tone.RUNNING);
             for (RpmMonitor.Row row : rows.size() <= ScreenText.ROWS ? rows : shown)
                 screen.line(rowText(row, ScreenText.WIDTH),
@@ -598,10 +511,10 @@ public final class DisplayService {
      * "Heat pump T3 ×4 2,950": the kind, its tier (T1 to T3; stars before
      * BETA 1.0, which took twice the room), how many when more than one, and
      * the average speed of those running ("off" when none is; a furnace or
-     * boiler, which has a fixed speed, says "on"). A row too wide for the sign
+     * boiler, which has a fixed speed, says "on"). A row too wide for its line
      * tries shorter forms in turn: a short kind, the speed as "2.9k", a
      * compact kind, the count closed up, then without the count and the tier.
-     * The speed is never what's cut: on a narrow sign only the kind is.
+     * The speed is never what's cut: on a narrow line only the kind is.
      */
     static String rowText(RpmMonitor.Row row, int width) {
         String tier = " T" + row.tier().number();
@@ -618,11 +531,11 @@ public final class DisplayService {
                 name + tier + count.trim() + " " + compact,
                 name + tier + " " + compact,
                 name + " " + compact};
-        for (String form : forms) if (SignText.width(form) <= width) return form;
-        return SignText.fit(name, width - SignText.width(" " + compact)) + " " + compact;
+        for (String form : forms) if (TextWidth.width(form) <= width) return form;
+        return TextWidth.fit(name, width - TextWidth.width(" " + compact)) + " " + compact;
     }
 
-    /** The shortest names, for a sign row that needs every pixel. */
+    /** The shortest names, for a row that needs every pixel. */
     private static String compactName(EquipmentType type) {
         return switch (type) {
             case HEAT_PUMP -> "HP";
@@ -646,17 +559,7 @@ public final class DisplayService {
     public void refreshSettingsPanel(SettingsPanel panel, boolean force) {
         String system = panel.system() == null ? "Not linked" : "System: " + SystemNames.label(registry, panel.system());
         String fingerprint = panel.label() + "|" + system + "|" + panel.profile();
-        NamedTextColor profileColor = switch (panel.profile()) {
-            case ECO -> NamedTextColor.GREEN;
-            case NORMAL -> NamedTextColor.AQUA;
-            case TURBO -> NamedTextColor.GOLD;
-        };
-        render(panel.position(), fingerprint, force, lines -> {
-            lines.set(0, lines.titled(panel.label()), NamedTextColor.AQUA);
-            lines.set(1, system, panel.system() == null ? NamedTextColor.GRAY : NamedTextColor.WHITE);
-            lines.set(2, "[ " + panel.profile().name() + " ]", profileColor);
-            lines.set(3, "Click > | Sneak <", NamedTextColor.GRAY);
-        }, () -> ScreenText.titled(panel.label(), panel.system() == null ? "Not linked"
+        render(panel.position(), fingerprint, force, () -> ScreenText.titled(panel.label(), panel.system() == null ? "Not linked"
                         : SystemNames.label(registry, panel.system()))
                 .tone(switch (panel.profile()) {
                     case ECO -> ScreenText.Tone.HOLDING.withGlyph("");
@@ -691,7 +594,7 @@ public final class DisplayService {
         return (waiting == OperatingMode.HEATING ? "Heat to " : "Cool to ") + target;
     }
 
-    /** A unit whose kind is switched off in /hvac quicksettings (BETA 1.0); 15 characters, a sign line. */
+    /** A unit whose kind is switched off in /hvac quicksettings (BETA 1.0). */
     static final String OFF_SERVER_WIDE = "Off server-wide";
 
     /** A dehumidifier's last line is its tank; a humidifier, being plumbed, just says what it is. */
@@ -723,12 +626,7 @@ public final class DisplayService {
         String footer = unit instanceof Dehumidifier dehumidifier
                 ? "Tank " + Math.round(dehumidifier.tank() * 100) + "%" : unit.kind().displayName();
         String fingerprint = unit.label() + "|" + reading + "|" + stateText + "|" + footer;
-        render(unit.position(), fingerprint, force, lines -> {
-            lines.set(0, lines.titled(unit.label()), NamedTextColor.AQUA);
-            lines.set(1, reading, NamedTextColor.WHITE);
-            lines.set(2, stateText, stateColor);
-            lines.set(3, footer, NamedTextColor.GRAY);
-        }, () -> {
+        render(unit.position(), fingerprint, force, () -> {
             ScreenText screen = ScreenText.titled(unit.label(), unit.kind().displayName())
                     .tone(tooCold ? ScreenText.Tone.ALERT : tone(state))
                     .big(Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
@@ -742,7 +640,7 @@ public final class DisplayService {
     }
 
     /**
-     * An air purifier's sign (3.2): the AQI it reads, its fan (Auto shows the
+     * An air purifier's screen (3.2): the AQI it reads, its fan (Auto shows the
      * speed it picked), and how full its filter is.
      */
     private void refreshPurifier(AirPurifier purifier, boolean force) {
@@ -766,12 +664,7 @@ public final class DisplayService {
                 : "Filter " + Math.round(purifier.filter() * 100) + "%";
         String pollen = air.known() ? "Pollen " + AirText.pollenName(air, airSettings()) : "";
         String fingerprint = purifier.label() + "|" + reading + "|" + stateText + "|" + footer + "|" + pollen;
-        render(purifier.position(), fingerprint, force, lines -> {
-            lines.set(0, lines.titled(purifier.label()), NamedTextColor.AQUA);
-            lines.set(1, reading, AirText.color(air));
-            lines.set(2, stateText, stateColor);
-            lines.set(3, footer, NamedTextColor.GRAY);
-        }, () -> {
+        render(purifier.position(), fingerprint, force, () -> {
             ScreenText.Tone tone = switch (state) {
                 case OFF -> ScreenText.Tone.OFF;
                 case NO_FILTER, FILTER_SPENT, EMPTYING -> ScreenText.Tone.ALERT;
@@ -793,36 +686,10 @@ public final class DisplayService {
         return outdoor.climate().airQuality();
     }
 
-    /** A temperature as a sign shows it: {@code 72.4 F}, or {@code 22.4 C} with units: C. */
-    private String temp(double fahrenheit) {
-        return settings.units().format(fahrenheit);
-    }
-
-    /** A sign's front, written line by line; every line is cut to what the sign can show. */
-    record Lines(SignSide side, int width) {
-        void set(int line, String text, NamedTextColor color) {
-            side.line(line, Component.text(SignText.fit(text, width), color));
-        }
-
-        /** {@code EZvac | label}, or the label alone when both don't fit. */
-        String titled(String label) {
-            return SignText.titled(label, width);
-        }
-    }
-
-    /**
-     * Writes a sign, and its screen where screens are on. The screen is
-     * redrawn with the sign, on every forced refresh (for what only the screen
-     * shows), and whenever it is missing: a chunk unloading takes screens away,
-     * and this puts them back. Its text is only sent when it changed.
-     */
-    /**
-     * A mini thermostat's panel on its wall button (BETA 1.0 Pilot 2). It has
-     * no sign, so nothing shows with screens off.
-     */
+    /** A mini thermostat's panel on its wall button (BETA 1.0 Pilot 2). */
     private void renderMini(BlockKey position, String fingerprint, boolean force,
                             java.util.function.Supplier<MiniScreen> screen) {
-        if (!position.isChunkLoaded() || !screens.enabled()) return;
+        if (!position.isChunkLoaded()) return;
         var block = position.location() == null ? null : position.location().getBlock();
         if (block == null || !org.bukkit.Tag.BUTTONS.isTagged(block.getType())) {
             screens.remove(position);
@@ -841,9 +708,6 @@ public final class DisplayService {
         return waiting ? "Units off" : "";
     }
 
-    /** Whether screens are on (displays.screens): a mini thermostat needs them. */
-    public boolean screensEnabled() { return screens.enabled(); }
-
     private void refreshMini(Thermostat thermostat, boolean force) {
         java.util.Set<Attention> attention = thermostat.attention();
         String blocked = thermostat.enabled() ? miniBlocked(attention, thermostat.waitingOnUnits() != null) : "";
@@ -856,33 +720,33 @@ public final class DisplayService {
                 attention.size(), blocked));
     }
 
+    /**
+     * Draws a device's screen in front of its sign: when what it shows
+     * changed, on every forced refresh, and whenever it is missing (a chunk
+     * unloading takes screens away, and this puts them back). Its text is
+     * only sent when it changed.
+     *
+     * <p>The sign behind stays blank: from 26.1 a sign's own text shows
+     * through the screen's panel. It is looked at the first time the device
+     * is drawn and on forced refreshes, not with every change: reading a
+     * sign snapshots its whole block entity, once EZvac's largest single cost.
+     */
     private void render(BlockKey position, String fingerprint, boolean force,
-                        java.util.function.Consumer<Lines> writer, java.util.function.Supplier<ScreenText> screen) {
+                        java.util.function.Supplier<ScreenText> screen) {
         if (!position.isChunkLoaded()) return;
-        if (screens.enabled()) {
-            var block = position.location() == null ? null : position.location().getBlock();
-            if (block != null && org.bukkit.Tag.ALL_SIGNS.isTagged(block.getType())) {
-                if (force || !fingerprint.equals(fingerprints.get(position)) || !screens.showing(position, block)) {
-                    ScreenText text = screen.get();
-                    screens.show(position, block, text);
-                }
-            } else {
-                screens.remove(position);
-            }
-        }
-        if (!force && fingerprint.equals(fingerprints.get(position))) return;
         var location = position.location();
-        if (location == null || !(location.getBlock().getState() instanceof Sign sign)) return;
+        var block = location == null ? null : location.getBlock();
+        if (block == null || !org.bukkit.Tag.ALL_SIGNS.isTagged(block.getType())) {
+            screens.remove(position);
+            return;
+        }
+        String before = fingerprints.get(position);
+        boolean changed = force || !fingerprint.equals(before);
+        if (!changed && screens.showing(position, block)) return;
         try {
-            if (screens.enabled()) {
-                // The screen shows it all, so the sign stays blank (BETA 1.0): from 26.1 the sign's
-                // own text shows through the screen's panel. A sign already blank isn't sent again.
-                if (clear(sign.getSide(Side.FRONT))) sign.update(false, false);
-            } else {
-                writer.accept(new Lines(sign.getSide(Side.FRONT),
-                        sign instanceof HangingSign ? SignText.HANGING_SIGN_WIDTH : SignText.SIGN_WIDTH));
+            screens.show(position, block, screen.get());
+            if ((force || before == null) && block.getState() instanceof Sign sign && clear(sign.getSide(Side.FRONT)))
                 sign.update(false, false);
-            }
             fingerprints.put(position, fingerprint);
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.WARNING, "Could not refresh HVAC display at " + position, exception);

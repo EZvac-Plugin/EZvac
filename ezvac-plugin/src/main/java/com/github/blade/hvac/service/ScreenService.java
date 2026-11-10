@@ -49,16 +49,12 @@ public final class ScreenService {
     private record Shown(UUID header, UUID body, UUID big, int bodyLines, ScreenText.Tone tone,
                          Component headerText, Component bodyText, Component bigText) {}
 
-    private final boolean enabled;
     private final NamespacedKey tag;
     private final Map<BlockKey, Shown> screens = new HashMap<>();
 
-    public ScreenService(Plugin plugin, boolean enabled) {
-        this.enabled = enabled;
+    public ScreenService(Plugin plugin) {
         this.tag = new NamespacedKey(Objects.requireNonNull(plugin, "plugin"), "screen");
     }
-
-    public boolean enabled() { return enabled; }
 
     /**
      * Shows this screen in front of the sign, putting it up first if it isn't
@@ -67,7 +63,6 @@ public final class ScreenService {
      * put up afresh.
      */
     public void show(BlockKey position, Block sign, ScreenText screen) {
-        if (!enabled) return;
         Component headerText = screen.header(), bodyText = screen.body(), bigText = screen.bigText();
         int bodyLines = screen.bodyLines();
         World world = sign.getWorld();
@@ -109,7 +104,6 @@ public final class ScreenService {
      * again.
      */
     public void showMini(BlockKey position, Block button, MiniScreen screen) {
-        if (!enabled) return;
         Component bodyText = screen.body(), bigText = screen.bigText();
         World world = button.getWorld();
         Shown shown = screens.get(position);

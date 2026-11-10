@@ -39,7 +39,7 @@ class WindTextTest {
         assertEquals("Windy 29 km/h from the W", WindText.describe(8.0, 270.0, SETTINGS, TemperatureUnit.C));
         String gale = WindText.sign(18.0, 315.0, SETTINGS, TemperatureUnit.C);
         assertEquals("Gale 65km/h NW", gale);
-        assertTrue(SignText.width(gale) < SignText.SIGN_WIDTH, "it leaves room for a label");
+        assertTrue(TextWidth.width(gale) < 90, "it leaves room for a label");
         assertEquals("Windy 29km/h", WindText.sign(8.0, Double.NaN, SETTINGS, TemperatureUnit.C), "no direction known");
     }
 }

@@ -64,7 +64,7 @@ public final class MiniScreen {
         // A line too wide (a pool's 104° and a count) loses its "Set"; never the count.
         String warning = attention > 0 ? " ⚠" + attention : "";
         String target = "Set " + degrees(units, targetF);
-        if (SignText.width(target + warning) > WIDTH) target = degrees(units, targetF);
+        if (TextWidth.width(target + warning) > WIDTH) target = degrees(units, targetF);
         Component targetLine = Component.text(target, NamedTextColor.GRAY);
         if (!warning.isEmpty()) targetLine = targetLine.append(Component.text(warning, ScreenText.ATTENTION));
 
@@ -93,11 +93,11 @@ public final class MiniScreen {
 
     /** Bold glyphs are a pixel wider. */
     static int boldWidth(String text) {
-        return SignText.width(text) + text.length();
+        return TextWidth.width(text) + text.length();
     }
 
     /** A line of spaces just short of the wrap width, so the panel is always the same size. */
-    static final String BLANK = " ".repeat(WIDTH / SignText.width(" ") - 1);
+    static final String BLANK = " ".repeat(WIDTH / TextWidth.width(" ") - 1);
 
     public Component bigText() { return big; }
 
@@ -121,7 +121,7 @@ public final class MiniScreen {
     /** Each line's width in pixels, for tests. */
     List<Integer> widths() {
         List<Integer> out = new ArrayList<>();
-        for (Component line : lines) out.add(SignText.width(PlainTextComponentSerializer.plainText().serialize(line)));
+        for (Component line : lines) out.add(TextWidth.width(PlainTextComponentSerializer.plainText().serialize(line)));
         return out;
     }
 }

@@ -1,7 +1,6 @@
 package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.model.BlockKey;
-import com.github.blade.hvac.model.Thermometer;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import org.junit.jupiter.api.Test;
 
@@ -23,15 +22,6 @@ class SignWatchTest {
         assertTrue(DisplayService.watched(watched, new BlockKey(WORLD, -64, 64, 79)));
         assertFalse(DisplayService.watched(watched, new BlockKey(WORLD, 100, 64, 0)), "100 blocks away");
         assertFalse(DisplayService.watched(watched, new BlockKey(UUID.randomUUID(), 8, 64, 8)), "another world");
-    }
-
-    @Test
-    void theDefaultThermoHygrometerTitleFitsOnASign() {
-        BlockKey at = new BlockKey(WORLD, 0, 64, 0);
-        assertEquals("T. Hygrometer",
-                DisplayService.signTitle(new Thermometer(at, "Thermohygrometer", Thermometer.Reads.BOTH)));
-        assertEquals("cellar", DisplayService.signTitle(new Thermometer(at, "cellar", Thermometer.Reads.BOTH)),
-                "a chosen label is shown as it is");
     }
 
     @Test

@@ -49,6 +49,6 @@ class StationTextTest {
                 "Snow until 23:00", "Rain from 23:00", "Clear all day", "Gale 100km/h", "Rebuild its tower",
                 "Off server-wide");
         for (String line : lines)
-            assertTrue(SignText.width(line) <= ScreenText.WIDTH, line + ": " + SignText.width(line));
+            assertTrue(TextWidth.width(line) <= ScreenText.WIDTH, line + ": " + TextWidth.width(line));
     }
 }

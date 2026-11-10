@@ -64,7 +64,7 @@ class ScreenTest {
 
     /** Pixels a screen line takes, counting a · as narrow as a full stop. */
     private static int width(String line) {
-        return SignText.width(line.replace('·', '.'));
+        return TextWidth.width(line.replace('·', '.'));
     }
 
     @Test
@@ -75,7 +75,7 @@ class ScreenTest {
         assertTrue(plain.startsWith("Shed") && plain.endsWith(" "), "a neutral header has no glyph: " + plain);
         for (String header : java.util.List.of(cooling, plain)) {
             int width = width(header);
-            assertTrue(width <= ScreenText.WIDTH && width > ScreenText.WIDTH - 2 * SignText.width(" "),
+            assertTrue(width <= ScreenText.WIDTH && width > ScreenText.WIDTH - 2 * TextWidth.width(" "),
                     () -> "the strip reaches the full width: " + width);
         }
         String longName = text(ScreenText.titled("A very long thermostat name indeed", "Pool")
@@ -106,7 +106,7 @@ class ScreenTest {
             String[] lines = text(screen.body()).split("\n", -1);
             assertEquals(ScreenText.BODY_LINES, lines.length, "padded with blank lines");
             int widest = java.util.Arrays.stream(lines).mapToInt(ScreenTest::width).max().orElse(0);
-            assertTrue(widest < ScreenText.WIDTH && widest > ScreenText.WIDTH - 3 * SignText.width(" "),
+            assertTrue(widest < ScreenText.WIDTH && widest > ScreenText.WIDTH - 3 * TextWidth.width(" "),
                     () -> "a blank line sets the panel just short of the wrap width: " + widest);
             for (String line : lines)
                 assertTrue(line.isBlank() || line.equals(line.strip()), () -> "never padded: '" + line + "'");
@@ -119,23 +119,22 @@ class ScreenTest {
         for (String target : List.of("104.0°F", "-40.0°C", "100.0°F"))
             for (OperatingMode mode : List.of(OperatingMode.HEATING, OperatingMode.COOLING)) {
                 String line = DisplayService.waitingLine(mode, target);
-                assertTrue(SignText.width(line) <= ScreenText.WIDTH, line + " is " + SignText.width(line));
+                assertTrue(TextWidth.width(line) <= ScreenText.WIDTH, line + " is " + TextWidth.width(line));
             }
-        assertTrue(SignText.width(DisplayService.UNITS_OFF) <= ScreenText.WIDTH);
+        assertTrue(TextWidth.width(DisplayService.UNITS_OFF) <= ScreenText.WIDTH);
         for (boolean pool : new boolean[] {false, true})
             for (Attention blocking : List.of(Attention.NO_UNITS, Attention.NO_VENTS)) {
                 String line = DisplayService.blockedLine(java.util.EnumSet.of(blocking), pool);
-                assertTrue(!line.isEmpty() && SignText.width(line) <= ScreenText.WIDTH, line);
+                assertTrue(!line.isEmpty() && TextWidth.width(line) <= ScreenText.WIDTH, line);
             }
         assertEquals("", DisplayService.blockedLine(java.util.EnumSet.of(Attention.UNDERSIZED), false),
                 "undersized doesn't stop it: it only counts beside the ⚠");
-        assertTrue(SignText.width(DisplayService.UNITS_OFF + " | 15/15") <= SignText.SIGN_WIDTH, "and the sign's footer");
     }
 
     @Test
     void aLineTooWideGivesUpItsLastPartsInsteadOfWrapping() {
         // BETA 1.0, seen on a live screen: on a 106.6 °F day this line wrapped and put Heating under the big reading.
-        assertEquals(103, SignText.width("Out 106.6°F · Summer"), "the client's own widths: ° 5, · 2");
+        assertEquals(103, TextWidth.width("Out 106.6°F · Summer"), "the client's own widths: ° 5, · 2");
         assertEquals("Out 106.6°F", ScreenText.fitted("Out 106.6°F · Summer"));
         assertEquals("Out 96.6°F · Summer", ScreenText.fitted("Out 96.6°F · Summer"), "a line that fits is kept");
         assertEquals("ETA 0:31 · 28% RH", ScreenText.fitted("ETA 0:31 · 28% RH"));
@@ -144,7 +143,7 @@ class ScreenTest {
                 for (String out : List.of(String.format(java.util.Locale.US, "Out %.1f°F", f),
                         String.format(java.util.Locale.US, "Out %.1f°C", (f - 32) / 1.8))) {
                     String line = ScreenText.fitted(season.isEmpty() ? out : out + " · " + season);
-                    assertTrue(SignText.width(line) <= ScreenText.WIDTH, line);
+                    assertTrue(TextWidth.width(line) <= ScreenText.WIDTH, line);
                     assertTrue(line.startsWith(out), "the temperature always stays: " + line);
                 }
             }
@@ -214,7 +213,7 @@ class ScreenTest {
     void aFullScreensThreeDigitReadingsAreShownWhole() {
         // The big reading is bold at twice the size, on a 100-pixel board.
         for (String reading : List.of("104.0°F", "112.0°F", "120.0°F", "130.4°F", "-40.0°F", "48.9°C")) {
-            int bold = SignText.width(reading) + reading.length();
+            int bold = TextWidth.width(reading) + reading.length();
             assertTrue(2 * bold <= ScreenPlacement.LINE_WIDTH, reading + " is " + 2 * bold);
         }
         for (String line : List.of("Heating to 104.0°F", "Cooling to 72.0°F", "Holding 104.0°F", "Off · set 104.0°F",

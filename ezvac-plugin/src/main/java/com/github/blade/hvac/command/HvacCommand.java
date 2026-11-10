@@ -1226,18 +1226,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         return block;
     }
 
-    /**
-     * A mini thermostat goes on a button on a wall, like a real one, and shows
-     * on a screen, so it needs screens on.
-     */
+    /** A mini thermostat goes on a button on a wall, like a real one. */
     private void requireWallButton(Block block) {
         if (!(block.getBlockData() instanceof org.bukkit.block.data.FaceAttachable attached)
                 || attached.getAttachedFace() != org.bukkit.block.data.FaceAttachable.AttachedFace.WALL)
             throw new IllegalArgumentException("A mini thermostat goes on a button on a wall, not on a floor or"
                     + " ceiling.");
-        if (!displays.screensEnabled())
-            throw new IllegalArgumentException("A mini thermostat shows on a screen, and this server has screens"
-                    + " off (displays.screens: false).");
     }
 
     private static void requireSign(Block block) {
