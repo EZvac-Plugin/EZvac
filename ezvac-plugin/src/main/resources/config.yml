@@ -138,6 +138,17 @@ sizing:
   maximum-openness: 6.0
   neighbour-exchange: 10.0
 
+# EZdebug, built in (BETA 1.0 Pilot 5): while an admin holds the link tool
+# with a thermostat's system selected, they see that system as EZvac does:
+# its equipment glows, its signs are framed, its vents are marked and puff
+# while they work, the edge of the space its air fills is dotted in, and the
+# openings it leaks through (doorways, windows, holes) glow red, through
+# walls. Only the player holding the tool sees it. The EZdebug+ addon shows
+# this for every system at once, and more; while it's installed and switched
+# on, this stands down. /hvac addons switches it (EZdebug, built in).
+ezdebug:
+  enabled: true
+
 audio:
   enabled: true
   radius-blocks: 25.0

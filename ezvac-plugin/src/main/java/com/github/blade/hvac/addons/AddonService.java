@@ -174,6 +174,15 @@ public final class AddonService implements Listener {
         return null;
     }
 
+    /**
+     * Whether a plugin is installed, running, and not switched off in the
+     * menu: how EZvac's built-in EZdebug knows EZdebug+ has taken over.
+     */
+    public boolean runs(String pluginName) {
+        Plugin there = plugin.getServer().getPluginManager().getPlugin(pluginName);
+        return there != null && there.isEnabled() && !off.contains(pluginName);
+    }
+
     /** The official addons installed here, in the catalogue's order. */
     public List<Installed> installed() {
         List<Installed> found = new ArrayList<>();

@@ -51,6 +51,10 @@ public final class HvacPlugin extends JavaPlugin {
     private WeatherService weather;
     private SeasonService seasons;
     private com.github.blade.hvac.addons.AddonService addons;
+    private com.github.blade.hvac.debug.EzDebug ezdebug;
+
+    /** EZvac's built-in EZdebug (BETA 1.0 Pilot 5). */
+    public com.github.blade.hvac.debug.EzDebug ezdebug() { return ezdebug; }
     private HvacRegistry registry;
     private OutdoorTemperatureService outdoor;
     private AirflowService airflow;
@@ -196,6 +200,11 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(addons, this);
             api.setAddons(addons);
             addons.start();
+            // EZdebug, built in (BETA 1.0 Pilot 5): link-tool vision, until EZdebug+ takes over.
+            ezdebug = new com.github.blade.hvac.debug.EzDebug(this, registry, airflow, commandHandler.linkTool(),
+                    switches::ezdebug, () -> addons.runs("EZdebugPlus"));
+            getServer().getPluginManager().registerEvents(ezdebug, this);
+            ezdebug.start();
             backups = new RegistryBackups(this, registry, getConfig(), this::saveConfig);
             backups.start();
             quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates,
@@ -391,6 +400,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (hud != null) hud.shutdown();
         if (updates != null) updates.stop();
         if (addons != null) addons.stop();
+        if (ezdebug != null) ezdebug.stop();
         if (controllerTask != null) controllerTask.cancel();
         if (airflowTask != null) airflowTask.cancel();
         if (bubbleTask != null) bubbleTask.cancel();

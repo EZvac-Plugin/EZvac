@@ -84,6 +84,8 @@ public final class QuickSettingsMenu implements Listener {
     static final int TICK_COST = 16;
     /** The Addons page: installed addons with their switches beneath, the store's row, and the check. */
     static final int ADDONS_INFO = 4, INSTALLED_FROM = 10, STORE_FROM = 37, ADDONS_ROW = 7, CHECK_ADDONS = 49;
+    /** The built-in EZdebug (BETA 1.0 Pilot 5): first in the installed row, before the addons. */
+    static final int BUILT_IN = INSTALLED_FROM, ADDONS_FROM = INSTALLED_FROM + 1, ADDON_SLOTS = ADDONS_ROW - 1;
     /** An addon's own page: what it is, and its parts with their switches beneath. */
     static final int ADDON_INFO = 4, PARTS_FROM = 9, PARTS_ROW = 9;
     /** The device kinds in the second row: the five sources, the three room units, weather stations; switches beneath. */
@@ -328,6 +330,7 @@ public final class QuickSettingsMenu implements Listener {
         boolean sounds = plugin.settings().audioEnabled();
         placeSwitch(inventory, SOUNDS, Material.NOTE_BLOCK, "Device sounds", sounds, List.of(
                 gray("Units starting and stopping, their hum,"), gray("and air at the vents"), clickTo(sounds)));
+
     }
 
     static com.github.blade.hvac.config.WindSettings.Units nextWindUnits(com.github.blade.hvac.config.WindSettings.Units now) {
@@ -356,6 +359,7 @@ public final class QuickSettingsMenu implements Listener {
             boolean on = !plugin.settings().audioEnabled();
             switches.setSounds(on);
             logChange(player, "switched device sounds " + (on ? "on" : "off"));
+
         } else return;
         click(player, true);
         plugin.requestImmediateSync();
@@ -393,7 +397,8 @@ public final class QuickSettingsMenu implements Listener {
                         gray("Top row: installed. Click the dye"), gray("beneath one to switch it."),
                         gray("Bottom row: the store. Click one"), gray("for its link; EZvac never"),
                         gray("downloads or installs anything."))));
-        for (int i = 0; i < Math.min(ADDONS_ROW, installed.size()); i++) {
+        builtIn(inventory);
+        for (int i = 0; i < Math.min(ADDON_SLOTS, installed.size()); i++) {
             AddonService.Installed addon = installed.get(i);
             AddonCatalogue.Entry entry = addon.entry();
             List<Component> lore = new ArrayList<>();
@@ -419,10 +424,10 @@ public final class QuickSettingsMenu implements Listener {
                 } else lore.add(clickTo(addon.active()));
             }
             if (addon.update() != null) lore.add(yellow("Shift-click for its link"));
-            placeSwitch(inventory, INSTALLED_FROM + i, icon(entry), entry.name(), on, lore);
+            placeSwitch(inventory, ADDONS_FROM + i, icon(entry), entry.name(), on, lore);
         }
         if (installed.isEmpty())
-            inventory.setItem(INSTALLED_FROM + 3, item(Material.GLASS_BOTTLE, Component.text("No official addons yet",
+            inventory.setItem(ADDONS_FROM + 2, item(Material.GLASS_BOTTLE, Component.text("No official addons yet",
                     NamedTextColor.GRAY), List.of(gray("The store is in the row below"))));
         for (int i = 0; i < Math.min(ADDONS_ROW, store.size()); i++) {
             AddonCatalogue.Entry entry = store.get(i);
@@ -449,6 +454,30 @@ public final class QuickSettingsMenu implements Listener {
                         gray("Asks GitHub for new addons and"), gray("newer releases of these."),
                         gray(news.isEmpty() ? "No updates known" : "Updates: " + String.join(", ", news)),
                         gray(updates.checking() ? "Also checked every 6 hours" : "Background checks are off"))));
+    }
+
+    /**
+     * EZvac's built-in EZdebug, first in the installed row: on or off, or
+     * replaced while EZdebug+ is installed and switched on.
+     */
+    private void builtIn(Inventory inventory) {
+        boolean on = switches.ezdebug();
+        boolean replaced = plugin.ezdebug() != null && on && !plugin.ezdebug().active();
+        List<Component> lore = new ArrayList<>();
+        lore.add(gray("Built into EZvac"));
+        lore.add(gray("Hold the link tool with a system"));
+        lore.add(gray("selected: its devices, the edge of"));
+        lore.add(gray("its room and its leaks show"));
+        if (replaced) {
+            lore.add(colored("Replaced by EZdebug+, which shows", NamedTextColor.GOLD));
+            lore.add(colored("all of this and more", NamedTextColor.GOLD));
+        } else lore.add(clickTo(on));
+        Component title = Component.text("EZdebug (built in): ", NamedTextColor.WHITE).append(replaced
+                ? Component.text("Replaced", NamedTextColor.GOLD)
+                : Component.text(on ? "On" : "Off", on ? NamedTextColor.GREEN : NamedTextColor.RED));
+        inventory.setItem(BUILT_IN, item(Material.SPYGLASS, title, lore));
+        inventory.setItem(BUILT_IN + 9, item(replaced ? Material.ORANGE_DYE : on ? Material.LIME_DYE : Material.RED_DYE,
+                title, lore));
     }
 
     /** One addon's parts, each with its switch beneath; they only run while the addon itself is on. */
@@ -765,9 +794,20 @@ public final class QuickSettingsMenu implements Listener {
             return true;
         }
         boolean dye = slot >= 18 && slot < 27;
-        int index = switchedAt(slot) - INSTALLED_FROM;
+        if (switchedAt(slot) == BUILT_IN) {
+            if (plugin.ezdebug() != null && switches.ezdebug() && !plugin.ezdebug().active()) {
+                click(player, false);   // EZdebug+ shows it: switch EZdebug+ instead
+                return false;
+            }
+            boolean on = !switches.ezdebug();
+            switches.setEzdebug(on);
+            click(player, true);
+            logChange(player, "switched the built-in EZdebug " + (on ? "on" : "off"));
+            return false;
+        }
+        int index = switchedAt(slot) - ADDONS_FROM;
         List<AddonService.Installed> installed = addons.installed();
-        if (index < 0 || index >= Math.min(ADDONS_ROW, installed.size())) return false;
+        if (index < 0 || index >= Math.min(ADDON_SLOTS, installed.size())) return false;
         AddonService.Installed addon = installed.get(index);
         if (shift && addon.update() != null) {
             sendLink(player, addon.entry(), addon.update());

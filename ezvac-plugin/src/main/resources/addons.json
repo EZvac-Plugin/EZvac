@@ -28,7 +28,7 @@
       "plugin": "EZdebugPlus",
       "main": "com.github.blade.ezdebug.EzDebugPlugin",
       "name": "EZdebug+",
-      "description": "A Debug Potion that shows EZvac's devices at work: airflow, links and what each unit is doing.",
+      "description": "Adds to EZvac's built-in EZdebug: a Debug Potion that shows every system at once, rooms and their leaks, weather stations' areas and the links between devices.",
       "repository": "EZdebugPlus",
       "minecraft": "",
       "needs": "",
