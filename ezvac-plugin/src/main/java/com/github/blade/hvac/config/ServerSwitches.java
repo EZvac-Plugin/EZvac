@@ -35,6 +35,8 @@ public final class ServerSwitches {
     private volatile TemperatureUnit units;
     private volatile WindSettings.Units windUnits;
     private volatile Boolean sounds;
+    /** EZvac's built-in EZdebug (BETA 1.0 Pilot 5): link-tool vision. */
+    private volatile boolean ezdebug;
 
     private ServerSwitches(FileConfiguration config, Runnable saveConfig, Set<DeviceKind> off) {
         this.config = config;
@@ -44,6 +46,7 @@ public final class ServerSwitches {
         this.wind = config.getBoolean("wind.enabled", true);
         this.seasons = config.getBoolean("seasons.enabled", true);
         this.sizing = config.getBoolean("sizing.enabled", true);
+        this.ezdebug = config.getBoolean("ezdebug.enabled", true);
         this.off = off;
     }
 
@@ -116,6 +119,13 @@ public final class ServerSwitches {
     public void setWindUnits(WindSettings.Units unit) {
         windUnits = unit;
         write("wind.units", unit.name().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    public boolean ezdebug() { return ezdebug; }
+
+    public void setEzdebug(boolean on) {
+        ezdebug = on;
+        write("ezdebug.enabled", on);
     }
 
     public void setSounds(boolean on) {
