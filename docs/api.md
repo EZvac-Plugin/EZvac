@@ -94,6 +94,7 @@ server runs.
 | `precipitationAt(world, x, y, z)` | What is falling at a block right now: `Precipitation.NONE`, `RAIN` or `SNOW`, by EZvac's air there (1.9) |
 | `setWeatherPlan(plugin, plan)`, `weatherPlan()` | Plan the weather from an addon (1.9): a `WeatherPlan` gives each day's `Outlook` (rain and thunder chances, a temperature shift, a `WeatherEvent`: `SNOWSTORM`, `THUNDERSTORM`, `HEAT_WAVE`, `COLD_SNAP`, and a note), the shift and event right now. Stations forecast from it, the outdoor air takes its shift, a snowstorm's wind is a gale. One plan at a time; it goes with its plugin. The addon drives Minecraft's weather to match |
 | `dailyMeanAirF(world, x, y, z)` | Today's average outdoor air at a block: halfway between its noon and midnight, with the season, a planned heat wave or cold snap, the weather and the height counted. Snow on the ground answers to it, so a cold night's snow outlasts a mild morning (1.9) |
+| `systemSpace(world, system)` | The space a system fills as EZvac last mapped it: its `edge` (blocks beside something outside it, at most a few thousand) and its `openings` (blocks of its air beside open sky: the doorways, windows and holes it leaks through). Empty until it is mapped (1.10) |
 | `freezingWaterF(world, x, y, z)` | How cold natural water is getting at a block, before EZvac holds liquid water at 33 °F: at or below 32 °F a lake would be freezing (1.9) |
 | `snowLineAt(world, x, z)` | The height above which rain would come down as snow at a column right now, raining or not: negative infinity where it would snow at every height, positive infinity where it would rain at every height, NaN where rain doesn't reach (a dry place outside a thunderstorm) (1.9) |
 | `units()` | Whether the server shows players °F or °C |
@@ -366,5 +367,6 @@ depend: [EZvac]
   `windAt()`, `outdoorAirAt()`, `windForecast(location, days)`, and a
   station's `wind()`, `airQuality()` and each day's `aqi()`), and 1.9 with
   BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `dailyMeanAirF()`, `WeatherPlan`, `WeatherEvent`, `setWeatherPlan()`, `Precipitation`,
-  `SeasonView.progress()`, and `registerAddon()` with `Addon` and `AddonSwitches`).
+  `SeasonView.progress()`, and `registerAddon()` with `Addon` and `AddonSwitches`), and 1.10 with BETA 1.0
+  Pilot 5 (`systemSpace()` and `SystemSpace`).
   Depend on the oldest EZvac whose API has what you use.
