@@ -48,7 +48,7 @@ public final class AddonService implements Listener {
     private static final long FIRST_CHECK_TICKS = 20L * 20;
     private static final long PERIOD_TICKS = 20L * 60 * 60 * 6;
     private static final long JOIN_DELAY_TICKS = 60L;
-    private static final String OFF = "addons.off", PARTS_OFF = "addons.parts-off";
+    private static final String OFF = "addons.disabled", PARTS_OFF = "addons.parts-disabled";
 
     private record Registered(Plugin plugin, Addon addon) {}
 

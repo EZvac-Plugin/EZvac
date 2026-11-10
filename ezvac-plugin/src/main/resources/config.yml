@@ -28,8 +28,8 @@ updates:
 # and each installed one's newest release are read from GitHub with EZvac's
 # own update check.
 addons:
-  off: []
-  parts-off: []
+  disabled: []
+  parts-disabled: []
 
 # Device kinds switched off server-wide (BETA 1.0): they stop, and no new one
 # can be made; switched back on, each runs again as it was set. The kinds:
