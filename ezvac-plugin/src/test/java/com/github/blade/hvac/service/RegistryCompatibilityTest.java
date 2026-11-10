@@ -73,7 +73,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("BETA-1.0-P1", true, true, true, true, true, true, true, true, true),
                 Arguments.of("BETA-1.0-P2", true, true, true, true, true, true, true, true, true),
                 Arguments.of("BETA-1.0-P3", true, true, true, true, true, true, true, true, true),
-                Arguments.of("BETA-1.0-P4", true, true, true, true, true, true, true, true, true));
+                Arguments.of("BETA-1.0-P4", true, true, true, true, true, true, true, true, true),
+                Arguments.of("BETA-1.0-P5", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -97,7 +98,7 @@ class RegistryCompatibilityTest {
         assertEquals(0, registry.keptAside(), () -> "kept aside: " + registry.keptAsideRecords());
         assertNull(registry.recoveredFrom());
         // Format 8 arrived with ALPHA 3.1: every release before it is told as a successful upgrade.
-        assertEquals(java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4")
+        assertEquals(java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5")
                 .contains(release) ? 0 : 1,
                 Math.min(1, registry.migratedFrom()), release);
         assertSavesAsGolden(registry, release, "expected-save.yml");
@@ -177,7 +178,7 @@ class RegistryCompatibilityTest {
      * fixture bot's click leaves the setpoint at its default.
      */
     private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2",
-            "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4");
+            "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5");
 
     /**
      * Releases built with the link tool (3.0 on): their systems are numbered
@@ -185,7 +186,7 @@ class RegistryCompatibilityTest {
      * linked to it.
      */
     private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1",
-            "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4");
+            "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5");
 
     /**
      * Releases built with tiers (3.1 on): the fixture bot makes the house heat
@@ -193,19 +194,19 @@ class RegistryCompatibilityTest {
      * the two-stage default.
      */
     private static final java.util.Set<String> TIER_RELEASES = java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2",
-            "BETA-1.0-P3", "BETA-1.0-P4");
+            "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5");
     /**
      * Releases whose fixture has the 3.2 air and wind devices: an air purifier set to High, an air
      * monitor, and a cherry-button air sensor and bamboo-button wind sensor on the hub.
      */
-    private static final java.util.Set<String> AIR_RELEASES = java.util.Set.of("ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4");
+    private static final java.util.Set<String> AIR_RELEASES = java.util.Set.of("ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5");
     /** Releases whose fixture has a weather station (BETA 1.0 on): 'Harbour', measured, on a 1.21.1 tower. */
-    private static final java.util.Set<String> STATION_RELEASES = java.util.Set.of("BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4");
+    private static final java.util.Set<String> STATION_RELEASES = java.util.Set.of("BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5");
     /**
      * Releases whose fixture has a mini thermostat (BETA 1.0 Pilot 2 on): 'nook' on a wall button, its profile
      * set to Eco from its menu, so the thermostat itself holds it.
      */
-    private static final java.util.Set<String> MINI_RELEASES = java.util.Set.of("BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4");
+    private static final java.util.Set<String> MINI_RELEASES = java.util.Set.of("BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5");
 
     /** A fixture's system is its old group name before 3.0; from 3.0 it only has to be a numbered one. */
     private static void assertSystem(String release, String group, Thermostat thermostat) {
