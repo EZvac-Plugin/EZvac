@@ -85,10 +85,20 @@ class ForecastTest {
         assertEquals(Forecast.Sky.THUNDER, Forecast.day(1, PLAINS, 0.0, 0.9, 0.7, calm, 60.0, "", WEATHER).sky());
         assertEquals(Forecast.Sky.CLEAR, Forecast.day(1, PLAINS, 0.0, 0.3, 0.0, calm, 60.0, "", WEATHER).sky(),
                 "a 30% chance is still a clear day");
-        // BETA 1.0 Pilot 4: a desert gets rain only in thunderstorms (weather.dry-areas: thunder).
-        Forecast.Day storm = Forecast.day(1, DESERT, 0.0, 0.9, 0.9, calm, 20.0, "", WEATHER);
+        // BETA 1.0 Pilot 4: a desert gets the season's share of rain spells (weather.dry-areas: seasonal).
+        Forecast.Day winterRain = Forecast.day(1, DESERT, 0.0, 0.9, 0.0, calm, 20.0, "", WEATHER, Seasons.Season.WINTER);
+        assertEquals(0.54, winterRain.rainChance(), 1e-9, "60% of winter's rain reaches it");
+        assertEquals(Forecast.Sky.RAIN, winterRain.sky());
+        Forecast.Day summerRain = Forecast.day(1, DESERT, 0.0, 0.9, 0.9, calm, 20.0, "", WEATHER, Seasons.Season.SUMMER);
+        assertEquals(0.045, summerRain.rainChance(), 1e-9, "and 5% of summer's");
+        assertEquals(Forecast.Sky.CLEAR, summerRain.sky(), "a summer storm most likely passes it by");
+        assertEquals(0.09, Forecast.day(1, DESERT, 0.0, 0.9, 0.0, calm, 20.0, "", WEATHER).rainChance(), 1e-9,
+                "without seasons, spring's share");
+        // thunder: rain only in thunderstorms.
+        ClimateSettings.Weather thunder = withDryAreas(ClimateSettings.Weather.DryAreas.THUNDER);
+        Forecast.Day storm = Forecast.day(1, DESERT, 0.0, 0.9, 0.9, calm, 20.0, "", thunder);
         assertEquals(Forecast.Sky.THUNDER, storm.sky(), "a desert thunderstorm");
-        Forecast.Day showers = Forecast.day(1, DESERT, 0.0, 0.9, 0.0, calm, 20.0, "", WEATHER);
+        Forecast.Day showers = Forecast.day(1, DESERT, 0.0, 0.9, 0.0, calm, 20.0, "", thunder);
         assertEquals(Forecast.Sky.CLEAR, showers.sky(), "but ordinary rain passes it by");
         assertEquals(0.0, showers.rainChance());
         ClimateSettings.Weather never = withDryAreas(ClimateSettings.Weather.DryAreas.NEVER);

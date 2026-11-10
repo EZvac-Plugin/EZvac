@@ -95,7 +95,9 @@ class ClimateSettingsTest {
     void rainAndSnowSettingsLoadLeniently() {
         // BETA 1.0 Pilot 4.
         assertEquals(33.0, ClimateSettings.defaults().weather().snowAtOrBelowF());
-        assertEquals(ClimateSettings.Weather.DryAreas.THUNDER, ClimateSettings.defaults().weather().dryAreas());
+        assertEquals(ClimateSettings.Weather.DryAreas.SEASONAL, ClimateSettings.defaults().weather().dryAreas());
+        assertEquals(0.6, ClimateSettings.defaults().weather().dryRain().winter(), "mostly in winter");
+        assertEquals(0.05, ClimateSettings.defaults().weather().dryRain().summer());
         YamlConfiguration config = new YamlConfiguration();
         config.set("weather.dry-areas", "Always");
         config.set("weather.snow-at-or-below-f", 30.0);

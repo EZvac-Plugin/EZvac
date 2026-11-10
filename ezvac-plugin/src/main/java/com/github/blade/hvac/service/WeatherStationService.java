@@ -235,8 +235,11 @@ public final class WeatherStationService implements Listener {
                 ? wind.forecastAt(world, x, z, Forecast.DAYS) : null;
         WindModel.Belts belts = wind == null ? WindModel.Belts.WESTERLIES : wind.belts(world, x, z);
         SeasonService seasons = outdoor.seasons();
-        // A dry area gets rain only as weather.dry-areas allows (BETA 1.0 Pilot 4).
-        boolean dry = Forecast.dry(area) && climate.weather().dryAreas() != ClimateSettings.Weather.DryAreas.ALWAYS;
+        // A dry area gets rain only as weather.dry-areas allows (BETA 1.0 Pilot 4): what is known for
+        // certain (the notes) only while a spell that reaches it is falling.
+        boolean dryArea = Forecast.dry(area);
+        ClimateSettings.Weather.DryAreas dryRule = climate.weather().dryAreas();
+        boolean dry = dryArea && dryRule != ClimateSettings.Weather.DryAreas.ALWAYS && !outdoor.rainReachesDry(world);
         OutdoorAir.Baseline baseline = new OutdoorAir.Baseline(area.fine(), area.coarse(), area.pollen());
         List<Forecast.Day> days = new ArrayList<>(Forecast.DAYS);
         // An addon's weather plan, where there is one (API 1.9): its chances, shifts and notes.
@@ -246,7 +249,12 @@ public final class WeatherStationService implements Listener {
             com.github.blade.hvac.api.WeatherPlan.Outlook planned = ahead < plan.size() ? plan.get(ahead) : null;
             double rainOdds = planned != null ? planned.rainChance() : odds.rain()[ahead];
             double thunderOdds = planned != null ? planned.thunderChance() : odds.thunder()[ahead];
-            double rain = dry ? 0.0 : rainOdds;
+            com.github.blade.hvac.simulation.Seasons.Season season = seasons != null && climate.seasons().enabled()
+                    && seasons.tracks(world.getUID()) ? seasons.seasonIn(world.getUID(), ahead) : null;
+            // Under seasonal, the season's share of rain spells reaches a dry area.
+            double rain = !dryArea || dryRule == ClimateSettings.Weather.DryAreas.ALWAYS ? rainOdds
+                    : dryRule == ClimateSettings.Weather.DryAreas.SEASONAL
+                    ? rainOdds * climate.weather().dryRain().share(season) : 0.0;
             // A day of rain brings its front: in the westerlies the wind comes round to the southwest.
             if (windDay != null && rain >= 0.5 && climate.wind().direction().fronts())
                 windDay = windDay.from(WindModel.between(windDay.fromDegrees(), WindModel.RAIN_FROM,
@@ -256,11 +264,10 @@ public final class WeatherStationService implements Listener {
             var air = OutdoorAir.now(baseline, factor, rain, windMs, area.downfall(), climate.wind());
             double pollen = climate.airQuality().enabled() && climate.airQuality().pollen() ? air.pollen() : Double.NaN;
             int aqi = climate.airQuality().enabled() ? AirQualityIndex.aqi(air) : -1;
-            boolean winter = seasons != null && climate.seasons().enabled() && seasons.tracks(world.getUID())
-                    && seasons.seasonIn(world.getUID(), ahead) == com.github.blade.hvac.simulation.Seasons.Season.WINTER;
+            boolean winter = season == com.github.blade.hvac.simulation.Seasons.Season.WINTER;
             double shift = outdoor.seasonShiftIn(world, area.seasonalF(), ahead) + (planned == null ? 0.0 : planned.shiftF());
             Forecast.Day day = Forecast.day(ahead, area, shift, rainOdds, thunderOdds, windDay, pollen, "",
-                    climate.weather(), winter);
+                    climate.weather(), season);
             boolean snow = Forecast.snows(day.highF(), day.lowF(), climate.weather(), winter);
             String note = Forecast.note(clocks, ahead, snow, dry);
             if (planned != null && !planned.note().isEmpty())

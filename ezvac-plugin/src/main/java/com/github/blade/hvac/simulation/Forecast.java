@@ -201,11 +201,26 @@ public final class Forecast {
     public static Day day(int ahead, WeatherStation.Area area, double seasonShiftF, double rainChance,
                           double thunderChance, WindModel.Day wind, double pollen, String note,
                           ClimateSettings.Weather weather, boolean winter) {
-        // A dry area's rain follows weather.dry-areas (BETA 1.0 Pilot 4): none, only thunderstorms', or all.
+        return day(ahead, area, seasonShiftF, rainChance, thunderChance, wind, pollen, note, weather,
+                winter ? Seasons.Season.WINTER : null);
+    }
+
+    /** The same, knowing the day's season; null where there are none. */
+    public static Day day(int ahead, WeatherStation.Area area, double seasonShiftF, double rainChance,
+                          double thunderChance, WindModel.Day wind, double pollen, String note,
+                          ClimateSettings.Weather weather, Seasons.Season season) {
+        boolean winter = season == Seasons.Season.WINTER;
+        // A dry area's rain follows weather.dry-areas (BETA 1.0 Pilot 4): none, only thunderstorms', the
+        // season's share of rain spells, or all.
         if (dry(area)) {
             switch (weather.dryAreas()) {
                 case NEVER -> { rainChance = 0.0; thunderChance = 0.0; }
                 case THUNDER -> rainChance = thunderChance;
+                case SEASONAL -> {
+                    double share = weather.dryRain().share(season);
+                    rainChance *= share;
+                    thunderChance *= share;
+                }
                 case ALWAYS -> { }
             }
         }

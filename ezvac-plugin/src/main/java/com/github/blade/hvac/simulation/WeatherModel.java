@@ -17,21 +17,54 @@ public final class WeatherModel {
      * @param storm    0 .. 1 thundering, eased
      * @param raining  the world's weather right now, for labels
      * @param thundering the world's thunder right now, for labels
+     * @param reachesDry whether this rain spell reaches dry areas, under {@code weather.dry-areas: seasonal}
+     *                   (BETA 1.0 Pilot 4): rolled once as the rain starts, and kept until it stops
      */
-    public record Conditions(double wetness, double storm, boolean raining, boolean thundering) {
+    public record Conditions(double wetness, double storm, boolean raining, boolean thundering, boolean reachesDry) {
         public static final Conditions CLEAR = new Conditions(0.0, 0.0, false, false);
+
+        /** Rain that doesn't reach dry areas under {@code seasonal}. */
+        public Conditions(double wetness, double storm, boolean raining, boolean thundering) {
+            this(wetness, storm, raining, thundering, false);
+        }
 
         /** Weather that has been this way long enough to have fully set in. */
         public static Conditions settled(boolean raining, boolean thundering) {
-            return new Conditions(raining ? 1.0 : 0.0, raining && thundering ? 1.0 : 0.0, raining, thundering);
+            return settled(raining, thundering, false);
         }
 
-        /** These conditions after {@code elapsedTicks} of easing toward the given weather. */
+        public static Conditions settled(boolean raining, boolean thundering, boolean reachesDry) {
+            return new Conditions(raining ? 1.0 : 0.0, raining && thundering ? 1.0 : 0.0, raining, thundering,
+                    raining && reachesDry);
+        }
+
+        /** These conditions after {@code elapsedTicks} of easing toward the given weather; a spell keeps its reach. */
         public Conditions advance(boolean nowRaining, boolean nowThundering, long elapsedTicks, double easeHours) {
+            return advance(nowRaining, nowThundering, elapsedTicks, easeHours, reachesDry);
+        }
+
+        /** The same, saying whether the rain now falling reaches dry areas. */
+        public Conditions advance(boolean nowRaining, boolean nowThundering, long elapsedTicks, double easeHours,
+                                  boolean nowReachesDry) {
             double step = elapsedTicks / ThermalModel.MINECRAFT_TICKS_PER_HOUR / easeHours;
             return new Conditions(approach(wetness, nowRaining ? 1.0 : 0.0, step),
-                    approach(storm, nowRaining && nowThundering ? 1.0 : 0.0, step), nowRaining, nowThundering);
+                    approach(storm, nowRaining && nowThundering ? 1.0 : 0.0, step), nowRaining, nowThundering,
+                    nowRaining && nowReachesDry);
         }
+    }
+
+    /**
+     * Whether weather reaches dry surroundings (deserts, badlands,
+     * savannas) under {@code weather.dry-areas}: never, only in thunder,
+     * only the spells that rolled it (seasonal), or always.
+     */
+    public static boolean reachesDry(Conditions conditions, ClimateSettings.Weather settings) {
+        return switch (settings.dryAreas()) {
+            case NEVER -> false;
+            case THUNDER -> conditions != null && conditions.thundering();
+            case SEASONAL -> conditions != null && conditions.reachesDry();
+            case ALWAYS -> true;
+        };
     }
 
     /**
@@ -108,6 +141,9 @@ public final class WeatherModel {
                                 double dayWindMs) {
         double rain = clamp(climate.rainShare());
         double snow = Math.min(clamp(climate.snowShare()), 1.0 - rain);
+        // Rain that reaches dry ground (weather.dry-areas) cools and dampens it like anywhere else.
+        if (conditions != null && conditions.raining() && settings.enabled() && reachesDry(conditions, settings))
+            rain = 1.0 - snow;
         double dry = 1.0 - rain - snow;
         if (rain == 1.0) return effect(Precipitation.RAIN, conditions, settings, dayWindMs);
         if (snow == 1.0) return effect(Precipitation.SNOW, conditions, settings, dayWindMs);
@@ -128,19 +164,13 @@ public final class WeatherModel {
      * temperature and rain above it. Vanilla decides by biome alone; here the
      * season, height and time of day all count, through the air temperature.
      * Dry surroundings (deserts, badlands, savannas: under half their blend
-     * gets weather) follow {@code weather.dry-areas}. Whether it is raining
+     * gets weather) follow {@code weather.dry-areas}: see {@link #reachesDry}. Whether it is raining
      * right now is {@link #falling}.
      */
     public static Precipitation kind(BiomeBlend.Blended climate, double airF, Conditions conditions,
                                      ClimateSettings.Weather settings) {
         if (climate == null || settings == null) return Precipitation.NONE;
-        if (climate.wetShare() < 0.5) {
-            switch (settings.dryAreas()) {
-                case NEVER -> { return Precipitation.NONE; }
-                case THUNDER -> { if (conditions == null || !conditions.thundering()) return Precipitation.NONE; }
-                case ALWAYS -> { }
-            }
-        }
+        if (climate.wetShare() < 0.5 && !reachesDry(conditions, settings)) return Precipitation.NONE;
         return Double.isFinite(airF) && airF <= settings.snowAtOrBelowF() ? Precipitation.SNOW : Precipitation.RAIN;
     }
 

@@ -100,7 +100,10 @@ public final class HvacPlugin extends JavaPlugin {
                 stop(failure);
                 return;
             }
-            weather = new WeatherService(climate.weather());
+            // Rain reaches dry areas by the world's season (BETA 1.0 Pilot 4); the seasons are set up below.
+            weather = new WeatherService(climate.weather(), world -> climate.weather().dryRain().share(
+                    seasons != null && climate.seasons().enabled() && seasons.tracks(world.getUID())
+                            ? seasons.season(world.getUID()) : null));
             seasons = new SeasonService(getDataFolder(), climate.seasons(), getLogger()::warning);
             seasons.load(seasonDaysBefore > 0 ? seasonDaysBefore : climate.seasons().daysPerSeason());
             if (seasons.converted() > 0)

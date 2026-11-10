@@ -411,6 +411,12 @@ public final class OutdoorTemperatureService {
         return weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
     }
 
+    /** Whether rain is falling now that reaches the world's dry areas (weather.dry-areas). */
+    public boolean rainReachesDry(World world) {
+        WeatherModel.Conditions conditions = conditions(world);
+        return conditions.raining() && WeatherModel.reachesDry(conditions, climate.weather());
+    }
+
     /**
      * The sunshine a person at this spot takes in, W/m² (BETA 1.0 Pilot 4),
      * for the feels-like: full where nothing is above it, a share of it by

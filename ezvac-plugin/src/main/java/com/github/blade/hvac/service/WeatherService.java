@@ -17,9 +17,16 @@ import java.util.UUID;
 public final class WeatherService {
     private final ClimateSettings.Weather settings;
     private final Map<UUID, WeatherModel.Conditions> worlds = new HashMap<>();
+    /** The share of rain spells that reach a world's dry areas now: its season's (weather.dry-rain-chance). */
+    private final java.util.function.ToDoubleFunction<World> dryRainShare;
 
     public WeatherService(ClimateSettings.Weather settings) {
+        this(settings, world -> settings.dryRain().share(null));
+    }
+
+    public WeatherService(ClimateSettings.Weather settings, java.util.function.ToDoubleFunction<World> dryRainShare) {
         this.settings = Objects.requireNonNull(settings, "settings");
+        this.dryRainShare = Objects.requireNonNull(dryRainShare, "dryRainShare");
     }
 
     /** Called once per controller cycle with the ticks since the last one. */
@@ -27,8 +34,15 @@ public final class WeatherService {
         if (elapsedTicks <= 0) return;
         for (World world : Bukkit.getWorlds()) {
             WeatherModel.Conditions current = worlds.get(world.getUID());
-            worlds.put(world.getUID(), current == null ? settled(world)
-                    : current.advance(world.hasStorm(), world.isThundering(), elapsedTicks, settings.easeHours()));
+            if (current == null) {
+                worlds.put(world.getUID(), settled(world));
+                continue;
+            }
+            // A rain spell rolls once, as it starts, whether it reaches dry areas; it keeps that until it stops.
+            boolean raining = world.hasStorm();
+            boolean reaches = raining && (current.raining() ? current.reachesDry() : rollsDry(world));
+            worlds.put(world.getUID(), current.advance(raining, world.isThundering(), elapsedTicks,
+                    settings.easeHours(), reaches));
         }
     }
 
@@ -41,7 +55,14 @@ public final class WeatherService {
         if (world != null) worlds.remove(world.getUID());
     }
 
-    private static WeatherModel.Conditions settled(World world) {
-        return WeatherModel.Conditions.settled(world.hasStorm(), world.isThundering());
+    private WeatherModel.Conditions settled(World world) {
+        return WeatherModel.Conditions.settled(world.hasStorm(), world.isThundering(),
+                world.hasStorm() && rollsDry(world));
+    }
+
+    /** The roll for the spell that starts (or is first seen) today, by the world's seed and day. */
+    private boolean rollsDry(World world) {
+        return ClimateSettings.Weather.DryRain.reaches(world.getSeed(), Math.floorDiv(world.getFullTime(), 24_000L),
+                dryRainShare.applyAsDouble(world));
     }
 }

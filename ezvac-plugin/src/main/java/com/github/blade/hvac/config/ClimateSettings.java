@@ -45,17 +45,20 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
      * @param snowAtOrBelowF while it rains, snow falls where the air is this cold or colder (BETA 1.0 Pilot 4)
      * @param dryAreas      whether rain reaches places vanilla keeps dry (BETA 1.0 Pilot 4)
      * @param snowInWinterBelowF in winter, snow falls where the air is colder than this (BETA 1.0 Pilot 4)
+     * @param dryRain       the share of rain spells that reach dry areas, by season, under {@code seasonal}
      */
     public record Weather(boolean enabled, double easeHours, double rainCoolingF, double thunderCoolingF,
                           double snowCoolingF, double swingReduction, double waterShare,
                           double windClearMs, double windRainMs, double windThunderMs,
-                          double snowAtOrBelowF, DryAreas dryAreas, double snowInWinterBelowF) {
+                          double snowAtOrBelowF, DryAreas dryAreas, double snowInWinterBelowF, DryRain dryRain) {
         /** Deserts, badlands and savannas in rain (BETA 1.0 Pilot 4). */
         public enum DryAreas {
             /** Always dry, as in vanilla. */
             NEVER,
             /** Rain only in thunderstorms. */
             THUNDER,
+            /** Some rain spells reach them: mostly winter's, rarely the other seasons'. The default. */
+            SEASONAL,
             /** Rain like anywhere else. */
             ALWAYS;
 
@@ -67,12 +70,61 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
             }
         }
 
-        /** The weather as before Pilot 4: snow at 33 F and below, dry areas rained on in thunder. */
+        /**
+         * The share of rain spells that reach dry areas in each season
+         * ({@code weather.dry-rain-chance}), and the roll for one spell.
+         */
+        public record DryRain(double spring, double summer, double autumn, double winter) {
+            /** Mostly in winter, rarely otherwise. */
+            public static final DryRain STOCK = new DryRain(0.1, 0.05, 0.1, 0.6);
+
+            public DryRain {
+                requireFraction("weather.dry-rain-chance.spring", spring);
+                requireFraction("weather.dry-rain-chance.summer", summer);
+                requireFraction("weather.dry-rain-chance.autumn", autumn);
+                requireFraction("weather.dry-rain-chance.winter", winter);
+            }
+
+            /** The share in a season; spring's where there are no seasons (null). */
+            public double share(com.github.blade.hvac.simulation.Seasons.Season season) {
+                if (season == null) return spring;
+                return switch (season) {
+                    case SPRING -> spring;
+                    case SUMMER -> summer;
+                    case AUTUMN -> autumn;
+                    case WINTER -> winter;
+                };
+            }
+
+            /**
+             * Whether the rain spell that began on a day reaches dry areas:
+             * one roll for the whole world, the same every time it is asked.
+             */
+            public static boolean reaches(long seed, long day, double share) {
+                long mixed = (seed ^ 0x6A09E667F3BCC909L) + day * 0x9E3779B97F4A7C15L;
+                mixed = (mixed ^ (mixed >>> 30)) * 0xBF58476D1CE4E5B9L;
+                mixed = (mixed ^ (mixed >>> 27)) * 0x94D049BB133111EBL;
+                mixed ^= mixed >>> 31;
+                return (mixed >>> 11) * 0x1.0p-53 < share;
+            }
+        }
+
+        /** With the stock shares for {@code seasonal}. */
+        public Weather(boolean enabled, double easeHours, double rainCoolingF, double thunderCoolingF,
+                       double snowCoolingF, double swingReduction, double waterShare,
+                       double windClearMs, double windRainMs, double windThunderMs,
+                       double snowAtOrBelowF, DryAreas dryAreas, double snowInWinterBelowF) {
+            this(enabled, easeHours, rainCoolingF, thunderCoolingF, snowCoolingF, swingReduction, waterShare,
+                    windClearMs, windRainMs, windThunderMs, snowAtOrBelowF, dryAreas, snowInWinterBelowF,
+                    DryRain.STOCK);
+        }
+
+        /** The stock weather: snow at 33 F and below (40 F in winter), dry areas rained on by season. */
         public Weather(boolean enabled, double easeHours, double rainCoolingF, double thunderCoolingF,
                        double snowCoolingF, double swingReduction, double waterShare,
                        double windClearMs, double windRainMs, double windThunderMs) {
             this(enabled, easeHours, rainCoolingF, thunderCoolingF, snowCoolingF, swingReduction, waterShare,
-                    windClearMs, windRainMs, windThunderMs, 33.0, DryAreas.THUNDER, 40.0);
+                    windClearMs, windRainMs, windThunderMs, 33.0, DryAreas.SEASONAL, 40.0);
         }
 
         public Weather {
@@ -83,7 +135,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
             if (snowInWinterBelowF < snowAtOrBelowF || snowInWinterBelowF > 200.0)
                 throw new IllegalArgumentException("weather.snow-in-winter-below-f must be from snow-at-or-below-f to 200");
             if (dryAreas == null)
-                throw new IllegalArgumentException("weather.dry-areas must be never, thunder or always");
+                throw new IllegalArgumentException("weather.dry-areas must be never, thunder, seasonal or always");
+            if (dryRain == null) throw new IllegalArgumentException("weather.dry-rain-chance is missing");
             requirePositive("weather.ease-hours", easeHours);
             requireNonNegative("weather.rain-cooling-f", rainCoolingF);
             requireNonNegative("weather.thunder-cooling-f", thunderCoolingF);
@@ -350,7 +403,12 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                         config.getDouble("weather.snow-at-or-below-f", w.snowAtOrBelowF()),
                         config.contains("weather.dry-areas")
                                 ? Weather.DryAreas.parse(config.getString("weather.dry-areas")) : w.dryAreas(),
-                        config.getDouble("weather.snow-in-winter-below-f", w.snowInWinterBelowF()))),
+                        config.getDouble("weather.snow-in-winter-below-f", w.snowInWinterBelowF()),
+                        new Weather.DryRain(
+                                config.getDouble("weather.dry-rain-chance.spring", w.dryRain().spring()),
+                                config.getDouble("weather.dry-rain-chance.summer", w.dryRain().summer()),
+                                config.getDouble("weather.dry-rain-chance.autumn", w.dryRain().autumn()),
+                                config.getDouble("weather.dry-rain-chance.winter", w.dryRain().winter())))),
                 section("humidity", h, warn, () -> new Humidity(config.getDouble("humidity.outdoor-rh-dry", h.outdoorRhDry()),
                         config.getDouble("humidity.outdoor-rh-wet", h.outdoorRhWet()),
                         config.getDouble("humidity.rain-rh", h.rainRh()),
