@@ -81,7 +81,7 @@ only. The save is unchanged (format 8).
 - **Switch an addon on and off while the server runs.** Switched off, it
   stays loaded but does nothing; the choice is kept through restarts
   (`addons.disabled`). An addon with parts, such as EZclimates (seasonal
-  looks, snow and ice, planned weather, body temperature), has a switch for
+  looks, snow and ice, planned weather, plants, body temperature), has a switch for
   each. An addon released before this says it needs updating to be switched.
 - **A store row** lists the official addons the server doesn't have, with
   what each does and needs. A click puts its GitHub link in chat. EZvac
