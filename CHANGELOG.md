@@ -2,7 +2,10 @@
 
 All notable changes to EZvac are recorded here.
 
-## Unreleased
+## BETA 1.0 Pilot 6
+
+**The weather as players see it,** and a HUD gauge for addons. The save is
+unchanged (format 8).
 
 ### The weather as players see it
 
@@ -22,6 +25,13 @@ follow EZvac's own call as before, and sensors now do too.
   rain and snow, and where.
 - `HudContext.gauge(fraction, colorAt)`: a HUD meter drawn exactly like
   EZvac's feels-like gauge, coloured along the addon's own scale.
+
+### Also released: EZclimates 0.2.0
+
+Body temperature that meets more than the air (getting wet, fires, food,
+metal armor in the sun, work, metabolism, breath and cold nights), a HUD
+section in EZvac's style with its gauge, lights melting its snow, and no
+more lag spikes while travelling fast.
 
 ## BETA 1.0 Pilot 5
 
