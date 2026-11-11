@@ -20,6 +20,8 @@ follow EZvac's own call as before, and sensors now do too.
 
 - `setShowsWeather(plugin, worlds)`: say your addon shows players EZvac's
   rain and snow, and where.
+- `HudContext.gauge(fraction, colorAt)`: a HUD meter drawn exactly like
+  EZvac's feels-like gauge, coloured along the addon's own scale.
 
 ## BETA 1.0 Pilot 5
 

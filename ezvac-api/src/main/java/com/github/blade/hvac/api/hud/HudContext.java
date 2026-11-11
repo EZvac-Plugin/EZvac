@@ -32,4 +32,21 @@ public interface HudContext {
      * @param fraction how full, from 0 to 1 (clamped)
      */
     Component bar(double fraction, TextColor color);
+
+    /**
+     * A meter in the HUD's own style, as EZvac draws its feels-like bar: with
+     * {@code hud.bar.style: gauge}, a line whose every segment is coloured by
+     * where along the scale it stands, with the marker at {@code fraction};
+     * with {@code blocks}, a bar filled to {@code fraction} in the colour
+     * there. For an addon meter with a scale of its own, such as a body
+     * temperature from cold to hot.
+     *
+     * @param fraction where the value stands, from 0 to 1 (clamped)
+     * @param colorAt  the colour at each point along the scale, 0 to 1
+     * @since 1.11
+     */
+    default Component gauge(double fraction, java.util.function.DoubleFunction<TextColor> colorAt) {
+        double clamped = Double.isNaN(fraction) ? 0.0 : Math.max(0.0, Math.min(1.0, fraction));
+        return bar(clamped, colorAt.apply(clamped));
+    }
 }
