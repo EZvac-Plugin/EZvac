@@ -206,9 +206,9 @@ public final class OutdoorTemperatureService {
 
     private WeatherModel.Effect effect(World world, BiomeBlend.Blended local) {
         WeatherModel.Conditions conditions = weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
-        if (wind == null || !wind.enabled()) return WeatherModel.effect(local, conditions, climate.weather());
+        if (wind == null || !wind.enabled()) return WeatherModel.effect(local, conditions, rules(world));
         // The day's wind, rain and thunder adding to it, as much of it as reaches this spot (3.2).
-        return WeatherModel.effect(local, conditions, climate.weather(), wind.speedMs(world))
+        return WeatherModel.effect(local, conditions, rules(world), wind.speedMs(world))
                 .windScaled(WindService.hasWind(world) ? local.windExposure() : 0.0);
     }
 
@@ -216,7 +216,7 @@ public final class OutdoorTemperatureService {
     private WeatherModel.Effect effect(World world, BiomeBlend.Blended local, WindModel.Spot spot) {
         WeatherModel.Conditions conditions = weather == null ? WeatherModel.Conditions.CLEAR : weather.conditions(world);
         if (wind == null || !wind.enabled() || spot == null) return effect(world, local);
-        return WeatherModel.effect(local, conditions, climate.weather(), spot.speedMs())
+        return WeatherModel.effect(local, conditions, rules(world), spot.speedMs())
                 .windScaled(WindService.hasWind(world) ? local.windExposure() : 0.0);
     }
 
@@ -271,11 +271,49 @@ public final class OutdoorTemperatureService {
      * the air there (BETA 1.0 Pilot 4; before, the kind its surroundings
      * mostly get in vanilla).
      */
+    /** What decides whether EZvac's own rain and snow are shown in a world (API 1.11); nowhere until set. */
+    private java.util.function.Predicate<World> shown = world -> false;
+
+    public void setWeatherShown(java.util.function.Predicate<World> shown) {
+        this.shown = Objects.requireNonNull(shown, "shown");
+    }
+
+    /**
+     * Whether players in a world see EZvac's own rain and snow (API 1.11):
+     * an addon such as EZclimates shows them there. Elsewhere they see
+     * Minecraft's, by biome, so EZvac words the weather the same way and
+     * keeps deserts dry, whatever {@code weather.dry-areas} says.
+     */
+    public boolean showsWeather(World world) {
+        if (world == null) return false;
+        try {
+            return shown.test(world);
+        } catch (RuntimeException | LinkageError failing) {
+            return false;
+        }
+    }
+
+    /** The weather settings in force in a world: with deserts kept dry where nobody shows EZvac's rain there. */
+    public ClimateSettings.Weather rules(World world) {
+        ClimateSettings.Weather settings = climate.weather();
+        return showsWeather(world) ? settings : settings.withDryAreas(ClimateSettings.Weather.DryAreas.NEVER);
+    }
+
+    /** Minecraft's own rain or snow at a block, by its biome and height; nothing where the chunk isn't loaded. */
+    private Precipitation vanillaAt(World world, int x, int y, int z) {
+        if (world.getEnvironment() != World.Environment.NORMAL || !world.isChunkLoaded(x >> 4, z >> 4))
+            return Precipitation.NONE;
+        Block block = world.getBlockAt(x, y, z);
+        return precipitationAt(block, climateOf(block, block.getBiome()));
+    }
+
     private String weatherWord(World world, double x, double y, double z) {
         if (!climate.weather().enabled() || world == null) return "";
         WeatherModel.Conditions conditions = conditions(world);
-        String word = WeatherModel.word(kindAt(world, (int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z),
-                conditions), conditions);
+        int bx = (int) Math.floor(x), by = (int) Math.floor(y), bz = (int) Math.floor(z);
+        // As players see it (API 1.11): EZvac's rain and snow where an addon shows them, Minecraft's elsewhere.
+        Precipitation kind = showsWeather(world) ? kindAt(world, bx, by, bz, conditions) : vanillaAt(world, bx, by, bz);
+        String word = WeatherModel.word(kind, conditions);
         // A planned event names itself where it shows (API 1.9): a snowstorm's snow, a heat wave's clear sky.
         return planned.eventNow(world).map(event -> switch (event) {
             case SNOWSTORM -> "Snow".equals(word) ? "Snowstorm" : word;
@@ -389,7 +427,7 @@ public final class OutdoorTemperatureService {
     /** Whether rain reaches a column at all: weather.dry-areas, by the column's own surroundings. */
     private boolean reaches(World world, int x, int groundY, int z, WeatherModel.Conditions conditions) {
         BiomeBlend.Blended local = surroundingsAt(world, x, groundY, z);
-        return WeatherModel.kind(local, 0.0, conditions, climate.weather()) != Precipitation.NONE;
+        return WeatherModel.kind(local, 0.0, conditions, rules(world)) != Precipitation.NONE;
     }
 
     /**
@@ -414,7 +452,7 @@ public final class OutdoorTemperatureService {
     /** Whether rain is falling now that reaches the world's dry areas (weather.dry-areas). */
     public boolean rainReachesDry(World world) {
         WeatherModel.Conditions conditions = conditions(world);
-        return conditions.raining() && WeatherModel.reachesDry(conditions, climate.weather());
+        return conditions.raining() && WeatherModel.reachesDry(conditions, rules(world));
     }
 
     /**
@@ -615,18 +653,23 @@ public final class OutdoorTemperatureService {
 
     /**
      * What the sky is doing at a spot, for weather sensors: Clear, Rain,
-     * Thunder or Snow, from the world's own weather. Unlike the HUD's weather
+     * Thunder or Snow, as players see it: Minecraft's own rain and snow, or
+     * EZvac's where an addon shows them (API 1.11). Unlike the HUD's weather
      * word it doesn't depend on EZvac's weather effects being switched on: a
-     * sensor reports the sky, whatever the temperatures do. Clear where it
-     * never rains, such as a desert.
+     * sensor reports the sky, whatever the temperatures do. Clear where no
+     * rain reaches, such as a desert.
      */
     public String skyAt(Location location) {
         if (location == null || location.getWorld() == null) return "Clear";
         World world = location.getWorld();
         Block block = location.getBlock();
-        Precipitation precipitation = precipitationAt(block, climateOf(block, block.getBiome()));
-        String word = WeatherModel.word(precipitation,
-                WeatherModel.Conditions.settled(world.hasStorm(), world.isThundering()));
+        WeatherModel.Conditions sky = WeatherModel.Conditions.settled(world.hasStorm(), world.isThundering(),
+                conditions(world).reachesDry());
+        // Where an addon shows EZvac's rain and snow (API 1.11), the sensor reports those.
+        Precipitation precipitation = showsWeather(world)
+                ? kindAt(world, block.getX(), block.getY(), block.getZ(), sky)
+                : precipitationAt(block, climateOf(block, block.getBiome()));
+        String word = WeatherModel.word(precipitation, sky);
         return word.isEmpty() ? "Clear" : word;
     }
 

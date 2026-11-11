@@ -153,12 +153,12 @@ public final class ForecastMenu implements Listener {
         }
         WeatherStation station = menu.selected;
         List<Forecast.Day> days = service.forecast(station);
-        boolean snow = station.area() != null && station.area().snowShare() > station.area().rainShare();
         boolean dry = station.area() != null && station.area().rainShare() + station.area().snowShare() < 0.1;
         SeasonService seasons = plugin.seasons();
         AirQualitySettings air = plugin.climate().airQuality();
         for (Forecast.Day day : days) {
             if (day.ahead() >= DAY_SLOTS.length) break;
+            boolean snow = service.snowDay(station, day);
             List<Component> lore = new ArrayList<>();
             lore.add(Component.text(StationText.sky(day, snow), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
             lore.add(gray(StationText.highLow(day, units)));

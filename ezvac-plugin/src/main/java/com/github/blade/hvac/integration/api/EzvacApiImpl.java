@@ -102,6 +102,7 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         this.hud = new HudSections(logger, hudService.format(), (player, reading) ->
                 ApiViews.reading(Position.of(player.getLocation()), reading, seasonOf(player.getWorld()), air(),
                         wind()));
+        outdoor.setWeatherShown(this::showsWeather);
     }
 
     /** The addon sections, for the HUD to draw. */
@@ -521,6 +522,36 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
     @EventHandler(priority = EventPriority.MONITOR)
     public void onPlanOwnerDisable(org.bukkit.event.server.PluginDisableEvent event) {
         outdoor.plannedWeather().dropFrom(event.getPlugin());
+        weatherShownBy.remove(event.getPlugin().getName());
+    }
+
+    // ---- API 1.11 ----
+
+    /** Plugins showing EZvac's rain and snow, by name: in which worlds. */
+    private final Map<String, java.util.function.Predicate<World>> weatherShownBy = new java.util.LinkedHashMap<>();
+
+    @Override
+    public void setShowsWeather(org.bukkit.plugin.Plugin plugin, java.util.function.Predicate<World> worlds) {
+        Objects.requireNonNull(plugin, "plugin");
+        if (worlds == null) weatherShownBy.remove(plugin.getName());
+        else weatherShownBy.put(plugin.getName(), worlds);
+    }
+
+    /** The EZclimates that came before API 1.11, which shows EZvac's weather without saying so. */
+    static final String EZCLIMATES = "EZclimates";
+
+    /**
+     * Whether players in a world see EZvac's own rain and snow: a plugin
+     * said so (API 1.11), or EZclimates 0.1.0, which can't, runs with its
+     * seasonal looks on, in an overworld (where it shows them).
+     */
+    boolean showsWeather(World world) {
+        for (Map.Entry<String, java.util.function.Predicate<World>> shower : weatherShownBy.entrySet()) {
+            org.bukkit.plugin.Plugin there = org.bukkit.Bukkit.getPluginManager().getPlugin(shower.getKey());
+            if (there != null && there.isEnabled() && shower.getValue().test(world)) return true;
+        }
+        if (weatherShownBy.containsKey(EZCLIMATES) || addons == null || !addons.runs(EZCLIMATES)) return false;
+        return addons.partOn(EZCLIMATES, "looks") && world.getEnvironment() == World.Environment.NORMAL;
     }
 
     private Optional<SeasonView.Season> seasonOf(World world) {

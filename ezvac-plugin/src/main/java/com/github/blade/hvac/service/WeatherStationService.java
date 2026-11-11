@@ -238,7 +238,10 @@ public final class WeatherStationService implements Listener {
         // A dry area gets rain only as weather.dry-areas allows (BETA 1.0 Pilot 4): what is known for
         // certain (the notes) only while a spell that reaches it is falling.
         boolean dryArea = Forecast.dry(area);
-        ClimateSettings.Weather.DryAreas dryRule = climate.weather().dryAreas();
+        // Where players see Minecraft's own weather (no addon shows EZvac's, API 1.11), deserts stay dry.
+        boolean byAir = outdoor.showsWeather(world);
+        ClimateSettings.Weather rules = outdoor.rules(world);
+        ClimateSettings.Weather.DryAreas dryRule = rules.dryAreas();
         boolean dry = dryArea && dryRule != ClimateSettings.Weather.DryAreas.ALWAYS && !outdoor.rainReachesDry(world);
         OutdoorAir.Baseline baseline = new OutdoorAir.Baseline(area.fine(), area.coarse(), area.pollen());
         List<Forecast.Day> days = new ArrayList<>(Forecast.DAYS);
@@ -267,14 +270,31 @@ public final class WeatherStationService implements Listener {
             boolean winter = season == com.github.blade.hvac.simulation.Seasons.Season.WINTER;
             double shift = outdoor.seasonShiftIn(world, area.seasonalF(), ahead) + (planned == null ? 0.0 : planned.shiftF());
             Forecast.Day day = Forecast.day(ahead, area, shift, rainOdds, thunderOdds, windDay, pollen, "",
-                    climate.weather(), season);
-            boolean snow = Forecast.snows(day.highF(), day.lowF(), climate.weather(), winter);
+                    rules, season, byAir);
+            boolean snow = byAir ? Forecast.snows(day.highF(), day.lowF(), rules, winter) : Forecast.snowsByBiome(area);
             String note = Forecast.note(clocks, ahead, snow, dry);
             if (planned != null && !planned.note().isEmpty())
                 note = note.isEmpty() ? planned.note() : note + ". " + planned.note();
             days.add(day.withNote(note).withAqi(aqi));
         }
         return days;
+    }
+
+    /**
+     * Whether a forecast day's rain would come down as snow at a station, for
+     * a clear day's chance ("Clear, snow 30%"): by the day's air where
+     * players see EZvac's own rain and snow (API 1.11), by the area's biomes
+     * where they see Minecraft's.
+     */
+    public boolean snowDay(WeatherStation station, Forecast.Day day) {
+        WeatherStation.Area area = station.area();
+        World world = station.position().world();
+        if (area == null) return false;
+        if (world == null || !outdoor.showsWeather(world)) return Forecast.snowsByBiome(area);
+        SeasonService seasons = outdoor.seasons();
+        boolean winter = seasons != null && climate.seasons().enabled() && seasons.tracks(world.getUID())
+                && seasons.seasonIn(world.getUID(), day.ahead()) == com.github.blade.hvac.simulation.Seasons.Season.WINTER;
+        return Forecast.snows(day.highF(), day.lowF(), climate.weather(), winter);
     }
 
     /**

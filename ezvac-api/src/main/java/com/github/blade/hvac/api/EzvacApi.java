@@ -43,7 +43,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.10";
+    String API_VERSION = "1.11";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -301,6 +301,21 @@ public interface EzvacApi {
      * @since 1.9
      */
     default void setWeatherPlan(org.bukkit.plugin.Plugin plugin, WeatherPlan plan) {
+    }
+
+    /**
+     * Says that a plugin shows players EZvac's rain and snow (by EZvac's air,
+     * as {@link #precipitationAt} and {@link #snowLineAt} give it) in the
+     * worlds the test accepts, as EZclimates does. There, EZvac's HUD,
+     * sensors and forecasts word the weather by its air, and rain reaches
+     * deserts as {@code weather.dry-areas} says. Everywhere else they follow
+     * what players see: Minecraft's own rain and snow, by biome, and deserts
+     * stay dry. Registering again replaces the test; it is dropped when the
+     * plugin disables. Null removes it. Main thread only.
+     *
+     * @since 1.11
+     */
+    default void setShowsWeather(org.bukkit.plugin.Plugin plugin, java.util.function.Predicate<World> worlds) {
     }
 
     /** The weather plan an addon registered, if any. @since 1.9 */

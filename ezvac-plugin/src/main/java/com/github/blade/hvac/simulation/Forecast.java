@@ -209,6 +209,17 @@ public final class Forecast {
     public static Day day(int ahead, WeatherStation.Area area, double seasonShiftF, double rainChance,
                           double thunderChance, WindModel.Day wind, double pollen, String note,
                           ClimateSettings.Weather weather, Seasons.Season season) {
+        return day(ahead, area, seasonShiftF, rainChance, thunderChance, wind, pollen, note, weather, season, true);
+    }
+
+    /**
+     * The same, saying whether players see EZvac's own rain and snow there
+     * (API 1.11, an addon such as EZclimates): if so, a day snows by its
+     * air; if not, as Minecraft's biomes there mostly do.
+     */
+    public static Day day(int ahead, WeatherStation.Area area, double seasonShiftF, double rainChance,
+                          double thunderChance, WindModel.Day wind, double pollen, String note,
+                          ClimateSettings.Weather weather, Seasons.Season season, boolean byAir) {
         boolean winter = season == Seasons.Season.WINTER;
         // A dry area's rain follows weather.dry-areas (BETA 1.0 Pilot 4): none, only thunderstorms', the
         // season's share of rain spells, or all.
@@ -233,11 +244,17 @@ public final class Forecast {
         double highF = effect.noonF(blended.noonF(), blended.midnightF());
         double lowF = effect.midnightF(blended.noonF(), blended.midnightF());
         // Snow or rain by the day's own air (BETA 1.0 Pilot 4; before, by the area's biomes).
-        Sky sky = rainChance >= 0.5 && snows(highF, lowF, weather, winter) ? Sky.SNOW
+        boolean snows = byAir ? snows(highF, lowF, weather, winter) : snowsByBiome(area);
+        Sky sky = rainChance >= 0.5 && snows ? Sky.SNOW
                 : thunderChance >= 0.5 ? Sky.THUNDER
                 : rainChance >= 0.5 ? Sky.RAIN
                 : Sky.CLEAR;
         return new Day(ahead, highF, lowF, rainChance, thunderChance, sky, wind, pollen, note);
+    }
+
+    /** An area whose biomes mostly snow in Minecraft's own weather. */
+    public static boolean snowsByBiome(WeatherStation.Area area) {
+        return area.snowShare() > area.rainShare();
     }
 
     /** An area vanilla keeps dry: deserts, badlands, savannas. */

@@ -34,7 +34,7 @@ class ApiBetaTest {
 
     @Test
     void theApiIsVersion19() {
-        assertEquals("1.10", EzvacApi.API_VERSION);
+        assertEquals("1.11", EzvacApi.API_VERSION);
     }
 
     @Test

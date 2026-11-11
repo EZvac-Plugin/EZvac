@@ -183,6 +183,14 @@ public final class AddonService implements Listener {
         return there != null && there.isEnabled() && !off.contains(pluginName);
     }
 
+    /** Whether a running official addon's part is switched on; false where it registered no such part. */
+    public boolean partOn(String pluginName, String partId) {
+        Registered addon = registered.get(pluginName);
+        if (addon == null) return false;
+        for (Addon.Part part : partsOf(addon)) if (part.id().equals(partId)) return on(pluginName, part);
+        return false;
+    }
+
     /** The official addons installed here, in the catalogue's order. */
     public List<Installed> installed() {
         List<Installed> found = new ArrayList<>();

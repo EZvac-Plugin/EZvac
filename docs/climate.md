@@ -137,18 +137,24 @@ step. The outdoors at a spot is the average of the biomes around it, within
   - **A storm keeps its kind:** an area that is snowing keeps snowing until
     its air is 2 °F above the line (and rain the same the other way), and
     changes at most once an in-game hour, so it doesn't flicker at dawn.
-  - The weather word on the HUD, sensors and `%ezvac_weather%`, and weather
-    stations' forecasts (by the day's air, with winter's line on winter
-    days), follow it.
-- **Dry places** (deserts, savannas, badlands) follow `weather.dry-areas`:
+- **EZvac only says what players see.** The world itself shows Minecraft's
+  own rain and snow, by biome, unless an addon such as EZclimates shows
+  EZvac's. So:
+  - **where an addon shows EZvac's rain and snow,** the weather word on the
+    HUD, sensors and `%ezvac_weather%`, and weather stations' forecasts (by
+    the day's air, with winter's line on winter days), follow EZvac's call,
+    and rain reaches dry places as below;
+  - **everywhere else,** they follow Minecraft's: rain or snow by biome
+    (snow high on a mountain), and dry places stay dry, whatever
+    `weather.dry-areas` says. The temperatures still follow EZvac's air.
+- **Dry places** (deserts, savannas, badlands), where an addon shows EZvac's
+  weather, follow `weather.dry-areas`:
   `seasonal` by default, so some rain spells reach them, mostly in winter
   (6 in 10) and rarely in the other seasons (`weather.dry-rain-chance`).
   Each spell is decided once as it starts, for the whole world, and rain
   that reaches them cools and dampens the air there. `never` keeps them dry
   as in vanilla, `thunder` rains on them only in thunderstorms, `always`
   like anywhere else. The Nether and the End never get weather.
-- EZvac decides what falls; the world itself still shows Minecraft's own rain
-  and snow. An addon such as EZclimates can show EZvac's in the world.
 - Underground, weather doesn't reach.
 - Everything that uses the outdoor temperature follows: rooms drifting with
   nothing running, ETAs, thermometers, sensors, the HUD and pools. Natural water

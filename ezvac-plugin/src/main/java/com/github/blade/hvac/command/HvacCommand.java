@@ -618,7 +618,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         List<Forecast.Day> days = WeatherStationService.working(station) ? stations.forecast(station) : List.of();
         if (!days.isEmpty()) {
             Forecast.Day today = days.get(0);
-            boolean snow = station.area().snowShare() > station.area().rainShare();
+            boolean snow = stations.snowDay(station, today);
             player.sendMessage(join(gray("Today: "), white(StationText.sky(today, snow) + ", "
                     + StationText.highLow(today, settings.units())), gray(today.note().isEmpty() ? "" : " | " + today.note())));
         }

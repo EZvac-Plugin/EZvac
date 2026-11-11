@@ -2,6 +2,25 @@
 
 All notable changes to EZvac are recorded here.
 
+## Unreleased
+
+### The weather as players see it
+
+**EZvac no longer says it's snowing while players watch it rain.** Without
+an addon that shows EZvac's rain and snow, the world shows Minecraft's own,
+by biome, and now the HUD, `%ezvac_weather%`, sensors and weather stations'
+forecasts say the same: plains rain in winter, snowy biomes snow, and
+deserts stay dry (whatever `weather.dry-areas` says). The temperatures still
+follow EZvac's air.
+
+Where an addon such as **EZclimates** shows EZvac's rain and snow, they
+follow EZvac's own call as before, and sensors now do too.
+
+### For addon developers: API 1.11
+
+- `setShowsWeather(plugin, worlds)`: say your addon shows players EZvac's
+  rain and snow, and where.
+
 ## BETA 1.0 Pilot 5
 
 **EZdebug, built in: see the system you're linking as EZvac does,** its
