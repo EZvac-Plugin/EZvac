@@ -71,6 +71,28 @@ class ForecastTest {
     }
 
     @Test
+    void whereNobodyShowsEzvacsRainAndSnowTheForecastFollowsTheBiomes() {
+        WindModel.Day calm = new WindModel.Day(0, WindModel.Level.CALM, 1.0);
+        // A plains area on a freezing winter day: EZvac's air says snow, but Minecraft's plains rain.
+        WeatherStation.Area coldPlains = new WeatherStation.Area(25.0, 10.0, 0.4, 1.0, 0.0, 10.0, 6.0, 10.0, 60.0, 1.0);
+        assertEquals(Forecast.Sky.SNOW, Forecast.day(1, coldPlains, 0.0, 0.9, 0.0, calm, 5.0, "", WEATHER,
+                Seasons.Season.WINTER, true).sky(), "shown by an addon: by the air");
+        assertEquals(Forecast.Sky.RAIN, Forecast.day(1, coldPlains, 0.0, 0.9, 0.0, calm, 5.0, "", WEATHER,
+                Seasons.Season.WINTER, false).sky(), "not shown: as players see it");
+        // A snowy area on a mild day still snows in Minecraft.
+        WeatherStation.Area mildTundra = new WeatherStation.Area(50.0, 40.0, 0.5, 0.0, 1.0, 10.0, 6.0, 10.0, 5.0, 1.0);
+        assertEquals(Forecast.Sky.SNOW, Forecast.day(1, mildTundra, 0.0, 0.9, 0.0, calm, 5.0, "", WEATHER,
+                Seasons.Season.SPRING, false).sky());
+        // Deserts stay dry there: the service passes its rules with dry areas never reached.
+        ClimateSettings.Weather unshown = WEATHER.withDryAreas(ClimateSettings.Weather.DryAreas.NEVER);
+        Forecast.Day desert = Forecast.day(1, DESERT, 0.0, 0.9, 0.9, calm, 20.0, "", unshown, Seasons.Season.WINTER, false);
+        assertEquals(Forecast.Sky.CLEAR, desert.sky());
+        assertEquals(0.0, desert.rainChance());
+        assertSame(WEATHER, WEATHER.withDryAreas(WEATHER.dryAreas()), "the same rule, the same settings");
+        assertEquals(WEATHER.snowAtOrBelowF(), unshown.snowAtOrBelowF(), "everything else kept");
+    }
+
+    @Test
     void aDaysTemperaturesFollowItsSeasonAndItsRain() {
         WindModel.Day calm = new WindModel.Day(0, WindModel.Level.CALM, 1.0);
         Forecast.Day dry = Forecast.day(0, PLAINS, 0.0, 0.0, 0.0, calm, 60.0, "", WEATHER);

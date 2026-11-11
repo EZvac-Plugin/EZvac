@@ -180,7 +180,6 @@ public final class DisplayService {
         List<Forecast.Day> days = serverOff || !station.enabled() || !station.intact() ? List.of()
                 : stations.forecast(station);
         double nowF = stations.nowF(station);
-        boolean snow = station.area() != null && station.area().snowShare() > station.area().rainShare();
         String state = serverOff ? OFF_SERVER_WIDE : !station.enabled() ? "Off" : !station.intact() ? "Damaged"
                 : days.isEmpty() ? "Measuring" : "";
         Forecast.Day today = days.isEmpty() ? null : days.get(0);
@@ -192,8 +191,8 @@ public final class DisplayService {
         String airLine = air == null ? "" : AirText.aqi(air);
         String conditions = windLine.isEmpty() ? airLine : airLine.isEmpty() ? windLine : windLine + " · " + airLine;
         String fingerprint = String.join("|", station.label(), state, StationText.temperature(nowF, units),
-                today == null ? "" : StationText.sky(today, snow) + StationText.highLow(today, units) + today.note(),
-                tomorrow == null ? "" : StationText.sky(tomorrow, snow), conditions);
+                today == null ? "" : StationText.sky(today, stations.snowDay(station, today)) + StationText.highLow(today, units) + today.note(),
+                tomorrow == null ? "" : StationText.sky(tomorrow, stations.snowDay(station, tomorrow)), conditions);
         render(station.position(), fingerprint, force, () -> {
             // No "belongs to" tag: the label needs the room, and the sky's glyph says what it is.
             ScreenText screen = ScreenText.titled(station.label(), "");
@@ -205,11 +204,11 @@ public final class DisplayService {
                 return screen;
             }
             screen.tone(tone(today.sky())).big(StationText.temperature(nowF, units))
-                    .line(StationText.sky(today, snow), NamedTextColor.WHITE)
+                    .line(StationText.sky(today, stations.snowDay(station, today)), NamedTextColor.WHITE)
                     .line(StationText.highLow(today, units), NamedTextColor.GRAY);
             if (!conditions.isEmpty()) screen.line(conditions, NamedTextColor.GRAY);
             if (!today.note().isEmpty()) screen.line(today.note(), NamedTextColor.GOLD);
-            else if (tomorrow != null) screen.line(StationText.tomorrow(tomorrow, snow), NamedTextColor.AQUA);
+            else if (tomorrow != null) screen.line(StationText.tomorrow(tomorrow, stations.snowDay(station, tomorrow)), NamedTextColor.AQUA);
             return screen;
         });
     }

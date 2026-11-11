@@ -73,7 +73,7 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_wind_level%`, `%ezvac_wind_speed%` | `Windy`, `22 km/h`: the level, and the speed in the server's units |
 | `%ezvac_wind_ms%`, `%ezvac_wind_kmh%`, `%ezvac_wind_mph%` | `6`, `22`, `14`: the speed as a whole number |
 | `%ezvac_wind_direction%`, `%ezvac_wind_degrees%` | `W`, `270`: where it blows from, as a compass point and in degrees (0 north); `none` when calm (BETA 1.0 Pilot 3) |
-| `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`: snow wherever the air is cold enough, BETA 1.0 Pilot 4; empty in dry biomes outside thunderstorms) |
+| `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`): as players see it, so by Minecraft's biomes, and by EZvac's air where an addon such as EZclimates shows EZvac's rain and snow; empty in dry biomes where no rain reaches |
 | `%ezvac_season%` | `Summer` (`Spring`, `Autumn`, `Winter`; empty where there are no seasons) |
 | `%ezvac_season_day%` | `3`, the day of that season |
 | `%ezvac_time%` | `14:30`, Minecraft's time of day on a 24-hour clock (sunrise is 06:00); `none` in the Nether and the End (BETA 1.0 Pilot 3) |

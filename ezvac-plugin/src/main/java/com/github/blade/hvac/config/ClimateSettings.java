@@ -51,6 +51,14 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                           double snowCoolingF, double swingReduction, double waterShare,
                           double windClearMs, double windRainMs, double windThunderMs,
                           double snowAtOrBelowF, DryAreas dryAreas, double snowInWinterBelowF, DryRain dryRain) {
+        /** The same weather with another rule for dry areas. */
+        public Weather withDryAreas(DryAreas rule) {
+            if (rule == dryAreas) return this;
+            return new Weather(enabled, easeHours, rainCoolingF, thunderCoolingF, snowCoolingF, swingReduction,
+                    waterShare, windClearMs, windRainMs, windThunderMs, snowAtOrBelowF, rule, snowInWinterBelowF,
+                    dryRain);
+        }
+
         /** Deserts, badlands and savannas in rain (BETA 1.0 Pilot 4). */
         public enum DryAreas {
             /** Always dry, as in vanilla. */
