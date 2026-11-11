@@ -191,5 +191,10 @@ public final class HudSections implements EzvacHud, SectionSource, Listener {
         @Override public String temperature(double fahrenheit) { return format.temperature(fahrenheit); }
 
         @Override public Component bar(double fraction, TextColor color) { return format.bar(fraction, color); }
+
+        @Override
+        public Component gauge(double fraction, java.util.function.DoubleFunction<TextColor> colorAt) {
+            return format.gauge(fraction, colorAt);
+        }
     }
 }

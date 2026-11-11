@@ -179,6 +179,32 @@ public final class HudFormatter {
         return MINI.deserialize(out.toString());
     }
 
+    /**
+     * An addon meter in the HUD's style (API 1.11): with the gauge, each
+     * segment in the colour of where it stands along the scale and the white
+     * marker at {@code fraction}, as the feels-like bar; with blocks, filled
+     * to {@code fraction} in the colour there.
+     */
+    public Component gauge(double fraction, java.util.function.DoubleFunction<TextColor> colorAt) {
+        double clamped = Double.isNaN(fraction) ? 0.0 : Math.max(0.0, Math.min(1.0, fraction));
+        if (settings.barStyle() != HudSettings.BarStyle.GAUGE) return bar(clamped, colorAt.apply(clamped));
+        int length = settings.barLength();
+        int marker = (int) Math.round(clamped * (length - 1));
+        StringBuilder out = new StringBuilder();
+        String open = null;
+        for (int i = 0; i < length; i++) {
+            TextColor at = i == marker ? null : colorAt.apply((i + 0.5) / length);
+            String color = at == null ? "#ffffff" : at.asHexString();
+            if (!color.equals(open)) {
+                if (open != null) out.append("</color>");
+                out.append("<color:").append(color).append('>');
+                open = color;
+            }
+            out.append(escape(i == marker ? settings.barMarker() : settings.barGauge()));
+        }
+        return MINI.deserialize(out.append("</color>").toString());
+    }
+
     /** The bar with legacy section-sign colours, for placeholder consumers. */
     public String barLegacy(double fahrenheit) { return legacy(barMini(fahrenheit, air)); }
 
