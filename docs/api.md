@@ -95,6 +95,7 @@ server runs.
 | `setWeatherPlan(plugin, plan)`, `weatherPlan()` | Plan the weather from an addon (1.9): a `WeatherPlan` gives each day's `Outlook` (rain and thunder chances, a temperature shift, a `WeatherEvent`: `SNOWSTORM`, `THUNDERSTORM`, `HEAT_WAVE`, `COLD_SNAP`, and a note), the shift and event right now. Stations forecast from it, the outdoor air takes its shift, a snowstorm's wind is a gale. One plan at a time; it goes with its plugin. The addon drives Minecraft's weather to match |
 | `dailyMeanAirF(world, x, y, z)` | Today's average outdoor air at a block: halfway between its noon and midnight, with the season, a planned heat wave or cold snap, the weather and the height counted. Snow on the ground answers to it, so a cold night's snow outlasts a mild morning (1.9) |
 | `systemSpace(world, system)` | The space a system fills as EZvac last mapped it: its `edge` (blocks beside something outside it, at most a few thousand) and its `openings` (blocks of its air beside open sky: the doorways, windows and holes it leaks through). Empty until it is mapped (1.10) |
+| `storageTemperatureF(world, x, y, z)` | How cold it is inside a container at a block: an EZvac fridge's or freezer's inside, else the air there. NaN where the chunk isn't loaded. EZvac spoils nothing itself; an addon can keep food by it (1.12) |
 | `HudContext.gauge(fraction, colorAt)` | For an addon's HUD section: a meter drawn exactly as EZvac's feels-like bar, the gauge coloured along its own scale with the marker where the value stands (or filled blocks, by `hud.bar.style`) (1.11) |
 | `setShowsWeather(plugin, worlds)` | Say your addon shows players EZvac's rain and snow (by `precipitationAt` and `snowLineAt`) in the worlds the test accepts. There, EZvac's HUD, sensors and forecasts word the weather by its air, and rain reaches deserts as `weather.dry-areas` says; elsewhere they follow Minecraft's own weather, by biome, and deserts stay dry. It goes with its plugin; null removes it (1.11) |
 | `freezingWaterF(world, x, y, z)` | How cold natural water is getting at a block, before EZvac holds liquid water at 33 °F: at or below 32 °F a lake would be freezing (1.9) |
@@ -370,5 +371,5 @@ depend: [EZvac]
   station's `wind()`, `airQuality()` and each day's `aqi()`), and 1.9 with
   BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `dailyMeanAirF()`, `WeatherPlan`, `WeatherEvent`, `setWeatherPlan()`, `Precipitation`,
   `SeasonView.progress()`, and `registerAddon()` with `Addon` and `AddonSwitches`), and 1.10 with BETA 1.0
-  Pilot 5 (`systemSpace()` and `SystemSpace`), and 1.11 (`setShowsWeather()`, `HudContext.gauge()`).
+  Pilot 5 (`systemSpace()` and `SystemSpace`), and 1.11 (`setShowsWeather()`, `HudContext.gauge()`), and 1.12 with BETA 1.0 Pilot 7 (fridges and freezers: `ClimateUnitView.Kind` `FRIDGE` and `FREEZER` with `insideF()`, and `storageTemperatureF()`).
   Depend on the oldest EZvac whose API has what you use.

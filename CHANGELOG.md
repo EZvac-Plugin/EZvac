@@ -2,6 +2,35 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 7
+
+**EZvac/R: fridges and freezers.** The save is unchanged (format 8).
+
+### Fridges and freezers
+
+**EZvac/R:** fridges and freezers. An iron block, its compressor, with a
+barrel on top and a sign on the iron block's side: `/hvac create fridge`
+(33 to 50 °F, 37 by default) or `/hvac create freezer` (−10 to 20 °F, 0 by
+default).
+
+- It keeps the barrel cold: a running compressor pulls the inside down to
+  its setpoint, and its inside slowly closes on the room through the walls.
+- Opening the barrel lets the room in; the screen says "Door open".
+- The heat it pulls out warms its system's room, so a kitchen full of
+  freezers makes the AC work harder.
+- Its screen shows the inside temperature, the setpoint and what it's doing;
+  the sign's menu sets the setpoint a degree at a time; `/hvac info` says
+  which room it warms.
+- Food never spoils in EZvac itself; with EZclimates' Food spoiling, food
+  keeps longer the colder it's kept.
+- A `refrigeration:` section in `config.yml`, added on upgrade, and a second
+  row on the quick settings Devices page.
+
+### For addon developers: API 1.12
+
+- `ClimateUnitView.Kind` `FRIDGE` and `FREEZER`, with `insideF()`.
+- `storageTemperatureF(world, x, y, z)`: how cold it is inside a container.
+
 ## BETA 1.0 Pilot 6
 
 **The weather as players see it,** and a HUD gauge for addons. The save is
