@@ -602,6 +602,10 @@ public final class DisplayService {
             refreshPurifier(purifier, force);
             return;
         }
+        if (unit instanceof Refrigerator refrigerator) {
+            refreshRefrigerator(refrigerator, force);
+            return;
+        }
         double humidity = unit.lastHumidity();
         String reading = (Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
                 + " > " + unit.setpoint() + "%";
@@ -636,6 +640,32 @@ public final class DisplayService {
                         .append(ScreenText.bar(dehumidifier.tank(), 8, NamedTextColor.AQUA)));
             return screen;
         });
+    }
+
+    /**
+     * A fridge's or freezer's screen (BETA 1.0 Pilot 7): its inside temperature
+     * big, its setpoint, and whether it is cooling, holding, off or open.
+     */
+    private void refreshRefrigerator(Refrigerator refrigerator, boolean force) {
+        double inside = refrigerator.insideF();
+        String big = Double.isFinite(inside) ? settings.units().format(inside, 1) : "--";
+        String target = "Set " + settings.units().format(refrigerator.setpoint(), 0);
+        String activity = refrigerator.offServerWide() ? OFF_SERVER_WIDE : refrigerator.activity();
+        NamedTextColor color = switch (activity) {
+            case "Cooling" -> NamedTextColor.AQUA;
+            case "Holding" -> NamedTextColor.GREEN;
+            case "Door open" -> NamedTextColor.GOLD;
+            default -> NamedTextColor.RED;
+        };
+        String fingerprint = refrigerator.label() + "|" + big + "|" + target + "|" + activity;
+        render(refrigerator.position(), fingerprint, force, () -> ScreenText
+                .titled(refrigerator.label(), refrigerator.kind().displayName())
+                .tone(!refrigerator.switchedOn() ? ScreenText.Tone.OFF
+                        : refrigerator.doorOpen() ? ScreenText.Tone.ALERT
+                        : refrigerator.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
+                .big(big)
+                .line(target, NamedTextColor.WHITE)
+                .line(activity, color));
     }
 
     /**

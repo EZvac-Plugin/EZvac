@@ -40,6 +40,8 @@ public final class ClimateUnitService {
     private final Map<SystemId, List<Dehumidifier>> drying = new HashMap<>();
     private final Map<SystemId, List<Humidifier>> humidifying = new HashMap<>();
     private final Map<SystemId, List<AirPurifier>> purifying = new HashMap<>();
+    /** What the running fridges and freezers in each system's room add, F per in-game hour (BETA 1.0 Pilot 7). */
+    private final Map<SystemId, Double> refrigerating = new HashMap<>();
     /** Purifiers whose filter filled this cycle. */
     private final List<AirPurifier> spent = new ArrayList<>();
 
@@ -61,6 +63,7 @@ public final class ClimateUnitService {
         drying.clear();
         humidifying.clear();
         purifying.clear();
+        refrigerating.clear();
         spent.clear();
         for (ClimateUnit unit : registry.climateUnits()) {
             SystemId served = servedSystem(unit);
@@ -71,6 +74,8 @@ public final class ClimateUnitService {
                 case Humidifier humidifier -> humidifying.computeIfAbsent(served, ignored -> new ArrayList<>()).add(humidifier);
                 case AirPurifier purifier ->
                         purifying.computeIfAbsent(served, ignored -> new ArrayList<>()).add(purifier);
+                case Refrigerator refrigerator ->
+                        refrigerating.merge(served, refrigerator.heatFPerHour(climate.refrigeration()), Double::sum);
             }
         }
     }
@@ -187,6 +192,14 @@ public final class ClimateUnitService {
                 : AirflowService.packByWorld(registry.ownedOutputs());
         Map<ClimateUnit, Double> standalone = stepStandalone(ordered, elapsedTicks, outputs);
         for (ClimateUnit climateUnit : ordered) {
+            if (climateUnit instanceof Refrigerator refrigerator) {
+                boolean was = refrigerator.running();
+                refrigerator.step(airAround(refrigerator), elapsedTicks, climate.refrigeration());
+                if (refrigerator.running() && !was) started.add(refrigerator);
+                if (!refrigerator.running() && was) stopped.add(refrigerator);
+                if (refrigerator.running()) running.add(refrigerator);
+                continue;
+            }
             boolean wasRunning = climateUnit.running();
             boolean wasEmptying = climateUnit instanceof Dehumidifier dehumidifier && dehumidifier.emptying();
             Location unit = climateUnit.unit().isChunkLoaded() ? climateUnit.unit().location() : null;
@@ -223,12 +236,39 @@ public final class ClimateUnitService {
         return new Changes(started, stopped, emptying, running);
     }
 
+    /**
+     * The air a fridge or freezer stands in (BETA 1.0 Pilot 7): its room's
+     * temperature where a system's room holds it, else the air (outdoors, by height and depth) at
+     * its iron block; NaN while its chunk is unloaded.
+     */
+    public double airAround(Refrigerator refrigerator) {
+        if (!refrigerator.unit().isChunkLoaded()) return Double.NaN;
+        SystemId served = refrigerator.servedSystem();
+        Thermostat thermostat = served == null ? null : registry.thermostatFor(served);
+        if (thermostat != null && Double.isFinite(thermostat.roomF())) return thermostat.roomF();
+        Location at = refrigerator.unit().location();
+        return at == null ? Double.NaN : outdoor.climateAt(at.clone().add(0.5, 1.5, 0.5)).airF();
+    }
+
+    /**
+     * What the running fridges and freezers in a system's room add to its air
+     * over this step (BETA 1.0 Pilot 7): the heat they pull out of their
+     * barrels, each at its rate, less in a bigger room.
+     */
+    public double refrigerationHeatF(SystemId system, long elapsedTicks) {
+        Double perHour = system == null || elapsedTicks <= 0 ? null : refrigerating.get(system);
+        if (perHour == null || perHour <= 0.0) return 0.0;
+        return perHour * strength(airflow.mapSize(system), climate.refrigeration().referenceCells())
+                * elapsedTicks / TICKS_PER_HOUR;
+    }
+
     /** A dehumidifier shows water while its full tank empties; a humidifier while it runs. */
     private static boolean showsWater(ClimateUnit unit) {
         return switch (unit) {
             case Dehumidifier dehumidifier -> dehumidifier.emptying();
             case Humidifier humidifier -> humidifier.running();
             case AirPurifier ignored -> false;
+            case Refrigerator ignored -> false;
         };
     }
 
@@ -259,7 +299,8 @@ public final class ClimateUnitService {
                                                     Map<UUID, LongOpenHashSet> outputs) {
         Set<ClimateUnit> standalone = Collections.newSetFromMap(new IdentityHashMap<>());
         for (ClimateUnit unit : units)
-            if (unit.servedSystem() == null && unit.unit().isChunkLoaded() && unit.unit().location() != null)
+            if (!(unit instanceof Refrigerator) && unit.servedSystem() == null && unit.unit().isChunkLoaded()
+                    && unit.unit().location() != null)
                 standalone.add(unit);
         Map<ClimateUnit, Double> humidity = new IdentityHashMap<>();
         Set<ClimateUnit> systemed = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -363,6 +404,7 @@ public final class ClimateUnitService {
                 }
                 case Humidifier ignored -> adding += strength(cells, climate.humidifier().referenceCells());
                 case AirPurifier ignored -> { }
+                case Refrigerator ignored -> { }
             }
         }
         double startF = dewCount == 0 ? Double.NaN : dewSum / dewCount;

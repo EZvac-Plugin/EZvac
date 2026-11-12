@@ -20,7 +20,8 @@ import java.util.function.Supplier;
 public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier dehumidifier,
                               Humidifier humidifier, Variance variance, BiomeBlend biomeBlend,
                               Seasons seasons, Altitude altitude, Underground underground, Biomes biomes,
-                              AirQualitySettings airQuality, WindSettings wind, FeelsLike feelsLike) {
+                              AirQualitySettings airQuality, WindSettings wind, FeelsLike feelsLike,
+                              RefrigerationSettings refrigeration) {
     /**
      * How warm it feels in the sun (BETA 1.0 Pilot 4): only the feels-like
      * of readings at a spot changes, never the air temperature.
@@ -371,7 +372,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 new Biomes(Map.of()),
                 AirQualitySettings.defaults(),
                 WindSettings.defaults(),
-                new FeelsLike(true, 1.0));
+                new FeelsLike(true, 1.0),
+                RefrigerationSettings.defaults());
     }
 
     /** Reads strictly: a value out of range throws. */
@@ -469,7 +471,8 @@ public record ClimateSettings(Weather weather, Humidity humidity, Dehumidifier d
                 WindSettings.load(config, warn),
                 section("feels-like", defaults.feelsLike, warn, () -> new FeelsLike(
                         config.getBoolean("feels-like.sun", defaults.feelsLike.sun()),
-                        config.getDouble("feels-like.sun-strength", defaults.feelsLike.sunStrength()))));
+                        config.getDouble("feels-like.sun-strength", defaults.feelsLike.sunStrength()))),
+                RefrigerationSettings.load(config, warn));
     }
 
     /**

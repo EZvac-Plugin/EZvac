@@ -8,6 +8,9 @@ import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.AirPurifier;
+import com.github.blade.hvac.model.Freezer;
+import com.github.blade.hvac.model.Refrigerator;
+import com.github.blade.hvac.config.RefrigerationSettings;
 import com.github.blade.hvac.model.Attention;
 import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.ClimateUnit;
@@ -297,6 +300,10 @@ public final class ControlMenus implements Listener {
             drawPurifier(inventory, purifier);
             return;
         }
+        if (unit instanceof Refrigerator refrigerator) {
+            drawRefrigerator(inventory, refrigerator);
+            return;
+        }
         inventory.setItem(HUMIDITY_RAISE, step(Material.BLACK_STAINED_GLASS_PANE, "+5%", NamedTextColor.WHITE));
         inventory.setItem(HUMIDITY_LOWER, step(Material.WHITE_STAINED_GLASS_PANE, "-5%", NamedTextColor.WHITE));
         int[] range = range(unit);
@@ -336,6 +343,24 @@ public final class ControlMenus implements Listener {
         inventory.setItem(POWER, power(purifier.powered(), purifier.kind().displayName()));
     }
 
+    /**
+     * A fridge or freezer (BETA 1.0 Pilot 7): its setpoint a degree at a time,
+     * its inside temperature and what it is doing, and its power.
+     */
+    private void drawRefrigerator(Inventory inventory, Refrigerator refrigerator) {
+        TemperatureUnit units = settings.units();
+        inventory.setItem(HUMIDITY_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE, "+1°", NamedTextColor.WHITE));
+        inventory.setItem(HUMIDITY_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE, "-1°", NamedTextColor.WHITE));
+        double inside = refrigerator.insideF();
+        inventory.setItem(INFO, item(refrigerator instanceof Freezer ? Material.PACKED_ICE : Material.BARREL,
+                Component.text("Set " + units.format(refrigerator.setpoint(), 0), NamedTextColor.AQUA),
+                List.of(gray("Inside " + (Double.isFinite(inside) ? units.format(inside, 1) : "--")),
+                        gray(refrigerator.activity()),
+                        gray("Range " + units.format(refrigerator.minimumF(), 0) + " to "
+                                + units.format(refrigerator.maximumF(), 0)))));
+        inventory.setItem(POWER, power(refrigerator.powered(), refrigerator.kind().displayName()));
+    }
+
     /** An air purifier's modes, along the top row. */
     private static final AirPurifier.Mode[] PURIFIER_MODES = AirPurifier.Mode.values();
     static final int[] PURIFIER_SLOTS = {1, 3, 5, 7};
@@ -350,6 +375,8 @@ public final class ControlMenus implements Listener {
             case HUMIDIFIER -> new int[] {climate.humidifier().minimumSetpoint(),
                     climate.humidifier().maximumSetpoint()};
             case AIR_PURIFIER -> new int[] {0, 0};    // it has modes, not a setpoint
+            case FRIDGE -> new int[] {RefrigerationSettings.FRIDGE_MINIMUM_F, RefrigerationSettings.FRIDGE_MAXIMUM_F};
+            case FREEZER -> new int[] {RefrigerationSettings.FREEZER_MINIMUM_F, RefrigerationSettings.FREEZER_MAXIMUM_F};
         };
     }
 
@@ -456,6 +483,14 @@ public final class ControlMenus implements Listener {
                 return false;
             }
             purifier.setMode(PURIFIER_MODES[modeSlot]);
+        } else if (unit instanceof Refrigerator refrigerator && (slot == HUMIDITY_RAISE || slot == HUMIDITY_LOWER)) {
+            int setpoint = Math.max(refrigerator.minimumF(), Math.min(refrigerator.maximumF(),
+                    refrigerator.setpoint() + (slot == HUMIDITY_RAISE ? 1 : -1)));
+            if (setpoint == refrigerator.setpoint()) {
+                click(player, false);
+                return false;
+            }
+            refrigerator.setSetpoint(setpoint);
         } else if (slot == HUMIDITY_RAISE || slot == HUMIDITY_LOWER) {
             int[] range = range(unit);
             int setpoint = Setpoints.stepHumidity(unit.setpoint(), slot == HUMIDITY_RAISE ? 5 : -5,

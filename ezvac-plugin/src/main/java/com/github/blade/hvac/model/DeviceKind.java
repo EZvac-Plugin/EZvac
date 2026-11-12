@@ -18,6 +18,8 @@ public enum DeviceKind {
     DEHUMIDIFIER("dehumidifier", "Dehumidifier", "Dehumidifiers", Material.IRON_BARS),
     HUMIDIFIER("humidifier", "Humidifier", "Humidifiers", Material.CUT_COPPER_SLAB),
     AIR_PURIFIER("air-purifier", "Air purifier", "Air purifiers", Material.TUBE_CORAL_BLOCK),
+    FRIDGE("fridge", "Fridge", "Fridges", Material.BARREL),
+    FREEZER("freezer", "Freezer", "Freezers", Material.PACKED_ICE),
     WEATHER_STATION("weather-station", "Weather station", "Weather stations", Material.LIGHTNING_ROD);
 
     private final String configName;
@@ -53,6 +55,8 @@ public enum DeviceKind {
             case DEHUMIDIFIER -> DEHUMIDIFIER;
             case HUMIDIFIER -> HUMIDIFIER;
             case AIR_PURIFIER -> AIR_PURIFIER;
+            case FRIDGE -> FRIDGE;
+            case FREEZER -> FREEZER;
         };
     }
 
