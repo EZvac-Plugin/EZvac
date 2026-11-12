@@ -105,7 +105,7 @@ devices:
 
 New in BETA 1.0. Device kinds switched off server-wide: `heat-pump`,
 `air-conditioner`, `furnace`, `boiler`, `pool-heat-pump`, `dehumidifier`,
-`humidifier` and `air-purifier`. Devices of a kind listed here stop, and no
+`humidifier`, `air-purifier`, and since Pilot 7 `fridge` and `freezer`. Devices of a kind listed here stop, and no
 new one can be made; taken off the list, each runs again as it was set. A
 name that is no kind is pointed out at start-up and ignored.
 
@@ -413,6 +413,21 @@ New in BETA 1.0 Pilot 4. See [Climate](climate.md#feels-like).
 | `hysteresis` | 2.0 | 2.0 | How far past the setpoint before it starts again, % RH |
 
 ## air-quality
+
+## refrigeration
+
+Fridges and freezers (BETA 1.0 Pilot 7); see [Fridges and freezers](fridges-and-freezers.md). Rates are per in-game hour.
+
+| Setting | Default | |
+|---|---|---|
+| `enabled` | true | false lets every fridge and freezer warm up and sit idle |
+| `fridge-default-f`, `freezer-default-f` | 37, 0 | a new one's setpoint (a fridge holds 33 to 50 °F, a freezer −10 to 20 °F) |
+| `pull-down-f-per-minecraft-hour` | 20.0 | how fast a running compressor cools the barrel |
+| `leak-per-minecraft-hour` | 0.08 | the share of the gap to the room its inside closes, shut |
+| `door-share`, `door-leak-factor` | 0.25, 6.0 | opened, this share of the gap comes in at once, and it leaks this many times faster while open |
+| `hysteresis-f` | 2.0 | it starts this far above its setpoint |
+| `fridge-heat-f-per-minecraft-hour`, `freezer-heat-f-per-minecraft-hour` | 0.3, 0.5 | what a running one adds to its system's room |
+| `reference-cells` | 1500 | the room size those are for; bigger rooms warm less |
 
 Air quality and air purifiers (3.2); see [Air quality](air-quality.md). Rates
 are per in-game hour.

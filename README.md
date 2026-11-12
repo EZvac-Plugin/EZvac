@@ -100,6 +100,7 @@ biome and the weather.
 | [Equipment and thermostats](docs/equipment.md) | Thermostats, every kind of equipment and its casing, profiles, RPM monitors |
 | [Vents and airflow](docs/airflow.md) | Linking vents, how far air reaches, pools |
 | [Dehumidifiers and humidifiers](docs/dehumidifiers-and-humidifiers.md) | Building and using them, "Air too cold" |
+| [Fridges and freezers](docs/fridges-and-freezers.md) | Building them, how they cool, and the heat they give the room |
 | [Air quality and air purifiers](docs/air-quality.md) | The AQI, pollen, smoke and dust, and purifiers with coral filters |
 | [Sensors and readings](docs/sensors.md) | Thermometers, hygrometers, sensors and sensor hubs |
 | [Weather stations](docs/weather-stations.md) | A tower that forecasts the next seven days; `/hvac forecast` |
