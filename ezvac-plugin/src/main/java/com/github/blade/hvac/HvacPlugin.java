@@ -148,6 +148,8 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(new HvacListener(
                     this, registry, airflow, displays, commandHandler, units), this);
             getServer().getPluginManager().registerEvents(hud, this);
+            getServer().getPluginManager().registerEvents(
+                    new com.github.blade.hvac.listener.RefrigeratorListener(registry, units, displays), this);
             menus = new ControlMenus(this, registry, displays, settings, climate);
             getServer().getPluginManager().registerEvents(menus, this);
             forecastMenu = new ForecastMenu(this, registry, weatherStations, displays, commandHandler::isTool);

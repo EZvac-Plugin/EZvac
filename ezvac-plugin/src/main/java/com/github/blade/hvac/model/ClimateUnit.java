@@ -22,9 +22,11 @@ import java.util.Objects;
  *
  * <p>The control logic is pure, so it can be tested without a server.
  */
-public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPurifier {
+public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPurifier, Refrigerator {
     public enum Kind {
-        DEHUMIDIFIER("Dehumidifier"), HUMIDIFIER("Humidifier"), AIR_PURIFIER("Air purifier");
+        DEHUMIDIFIER("Dehumidifier"), HUMIDIFIER("Humidifier"), AIR_PURIFIER("Air purifier"),
+        /** BETA 1.0 Pilot 7. */
+        FRIDGE("Fridge"), FREEZER("Freezer");
 
         private final String displayName;
         Kind(String displayName) { this.displayName = displayName; }

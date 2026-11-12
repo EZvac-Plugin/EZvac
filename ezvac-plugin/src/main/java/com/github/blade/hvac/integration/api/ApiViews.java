@@ -136,6 +136,8 @@ public final class ApiViews {
             case DEHUMIDIFIER -> ClimateUnitView.Kind.DEHUMIDIFIER;
             case HUMIDIFIER -> ClimateUnitView.Kind.HUMIDIFIER;
             case AIR_PURIFIER -> ClimateUnitView.Kind.AIR_PURIFIER;
+            case FRIDGE -> ClimateUnitView.Kind.FRIDGE;
+            case FREEZER -> ClimateUnitView.Kind.FREEZER;
         };
         ClimateUnitView.State state = switch (unit.state()) {
             case OFF -> ClimateUnitView.State.OFF;
@@ -150,7 +152,9 @@ public final class ApiViews {
                 unit instanceof AirPurifier purifier ? OptionalDouble.of(purifier.filter()) : OptionalDouble.empty(),
                 airQuality(unit.lastAir(), air),
                 unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.mode())) : Optional.empty(),
-                unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.speed())) : Optional.empty());
+                unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.speed())) : Optional.empty(),
+                unit instanceof com.github.blade.hvac.model.Refrigerator cold && Double.isFinite(cold.insideF())
+                        ? OptionalDouble.of(cold.insideF()) : OptionalDouble.empty());
     }
 
     private static ClimateUnitView.Fan fan(AirPurifier.Mode mode) {

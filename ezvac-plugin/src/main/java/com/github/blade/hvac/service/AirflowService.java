@@ -375,11 +375,16 @@ public final class AirflowService {
         return outdoor.climate().unitRange();
     }
 
+    /** A fridge's or freezer's zone: a few blocks round its iron block. */
+    static final int REFRIGERATOR_RANGE = 2, REFRIGERATOR_CELLS = 64;
+
     private int rangeOf(ClimateUnit unit) {
         return switch (unit) {
             case Humidifier ignored -> outdoor.climate().humidifier().range();
             case Dehumidifier ignored -> outdoor.climate().dehumidifier().range();
             case AirPurifier ignored -> outdoor.climate().airQuality().purifier().range();
+            // A fridge's zone is only the air round it (BETA 1.0 Pilot 7): it needs nothing more, so it costs nothing.
+            case Refrigerator ignored -> REFRIGERATOR_RANGE;
         };
     }
 
@@ -529,6 +534,7 @@ public final class AirflowService {
             case Humidifier ignored -> outdoor.climate().humidifier().maximumCells();
             case Dehumidifier ignored -> outdoor.climate().dehumidifier().maximumCells();
             case AirPurifier ignored -> outdoor.climate().airQuality().purifier().maximumCells();
+            case Refrigerator ignored -> REFRIGERATOR_CELLS;
         };
         Rebuild rebuild = new Rebuild(zone, false, rangeOf(climateUnit), maximumCells);
         rebuild.clearChunkCache();

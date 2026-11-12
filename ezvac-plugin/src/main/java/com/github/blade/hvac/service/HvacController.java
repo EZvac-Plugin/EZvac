@@ -293,7 +293,9 @@ public final class HvacController {
                 : outdoor.climate().wind().infiltrationFactor(out.windMs()) * openness(thermostat.system());
         ThermalModel.Result thermal = ThermalModel.step(thermostat.roomF(), boundary, outside,
                 intervalMode, capacity, elapsedTicks, settings, leak);
-        thermostat.setRoomF(thermal.temperatureF() + neighbourPull(thermostat, authoritative, elapsedTicks));
+        // Running fridges and freezers put the heat they pull out of their barrels into the room (BETA 1.0 Pilot 7).
+        double fridgeHeat = authoritative && !thermostat.pool() ? units.refrigerationHeatF(thermostat.system(), elapsedTicks) : 0.0;
+        thermostat.setRoomF(thermal.temperatureF() + neighbourPull(thermostat, authoritative, elapsedTicks) + fridgeHeat);
         if (out != null) {
             updateHumidity(thermostat, out, leak, intervalMode, capacity, elapsedTicks, packedOutputs);
             updateAir(thermostat, out, leak, capacity > 0.0, elapsedTicks);

@@ -51,7 +51,7 @@ import static com.github.blade.hvac.gui.ControlMenus.item;
  */
 public final class QuickSettingsMenu implements Listener {
     enum Page {
-        MAIN("EZvac quick settings", 36), DEVICES("Quick settings › Devices", 36),
+        MAIN("EZvac quick settings", 36), DEVICES("Quick settings › Devices", 54),
         CLIMATE("Quick settings › Climate systems", 36), BACKUPS("Quick settings › Backups & registry", 36),
         STATISTICS("Quick settings › Health", 36), UPDATES("Quick settings › Updates", 36),
         SEASONS("Quick settings › Seasons & wind", 36), DISPLAY("Quick settings › Display & sound", 36),
@@ -89,7 +89,11 @@ public final class QuickSettingsMenu implements Listener {
     /** An addon's own page: what it is, and its parts with their switches beneath. */
     static final int ADDON_INFO = 4, PARTS_FROM = 9, PARTS_ROW = 9;
     /** The device kinds in the second row: the five sources, the three room units, weather stations; switches beneath. */
-    static final int[] DEVICE_SLOTS = {9, 10, 11, 12, 13, 14, 15, 16, 17};
+    /** The kinds as the Devices page shows them: the climate devices in a row, fridges and freezers below (Pilot 7). */
+    static final DeviceKind[] DEVICE_ORDER = {DeviceKind.HEAT_PUMP, DeviceKind.AIR_CONDITIONER, DeviceKind.FURNACE,
+            DeviceKind.BOILER, DeviceKind.POOL_HEAT_PUMP, DeviceKind.DEHUMIDIFIER, DeviceKind.HUMIDIFIER,
+            DeviceKind.AIR_PURIFIER, DeviceKind.WEATHER_STATION, DeviceKind.FRIDGE, DeviceKind.FREEZER};
+    static final int[] DEVICE_SLOTS = {9, 10, 11, 12, 13, 14, 15, 16, 17, 30, 32};
     /** Air quality, pollen, wind, seasons and building size, with their switches beneath. */
     static final int AIR = 9, POLLEN = 11, WIND = 13, SEASONS = 15, SIZING = 17;
     static final int BACK_UP_NOW = 11, AUTOMATIC = 13, BACKUP_INFO = 15;
@@ -552,7 +556,7 @@ public final class QuickSettingsMenu implements Listener {
     }
 
     private void drawDevices(Inventory inventory) {
-        DeviceKind[] kinds = DeviceKind.values();
+        DeviceKind[] kinds = DEVICE_ORDER;
         for (int i = 0; i < kinds.length; i++) {
             DeviceKind kind = kinds[i];
             boolean on = !switches.isOff(kind);
@@ -870,9 +874,11 @@ public final class QuickSettingsMenu implements Listener {
     }
 
     private void clickDevices(Player player, int slot) {
-        int index = indexOf(DEVICE_SLOTS, switchedAt(slot));
+        // Each kind is its icon and the switch under it.
+        int index = indexOf(DEVICE_SLOTS, slot);
+        if (index < 0) index = indexOf(DEVICE_SLOTS, slot - 9);
         if (index < 0) return;
-        DeviceKind kind = DeviceKind.values()[index];
+        DeviceKind kind = DEVICE_ORDER[index];
         boolean switchOff = !switches.isOff(kind);
         switches.setOff(kind, switchOff);
         click(player, true);

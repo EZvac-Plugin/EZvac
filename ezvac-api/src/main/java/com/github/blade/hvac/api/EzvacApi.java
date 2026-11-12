@@ -43,7 +43,7 @@ public interface EzvacApi {
      * The API's version. Additions raise the minor number; anything that
      * would break an addon only comes with a new major number.
      */
-    String API_VERSION = "1.11";
+    String API_VERSION = "1.12";
 
     /**
      * EZvac's API, from Paper's services manager.
@@ -316,6 +316,20 @@ public interface EzvacApi {
      * @since 1.11
      */
     default void setShowsWeather(org.bukkit.plugin.Plugin plugin, java.util.function.Predicate<World> worlds) {
+    }
+
+    /**
+     * How cold it is inside a container at a block (EZvac BETA 1.0 Pilot 7):
+     * inside an EZvac fridge's or freezer's barrel, its inside temperature;
+     * anywhere else, the air there ({@link #readingAt}), a cold cellar's or a
+     * snowy biome's. NaN where the chunk isn't loaded. Never loads a chunk.
+     * EZvac itself spoils nothing; an addon such as EZclimates keeps food by it.
+     *
+     * @since 1.12
+     */
+    default double storageTemperatureF(World world, int x, int y, int z) {
+        if (world == null || !world.isChunkLoaded(x >> 4, z >> 4)) return Double.NaN;
+        return readingAt(new org.bukkit.Location(world, x + 0.5, y + 0.5, z + 0.5)).temperatureF();
     }
 
     /** The weather plan an addon registered, if any. @since 1.9 */
