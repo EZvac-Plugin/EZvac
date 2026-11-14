@@ -684,7 +684,8 @@ public final class DisplayService {
                             : refrigerator.doorOpen() ? ScreenText.Tone.ALERT
                             : refrigerator.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
                     .big(big);
-            if (twoColumns) {
+            // Side by side when they fit (a fridge, a freezer); a line each when not (a mini fridge), never wrapping.
+            if (twoColumns || TextWidth.width(compartments + "  " + setpoints) > ScreenText.WIDTH) {
                 screen.line(Component.text(compartments, NamedTextColor.GRAY));
                 screen.line(Component.text(setpoints, NamedTextColor.WHITE));
             } else {
