@@ -422,7 +422,7 @@ refrigeration:
   frost:
     # How much of a full ring each opening adds, in air of 50% RH: twice as
     # much at 100%, less in dry air.
-    per-opening: 0.01
+    per-opening: 0.0025
     # How much it adds per in-game hour its compressor runs, at 50% RH.
     per-running-hour: 0.005
     # A full ring slows its cooling by this share.

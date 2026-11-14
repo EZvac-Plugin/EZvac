@@ -98,6 +98,27 @@ class RefrigeratorTest {
     }
 
     @Test
+    void openingAFreezerOverAndOverFrostsItNoMoreThanOnce() {
+        Freezer once = freezer(), spammed = freezer();
+        run(once, 70.0, 8.0);
+        run(spammed, 70.0, 8.0);
+        double start = once.frost();
+        once.frostFromOpening(50.0, once.opened(70.0, SETTINGS), SETTINGS);
+        once.closed();
+        for (int i = 0; i < 20; i++) {
+            spammed.frostFromOpening(50.0, spammed.opened(70.0, SETTINGS), SETTINGS);
+            spammed.closed();
+        }
+        assertEquals(once.frost(), spammed.frost(), 1e-9, "twenty quick openings, the frost of one");
+        assertEquals(start + SETTINGS.frostPerOpening(), once.frost(), 1e-9);
+        // Shut an hour, a full opening's air (and frost) again.
+        run(once, 70.0, 1.0);
+        double rested = once.frost();
+        once.frostFromOpening(50.0, once.opened(70.0, SETTINGS), SETTINGS);
+        assertEquals(rested + SETTINGS.frostPerOpening(), once.frost(), 1e-9);
+    }
+
+    @Test
     void leftOpenAFreezerWarmsEvenWithItsCompressorRunning() {
         Freezer freezer = freezer();
         run(freezer, 70.0, 10.0);
@@ -118,8 +139,8 @@ class RefrigeratorTest {
     void frostBuildsFromOpeningsMoreInHumidAirAndSlowsCooling() {
         Freezer dry = freezer(), humid = freezer();
         for (int i = 0; i < 5; i++) {
-            dry.frostFromOpening(20.0, SETTINGS);
-            humid.frostFromOpening(90.0, SETTINGS);
+            dry.frostFromOpening(20.0, 1.0, SETTINGS);
+            humid.frostFromOpening(90.0, 1.0, SETTINGS);
         }
         assertTrue(humid.frost() > 2 * dry.frost(), humid.frost() + " vs " + dry.frost());
         assertEquals(5 * SETTINGS.frostPerOpening() * 1.8, humid.frost(), 1e-9);

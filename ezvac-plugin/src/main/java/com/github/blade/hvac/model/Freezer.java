@@ -50,10 +50,16 @@ public final class Freezer extends Refrigerator {
         return Math.max(0.3, Math.min(2.0, humidity / 50.0));
     }
 
-    /** It was opened: the air that came in leaves frost behind, more when it's humid. */
-    public void frostFromOpening(double humidity, RefrigerationSettings settings) {
-        if (defrosting()) return;
-        setFrost(frost + settings.frostPerOpening() * humidityFactor(humidity));
+    /**
+     * It was opened: the air that came in leaves frost behind, more when it's
+     * humid, and only as much as came in, so opening it again and again frosts
+     * it no more than once.
+     *
+     * @param letIn how much of a full opening's air came in, from {@link #opened}
+     */
+    public void frostFromOpening(double humidity, double letIn, RefrigerationSettings settings) {
+        if (defrosting() || !(letIn > 0)) return;
+        setFrost(frost + settings.frostPerOpening() * humidityFactor(humidity) * Math.min(1.0, letIn));
     }
 
     /**
