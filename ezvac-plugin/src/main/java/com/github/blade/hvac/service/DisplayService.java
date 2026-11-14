@@ -646,7 +646,7 @@ public final class DisplayService {
      * A fridge's or freezer's screen (BETA 1.0 Pilot 7), as an appliance's
      * door panel: its inside in whole degrees, big; beneath, which
      * compartment it is and its setpoint, what it is doing, and a freezer's
-     * frost as a little bar once there's any to see. A fridge-freezer shows
+     * frost as a little bar once there's any to see. A refrigerator shows
      * its two compartments side by side, the fridge on the left.
      */
     private void refreshRefrigerator(Refrigerator refrigerator, boolean force) {
@@ -669,7 +669,7 @@ public final class DisplayService {
                     + applianceColumn("set " + applianceDegrees(both.setpoint(), true), false);
         } else {
             big = applianceDegrees(refrigerator.insideF(), true);
-            compartments = refrigerator instanceof Freezer ? "FREEZER"
+            compartments = refrigerator instanceof Freezer ? "DEEP FREEZER"
                     : refrigerator instanceof MiniFridge ? "MINI FRIDGE" : "FRIDGE";
             setpoints = "set " + applianceDegrees(refrigerator.setpoint(), true);
         }

@@ -37,7 +37,7 @@ public final class RefrigeratorListener implements Listener {
     public void onOpen(InventoryOpenEvent event) {
         Refrigerator refrigerator = of(event.getInventory());
         if (refrigerator == null) return;
-        // A fridge-freezer's fridge barrel: a fridge's door, which never frosts.
+        // A refrigerator's fridge barrel: a fridge's door, which never frosts.
         if (refrigerator instanceof FridgeFreezer both && isFridge(both, event.getInventory())) {
             both.fridgeOpened(units.airAround(both), units.climate().refrigeration());
             registry.markDirty();

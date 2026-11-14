@@ -26,9 +26,9 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
     public enum Kind {
         DEHUMIDIFIER("Dehumidifier"), HUMIDIFIER("Humidifier"), AIR_PURIFIER("Air purifier"),
         /** BETA 1.0 Pilot 7. */
-        FRIDGE("Fridge"), FREEZER("Freezer"),
-        /** BETA 1.0 Pilot 7: a freezer barrel with a fridge barrel on top of it. */
-        FRIDGE_FREEZER("Fridge-freezer"),
+        FRIDGE("Fridge"), FREEZER("Deep freezer"),
+        /** BETA 1.0 Pilot 7: a refrigerator, a freezer barrel with a fridge barrel on top of it. */
+        FRIDGE_FREEZER("Refrigerator"),
         /** BETA 1.0 Pilot 7: a barrel with the sign on it, seven slots and a chiller box. */
         MINI_FRIDGE("Mini fridge");
 

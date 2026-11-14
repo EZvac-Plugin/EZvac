@@ -12,7 +12,8 @@ import java.util.function.Consumer;
  * cold.
  *
  * @param fridgeDefaultF   a new fridge's setpoint (33 to 50 F)
- * @param freezerDefaultF  a new freezer's setpoint (-10 to 20 F)
+ * @param freezerDefaultF  a new deep freezer's setpoint (-20 to 0 F)
+ * @param refrigeratorFreezerDefaultF a new refrigerator's freezer's setpoint (-5 to 10 F)
  * @param pullDownFPerHour how fast a running one cools its inside, in F per in-game hour
  * @param leakPerHour      the share of the gap to the room its inside closes per in-game hour, shut
  * @param doorShare        the share of that gap that comes in at once when it is opened after standing shut
@@ -31,20 +32,27 @@ import java.util.function.Consumer;
  * @param defrostCeilingF  a defrost never warms the inside past this, so food stays frozen
  * @param defrostHeatFPerHour how fast its defrost heater warms the inside up to that
  */
-public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int freezerDefaultF, double pullDownFPerHour,
+public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int freezerDefaultF,
+                                    int refrigeratorFreezerDefaultF, double pullDownFPerHour,
                                     double leakPerHour, double doorShare, double doorLeakFactor, double hysteresisF,
                                     double fridgeHeatFPerHour, double freezerHeatFPerHour, int referenceCells,
                                     double frostPerOpening, double frostPerRunningHour, double frostSlowdown,
                                     double autoDefrostAt, double defrostMinutes, double defrostCeilingF,
                                     double defrostHeatFPerHour) {
     public static final int FRIDGE_MINIMUM_F = 33, FRIDGE_MAXIMUM_F = 50;
-    public static final int FREEZER_MINIMUM_F = -10, FREEZER_MAXIMUM_F = 20;
+    /** A deep freezer's range. */
+    public static final int FREEZER_MINIMUM_F = -20, FREEZER_MAXIMUM_F = 0;
+    /** A refrigerator's freezer's range: an everyday freezer. */
+    public static final int REFRIGERATOR_FREEZER_MINIMUM_F = -5, REFRIGERATOR_FREEZER_MAXIMUM_F = 10;
 
     public RefrigerationSettings {
         if (fridgeDefaultF < FRIDGE_MINIMUM_F || fridgeDefaultF > FRIDGE_MAXIMUM_F)
             throw new IllegalArgumentException("refrigeration.fridge-default-f must be 33-50");
         if (freezerDefaultF < FREEZER_MINIMUM_F || freezerDefaultF > FREEZER_MAXIMUM_F)
-            throw new IllegalArgumentException("refrigeration.freezer-default-f must be -10-20");
+            throw new IllegalArgumentException("refrigeration.deep-freezer-default-f must be -20-0");
+        if (refrigeratorFreezerDefaultF < REFRIGERATOR_FREEZER_MINIMUM_F
+                || refrigeratorFreezerDefaultF > REFRIGERATOR_FREEZER_MAXIMUM_F)
+            throw new IllegalArgumentException("refrigeration.refrigerator-freezer-default-f must be -5-10");
         positive("refrigeration.pull-down-f-per-minecraft-hour", pullDownFPerHour);
         fraction("refrigeration.leak-per-minecraft-hour", leakPerHour);
         fraction("refrigeration.door-share", doorShare);
@@ -71,7 +79,7 @@ public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int fre
     }
 
     public static RefrigerationSettings defaults() {
-        return new RefrigerationSettings(true, 37, 0, 20.0, 0.08, 0.15, 15.0, 2.0, 0.3, 0.5, 1_500,
+        return new RefrigerationSettings(true, 37, -10, 0, 20.0, 0.08, 0.15, 15.0, 2.0, 0.3, 0.5, 1_500,
                 0.0025, 0.005, 0.5, 0.6, 30.0, 26.0, 20.0);
     }
 
@@ -81,7 +89,8 @@ public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int fre
         try {
             return new RefrigerationSettings(config.getBoolean("refrigeration.enabled", d.enabled),
                     config.getInt("refrigeration.fridge-default-f", d.fridgeDefaultF),
-                    config.getInt("refrigeration.freezer-default-f", d.freezerDefaultF),
+                    config.getInt("refrigeration.deep-freezer-default-f", d.freezerDefaultF),
+                    config.getInt("refrigeration.refrigerator-freezer-default-f", d.refrigeratorFreezerDefaultF),
                     config.getDouble("refrigeration.pull-down-f-per-minecraft-hour", d.pullDownFPerHour),
                     config.getDouble("refrigeration.leak-per-minecraft-hour", d.leakPerHour),
                     config.getDouble("refrigeration.door-share", d.doorShare),

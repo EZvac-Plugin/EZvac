@@ -7,12 +7,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A fridge-freezer (BETA 1.0 Pilot 7): an iron block with the control sign on
- * its side, a freezer barrel on top of it, and a fridge barrel on top of
- * that. It is a freezer (its lower barrel frosts and defrosts as a freezer's
- * does) with a fridge compartment, and one compressor cools both: it runs
- * while either wants it, and each compartment is held at its own setpoint.
- * A defrost rests the compressor, so the fridge warms a little meanwhile.
+ * A refrigerator (BETA 1.0 Pilot 7; a fridge-freezer): an iron block with the
+ * control sign on its side, a freezer barrel on top of it, and a fridge
+ * barrel on top of that. Its freezer is an everyday one, -5 to 10 F (0 by
+ * default), opening like a door and defrosting itself as frost builds (that
+ * can be switched off); its fridge holds a fridge's range. One compressor
+ * cools both: it runs while either wants it, and each compartment is held at
+ * its own setpoint. A defrost rests the compressor, so the fridge warms a
+ * little meanwhile.
  *
  * <p>The model is pure, so it can be tested without a server.
  */
@@ -49,6 +51,12 @@ public final class FridgeFreezer extends Freezer {
     }
 
     @Override public Kind kind() { return Kind.FRIDGE_FREEZER; }
+    @Override public int minimumF() { return RefrigerationSettings.REFRIGERATOR_FREEZER_MINIMUM_F; }
+    @Override public int maximumF() { return RefrigerationSettings.REFRIGERATOR_FREEZER_MAXIMUM_F; }
+    /** An everyday freezer: it defrosts itself, and its door is a door, not a chest freezer's lid. */
+    @Override public boolean hasAutoDefrost() { return true; }
+    @Override protected double doorFactor() { return 1.0; }
+    @Override protected double openingFrostFactor() { return 1.0; }
 
     /** Its freezer's barrel is {@link #barrel()}; this is the fridge's, above it. */
     public BlockKey fridgeBarrel() { return fridgeBarrel; }
@@ -139,7 +147,7 @@ public final class FridgeFreezer extends Freezer {
     }
 
     public static FridgeFreezer fromMap(Map<String, Object> map) {
-        Saved saved = Saved.read(map, "Fridge-freezer", 0);
+        Saved saved = Saved.read(map, "Refrigerator", 0);
         FridgeFreezer unit = new FridgeFreezer(saved.position(), saved.unit(), saved.barrel(),
                 BlockKey.read(map, "fridgeBarrel"), saved.label(), saved.setpoint(), saved.powered(), saved.running(),
                 saved.insideF(), (int) Math.round(number(map, "fridgeSetpoint", 37)),

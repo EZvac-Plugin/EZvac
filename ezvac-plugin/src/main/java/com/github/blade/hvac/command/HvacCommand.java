@@ -222,7 +222,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
                     + "|furnace|boiler|poolheatpump|thermometer|hygrometer|thermohygrometer|rpmmonitor"
-                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|freezer|fridge-freezer|minifridge|airmonitor> ..."));
+                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|deepfreezer|refrigerator|minifridge|airmonitor> ..."));
             return;
         }
         Block block = target(player);
@@ -305,9 +305,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
             case "humidifier", "hum" -> createHumidifier(player, block, position, args);
             case "purifier", "airpurifier", "air-purifier" -> createPurifier(player, block, position, args);
-            case "fridge", "refrigerator" -> createRefrigerator(player, block, position, args, false);
-            case "freezer" -> createRefrigerator(player, block, position, args, true);
-            case "fridge-freezer", "fridgefreezer", "combo" -> createFridgeFreezer(player, block, position, args);
+            case "fridge" -> createRefrigerator(player, block, position, args, false);
+            case "deepfreezer", "deep-freezer", "freezer" -> createRefrigerator(player, block, position, args, true);
+            case "refrigerator", "fridge-freezer", "fridgefreezer", "combo" ->
+                    createFridgeFreezer(player, block, position, args);
             case "minifridge", "mini-fridge", "mini" -> createMiniFridge(player, block, position, args);
             case "sensor" -> {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
@@ -445,16 +446,24 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             return;
         }
         if (unit instanceof FridgeFreezer both) {
-            player.sendMessage(green("Created fridge-freezer '" + unit.label() + "': the fridge on top at "
+            player.sendMessage(green("Created refrigerator '" + unit.label() + "': the fridge on top at "
                     + settings.units().format(both.fridgeSetpoint(), 0) + ", the freezer below at "
                     + settings.units().format(both.setpoint(), 0) + ". Click the sign to change them,"
                     + " sneak-click to switch it on or off."));
             return;
         }
-        if (unit instanceof Refrigerator refrigerator) {
-            player.sendMessage(green("Created " + unit.kind().displayName().toLowerCase(Locale.ROOT) + " '"
-                    + unit.label() + "' at " + settings.units().format(refrigerator.setpoint(), 0) + ". It cools the"
-                    + " barrel on top; click the sign to change the setpoint, sneak-click to switch it on or off."));
+        if (unit instanceof Freezer freezer) {
+            player.sendMessage(green("Created deep freezer '" + unit.label() + "' at "
+                    + settings.units().format(freezer.setpoint(), 0) + ". Its barrel opens like a chest freezer's lid,"
+                    + " so the cold stays in. It never defrosts itself: use Defrost now in its menu when frost builds"
+                    + " up. Click the sign to change it, sneak-click to switch it on or off."));
+            return;
+        }
+        if (unit instanceof Fridge fridge) {
+            player.sendMessage(green("Created fridge '" + unit.label() + "' at "
+                    + settings.units().format(fridge.setpoint(), 0) + ". It cools the "
+                    + (fridge.barrels() == 1 ? "barrel" : fridge.barrels() + " barrels") + " on top; click the sign"
+                    + " to change the setpoint, sneak-click to switch it on or off."));
             return;
         }
         if (unit instanceof AirPurifier) {
@@ -468,8 +477,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     /**
-     * A fridge or freezer (BETA 1.0 Pilot 7) is an iron block, its compressor,
-     * with a barrel on top and the control sign on the iron block's side.
+     * A fridge or deep freezer (BETA 1.0 Pilot 7) is an iron block, its
+     * compressor, with a barrel on top and the control sign on the iron
+     * block's side. A fridge keeps up to three barrels stacked there.
      */
     private void createRefrigerator(Player player, Block sign, BlockKey position, String[] args, boolean freezer) {
         requireSwitchedOn(freezer ? DeviceKind.FREEZER : DeviceKind.FRIDGE);
@@ -482,15 +492,26 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Block barrel = iron.getRelative(BlockFace.UP);
         if (barrel.getType() != Refrigerator.BARREL)
             throw new IllegalArgumentException("Put a barrel on top of the iron block: that's what it keeps cold.");
-        String label = args.length >= 3 ? args[2] : freezer ? "Freezer" : "Fridge";
+        String label = args.length >= 3 ? args[2] : freezer ? "Deep-freezer" : "Fridge";
         RefrigerationSettings cold = units.climate().refrigeration();
         BlockKey unit = BlockKey.of(iron.getLocation()), box = BlockKey.of(barrel.getLocation());
-        registerUnit(player, freezer ? new Freezer(position, unit, box, label, cold.freezerDefaultF())
-                : new Fridge(position, unit, box, label, cold.fridgeDefaultF()));
+        if (freezer) {
+            registerUnit(player, new Freezer(position, unit, box, label, cold.freezerDefaultF()));
+            return;
+        }
+        // A fridge takes every barrel stacked on it, up to three.
+        List<BlockKey> upper = new ArrayList<>();
+        Block above = barrel.getRelative(BlockFace.UP);
+        while (upper.size() < Fridge.MOST_BARRELS - 1 && above.getType() == Refrigerator.BARREL
+                && registry.deviceKind(BlockKey.of(above.getLocation())) == HvacRegistry.DeviceKind.NONE) {
+            upper.add(BlockKey.of(above.getLocation()));
+            above = above.getRelative(BlockFace.UP);
+        }
+        registerUnit(player, new Fridge(position, unit, box, upper, label, cold.fridgeDefaultF()));
     }
 
     /**
-     * A fridge-freezer (BETA 1.0 Pilot 7): an iron block with the control sign
+     * A refrigerator (BETA 1.0 Pilot 7, a fridge-freezer): an iron block with the control sign
      * on its side, the freezer barrel on top of it and the fridge barrel on
      * top of that.
      */
@@ -506,11 +527,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (freezer.getType() != Refrigerator.BARREL || fridge.getType() != Refrigerator.BARREL)
             throw new IllegalArgumentException("Stack two barrels on the iron block: the freezer below, the fridge"
                     + " on top.");
-        String label = args.length >= 3 ? args[2] : "Fridge-freezer";
+        String label = args.length >= 3 ? args[2] : "Refrigerator";
         RefrigerationSettings cold = units.climate().refrigeration();
         registerUnit(player, new FridgeFreezer(position, BlockKey.of(iron.getLocation()),
                 BlockKey.of(freezer.getLocation()), BlockKey.of(fridge.getLocation()), label,
-                cold.freezerDefaultF(), cold.fridgeDefaultF()));
+                cold.refrigeratorFreezerDefaultF(), cold.fridgeDefaultF()));
     }
 
     /**
@@ -1315,7 +1336,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
      * freezer being looked at, to see it, or to test a server's settings.
      */
     private void frost(Player player, String[] args) {
-        if (args.length < 2) throw new IllegalArgumentException("Usage: /hvac frost <0-100>, looking at a freezer.");
+        if (args.length < 2) throw new IllegalArgumentException("Usage: /hvac frost <0-100>, looking at a deep freezer or refrigerator.");
         int percent;
         try {
             percent = Integer.parseInt(args[1].replace("%", ""));
@@ -1324,7 +1345,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         Block block = target(player);
         if (!(registry.refrigeratorAt(BlockKey.of(block.getLocation())) instanceof Freezer freezer))
-            throw new IllegalArgumentException("Look at a freezer: its sign, iron block or barrel.");
+            throw new IllegalArgumentException("Look at a deep freezer or a refrigerator: its sign, iron block or barrel.");
         freezer.setFrost(Math.max(0, Math.min(100, percent)) / 100.0);
         registry.markDirty();
         plugin.frost().show(freezer);
@@ -1360,7 +1381,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         if (refrigerator instanceof Freezer freezer)
             player.sendMessage(join(gray("Frost: "), white(Math.round(freezer.frost() * 100) + "%"),
-                    gray(" | Auto defrost: "), white(freezer.autoDefrost() ? "on" : "off"),
+                    gray(freezer.hasAutoDefrost() ? " | Auto defrost: " : " | Defrost: "),
+                    white(!freezer.hasAutoDefrost() ? "by hand (Defrost now)" : freezer.autoDefrost() ? "on" : "off"),
                     freezer.defrosting() ? gray(" | defrosting now") : gray("")));
     }
 
@@ -1560,7 +1582,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
                         "thermohygrometer", "airmonitor", "rpmmonitor", "settingspanel", "dehumidifier",
-                        "humidifier", "purifier", "fridge", "freezer", "fridge-freezer", "minifridge", "sensor", "sensor-hub",
+                        "humidifier", "purifier", "fridge", "deepfreezer", "refrigerator", "minifridge", "sensor", "sensor-hub",
                         "weatherstation");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
