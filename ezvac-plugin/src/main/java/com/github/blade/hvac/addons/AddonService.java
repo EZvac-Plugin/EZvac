@@ -202,7 +202,8 @@ public final class AddonService implements Listener {
             if (addon != null)
                 for (Addon.Part part : partsOf(addon))
                     parts.add(new PartView(part.id(), AddonCatalogue.clean(part.name(), 40),
-                            AddonCatalogue.clean(part.description(), 120), on(entry.plugin(), part)));
+                            AddonCatalogue.clean(part.description(), AddonCatalogue.DESCRIPTION_MOST),
+                            on(entry.plugin(), part)));
             AddonVersion.Release release = newer.get(entry.id());
             String version = there.getPluginMeta().getVersion();
             // A release found before the addon was updated on this server is no longer news.
