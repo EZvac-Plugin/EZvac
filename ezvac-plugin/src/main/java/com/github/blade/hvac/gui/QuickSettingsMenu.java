@@ -963,8 +963,10 @@ public final class QuickSettingsMenu implements Listener {
             lore.add(gray(aside.size() + (aside.size() == 1 ? " entry couldn't be loaded" : " entries couldn't be loaded")
                     + ", not running:"));
             for (HvacRegistry.KeptAside entry : aside.subList(0, Math.min(LISTED_ASIDE, aside.size()))) {
-                String reason = entry.reason().length() > 40 ? entry.reason().substring(0, 39) + "…" : entry.reason();
-                lore.add(gray(" " + entry.section() + " " + entry.entry() + ": " + reason));
+                // Wrapped, never cut: why it couldn't be loaded is what the admin needs to read.
+                lore.add(gray(" " + entry.section() + " " + entry.entry() + ":"));
+                for (String line : com.github.blade.hvac.addons.AddonCatalogue.wrap(entry.reason(), 40))
+                    lore.add(gray("   " + line));
             }
             if (aside.size() > LISTED_ASIDE) lore.add(gray(" and " + (aside.size() - LISTED_ASIDE) + " more (/hvac registry)"));
             lore.add(gray("hvac.yml is copied aside first"));

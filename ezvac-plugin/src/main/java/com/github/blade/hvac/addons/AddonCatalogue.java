@@ -103,8 +103,8 @@ public final class AddonCatalogue {
         String minecraft = text(object, "minecraft");
         String folded = text(object, "folded-into");
         String icon = text(object, "icon");
-        return new Entry(id, plugin, main, name, clean(text(object, "description"), 200), repository,
-                MINECRAFT.matcher(minecraft).matches() ? minecraft : "", clean(text(object, "needs"), 80),
+        return new Entry(id, plugin, main, name, clean(text(object, "description"), DESCRIPTION_MOST), repository,
+                MINECRAFT.matcher(minecraft).matches() ? minecraft : "", clean(text(object, "needs"), 200),
                 NAME.matcher(folded).matches() ? folded : "", ICON.matcher(icon).matches() ? icon : "PAPER");
     }
 
@@ -115,14 +115,32 @@ public final class AddonCatalogue {
     }
 
     /** Text safe to show: no colour codes or control characters, and no longer than {@code most}. */
+    /**
+     * The longest description shown, in characters: well past any real one, so
+     * nothing is cut short, but a broken or hostile one can't fill the menu.
+     */
+    public static final int DESCRIPTION_MOST = 600;
+
+    /**
+     * Text safe to show: no colour codes or control characters, and at most
+     * {@code most} characters. Longer text is cut at a space and ends with an
+     * ellipsis, never in the middle of a word.
+     */
     static String clean(String text, int most) {
         StringBuilder out = new StringBuilder();
-        for (int i = 0; i < text.length() && out.length() < most; i++) {
+        for (int i = 0; i < text.length(); i++) {
             char character = text.charAt(i);
-            if (character == '§' || character < 32 || character == 127) continue;
+            if (character == '§') {
+                i++;   // a colour code: the sign and the letter after it
+                continue;
+            }
+            if (character < 32 || character == 127) continue;
             out.append(character);
         }
-        return out.toString().trim();
+        String cleaned = out.toString().trim();
+        if (cleaned.length() <= most) return cleaned;
+        int space = cleaned.lastIndexOf(' ', most - 1);
+        return (space > most / 2 ? cleaned.substring(0, space) : cleaned.substring(0, most - 1)).trim() + "…";
     }
 
     /** A sentence as lines of a menu item's lore, broken at spaces. */

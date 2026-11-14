@@ -45,6 +45,18 @@ class AddonCatalogueTest {
     private static final String GOOD = "\"id\":\"x\",\"plugin\":\"X\",\"main\":\"a.b.X\",\"repository\":\"X\"";
 
     @Test
+    void descriptionsAreNeverCutShortAndOnlyAHugeOneIsCutAtAWord() {
+        String real = "Food keeps by the cold: in an EZvac fridge or freezer, a cold cellar or a snowy biome it lasts"
+                + " longer, and left out it goes stale, spoils and rots. Spoiled food is gone: see food.yml.";
+        assertEquals(real, AddonCatalogue.clean(real, AddonCatalogue.DESCRIPTION_MOST), "a real description, whole");
+        assertEquals("red text", AddonCatalogue.clean("§cred text", 50), "no colour codes");
+        String huge = "word ".repeat(200);
+        String cut = AddonCatalogue.clean(huge, 30);
+        assertTrue(cut.endsWith("…") && cut.length() <= 30, cut);
+        assertFalse(cut.contains("wor…"), "never in the middle of a word: " + cut);
+    }
+
+    @Test
     void onlyCleanEntriesAreKeptAndLinksStayInTheOrganisation() {
         assertEquals(1, AddonCatalogue.parse(one(GOOD)).size());
         AddonCatalogue.Entry plain = AddonCatalogue.parse(one(GOOD)).get(0);
@@ -61,9 +73,10 @@ class AddonCatalogueTest {
                 .isEmpty());
         // Text is cleaned and cut; odd values fall back.
         AddonCatalogue.Entry odd = AddonCatalogue.parse(one(GOOD + ",\"name\":\"§cRed\\nName\",\"description\":\""
-                + "d".repeat(500) + "\",\"minecraft\":\"latest\",\"icon\":\"not an icon\",\"folded-into\":\"a b\"")).get(0);
-        assertEquals("cRedName", odd.name());
-        assertEquals(200, odd.description().length());
+                + "d".repeat(700) + "\",\"minecraft\":\"latest\",\"icon\":\"not an icon\",\"folded-into\":\"a b\"")).get(0);
+        assertEquals("RedName", odd.name(), "colour codes go whole");
+        assertEquals(AddonCatalogue.DESCRIPTION_MOST, odd.description().length(), "only a huge one is cut");
+        assertTrue(odd.description().endsWith("…"));
         assertEquals("", odd.minecraft());
         assertEquals("PAPER", odd.icon());
         assertEquals("", odd.foldedInto());
