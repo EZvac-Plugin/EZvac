@@ -103,7 +103,7 @@ public final class Panels {
             boolean between = t.enabled() && tickF >= low - step && tickF <= high + step;
             panel.tick("dial" + i, 50, 50, 31, angle, 4, 2, target ? 0xFFFFFFFF : between ? lit : DIAL_OFF);
         }
-        panel.big("room", 22, 25, 56, degrees(units, t.roomF()), NamedTextColor.WHITE, Panel.Align.CENTER);
+        bigOrNot(panel, "room", 30, 28, 40, degrees(units, t.roomF()), NamedTextColor.WHITE, Panel.Align.CENTER);
         if (!t.blocked().isEmpty()) panel.label("set", 26, 41, 48, t.blocked(), NamedTextColor.RED, Panel.Align.CENTER);
         else panel.label("set", 26, 41, 48, "set " + degrees(units, t.targetF()), text(t), Panel.Align.CENTER);
         panel.button("down", 2, 38, 13, 11, "-", "down");
@@ -130,9 +130,7 @@ public final class Panels {
         panel.label("state", 3, 2, 54, state, Panel.SMALL, Panel.Align.LEFT);
         String room = degrees(units, t.roomF());
         // A pool's 104° is too wide to be big on so small a panel: it is drawn at the normal size there.
-        if (Panel.width(Component.text(room).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD)) * 2 <= 41)
-            panel.big("room", 3, 13, 41, room, text(t), Panel.Align.LEFT);
-        else panel.label("room", 3, 17, 41, room, text(t), Panel.Align.LEFT);
+        bigOrNot(panel, "room", 3, 15, 41, room, text(t), Panel.Align.LEFT);
         panel.label("set", 3, 30, 41, "set " + degrees(units, t.targetF()), DIM, Panel.Align.LEFT);
         boolean working = t.enabled() && t.blocked().isEmpty() && t.mode() != OperatingMode.IDLE
                 && Double.isFinite(t.progress());
@@ -220,8 +218,8 @@ public final class Panels {
     /** A reading big when it fits its zone, else at the normal size, centred where the big one would be. */
     static void bigOrNot(Panel panel, String id, int x, int y, int w, String text, TextColor color, Panel.Align align) {
         Component big = Component.text(text, color).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD);
-        if (Panel.width(big) * 2 <= w) panel.big(id, x, y, w, text, color, align);
-        else panel.label(id, x, y + 4, w, big, 1.25, align);
+        if (Panel.width(big) * Panel.BIG <= w) panel.big(id, x, y, w, text, color, align);
+        else panel.label(id, x, y + 2, w, big, 1.25, align);
     }
 
     // ---- The equipment monitor ----
