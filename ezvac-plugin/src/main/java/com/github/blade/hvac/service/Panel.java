@@ -28,8 +28,8 @@ public final class Panel {
     public enum Size {
         /** A sign's board: twice as wide as it is tall. */
         SIGN(100, 50),
-        /** A mini thermostat's, floating on its wall button. */
-        MINI(60, 42);
+        /** A mini thermostat's: exactly its wall button's face, 6 by 4 pixels of a block. */
+        MINI(60, 40);
 
         public final int width, height;
 

@@ -21,7 +21,12 @@ public final class ScreenPlacement {
          * pixel face is centred in the block, 2 pixels off the wall, and the
          * panel in front of it is a little bigger.
          */
-        BUTTON(0.5, -0.36, 0.3);
+        BUTTON(0.5, -0.36, 0.3),
+        /**
+         * A new-look mini thermostat's panel (BETA 1.0 Pilot 7): exactly its
+         * button's face, 0.375 by 0.25 blocks, just in front of it.
+         */
+        MINI_PANEL(0.5, -0.36, 0.25);
 
         final double centreY;
         /** How far in front of the block's middle the screen goes, along the way the sign faces. */

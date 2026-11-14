@@ -54,6 +54,10 @@ public final class PanelScreens {
     static final int BAR_TICKS = 12;
     /** How near a player must be for icons to turn, in blocks. */
     static final double ANIMATE_RANGE = 24.0;
+    /** How often a turning screen looks for players near it, in ticks. */
+    static final long NEAR_CHECK_TICKS = 10L;
+    /** How far a panel is drawn for players, as a share of the client's entity distance (about 40 blocks). */
+    static final float VIEW_RANGE = 0.6f;
 
     /** A part's entity and what it showed. */
     private record Drawn(UUID entity, Panel.Part part, UUID label) {}
@@ -68,6 +72,9 @@ public final class PanelScreens {
         final Map<UUID, String> hits = new HashMap<>();
         /** Each turning icon's angle in quarter turns, and the tick it turns next. */
         final Map<String, long[]> turning = new HashMap<>();
+        /** Whether a player was near at the last look, and the tick of the next look. */
+        boolean near;
+        long nextNearCheck;
 
         Shown(Panel.Size size, ScreenPlacement.Mount mount, ScreenPlacement.Spot centre, double facingX, double facingZ) {
             this.size = size;
@@ -101,7 +108,9 @@ public final class PanelScreens {
                      Panel panel) {
         World world = block.getWorld();
         Shown shown = screens.get(position);
-        if (shown != null && (shown.size != panel.size() || shown.mount != mount || !intact(world, shown))) {
+        // A sign turned to face another way, or a panel missing a part (its chunk unloaded): put up afresh.
+        if (shown != null && (shown.size != panel.size() || shown.mount != mount || shown.facingX != facingX
+                || shown.facingZ != facingZ || !intact(world, shown))) {
             take(world, shown);
             shown = null;
         }
@@ -239,6 +248,7 @@ public final class PanelScreens {
             created.setBackgroundColor(argb(background));
             created.setShadowed(shadow);
             created.setBrightness(new Display.Brightness(15, 15));
+            created.setViewRange(VIEW_RANGE);
             created.setTransformation(transformation);
             created.text(text);
         }).getUniqueId();
@@ -250,6 +260,7 @@ public final class PanelScreens {
             created.setItemStack(new ItemStack(icon.item()));
             created.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.GUI);
             created.setBrightness(icon.dim() ? new Display.Brightness(4, 4) : new Display.Brightness(15, 15));
+            created.setViewRange(VIEW_RANGE);
             created.setTransformation(iconTransform(shown, icon, 0));
         }).getUniqueId();
     }
@@ -351,15 +362,27 @@ public final class PanelScreens {
      */
     public void animate(long tick) {
         for (Map.Entry<BlockKey, Shown> entry : screens.entrySet()) {
-            Shown shown = entry.getValue();
-            World world = entry.getKey().world();
-            if (world == null || !entry.getKey().isChunkLoaded()) continue;
-            boolean anyTurning = false;
-            for (Drawn drawn : shown.parts.values())
-                if (drawn.part() instanceof Panel.Icon icon && icon.turnsPerSecond() > 0.0) anyTurning = true;
-            if (!anyTurning) continue;
-            Location centre = new Location(world, entry.getKey().x() + 0.5, entry.getKey().y() + 0.5, entry.getKey().z() + 0.5);
-            if (world.getNearbyPlayers(centre, ANIMATE_RANGE).isEmpty()) continue;
+            try {
+                animate(entry.getKey(), entry.getValue(), tick);
+            } catch (RuntimeException failed) {
+                // One screen that can't be turned never stops the others; the next refresh puts it right.
+                plugin.getLogger().log(java.util.logging.Level.FINE, "Could not animate the panel at " + entry.getKey(), failed);
+            }
+        }
+    }
+
+    private void animate(BlockKey position, Shown shown, long tick) {
+        if (shown.turning.isEmpty() && !hasTurning(shown)) return;
+        World world = position.world();
+        if (world == null || !position.isChunkLoaded()) return;
+        // Players near: looked for twice a second, not every tick, so many screens cost little.
+        if (tick >= shown.nextNearCheck) {
+            Location centre = new Location(world, position.x() + 0.5, position.y() + 0.5, position.z() + 0.5);
+            shown.near = !world.getNearbyPlayers(centre, ANIMATE_RANGE).isEmpty();
+            shown.nextNearCheck = tick + NEAR_CHECK_TICKS;
+        }
+        if (!shown.near) return;
+        {
             for (Drawn drawn : shown.parts.values()) {
                 if (!(drawn.part() instanceof Panel.Icon icon) || icon.turnsPerSecond() <= 0.0) continue;
                 long[] state = shown.turning.computeIfAbsent(icon.id(), ignored -> new long[] {0L, tick});
@@ -374,6 +397,12 @@ public final class PanelScreens {
                 }
             }
         }
+    }
+
+    private static boolean hasTurning(Shown shown) {
+        for (Drawn drawn : shown.parts.values())
+            if (drawn.part() instanceof Panel.Icon icon && icon.turnsPerSecond() > 0.0) return true;
+        return false;
     }
 
     /** A button's face lights up for a moment when it's pressed. */

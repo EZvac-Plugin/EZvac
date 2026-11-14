@@ -135,6 +135,17 @@ public final class DisplayService {
      * page's sensors, one to a line. A sensor in an unloaded chunk shows --.
      */
     public void refreshSensorHub(SensorHub hub, boolean force) {
+        if (newLook()) {
+            List<String> lines = new ArrayList<>();
+            int width = (int) (92 / Panel.SMALL);
+            for (BlockKey key : hub.sensorsOnPage()) {
+                Sensor sensor = registry.sensorAt(key);
+                if (sensor != null) lines.add(read(sensor).line(width));
+            }
+            renderPanel(hub.position(), force, false, Panels.hub(hub.label(), lines, hub.sensors().isEmpty(),
+                    hub.page(), hub.pages()));
+            return;
+        }
         List<SensorReading> readings = new ArrayList<>();
         for (BlockKey key : hub.sensorsOnPage()) {
             Sensor sensor = registry.sensorAt(key);
@@ -190,6 +201,17 @@ public final class DisplayService {
         AirQualityModel.Air air = today == null ? null : stations.airNow(station);
         String airLine = air == null ? "" : AirText.aqi(air);
         String conditions = windLine.isEmpty() ? airLine : airLine.isEmpty() ? windLine : windLine + " · " + airLine;
+        if (newLook()) {
+            int tone = today != null ? 0xFF000000 | tone(today.sky()).rgb()
+                    : state.equals("Damaged") ? Panels.ALERT : state.equals("Measuring") ? Panels.NEUTRAL : Panels.OFF;
+            renderPanel(station.position(), force, false, Panels.station(new Panels.StationState(station.label(),
+                    today == null ? state : "", tone, StationText.temperature(nowF, units),
+                    today == null ? "" : StationText.sky(today, stations.snowDay(station, today)),
+                    today == null ? "" : StationText.highLow(today, units), conditions,
+                    today == null ? "" : today.note(),
+                    tomorrow == null ? "" : StationText.tomorrow(tomorrow, stations.snowDay(station, tomorrow)))));
+            return;
+        }
         String fingerprint = String.join("|", station.label(), state, StationText.temperature(nowF, units),
                 today == null ? "" : StationText.sky(today, stations.snowDay(station, today)) + StationText.highLow(today, units) + today.note(),
                 tomorrow == null ? "" : StationText.sky(tomorrow, stations.snowDay(station, tomorrow)), conditions);
@@ -436,6 +458,21 @@ public final class DisplayService {
         String airLine = airOn ? AirText.signLine(reading.air()) : "Air quality off";
         String pollen = airOn && reading.air().known()
                 ? "Pollen " + AirText.pollenName(reading.air(), airSettings()) : "";
+        if (newLook()) {
+            AirQualityModel.Air air = reading.air();
+            boolean known = airOn && air.known();
+            AirQualityIndex.Band band = known ? AirText.band(air) : null;
+            String sky = String.join(" · ", nonEmpty(outdoor.climateAt(location).weather(),
+                    season(thermometer.position().worldId())));
+            renderPanel(thermometer.position(), force, false, Panels.point(settings.units(), new Panels.PointState(
+                    thermometer.label(), thermometer.reads().name(), reading.localF(), reading.feelsLikeF(),
+                    reading.outdoorF(), inside, outside, sky, airOn, known, known ? AirText.aqiNumber(air) : "--",
+                    known ? band.displayName() : "", known ? AirText.color(band) : NamedTextColor.GRAY,
+                    known ? 0xFF000000 | tone(band).rgb() : Panels.NEUTRAL,
+                    known && band != AirQualityIndex.Band.GOOD
+                            ? AirQualityIndex.dominant(air).cause().toLowerCase(Locale.ROOT) : "", pollen)));
+            return;
+        }
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%.1f|%s|%s|%s|%s|%s|%s", reading.localF(),
                 reading.outdoorF(), reading.feelsLikeF(), inside, outside, thermometer.reads(), thermometer.label(),
                 thermometer.reads() == Thermometer.Reads.AIR ? airLine : "", pollen);
@@ -571,6 +608,11 @@ public final class DisplayService {
     }
 
     public void refreshSettingsPanel(SettingsPanel panel, boolean force) {
+        if (newLook()) {
+            renderPanel(panel.position(), force, false, Panels.settings(panel.label(),
+                    panel.system() == null ? "" : SystemNames.label(registry, panel.system()), panel.profile().name()));
+            return;
+        }
         String system = panel.system() == null ? "Not linked" : "System: " + SystemNames.label(registry, panel.system());
         String fingerprint = panel.label() + "|" + system + "|" + panel.profile();
         render(panel.position(), fingerprint, force, () -> ScreenText.titled(panel.label(), panel.system() == null ? "Not linked"
@@ -619,6 +661,10 @@ public final class DisplayService {
         }
         if (unit instanceof Refrigerator refrigerator) {
             refreshRefrigerator(refrigerator, force);
+            return;
+        }
+        if (newLook()) {
+            refreshHumidityPanel(unit, force);
             return;
         }
         double humidity = unit.lastHumidity();
@@ -745,6 +791,27 @@ public final class DisplayService {
      */
     private void refreshPurifier(AirPurifier purifier, boolean force) {
         AirQualityModel.Air air = purifier.lastAir();
+        if (newLook()) {
+            ClimateUnit.State state = purifier.state();
+            String stateText = switch (state) {
+                case OFF -> purifier.offServerWide() ? "off server-wide" : "off";
+                case IDLE -> "idle";
+                case RUNNING -> purifier.modeText().toLowerCase(Locale.ROOT);
+                case NO_FILTER -> "no filter";
+                case FILTER_SPENT, EMPTYING -> "filter spent";
+            };
+            int tone = switch (state) {
+                case OFF -> Panels.OFF;
+                case NO_FILTER, FILTER_SPENT, EMPTYING -> Panels.ALERT;
+                case IDLE, RUNNING -> air.known() ? 0xFF000000 | tone(AirText.band(air)).rgb() : Panels.NEUTRAL;
+            };
+            renderPanel(purifier.position(), force, false, Panels.purifier(new Panels.PurifierState(purifier.label(),
+                    tone, air.known() ? AirText.aqiNumber(air) : "--",
+                    air.known() ? AirText.band(air).displayName() : "AQI", AirText.color(air), purifier.mode().name(),
+                    purifier.installed() != AirPurifier.Filter.MISSING, purifier.filter(), stateText,
+                    NamedTextColor.WHITE)));
+            return;
+        }
         String reading = AirText.signLine(air);
         ClimateUnit.State state = purifier.state();
         String stateText = switch (state) {
@@ -888,6 +955,35 @@ public final class DisplayService {
                     deep == null ? 0.0 : deep.frost(), deep != null && deep.defrosting()));
         }
         renderPanel(refrigerator.position(), force, false, panel);
+    }
+
+    private void refreshHumidityPanel(ClimateUnit unit, boolean force) {
+        ClimateUnit.State state = unit.state();
+        boolean tooCold = state == ClimateUnit.State.RUNNING && unit instanceof Dehumidifier dry && dry.tooCold();
+        String stateText = tooCold ? "air too cold" : switch (state) {
+            case OFF -> unit.offServerWide() ? "off server-wide" : "off";
+            case IDLE -> "idle";
+            case RUNNING -> unit instanceof Dehumidifier ? "drying" : "misting";
+            case EMPTYING -> "emptying...";
+            case NO_FILTER, FILTER_SPENT -> state.name().toLowerCase(Locale.ROOT);
+        };
+        int tone = tooCold ? Panels.ALERT : switch (state) {
+            case OFF -> Panels.OFF;
+            case IDLE -> Panels.NEUTRAL;
+            case RUNNING -> Panels.HOLDING;
+            case EMPTYING -> Panels.COOLING;
+            case NO_FILTER, FILTER_SPENT -> Panels.ALERT;
+        };
+        NamedTextColor color = tooCold ? NamedTextColor.GOLD : switch (state) {
+            case OFF -> NamedTextColor.RED;
+            case IDLE -> NamedTextColor.GRAY;
+            case RUNNING -> NamedTextColor.GREEN;
+            case EMPTYING -> NamedTextColor.AQUA;
+            case NO_FILTER, FILTER_SPENT -> NamedTextColor.GOLD;
+        };
+        renderPanel(unit.position(), force, false, Panels.humidity(new Panels.HumidityState(unit.label(),
+                unit instanceof Dehumidifier, stateText, tone, color, unit.lastHumidity(), unit.setpoint(),
+                unit instanceof Dehumidifier dehumidifier ? dehumidifier.tank() : 0.0)));
     }
 
     /**
