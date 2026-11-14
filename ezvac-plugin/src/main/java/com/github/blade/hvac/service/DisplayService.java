@@ -643,17 +643,13 @@ public final class DisplayService {
     }
 
     /**
-     * A fridge's or freezer's screen (BETA 1.0 Pilot 7): its inside temperature
-     * big, its setpoint, and whether it is cooling, holding, off or open.
+     * A fridge's or freezer's screen (BETA 1.0 Pilot 7), as an appliance's
+     * door panel: its inside in whole degrees, big; beneath, which
+     * compartment it is and its setpoint, what it is doing, and a freezer's
+     * frost as a little bar once there's any to see. A fridge-freezer shows
+     * its two compartments side by side, the fridge on the left.
      */
     private void refreshRefrigerator(Refrigerator refrigerator, boolean force) {
-        if (refrigerator instanceof FridgeFreezer both) {
-            refreshFridgeFreezer(both, force);
-            return;
-        }
-        double inside = refrigerator.insideF();
-        String big = Double.isFinite(inside) ? settings.units().format(inside, 1) : "--";
-        String target = "Set " + settings.units().format(refrigerator.setpoint(), 0);
         String activity = refrigerator.offServerWide() ? OFF_SERVER_WIDE : refrigerator.activity();
         NamedTextColor color = switch (activity) {
             case "Cooling" -> NamedTextColor.AQUA;
@@ -662,48 +658,62 @@ public final class DisplayService {
             case "Defrosting" -> NamedTextColor.LIGHT_PURPLE;
             default -> NamedTextColor.RED;
         };
-        String frost = refrigerator instanceof Freezer freezer && freezer.frost() >= 0.01
-                ? "Frost " + Math.round(freezer.frost() * 100) + "%" : "";
-        String fingerprint = refrigerator.label() + "|" + big + "|" + target + "|" + activity + "|" + frost;
-        render(refrigerator.position(), fingerprint, force, () -> ScreenText
-                .titled(refrigerator.label(), refrigerator.kind().displayName())
-                .tone(!refrigerator.switchedOn() ? ScreenText.Tone.OFF
-                        : refrigerator.doorOpen() ? ScreenText.Tone.ALERT
-                        : refrigerator.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
-                .big(big)
-                .line(target + (frost.isEmpty() ? "" : " · " + frost), NamedTextColor.WHITE)
-                .line(activity, color));
+        double frost = refrigerator instanceof Freezer freezer ? freezer.frost() : 0.0;
+        boolean showsFrost = frost >= 0.05;   // a slot's worth: none of it is in the barrel before that
+        String big, compartments, setpoints;
+        if (refrigerator instanceof FridgeFreezer both) {
+            big = applianceColumn(applianceDegrees(both.fridgeInsideF(), false), true)
+                    + applianceColumn(applianceDegrees(both.insideF(), false), true);
+            compartments = applianceColumn("FRIDGE", false) + applianceColumn("FREEZER", false);
+            setpoints = applianceColumn("set " + applianceDegrees(both.fridgeSetpoint(), true), false)
+                    + applianceColumn("set " + applianceDegrees(both.setpoint(), true), false);
+        } else {
+            big = applianceDegrees(refrigerator.insideF(), true);
+            compartments = refrigerator instanceof Freezer ? "FREEZER" : "FRIDGE";
+            setpoints = "set " + applianceDegrees(refrigerator.setpoint(), true);
+        }
+        String fingerprint = refrigerator.label() + "|" + big + "|" + setpoints + "|" + activity + "|"
+                + (showsFrost ? Math.round(frost * 20) : -1);
+        boolean twoColumns = refrigerator instanceof FridgeFreezer;
+        render(refrigerator.position(), fingerprint, force, () -> {
+            ScreenText screen = ScreenText
+                    .titled(refrigerator.label(), refrigerator.kind().displayName())
+                    .tone(!refrigerator.switchedOn() ? ScreenText.Tone.OFF
+                            : refrigerator.doorOpen() ? ScreenText.Tone.ALERT
+                            : refrigerator.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
+                    .big(big);
+            if (twoColumns) {
+                screen.line(Component.text(compartments, NamedTextColor.GRAY));
+                screen.line(Component.text(setpoints, NamedTextColor.WHITE));
+            } else {
+                screen.line(Component.text(compartments + "  ", NamedTextColor.GRAY)
+                        .append(Component.text(setpoints, NamedTextColor.WHITE)));
+            }
+            screen.line(activity, color);
+            if (showsFrost) screen.line(Component.text("Frost ", NamedTextColor.GRAY)
+                    .append(Component.text(ScreenText.bar(frost, 10), NamedTextColor.AQUA)));
+            return screen;
+        });
+    }
+
+    /** {@code 37°F} as an appliance shows it: whole degrees; {@code 37°} where the unit is said elsewhere. */
+    private String applianceDegrees(double fahrenheit, boolean withUnit) {
+        var units = settings.units();
+        if (!Double.isFinite(fahrenheit)) return "--°";
+        return Math.round(units.fromF(fahrenheit)) + "°" + (withUnit ? units.name() : "");
     }
 
     /**
-     * A fridge-freezer's screen (BETA 1.0 Pilot 7): no big reading, but a line
-     * for each compartment, its inside and setpoint (the freezer's frost too),
-     * and what it is doing.
+     * Text padded with spaces to half the screen's width, centred in it, so
+     * two of them make columns that line up from line to line. The big
+     * reading is drawn at twice the size, so its half is half as wide.
      */
-    private void refreshFridgeFreezer(FridgeFreezer both, boolean force) {
-        var units = settings.units();
-        String fridge = "Fridge " + (Double.isFinite(both.fridgeInsideF()) ? units.format(both.fridgeInsideF(), 1) : "--")
-                + " · Set " + units.format(both.fridgeSetpoint(), 0);
-        String freezer = "Freezer " + (Double.isFinite(both.insideF()) ? units.format(both.insideF(), 1) : "--")
-                + " · Set " + units.format(both.setpoint(), 0)
-                + (both.frost() >= 0.01 ? " · Frost " + Math.round(both.frost() * 100) + "%" : "");
-        String activity = both.offServerWide() ? OFF_SERVER_WIDE : both.activity();
-        NamedTextColor color = switch (activity) {
-            case "Cooling" -> NamedTextColor.AQUA;
-            case "Holding" -> NamedTextColor.GREEN;
-            case "Door open" -> NamedTextColor.GOLD;
-            case "Defrosting" -> NamedTextColor.LIGHT_PURPLE;
-            default -> NamedTextColor.RED;
-        };
-        String fingerprint = both.label() + "|" + fridge + "|" + freezer + "|" + activity;
-        render(both.position(), fingerprint, force, () -> ScreenText
-                .titled(both.label(), both.kind().displayName())
-                .tone(!both.switchedOn() ? ScreenText.Tone.OFF
-                        : both.doorOpen() ? ScreenText.Tone.ALERT
-                        : both.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
-                .line(fridge, NamedTextColor.WHITE)
-                .line(freezer, NamedTextColor.AQUA)
-                .line(activity, color));
+    static String applianceColumn(String text, boolean big) {
+        int half = big ? ScreenText.WIDTH / 4 : ScreenText.WIDTH / 2;
+        int bold = big ? text.length() : 0;   // the big reading is bold: a pixel wider a character
+        int space = TextWidth.width(" ") + (big ? 1 : 0);
+        int pad = Math.max(0, (half - TextWidth.width(text) - bold) / space);
+        return " ".repeat(pad / 2) + text + " ".repeat(pad - pad / 2);
     }
 
     /**
