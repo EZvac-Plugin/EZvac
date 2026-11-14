@@ -105,7 +105,7 @@ devices:
 
 New in BETA 1.0. Device kinds switched off server-wide: `heat-pump`,
 `air-conditioner`, `furnace`, `boiler`, `pool-heat-pump`, `dehumidifier`,
-`humidifier`, `air-purifier`, and since Pilot 7 `fridge` and `freezer`. Devices of a kind listed here stop, and no
+`humidifier`, `air-purifier`, and since Pilot 7 `fridge`, `freezer` and `fridge-freezer`. Devices of a kind listed here stop, and no
 new one can be made; taken off the list, each runs again as it was set. A
 name that is no kind is pointed out at start-up and ignored.
 
@@ -416,7 +416,7 @@ New in BETA 1.0 Pilot 4. See [Climate](climate.md#feels-like).
 
 ## refrigeration
 
-Fridges and freezers (BETA 1.0 Pilot 7); see [Fridges and freezers](fridges-and-freezers.md). Rates are per in-game hour.
+Fridges, freezers and fridge-freezers (BETA 1.0 Pilot 7); see [Fridges and freezers](fridges-and-freezers.md). Rates are per in-game hour.
 
 | Setting | Default | |
 |---|---|---|
@@ -427,7 +427,12 @@ Fridges and freezers (BETA 1.0 Pilot 7); see [Fridges and freezers](fridges-and-
 | `door-share`, `door-leak-factor` | 0.15, 15.0 | opened, this share of the gap comes in at once (less when it was opened only a moment ago), and it leaks this many times faster while open |
 | `hysteresis-f` | 2.0 | it starts this far above its setpoint |
 | `fridge-heat-f-per-minecraft-hour`, `freezer-heat-f-per-minecraft-hour` | 0.3, 0.5 | what a running one adds to its system's room |
-| `reference-cells` | 1500 | the room size those are for; bigger rooms warm less |
+| `reference-cells` | 1500 | the room size those are for; bigger rooms warm less (a fridge-freezer adds both) |
+| `frost.per-opening` | 0.0025 | the frost each opening adds, of a full ring, in air of 50% RH (twice at 100%) |
+| `frost.per-running-hour` | 0.005 | the frost each in-game hour its compressor runs adds, at 50% RH |
+| `frost.slowdown` | 0.5 | a full ring slows its cooling by this share |
+| `frost.auto-defrost-at` | 0.6 | it defrosts itself at this much frost, unless Auto defrost is off |
+| `frost.defrost-minutes`, `frost.defrost-ceiling-f`, `frost.defrost-heat-f-per-minecraft-hour` | 30.0, 26.0, 20.0 | a defrost's length in in-game minutes, and its heater, never warming the inside past the ceiling |
 
 Air quality and air purifiers (3.2); see [Air quality](air-quality.md). Rates
 are per in-game hour.

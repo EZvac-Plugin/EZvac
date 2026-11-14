@@ -9,6 +9,7 @@ import com.github.blade.hvac.integration.api.ApiEvents;
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.AirPurifier;
 import com.github.blade.hvac.model.Freezer;
+import com.github.blade.hvac.model.FridgeFreezer;
 import com.github.blade.hvac.model.Refrigerator;
 import com.github.blade.hvac.config.RefrigerationSettings;
 import com.github.blade.hvac.model.Attention;
@@ -64,6 +65,8 @@ public final class ControlMenus implements Listener {
     static final int ATTENTION = 0, PROFILE = 4, SYSTEM = 8;
     /** A freezer's defrost (BETA 1.0 Pilot 7): start one now, and whether it defrosts on its own. */
     static final int DEFROST = 20, AUTO_DEFROST = 24;
+    /** A fridge-freezer's fridge, along the top row (its freezer is the middle row). */
+    static final int FRIDGE_RAISE = 2, FRIDGE_INFO = 4, FRIDGE_LOWER = 6;
     /** Humidity only moves in fives, on the middle row. */
     static final int HUMIDITY_RAISE = 11, HUMIDITY_LOWER = 15;
 
@@ -354,13 +357,30 @@ public final class ControlMenus implements Listener {
         inventory.setItem(HUMIDITY_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE, "+1°", NamedTextColor.WHITE));
         inventory.setItem(HUMIDITY_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE, "-1°", NamedTextColor.WHITE));
         double inside = refrigerator.insideF();
+        String compartment = refrigerator instanceof FridgeFreezer ? "Freezer: " : "";
         inventory.setItem(INFO, item(refrigerator instanceof Freezer ? Material.PACKED_ICE : Material.BARREL,
-                Component.text("Set " + units.format(refrigerator.setpoint(), 0), NamedTextColor.AQUA),
+                Component.text(compartment + "Set " + units.format(refrigerator.setpoint(), 0), NamedTextColor.AQUA),
                 List.of(gray("Inside " + (Double.isFinite(inside) ? units.format(inside, 1) : "--")),
                         gray(refrigerator.activity()),
                         gray("Range " + units.format(refrigerator.minimumF(), 0) + " to "
                                 + units.format(refrigerator.maximumF(), 0)))));
         inventory.setItem(POWER, power(refrigerator.powered(), refrigerator.kind().displayName()));
+        if (refrigerator instanceof FridgeFreezer both) {
+            inventory.setItem(FRIDGE_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE, "Fridge +1°", NamedTextColor.WHITE));
+            inventory.setItem(FRIDGE_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE, "Fridge -1°",
+                    NamedTextColor.WHITE));
+            double fridge = both.fridgeInsideF();
+            inventory.setItem(FRIDGE_INFO, item(Material.BARREL,
+                    Component.text("Fridge: Set " + units.format(both.fridgeSetpoint(), 0), NamedTextColor.AQUA),
+                    List.of(gray("Inside " + (Double.isFinite(fridge) ? units.format(fridge, 1) : "--")),
+                            gray(both.fridgeDoorOpen() ? "Door open" : "The barrel on top"),
+                            gray("Range " + units.format(RefrigerationSettings.FRIDGE_MINIMUM_F, 0) + " to "
+                                    + units.format(RefrigerationSettings.FRIDGE_MAXIMUM_F, 0)))));
+            inventory.setItem(HUMIDITY_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE, "Freezer +1°",
+                    NamedTextColor.WHITE));
+            inventory.setItem(HUMIDITY_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE, "Freezer -1°",
+                    NamedTextColor.WHITE));
+        }
         if (refrigerator instanceof Freezer freezer) {
             int frost = (int) Math.round(freezer.frost() * 100);
             inventory.setItem(DEFROST, item(Material.BLUE_ICE, Component.text(freezer.defrosting() ? "Defrosting..."
@@ -392,7 +412,8 @@ public final class ControlMenus implements Listener {
                     climate.humidifier().maximumSetpoint()};
             case AIR_PURIFIER -> new int[] {0, 0};    // it has modes, not a setpoint
             case FRIDGE -> new int[] {RefrigerationSettings.FRIDGE_MINIMUM_F, RefrigerationSettings.FRIDGE_MAXIMUM_F};
-            case FREEZER -> new int[] {RefrigerationSettings.FREEZER_MINIMUM_F, RefrigerationSettings.FREEZER_MAXIMUM_F};
+            case FREEZER, FRIDGE_FREEZER -> new int[] {RefrigerationSettings.FREEZER_MINIMUM_F,
+                    RefrigerationSettings.FREEZER_MAXIMUM_F};
         };
     }
 
@@ -499,6 +520,13 @@ public final class ControlMenus implements Listener {
                 return false;
             }
             purifier.setMode(PURIFIER_MODES[modeSlot]);
+        } else if (unit instanceof FridgeFreezer both && (slot == FRIDGE_RAISE || slot == FRIDGE_LOWER)) {
+            int setpoint = both.fridgeSetpoint() + (slot == FRIDGE_RAISE ? 1 : -1);
+            both.setFridgeSetpoint(setpoint);
+            if (both.fridgeSetpoint() != setpoint) {
+                click(player, false);
+                return false;
+            }
         } else if (unit instanceof Freezer freezer && slot == DEFROST) {
             if (freezer.defrosting()) {
                 click(player, false);

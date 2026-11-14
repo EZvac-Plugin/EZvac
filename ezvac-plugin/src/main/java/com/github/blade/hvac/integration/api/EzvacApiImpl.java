@@ -532,8 +532,8 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         if (world == null || !world.isChunkLoaded(x >> 4, z >> 4)) return Double.NaN;
         BlockKey key = BlockKey.of(new Location(world, x, y, z));
         com.github.blade.hvac.model.Refrigerator refrigerator = registry.refrigeratorAt(key);
-        if (refrigerator != null && refrigerator.barrel().equals(key) && Double.isFinite(refrigerator.insideF()))
-            return refrigerator.insideF();
+        if (refrigerator != null && refrigerator.keepsCold(key) && Double.isFinite(refrigerator.insideAt(key)))
+            return refrigerator.insideAt(key);
         return readingAt(new Location(world, x + 0.5, y + 0.5, z + 0.5)).temperatureF();
     }
 

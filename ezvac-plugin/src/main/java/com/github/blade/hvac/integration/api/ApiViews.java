@@ -138,6 +138,7 @@ public final class ApiViews {
             case AIR_PURIFIER -> ClimateUnitView.Kind.AIR_PURIFIER;
             case FRIDGE -> ClimateUnitView.Kind.FRIDGE;
             case FREEZER -> ClimateUnitView.Kind.FREEZER;
+            case FRIDGE_FREEZER -> ClimateUnitView.Kind.FRIDGE_FREEZER;
         };
         ClimateUnitView.State state = switch (unit.state()) {
             case OFF -> ClimateUnitView.State.OFF;

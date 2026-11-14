@@ -222,7 +222,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
                     + "|furnace|boiler|poolheatpump|thermometer|hygrometer|thermohygrometer|rpmmonitor"
-                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|freezer|airmonitor> ..."));
+                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|freezer|fridge-freezer|airmonitor> ..."));
             return;
         }
         Block block = target(player);
@@ -307,6 +307,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "purifier", "airpurifier", "air-purifier" -> createPurifier(player, block, position, args);
             case "fridge", "refrigerator" -> createRefrigerator(player, block, position, args, false);
             case "freezer" -> createRefrigerator(player, block, position, args, true);
+            case "fridge-freezer", "fridgefreezer", "combo" -> createFridgeFreezer(player, block, position, args);
             case "sensor" -> {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
@@ -434,6 +435,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         registry.addClimateUnit(unit);
         airflow.invalidate(ZoneId.of(unit));
         displays.refreshClimateUnit(unit, true);
+        if (unit instanceof FridgeFreezer both) {
+            player.sendMessage(green("Created fridge-freezer '" + unit.label() + "': the fridge on top at "
+                    + settings.units().format(both.fridgeSetpoint(), 0) + ", the freezer below at "
+                    + settings.units().format(both.setpoint(), 0) + ". Click the sign to change them,"
+                    + " sneak-click to switch it on or off."));
+            return;
+        }
         if (unit instanceof Refrigerator refrigerator) {
             player.sendMessage(green("Created " + unit.kind().displayName().toLowerCase(Locale.ROOT) + " '"
                     + unit.label() + "' at " + settings.units().format(refrigerator.setpoint(), 0) + ". It cools the"
@@ -470,6 +478,30 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         BlockKey unit = BlockKey.of(iron.getLocation()), box = BlockKey.of(barrel.getLocation());
         registerUnit(player, freezer ? new Freezer(position, unit, box, label, cold.freezerDefaultF())
                 : new Fridge(position, unit, box, label, cold.fridgeDefaultF()));
+    }
+
+    /**
+     * A fridge-freezer (BETA 1.0 Pilot 7): an iron block with the control sign
+     * on its side, the freezer barrel on top of it and the fridge barrel on
+     * top of that.
+     */
+    private void createFridgeFreezer(Player player, Block sign, BlockKey position, String[] args) {
+        requireSwitchedOn(DeviceKind.FRIDGE_FREEZER);
+        requireSign(sign);
+        if (!(sign.getBlockData() instanceof WallSign wall))
+            throw new IllegalArgumentException("Put the sign on the side of the iron block.");
+        Block iron = sign.getRelative(wall.getFacing().getOppositeFace());
+        if (iron.getType() != Material.IRON_BLOCK)
+            throw new IllegalArgumentException("Put the sign on the side of an iron block.");
+        Block freezer = iron.getRelative(BlockFace.UP), fridge = freezer.getRelative(BlockFace.UP);
+        if (freezer.getType() != Refrigerator.BARREL || fridge.getType() != Refrigerator.BARREL)
+            throw new IllegalArgumentException("Stack two barrels on the iron block: the freezer below, the fridge"
+                    + " on top.");
+        String label = args.length >= 3 ? args[2] : "Fridge-freezer";
+        RefrigerationSettings cold = units.climate().refrigeration();
+        registerUnit(player, new FridgeFreezer(position, BlockKey.of(iron.getLocation()),
+                BlockKey.of(freezer.getLocation()), BlockKey.of(fridge.getLocation()), label,
+                cold.freezerDefaultF(), cold.fridgeDefaultF()));
     }
 
     /** Kinds switched off in /hvac quicksettings can't be made (BETA 1.0). */
@@ -1283,10 +1315,18 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         double inside = refrigerator.insideF();
         player.sendMessage(join(gold(refrigerator.kind().displayName() + " "), white(refrigerator.label()),
                 gray(" | Stands in: "), white(room)));
-        player.sendMessage(join(gray("Inside: "), white(Double.isFinite(inside) ? settings.units().format(inside, 1)
+        player.sendMessage(join(gray(refrigerator instanceof FridgeFreezer ? "Freezer (below): " : "Inside: "),
+                white(Double.isFinite(inside) ? settings.units().format(inside, 1)
                         : "not measured yet"),
                 gray(" | Setpoint: "), white(settings.units().format(refrigerator.setpoint(), 0)),
                 gray(" | "), white(refrigerator.activity())));
+        if (refrigerator instanceof FridgeFreezer both) {
+            double fridge = both.fridgeInsideF();
+            player.sendMessage(join(gray("Fridge (top): "), white(Double.isFinite(fridge)
+                            ? settings.units().format(fridge, 1) : "not measured yet"),
+                    gray(" | Setpoint: "), white(settings.units().format(both.fridgeSetpoint(), 0)),
+                    both.fridgeDoorOpen() ? gray(" | door open") : gray("")));
+        }
         if (refrigerator instanceof Freezer freezer)
             player.sendMessage(join(gray("Frost: "), white(Math.round(freezer.frost() * 100) + "%"),
                     gray(" | Auto defrost: "), white(freezer.autoDefrost() ? "on" : "off"),
@@ -1489,7 +1529,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
                         "thermohygrometer", "airmonitor", "rpmmonitor", "settingspanel", "dehumidifier",
-                        "humidifier", "purifier", "fridge", "freezer", "sensor", "sensor-hub", "weatherstation");
+                        "humidifier", "purifier", "fridge", "freezer", "fridge-freezer", "sensor", "sensor-hub",
+                        "weatherstation");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");

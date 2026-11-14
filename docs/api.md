@@ -371,5 +371,5 @@ depend: [EZvac]
   station's `wind()`, `airQuality()` and each day's `aqi()`), and 1.9 with
   BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `dailyMeanAirF()`, `WeatherPlan`, `WeatherEvent`, `setWeatherPlan()`, `Precipitation`,
   `SeasonView.progress()`, and `registerAddon()` with `Addon` and `AddonSwitches`), and 1.10 with BETA 1.0
-  Pilot 5 (`systemSpace()` and `SystemSpace`), and 1.11 (`setShowsWeather()`, `HudContext.gauge()`), and 1.12 with BETA 1.0 Pilot 7 (fridges and freezers: `ClimateUnitView.Kind` `FRIDGE` and `FREEZER` with `insideF()`, and `storageTemperatureF()`).
+  Pilot 5 (`systemSpace()` and `SystemSpace`), and 1.11 (`setShowsWeather()`, `HudContext.gauge()`), and 1.12 with BETA 1.0 Pilot 7 (fridges and freezers: `ClimateUnitView.Kind` `FRIDGE`, `FREEZER` and `FRIDGE_FREEZER` with `insideF()`, and `storageTemperatureF()`).
   Depend on the oldest EZvac whose API has what you use.

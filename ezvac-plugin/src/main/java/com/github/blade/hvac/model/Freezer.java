@@ -11,7 +11,7 @@ import java.util.Map;
  * cooling, and a defrost clears it: on its own once the frost is heavy, or
  * when asked.
  */
-public final class Freezer extends Refrigerator {
+public sealed class Freezer extends Refrigerator permits FridgeFreezer {
     /** Its frost, 0 none to 1 a full ring round the barrel. */
     private double frost;
     private boolean autoDefrost = true;
@@ -22,8 +22,8 @@ public final class Freezer extends Refrigerator {
         this(position, unit, barrel, label, setpointF, true, false, Double.NaN);
     }
 
-    private Freezer(BlockKey position, BlockKey unit, BlockKey barrel, String label, int setpointF,
-                    boolean powered, boolean running, double insideF) {
+    protected Freezer(BlockKey position, BlockKey unit, BlockKey barrel, String label, int setpointF,
+                      boolean powered, boolean running, double insideF) {
         super(position, unit, barrel, label, setpointF, powered, running, insideF);
     }
 
@@ -113,9 +113,14 @@ public final class Freezer extends Refrigerator {
         Saved saved = Saved.read(map, "Freezer", 0);
         Freezer freezer = new Freezer(saved.position(), saved.unit(), saved.barrel(), saved.label(), saved.setpoint(),
                 saved.powered(), saved.running(), saved.insideF());
-        freezer.setFrost(number(map, "frost", 0.0));
-        freezer.autoDefrost = bool(map, "autoDefrost", true);
-        freezer.defrostTicks = Math.max(0L, (long) number(map, "defrostTicks", 0.0));
+        freezer.readFrost(map);
         return freezer;
+    }
+
+    /** Its frost and defrost, as saved. */
+    protected void readFrost(Map<String, Object> map) {
+        setFrost(number(map, "frost", 0.0));
+        autoDefrost = bool(map, "autoDefrost", true);
+        defrostTicks = Math.max(0L, (long) number(map, "defrostTicks", 0.0));
     }
 }
