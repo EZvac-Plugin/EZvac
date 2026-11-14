@@ -72,7 +72,7 @@ public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int fre
 
     public static RefrigerationSettings defaults() {
         return new RefrigerationSettings(true, 37, 0, 20.0, 0.08, 0.15, 15.0, 2.0, 0.3, 0.5, 1_500,
-                0.04, 0.005, 0.5, 0.6, 30.0, 26.0, 20.0);
+                0.01, 0.005, 0.5, 0.6, 30.0, 26.0, 20.0);
     }
 
     /** Reads the section; a bad value warns and the whole section keeps its defaults. */
