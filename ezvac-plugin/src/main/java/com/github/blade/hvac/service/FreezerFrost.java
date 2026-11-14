@@ -2,6 +2,8 @@ package com.github.blade.hvac.service;
 
 import com.github.blade.hvac.model.BlockKey;
 import com.github.blade.hvac.model.Freezer;
+import com.github.blade.hvac.model.MiniFridge;
+import com.github.blade.hvac.model.Refrigerator;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -55,7 +57,7 @@ public final class FreezerFrost implements Listener {
 
     private final Plugin plugin;
     private final HvacRegistry registry;
-    private final NamespacedKey frostKey, frostedKey, modelKey, glintKey;
+    private final NamespacedKey frostKey, frostedKey, modelKey, glintKey, wallKey;
     /** ItemMeta's item model (1.21.4 and newer), looked up once; null on 1.21.1. */
     private final Method setModel, getModel;
 
@@ -66,6 +68,7 @@ public final class FreezerFrost implements Listener {
         this.frostedKey = new NamespacedKey(plugin, "frosted");
         this.modelKey = new NamespacedKey(plugin, "frosted_model");
         this.glintKey = new NamespacedKey(plugin, "frosted_glint");
+        this.wallKey = new NamespacedKey(plugin, "fridge_wall");
         Method set = null, get = null;
         try {
             set = ItemMeta.class.getMethod("setItemModel", NamespacedKey.class);
@@ -83,15 +86,69 @@ public final class FreezerFrost implements Listener {
     }
 
     private void showAll() {
-        for (var unit : registry.refrigerators())
+        for (var unit : registry.refrigerators()) {
             if (unit instanceof Freezer freezer) {
                 show(freezer);
                 if (freezer.defrosting()) drip(freezer);
             }
+            if (unit instanceof MiniFridge mini) showWalls(mini);
+        }
     }
 
-    /** The barrel of a freezer, if its chunk is loaded and it is still a barrel. */
-    private Inventory barrel(Freezer freezer) {
+    /**
+     * A mini fridge's barrel (BETA 1.0 Pilot 7): its walls fill every slot
+     * but the seven for food and the chiller box, the gap before the chiller
+     * saying what it is. Anything found where a wall goes is moved to a free
+     * food slot, or dropped by the barrel.
+     */
+    public void showWalls(MiniFridge mini) {
+        Inventory inventory = barrel(mini);
+        if (inventory == null) return;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            if (MiniFridge.holdsFood(slot)) continue;
+            ItemStack item = inventory.getItem(slot);
+            boolean gap = slot == MiniFridge.GAP;
+            if (isWall(item) && gap == isGap(item)) continue;
+            if (item != null && !item.getType().isAir() && !isWall(item)) {
+                int free = -1;
+                for (int food = MiniFridge.FIRST_FOOD; food <= MiniFridge.LAST_FOOD && free < 0; food++) {
+                    ItemStack there = inventory.getItem(food);
+                    if (there == null || there.getType().isAir()) free = food;
+                }
+                if (free >= 0) inventory.setItem(free, item);
+                else if (inventory.getLocation() != null)
+                    inventory.getLocation().getWorld().dropItemNaturally(inventory.getLocation().add(0.5, 1.1, 0.5), item);
+            }
+            inventory.setItem(slot, wallItem(gap));
+        }
+    }
+
+    ItemStack wallItem(boolean gap) {
+        ItemStack wall = new ItemStack(gap ? Material.CYAN_STAINED_GLASS_PANE : Material.LIGHT_GRAY_STAINED_GLASS_PANE);
+        wall.editMeta(meta -> {
+            meta.displayName(Component.text(gap ? "Chiller box →" : "Fridge wall",
+                    gap ? NamedTextColor.AQUA : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+            if (gap) meta.lore(List.of(Component.text("The slot to the right keeps about", NamedTextColor.GRAY)
+                            .decoration(TextDecoration.ITALIC, false),
+                    Component.text("10° colder than the rest", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+            meta.getPersistentDataContainer().set(wallKey, PersistentDataType.BYTE, (byte) (gap ? 2 : 1));
+        });
+        return wall;
+    }
+
+    public boolean isWall(ItemStack item) {
+        return item != null && !item.getType().isAir() && item.hasItemMeta()
+                && item.getItemMeta().getPersistentDataContainer().has(wallKey, PersistentDataType.BYTE);
+    }
+
+    private boolean isGap(ItemStack item) {
+        Byte kind = item == null || !item.hasItemMeta() ? null
+                : item.getItemMeta().getPersistentDataContainer().get(wallKey, PersistentDataType.BYTE);
+        return kind != null && kind == 2;
+    }
+
+    /** The barrel of a freezer or mini fridge, if its chunk is loaded and it is still a barrel. */
+    private Inventory barrel(Refrigerator freezer) {
         BlockKey key = freezer.barrel();
         if (!key.isChunkLoaded()) return null;
         Location location = key.location();
@@ -162,16 +219,16 @@ public final class FreezerFrost implements Listener {
     public void clear(Inventory inventory) {
         for (int slot = 0; slot < inventory.getSize(); slot++) {
             ItemStack item = inventory.getItem(slot);
-            if (isFrost(item)) inventory.setItem(slot, null);
+            if (isFrost(item) || isWall(item)) inventory.setItem(slot, null);
             else if (isFrosted(item)) inventory.setItem(slot, thaw(item));
         }
     }
 
-    /** As EZvac stops: no frost is left behind for a server without it. */
+    /** As EZvac stops: no frost, and no mini fridge's walls, are left behind for a server without it. */
     public void clearAll() {
         for (var unit : registry.refrigerators())
-            if (unit instanceof Freezer freezer) {
-                Inventory inventory = barrel(freezer);
+            if (unit instanceof Freezer || unit instanceof MiniFridge) {
+                Inventory inventory = barrel(unit);
                 if (inventory != null) clear(inventory);
             }
     }
@@ -265,10 +322,17 @@ public final class FreezerFrost implements Listener {
 
     private static final Component LOCKED = Component.text("You can't take this out, it's frosted over.",
             NamedTextColor.AQUA);
+    private static final Component WALL = Component.text("That's the mini fridge's wall: food goes in the middle row.",
+            NamedTextColor.GRAY);
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onClick(InventoryClickEvent event) {
         ItemStack current = event.getCurrentItem();
+        if (isWall(current)) {
+            event.setCancelled(true);
+            if (event.getWhoClicked() instanceof Player player) player.sendActionBar(WALL);
+            return;
+        }
         boolean locked = isFrost(current) || isFrosted(current);
         // A number key swapping a hotbar item onto it, or the cursor gathering every match, counts too.
         if (!locked && event.getAction() == InventoryAction.COLLECT_TO_CURSOR) {
@@ -287,7 +351,7 @@ public final class FreezerFrost implements Listener {
         for (int raw : event.getRawSlots()) {
             if (raw >= top.getSize()) continue;
             ItemStack there = top.getItem(raw);
-            if (isFrost(there) || isFrosted(there)) {
+            if (isFrost(there) || isFrosted(there) || isWall(there)) {
                 event.setCancelled(true);
                 tell(event.getWhoClicked());
                 return;
@@ -297,7 +361,7 @@ public final class FreezerFrost implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onHopper(InventoryMoveItemEvent event) {
-        if (isFrost(event.getItem()) || isFrosted(event.getItem())) event.setCancelled(true);
+        if (isFrost(event.getItem()) || isFrosted(event.getItem()) || isWall(event.getItem())) event.setCancelled(true);
     }
 
     private static void tell(HumanEntity who) {

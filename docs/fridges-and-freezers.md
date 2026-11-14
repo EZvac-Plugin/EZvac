@@ -1,6 +1,6 @@
 # Fridges and freezers
 
-New in BETA 1.0 Pilot 7. A fridge, freezer or fridge-freezer keeps a barrel cold, and the heat it pulls out warms the room it stands in.
+New in BETA 1.0 Pilot 7. A fridge, mini fridge, freezer or fridge-freezer keeps a barrel cold, and the heat it pulls out warms the room it stands in.
 
 In EZvac itself **food never spoils**: a fridge is a cold barrel. With an addon such as [EZclimates](https://github.com/EZvac-Plugin/EZclimates) and its Food spoiling part switched on, food keeps longer the colder it's kept, and a fridge or freezer is where it keeps best.
 
@@ -19,6 +19,22 @@ In EZvac itself **food never spoils**: a fridge is a cold barrel. With an addon 
 Click the sign to change the setpoint a degree at a time; sneak-click to switch it on or off. Its screen shows the temperature inside, the setpoint, and whether it's **Cooling**, **Holding**, **Door open** or **Off**. `/hvac info` while looking at it says the same, and what it stands in: a system's room, or the air outside.
 
 Breaking the sign, the iron block or the barrel removes it; the barrel drops what it held, as any barrel does.
+
+## Mini fridges
+
+A small fridge for a desk, a bedroom or a bar: just a **barrel with a sign on its side**, no iron block (its compressor is inside). Look at the sign and run `/hvac create minifridge [label]` (or `mini-fridge`, `mini`).
+
+```
+▒ ▒ ▒ ▒ ▒ ▒ ▒ ▒ ▒      ▒  its walls
+□ □ □ □ □ □ □ ▒ ❄      □  food (seven slots)   ❄  the chiller box
+▒ ▒ ▒ ▒ ▒ ▒ ▒ ▒ ▒
+```
+
+- It holds a fridge's range, 33 to 50 °F (37 by default), but less: food goes in the **seven slots** along the middle row. The rest of the barrel is its walls, which can't be taken out; anything already where a wall goes is moved to a free slot, or dropped.
+- The last slot is the **chiller box**: about 10 °F colder than the rest while it's on, so at 37 °F it sits just below freezing. There's no separate control for it, as on a real mini fridge. With EZclimates, food in the chiller keeps as frozen food does.
+- It's smaller: it cools at half a fridge's pace, an opening lets in half as much again, and it warms its room half as much. It never frosts.
+
+Its screen shows its inside and the chiller's; `/hvac info` says both.
 
 ## Fridge-freezers
 
@@ -40,8 +56,8 @@ Each barrel is its own door: opening the fridge warms only the fridge. The freez
 - **Frost.** A freezer frosts up: a little each time it's opened (more in humid air, and only for the air that actually came in, so opening it again and again frosts it no more than once) and slowly while its compressor runs. Frost grows in round the edge of the barrel, a slot for every twentieth: empty edge slots fill with **Frost** first, and only once none are left is food against the wall **frosted over**, which can't be taken out until a defrost frees it. The middle row's inner seven slots never frost. Frost also slows its cooling, by up to half. A **defrost** melts it in half an in-game hour, its heater keeping food frozen: on its own at 60% frost, or from **Defrost now** in its menu, which works even when it's off. **Auto defrost** in the menu switches the automatic ones off. `/hvac frost <0-100>` sets it, for admins.
 - **The room.** A running fridge adds 0.3 °F an in-game hour to its system's room, a freezer 0.5, less in a bigger room: a kitchen full of freezers makes its AC work harder.
 
-All of this is under [`refrigeration:`](configuration.md#refrigeration) in `config.yml`. Fridges, freezers and fridge-freezers can be switched off server-wide in [quick settings](screens-and-menus.md#devices), on the Devices page's second row.
+All of this is under [`refrigeration:`](configuration.md#refrigeration) in `config.yml`. Fridges, mini fridges, freezers and fridge-freezers can be switched off server-wide in [quick settings](screens-and-menus.md#devices), on the Devices page's second row.
 
 ## For addon developers
 
-API 1.12 lists them among the climate units (`ClimateUnitView.Kind` `FRIDGE`, `FREEZER` and `FRIDGE_FREEZER`, with `insideF()`: a fridge-freezer's is its freezer's), and `storageTemperatureF(world, x, y, z)` gives the temperature inside any container: a fridge's or freezer's inside (either compartment of a fridge-freezer), or the air there. See [the API](api.md).
+API 1.12 lists them among the climate units (`ClimateUnitView.Kind` `FRIDGE`, `FREEZER`, `FRIDGE_FREEZER` and `MINI_FRIDGE`, with `insideF()`: a fridge-freezer's is its freezer's), and `storageTemperatureF(world, x, y, z)` gives the temperature inside any container: a fridge's or freezer's inside (either compartment of a fridge-freezer), or the air there. `storageTemperatureF(world, x, y, z, slot)` gives it for one slot, which differs only in a mini fridge's chiller box. See [the API](api.md).

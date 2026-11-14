@@ -61,10 +61,10 @@ public record ClimateUnitView(String label, Kind kind, Position position, double
     public enum Fan { LOW, MEDIUM, HIGH, AUTO }
 
     /**
-     * {@code AIR_PURIFIER} since 1.5, {@code FRIDGE}, {@code FREEZER} and {@code FRIDGE_FREEZER} since 1.12: a switch over this needs a
+     * {@code AIR_PURIFIER} since 1.5, {@code FRIDGE}, {@code FREEZER}, {@code FRIDGE_FREEZER} and {@code MINI_FRIDGE} since 1.12: a switch over this needs a
      * default branch to stay safe as kinds are added.
      */
-    public enum Kind { DEHUMIDIFIER, HUMIDIFIER, AIR_PURIFIER, FRIDGE, FREEZER, FRIDGE_FREEZER }
+    public enum Kind { DEHUMIDIFIER, HUMIDIFIER, AIR_PURIFIER, FRIDGE, FREEZER, FRIDGE_FREEZER, MINI_FRIDGE }
 
     /**
      * {@code EMPTYING} is a full dehumidifier tank draining; {@code NO_FILTER} and

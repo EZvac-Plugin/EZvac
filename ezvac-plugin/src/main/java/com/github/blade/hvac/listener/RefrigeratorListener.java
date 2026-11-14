@@ -44,6 +44,8 @@ public final class RefrigeratorListener implements Listener {
             displays.refreshClimateUnit(both, true);
             return;
         }
+        // A mini fridge's walls are in place before anyone sees inside.
+        if (refrigerator instanceof com.github.blade.hvac.model.MiniFridge mini) frost.showWalls(mini);
         double letIn = refrigerator.opened(units.airAround(refrigerator), units.climate().refrigeration());
         // A freezer's frost: the air that came in leaves some behind, more when it's humid; seen at once.
         if (refrigerator instanceof com.github.blade.hvac.model.Freezer freezer) {

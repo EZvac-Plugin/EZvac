@@ -18,7 +18,7 @@ import java.util.Map;
  *
  * <p>The model is pure, so it can be tested without a server.
  */
-public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Freezer {
+public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Freezer, MiniFridge {
     /** The barrel it keeps cold. */
     public static final Material BARREL = Material.BARREL;
 
@@ -56,6 +56,14 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
         return barrel().equals(barrel) ? insideF : Double.NaN;
     }
 
+    /**
+     * The inside at one slot of the barrel at this block: the same all
+     * through, except a mini fridge's chiller box.
+     */
+    public double insideAt(BlockKey barrel, int slot) {
+        return insideAt(barrel);
+    }
+
     /** Whether the barrel at this block is one it keeps cold. */
     public boolean keepsCold(BlockKey barrel) {
         return barrel().equals(barrel);
@@ -87,7 +95,7 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
         viewers++;
         double letIn = spill;
         if (Double.isFinite(roomF) && Double.isFinite(insideF))
-            insideF += (roomF - insideF) * settings.doorShare() * letIn;
+            insideF += (roomF - insideF) * Math.min(1.0, settings.doorShare() * doorFactor()) * letIn;
         spill = 0.0;
         return letIn;
     }
@@ -166,6 +174,11 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
      */
     protected boolean advanceFrost(double hours, double humidity, long elapsedTicks, RefrigerationSettings settings) {
         return false;
+    }
+
+    /** How much more an opening lets in than a fridge's: a mini fridge holds less cold air. */
+    protected double doorFactor() {
+        return 1.0;
     }
 
     /** How much of its compressor's pull it gets: less for a frosted-up freezer. */

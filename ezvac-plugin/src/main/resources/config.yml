@@ -36,8 +36,8 @@ addons:
 # Device kinds switched off server-wide (BETA 1.0): they stop, and no new one
 # can be made; switched back on, each runs again as it was set. The kinds:
 # heat-pump, air-conditioner, furnace, boiler, pool-heat-pump, dehumidifier,
-# humidifier, air-purifier, fridge, freezer, fridge-freezer (the last three
-# BETA 1.0 Pilot 7).
+# humidifier, air-purifier, fridge, mini-fridge, freezer, fridge-freezer
+# (the last four BETA 1.0 Pilot 7).
 # /hvac quicksettings switches them while the server runs, as it does
 # air-quality, pollen, wind and seasons below.
 devices:
@@ -389,7 +389,9 @@ humidifier:
 # makes its AC work harder. A fridge-freezer (/hvac create fridge-freezer)
 # stacks two barrels on the iron block, the freezer below and the fridge on
 # top, one compressor cooling both, and warms its room as a fridge and a
-# freezer together. In EZvac itself food never spoils; an addon such
+# freezer together. A mini fridge (/hvac create minifridge) is a barrel with
+# the sign on it: seven slots and a chiller box about 10 F colder, at half a
+# fridge's pace and heat. In EZvac itself food never spoils; an addon such
 # as EZclimates makes food keep longer the colder it's kept. Rates are per
 # in-game hour.
 refrigeration:

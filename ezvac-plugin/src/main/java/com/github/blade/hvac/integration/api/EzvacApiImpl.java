@@ -537,6 +537,16 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         return readingAt(new Location(world, x + 0.5, y + 0.5, z + 0.5)).temperatureF();
     }
 
+    @Override
+    public double storageTemperatureF(World world, int x, int y, int z, int slot) {
+        if (world == null || !world.isChunkLoaded(x >> 4, z >> 4)) return Double.NaN;
+        BlockKey key = BlockKey.of(new Location(world, x, y, z));
+        com.github.blade.hvac.model.Refrigerator refrigerator = registry.refrigeratorAt(key);
+        if (refrigerator != null && refrigerator.keepsCold(key) && Double.isFinite(refrigerator.insideAt(key, slot)))
+            return refrigerator.insideAt(key, slot);
+        return storageTemperatureF(world, x, y, z);
+    }
+
     // ---- API 1.11 ----
 
     /** Plugins showing EZvac's rain and snow, by name: in which worlds. */

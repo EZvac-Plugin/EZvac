@@ -105,7 +105,7 @@ devices:
 
 New in BETA 1.0. Device kinds switched off server-wide: `heat-pump`,
 `air-conditioner`, `furnace`, `boiler`, `pool-heat-pump`, `dehumidifier`,
-`humidifier`, `air-purifier`, and since Pilot 7 `fridge`, `freezer` and `fridge-freezer`. Devices of a kind listed here stop, and no
+`humidifier`, `air-purifier`, and since Pilot 7 `fridge`, `mini-fridge`, `freezer` and `fridge-freezer`. Devices of a kind listed here stop, and no
 new one can be made; taken off the list, each runs again as it was set. A
 name that is no kind is pointed out at start-up and ignored.
 
@@ -416,7 +416,7 @@ New in BETA 1.0 Pilot 4. See [Climate](climate.md#feels-like).
 
 ## refrigeration
 
-Fridges, freezers and fridge-freezers (BETA 1.0 Pilot 7); see [Fridges and freezers](fridges-and-freezers.md). Rates are per in-game hour.
+Fridges, mini fridges, freezers and fridge-freezers (BETA 1.0 Pilot 7); see [Fridges and freezers](fridges-and-freezers.md). Rates are per in-game hour.
 
 | Setting | Default | |
 |---|---|---|

@@ -21,6 +21,7 @@ public enum DeviceKind {
     FRIDGE("fridge", "Fridge", "Fridges", Material.BARREL),
     FREEZER("freezer", "Freezer", "Freezers", Material.PACKED_ICE),
     FRIDGE_FREEZER("fridge-freezer", "Fridge-freezer", "Fridge-freezers", Material.BLUE_ICE),
+    MINI_FRIDGE("mini-fridge", "Mini fridge", "Mini fridges", Material.SNOW_BLOCK),
     WEATHER_STATION("weather-station", "Weather station", "Weather stations", Material.LIGHTNING_ROD);
 
     private final String configName;
@@ -59,6 +60,7 @@ public enum DeviceKind {
             case FRIDGE -> FRIDGE;
             case FREEZER -> FREEZER;
             case FRIDGE_FREEZER -> FRIDGE_FREEZER;
+            case MINI_FRIDGE -> MINI_FRIDGE;
         };
     }
 
