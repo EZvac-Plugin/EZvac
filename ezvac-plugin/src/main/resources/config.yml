@@ -413,15 +413,16 @@ refrigeration:
   freezer-heat-f-per-minecraft-hour: 0.5
   reference-cells: 1500
   # Frost in freezers. It grows in round the edge of the barrel from the
-  # corners, a slot at a time (20 slots for a full ring; the middle row's
-  # inner seven never frost). Empty slots fill with Frost; food already there
-  # is frosted over and can't be taken out until a defrost frees it. Frost
-  # also slows the freezer's cooling. Its menu has Defrost now and Auto
+  # corners, a slot for every twentieth of a full ring (the middle row's inner
+  # seven never frost). It fills the empty edge slots first; food against the
+  # wall frosts over only once no empty edge is left, and then can't be taken
+  # out until a defrost frees it (food is freed first, too). Frost also slows
+  # the freezer's cooling. Its menu has Defrost now and Auto
   # defrost; /hvac frost <percent> sets it, looking at a freezer.
   frost:
     # How much of a full ring each opening adds, in air of 50% RH: twice as
     # much at 100%, less in dry air.
-    per-opening: 0.04
+    per-opening: 0.01
     # How much it adds per in-game hour its compressor runs, at 50% RH.
     per-running-hour: 0.005
     # A full ring slows its cooling by this share.

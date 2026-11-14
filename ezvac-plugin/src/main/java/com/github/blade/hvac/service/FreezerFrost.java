@@ -99,18 +99,49 @@ public final class FreezerFrost implements Listener {
         return location.getBlock().getState(false) instanceof Barrel barrel ? barrel.getInventory() : null;
     }
 
+    /**
+     * How many of the ring's slots a freezer's frost covers: one for every
+     * full twentieth, so a little frost covers nothing yet.
+     */
+    static int reach(double frost) {
+        return (int) Math.floor(frost * RING.length + 1e-9);
+    }
+
+    /**
+     * Which ring slots frost covers: the empty ones (and those already
+     * Frost) first, in ring order, and food against the wall only once
+     * there's no empty edge left. So food frosts last and is freed first.
+     *
+     * @param holdsFood for each ring position, true where food (frosted or not) lies
+     * @return for each ring position, true where it's covered
+     */
+    static boolean[] covered(int reach, boolean[] holdsFood) {
+        boolean[] covered = new boolean[holdsFood.length];
+        int left = reach;
+        for (int i = 0; i < holdsFood.length && left > 0; i++)
+            if (!holdsFood[i]) { covered[i] = true; left--; }
+        for (int i = 0; i < holdsFood.length && left > 0; i++)
+            if (holdsFood[i]) { covered[i] = true; left--; }
+        return covered;
+    }
+
     /** Brings a freezer's barrel in line with its frost. */
     public void show(Freezer freezer) {
         Inventory inventory = barrel(freezer);
         if (inventory == null) return;
-        int reach = (int) Math.round(freezer.frost() * RING.length);
         boolean[] ring = new boolean[inventory.getSize()];
+        boolean[] holdsFood = new boolean[RING.length];
+        for (int i = 0; i < RING.length && RING[i] < ring.length; i++) {
+            ItemStack item = inventory.getItem(RING[i]);
+            holdsFood[i] = item != null && !item.getType().isAir() && !isFrost(item);
+        }
+        boolean[] covered = covered(reach(freezer.frost()), holdsFood);
         for (int i = 0; i < RING.length && RING[i] < ring.length; i++) {
             int slot = RING[i];
             ring[slot] = true;
             ItemStack item = inventory.getItem(slot);
             boolean empty = item == null || item.getType().isAir();
-            if (i < reach) {
+            if (covered[i]) {
                 if (empty) inventory.setItem(slot, frostItem());
                 else if (!isFrost(item) && !isFrosted(item)) inventory.setItem(slot, frostOver(item));
             } else if (!empty) {
