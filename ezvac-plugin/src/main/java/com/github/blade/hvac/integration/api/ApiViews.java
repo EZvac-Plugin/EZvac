@@ -137,8 +137,8 @@ public final class ApiViews {
             case HUMIDIFIER -> ClimateUnitView.Kind.HUMIDIFIER;
             case AIR_PURIFIER -> ClimateUnitView.Kind.AIR_PURIFIER;
             case FRIDGE -> ClimateUnitView.Kind.FRIDGE;
-            case FREEZER -> ClimateUnitView.Kind.FREEZER;
-            case FRIDGE_FREEZER -> ClimateUnitView.Kind.FRIDGE_FREEZER;
+            case FREEZER -> ClimateUnitView.Kind.DEEP_FREEZER;
+            case FRIDGE_FREEZER -> ClimateUnitView.Kind.REFRIGERATOR;
             case MINI_FRIDGE -> ClimateUnitView.Kind.MINI_FRIDGE;
         };
         ClimateUnitView.State state = switch (unit.state()) {

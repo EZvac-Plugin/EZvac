@@ -4,35 +4,40 @@ All notable changes to EZvac are recorded here.
 
 ## BETA 1.0 Pilot 7
 
-**EZvac/R: fridges and freezers.** The save is unchanged (format 8).
+**EZvac/R: refrigeration.** The save is unchanged (format 8).
 
-### Fridges and freezers
+### Refrigeration
 
-**EZvac/R:** fridges and freezers. An iron block, its compressor, with a
-barrel on top and a sign on the iron block's side: `/hvac create fridge`
-(33 to 50 °F, 37 by default) or `/hvac create freezer` (−10 to 20 °F, 0 by
-default).
+**EZvac/R:** four appliances that keep barrels cold. Each is an iron block,
+its compressor, with a sign on its side and barrels on top (a mini fridge is
+just a barrel with the sign on it):
 
-- It keeps the barrel cold: a running compressor pulls the inside down to
-  its setpoint, and its inside slowly closes on the room through the walls.
-- Opening the barrel lets the air around it in (opening it over and over adds
+- **Mini fridge** (`/hvac create minifridge`): seven slots of food along the
+  middle row, the rest its walls, and a chiller box in the last slot about
+  10 °F colder. Half a fridge's pace and heat.
+- **Fridge** (`/hvac create fridge`): 33 to 50 °F, one to three barrels
+  stacked, as a shop's or a restaurant's.
+- **Refrigerator** (`/hvac create refrigerator`): the freezer barrel below
+  (−5 to 10 °F) and the fridge barrel on top, each at its own setpoint on one
+  compressor, each barrel its own door. Its freezer defrosts itself.
+- **Deep freezer** (`/hvac create deepfreezer`): −20 to 0 °F. Its barrel
+  opens like a chest freezer's lid, so far less warm air and frost come in,
+  and it never defrosts itself: Defrost now in its menu.
+
+How they work:
+
+- A running compressor pulls the inside down to its setpoint, and the inside
+  slowly closes on the room through the walls.
+- Opening a barrel lets the air around it in (opening it over and over adds
   next to nothing more); the screen says "Door open".
-- The heat it pulls out warms its system's room, so a kitchen full of
-  freezers makes the AC work harder.
-- Its screen shows the inside temperature, the setpoint and what it's doing;
-  the sign's menu sets the setpoint a degree at a time; `/hvac info` says
-  which room it warms.
-- **Fridge-freezers:** `/hvac create fridge-freezer`, two barrels stacked
-  on the iron block, the freezer below and the fridge on top, each at its
-  own setpoint on one compressor, each barrel its own door.
-- **Mini fridges:** `/hvac create minifridge`, a barrel with the sign on its
-  side and no iron block. Seven slots of food and a chiller box about 10 °F
-  colder; half a fridge's pace and heat.
-- **Frost** in freezers: it builds a little with each opening (more in humid
+- **Frost** in freezers builds a little with each opening (more in humid
   air) and while the compressor runs, fills the barrel's empty edge slots
-  first and then frosts over food against the wall, which stays locked
-  until a defrost. It slows the cooling too. Freezers defrost themselves at
-  60%, or from Defrost now in the menu; Auto defrost switches that off.
+  first and then frosts over food against the wall, which stays locked until
+  a defrost. It slows the cooling too.
+- The heat they pull out warms their system's room, so a kitchen full of
+  them makes the AC work harder.
+- Their screens are laid out like an appliance's door panel; the sign's menu
+  sets the setpoint a degree at a time; `/hvac info` says which room it warms.
 - Food never spoils in EZvac itself; with EZclimates' Food spoiling, food
   keeps longer the colder it's kept.
 - A `refrigeration:` section in `config.yml`, added on upgrade, and a second
@@ -40,10 +45,10 @@ default).
 
 ### For addon developers: API 1.12
 
-- `ClimateUnitView.Kind` `FRIDGE`, `FREEZER`, `FRIDGE_FREEZER` and
-  `MINI_FRIDGE`, with `insideF()`.
+- `ClimateUnitView.Kind` `MINI_FRIDGE`, `FRIDGE`, `REFRIGERATOR` and
+  `DEEP_FREEZER`, with `insideF()`.
 - `storageTemperatureF(world, x, y, z)`: how cold it is inside a container,
-  either compartment of a fridge-freezer included; with a slot, a mini
+  either compartment of a refrigerator included; with a slot, a mini
   fridge's chiller box too.
 
 ## BETA 1.0 Pilot 6

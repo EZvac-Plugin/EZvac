@@ -92,8 +92,8 @@ public final class QuickSettingsMenu implements Listener {
     /** The kinds as the Devices page shows them: the climate devices in a row, fridges and freezers below (Pilot 7). */
     static final DeviceKind[] DEVICE_ORDER = {DeviceKind.HEAT_PUMP, DeviceKind.AIR_CONDITIONER, DeviceKind.FURNACE,
             DeviceKind.BOILER, DeviceKind.POOL_HEAT_PUMP, DeviceKind.DEHUMIDIFIER, DeviceKind.HUMIDIFIER,
-            DeviceKind.AIR_PURIFIER, DeviceKind.WEATHER_STATION, DeviceKind.FRIDGE, DeviceKind.MINI_FRIDGE,
-            DeviceKind.FREEZER, DeviceKind.FRIDGE_FREEZER};
+            DeviceKind.AIR_PURIFIER, DeviceKind.WEATHER_STATION, DeviceKind.MINI_FRIDGE, DeviceKind.FRIDGE,
+            DeviceKind.FRIDGE_FREEZER, DeviceKind.FREEZER};
     static final int[] DEVICE_SLOTS = {9, 10, 11, 12, 13, 14, 15, 16, 17, 28, 30, 32, 34};
     /** Air quality, pollen, wind, seasons and building size, with their switches beneath. */
     static final int AIR = 9, POLLEN = 11, WIND = 13, SEASONS = 15, SIZING = 17;

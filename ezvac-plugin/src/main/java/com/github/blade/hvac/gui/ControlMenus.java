@@ -65,7 +65,7 @@ public final class ControlMenus implements Listener {
     static final int ATTENTION = 0, PROFILE = 4, SYSTEM = 8;
     /** A freezer's defrost (BETA 1.0 Pilot 7): start one now, and whether it defrosts on its own. */
     static final int DEFROST = 20, AUTO_DEFROST = 24;
-    /** A fridge-freezer's fridge, along the top row (its freezer is the middle row). */
+    /** A refrigerator's fridge, along the top row (its freezer is the middle row). */
     static final int FRIDGE_RAISE = 2, FRIDGE_INFO = 4, FRIDGE_LOWER = 6;
     /** Humidity only moves in fives, on the middle row. */
     static final int HUMIDITY_RAISE = 11, HUMIDITY_LOWER = 15;
@@ -389,8 +389,9 @@ public final class ControlMenus implements Listener {
                             : "Defrost now", NamedTextColor.AQUA),
                     List.of(gray("Frost " + frost + "%"),
                             gray("Melts the frost and frees frosted food;"),
-                            gray("food stays frozen. Works even when off."))));
-            inventory.setItem(AUTO_DEFROST, item(freezer.autoDefrost() ? Material.LIME_DYE : Material.RED_DYE,
+                            gray("food stays frozen. Works even when off."),
+                            gray(freezer.hasAutoDefrost() ? "" : "A deep freezer never defrosts itself."))));
+            if (freezer.hasAutoDefrost()) inventory.setItem(AUTO_DEFROST, item(freezer.autoDefrost() ? Material.LIME_DYE : Material.RED_DYE,
                     Component.text("Auto defrost: " + (freezer.autoDefrost() ? "On" : "Off"),
                             freezer.autoDefrost() ? NamedTextColor.GREEN : NamedTextColor.RED),
                     List.of(gray(freezer.autoDefrost() ? "It defrosts itself once the frost is heavy"
@@ -415,8 +416,9 @@ public final class ControlMenus implements Listener {
             case AIR_PURIFIER -> new int[] {0, 0};    // it has modes, not a setpoint
             case FRIDGE, MINI_FRIDGE -> new int[] {RefrigerationSettings.FRIDGE_MINIMUM_F,
                     RefrigerationSettings.FRIDGE_MAXIMUM_F};
-            case FREEZER, FRIDGE_FREEZER -> new int[] {RefrigerationSettings.FREEZER_MINIMUM_F,
-                    RefrigerationSettings.FREEZER_MAXIMUM_F};
+            case FREEZER -> new int[] {RefrigerationSettings.FREEZER_MINIMUM_F, RefrigerationSettings.FREEZER_MAXIMUM_F};
+            case FRIDGE_FREEZER -> new int[] {RefrigerationSettings.REFRIGERATOR_FREEZER_MINIMUM_F,
+                    RefrigerationSettings.REFRIGERATOR_FREEZER_MAXIMUM_F};
         };
     }
 
@@ -536,7 +538,7 @@ public final class ControlMenus implements Listener {
                 return false;
             }
             freezer.startDefrost(climate.refrigeration());
-        } else if (unit instanceof Freezer freezer && slot == AUTO_DEFROST) {
+        } else if (unit instanceof Freezer freezer && freezer.hasAutoDefrost() && slot == AUTO_DEFROST) {
             freezer.setAutoDefrost(!freezer.autoDefrost());
         } else if (unit instanceof Refrigerator refrigerator && (slot == HUMIDITY_RAISE || slot == HUMIDITY_LOWER)) {
             int setpoint = Math.max(refrigerator.minimumF(), Math.min(refrigerator.maximumF(),

@@ -48,9 +48,9 @@ class RefrigeratorTest {
         run(freezer, 70.0, 10.0);
         assertTrue(freezer.insideF() <= 0.0 + SETTINGS.hysteresisF() + 1.0, "a freezer reaches 0 F: " + freezer.insideF());
         freezer.setSetpoint(40);
-        assertEquals(20, freezer.setpoint(), "a freezer goes no warmer than 20 F");
+        assertEquals(0, freezer.setpoint(), "a deep freezer goes no warmer than 0 F");
         freezer.setSetpoint(-40);
-        assertEquals(-10, freezer.setpoint());
+        assertEquals(-20, freezer.setpoint());
         Fridge fridge = fridge();
         fridge.setSetpoint(10);
         assertEquals(33, fridge.setpoint(), "a fridge never freezes");
@@ -110,12 +110,44 @@ class RefrigeratorTest {
             spammed.closed();
         }
         assertEquals(once.frost(), spammed.frost(), 1e-9, "twenty quick openings, the frost of one");
-        assertEquals(start + SETTINGS.frostPerOpening(), once.frost(), 1e-9);
+        assertEquals(start + SETTINGS.frostPerOpening() * Freezer.LID_FROST, once.frost(), 1e-9);
         // Shut an hour, a full opening's air (and frost) again.
         run(once, 70.0, 1.0);
         double rested = once.frost();
         once.frostFromOpening(50.0, once.opened(70.0, SETTINGS), SETTINGS);
-        assertEquals(rested + SETTINGS.frostPerOpening(), once.frost(), 1e-9);
+        assertEquals(rested + SETTINGS.frostPerOpening() * Freezer.LID_FROST, once.frost(), 1e-9);
+    }
+
+    @Test
+    void aDeepFreezersLidLetsInLessThanADoor() {
+        Freezer deep = freezer();
+        Fridge fridge = fridge();
+        run(deep, 70.0, 10.0);
+        run(fridge, 70.0, 10.0);
+        double d = deep.insideF(), f = fridge.insideF();
+        deep.opened(70.0, SETTINGS);
+        fridge.opened(70.0, SETTINGS);
+        assertEquals((70.0 - d) * SETTINGS.doorShare() * Freezer.LID, deep.insideF() - d, 1e-9);
+        assertEquals((70.0 - f) * SETTINGS.doorShare(), fridge.insideF() - f, 1e-9);
+    }
+
+    @Test
+    void aFridgeKeepsUpToThreeBarrels() {
+        BlockKey b2 = new BlockKey(WORLD, 0, 67, 0), b3 = new BlockKey(WORLD, 0, 68, 0);
+        Fridge tall = new Fridge(new BlockKey(WORLD, 1, 65, 0), new BlockKey(WORLD, 0, 65, 0),
+                new BlockKey(WORLD, 0, 66, 0), java.util.List.of(b2, b3), "shop", 37);
+        assertEquals(3, tall.barrels());
+        assertEquals(java.util.List.of(b2, b3), tall.extraBlocks());
+        assertTrue(tall.keepsCold(b3) && tall.keepsCold(tall.barrel()));
+        assertEquals(SETTINGS.fridgeHeatFPerHour() * 3, tall.heatFPerHour(SETTINGS), 1e-9, "a fridge's worth a barrel");
+        run(tall, 70.0, 6.0);
+        assertEquals(tall.insideF(), tall.insideAt(b3), 1e-9, "one inside through them all");
+        Fridge loaded = Fridge.fromMap(tall.toMap());
+        assertEquals(java.util.List.of(b2, b3), loaded.extraBlocks(), "its barrels are saved");
+        assertEquals(1, Fridge.fromMap(fridge().toMap()).barrels());
+        assertThrows(IllegalArgumentException.class, () -> new Fridge(new BlockKey(WORLD, 1, 65, 0),
+                new BlockKey(WORLD, 0, 65, 0), new BlockKey(WORLD, 0, 66, 0),
+                java.util.List.of(b2, b3, new BlockKey(WORLD, 0, 69, 0)), "x", 37), "three at most");
     }
 
     @Test
@@ -143,7 +175,8 @@ class RefrigeratorTest {
             humid.frostFromOpening(90.0, 1.0, SETTINGS);
         }
         assertTrue(humid.frost() > 2 * dry.frost(), humid.frost() + " vs " + dry.frost());
-        assertEquals(5 * SETTINGS.frostPerOpening() * 1.8, humid.frost(), 1e-9);
+        assertEquals(5 * SETTINGS.frostPerOpening() * 1.8 * Freezer.LID_FROST, humid.frost(), 1e-9,
+                "a deep freezer's lid leaves half a door's frost");
         // A full ring halves its cooling.
         Freezer clean = freezer(), frosted = freezer();
         frosted.setFrost(1.0);
@@ -154,8 +187,17 @@ class RefrigeratorTest {
     }
 
     @Test
-    void itDefrostsItselfAndFoodStaysFrozen() {
-        Freezer freezer = freezer();
+    void aRefrigeratorsFreezerDefrostsItselfAndFoodStaysFrozenButADeepFreezerNever() {
+        Freezer deep = freezer();
+        run(deep, 70.0, 10.0);
+        deep.setFrost(0.95);
+        deep.step(70.0, 50.0, HOUR / 10, SETTINGS);
+        assertFalse(deep.defrosting(), "a deep freezer never defrosts itself");
+        assertFalse(deep.hasAutoDefrost());
+        deep.setAutoDefrost(true);
+        assertFalse(deep.autoDefrost(), "and can't be told to");
+        Freezer freezer = new FridgeFreezer(new BlockKey(WORLD, 1, 65, 9), new BlockKey(WORLD, 0, 65, 9),
+                new BlockKey(WORLD, 0, 66, 9), new BlockKey(WORLD, 0, 67, 9), "kitchen", 0, 37);
         run(freezer, 70.0, 10.0);
         freezer.setFrost(SETTINGS.autoDefrostAt());
         freezer.step(70.0, 50.0, HOUR / 10, SETTINGS);

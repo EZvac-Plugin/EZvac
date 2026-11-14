@@ -21,7 +21,7 @@ import java.util.OptionalDouble;
  * @param airQuality what is in the air of the space it works on (1.5), empty before it first measured
  * @param fanMode  an air purifier's mode (1.5): a fixed speed, or {@code AUTO}; empty for the others
  * @param fanSpeed the speed an air purifier runs at (1.5), never {@code AUTO}; empty for the others
- * @param insideF  a fridge's or freezer's inside, in F (1.12; a fridge-freezer's freezer, its fridge being
+ * @param insideF  a fridge's or freezer's inside, in F (1.12; a refrigerator's freezer, its fridge being
  *                 in {@code storageTemperatureF} at its barrel); empty for the others, and before it first ran
  * @since 1.0
  */
@@ -61,10 +61,10 @@ public record ClimateUnitView(String label, Kind kind, Position position, double
     public enum Fan { LOW, MEDIUM, HIGH, AUTO }
 
     /**
-     * {@code AIR_PURIFIER} since 1.5, {@code FRIDGE}, {@code FREEZER}, {@code FRIDGE_FREEZER} and {@code MINI_FRIDGE} since 1.12: a switch over this needs a
+     * {@code AIR_PURIFIER} since 1.5, {@code FRIDGE}, {@code DEEP_FREEZER}, {@code REFRIGERATOR} and {@code MINI_FRIDGE} since 1.12: a switch over this needs a
      * default branch to stay safe as kinds are added.
      */
-    public enum Kind { DEHUMIDIFIER, HUMIDIFIER, AIR_PURIFIER, FRIDGE, FREEZER, FRIDGE_FREEZER, MINI_FRIDGE }
+    public enum Kind { DEHUMIDIFIER, HUMIDIFIER, AIR_PURIFIER, FRIDGE, DEEP_FREEZER, REFRIGERATOR, MINI_FRIDGE }
 
     /**
      * {@code EMPTYING} is a full dehumidifier tank draining; {@code NO_FILTER} and

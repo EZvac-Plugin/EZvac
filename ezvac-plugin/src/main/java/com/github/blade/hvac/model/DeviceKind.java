@@ -19,8 +19,8 @@ public enum DeviceKind {
     HUMIDIFIER("humidifier", "Humidifier", "Humidifiers", Material.CUT_COPPER_SLAB),
     AIR_PURIFIER("air-purifier", "Air purifier", "Air purifiers", Material.TUBE_CORAL_BLOCK),
     FRIDGE("fridge", "Fridge", "Fridges", Material.BARREL),
-    FREEZER("freezer", "Freezer", "Freezers", Material.PACKED_ICE),
-    FRIDGE_FREEZER("fridge-freezer", "Fridge-freezer", "Fridge-freezers", Material.BLUE_ICE),
+    FREEZER("deep-freezer", "Deep freezer", "Deep freezers", Material.PACKED_ICE),
+    FRIDGE_FREEZER("refrigerator", "Refrigerator", "Refrigerators", Material.BLUE_ICE),
     MINI_FRIDGE("mini-fridge", "Mini fridge", "Mini fridges", Material.SNOW_BLOCK),
     WEATHER_STATION("weather-station", "Weather station", "Weather stations", Material.LIGHTNING_ROD);
 
@@ -69,6 +69,9 @@ public enum DeviceKind {
         if (name == null) return null;
         String normalized = name.trim().toLowerCase(Locale.ROOT).replace('_', '-');
         for (DeviceKind kind : values()) if (kind.configName.equals(normalized)) return kind;
+        // Their names while Pilot 7 was being made.
+        if (normalized.equals("freezer")) return FREEZER;
+        if (normalized.equals("fridge-freezer")) return FRIDGE_FREEZER;
         return null;
     }
 

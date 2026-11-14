@@ -36,7 +36,7 @@ addons:
 # Device kinds switched off server-wide (BETA 1.0): they stop, and no new one
 # can be made; switched back on, each runs again as it was set. The kinds:
 # heat-pump, air-conditioner, furnace, boiler, pool-heat-pump, dehumidifier,
-# humidifier, air-purifier, fridge, mini-fridge, freezer, fridge-freezer
+# humidifier, air-purifier, mini-fridge, fridge, refrigerator, deep-freezer
 # (the last four BETA 1.0 Pilot 7).
 # /hvac quicksettings switches them while the server runs, as it does
 # air-quality, pollen, wind and seasons below.
@@ -381,24 +381,26 @@ humidifier:
   # It starts again once RH is this far below the setpoint.
   hysteresis: 2.0
 
-# Fridges and freezers (BETA 1.0 Pilot 7): an iron block, its compressor,
-# with a barrel on top and a sign on the iron block's side, registered with
-# /hvac create fridge or /hvac create freezer. It keeps the barrel cold: a
-# fridge at 33 to 50 F, a freezer at -10 to 20 F, set from its sign. The heat
-# it pulls out warms the room it stands in, so a system's room full of them
-# makes its AC work harder. A fridge-freezer (/hvac create fridge-freezer)
-# stacks two barrels on the iron block, the freezer below and the fridge on
-# top, one compressor cooling both, and warms its room as a fridge and a
-# freezer together. A mini fridge (/hvac create minifridge) is a barrel with
-# the sign on it: seven slots and a chiller box about 10 F colder, at half a
-# fridge's pace and heat. In EZvac itself food never spoils; an addon such
-# as EZclimates makes food keep longer the colder it's kept. Rates are per
-# in-game hour.
+# Refrigeration (BETA 1.0 Pilot 7). Each is an iron block, its compressor,
+# with a sign on its side and barrels on top, set from its sign:
+# - a fridge (/hvac create fridge): 33 to 50 F, one to three barrels stacked;
+# - a refrigerator (/hvac create refrigerator): the freezer barrel below at
+#   -5 to 10 F, defrosting itself, and the fridge barrel on top;
+# - a deep freezer (/hvac create deepfreezer): -20 to 0 F; its barrel opens
+#   like a chest freezer's lid, and it never defrosts itself.
+# A mini fridge (/hvac create minifridge) is just a barrel with the sign on
+# it: seven slots and a chiller box about 10 F colder, at half a fridge's
+# pace and heat. The heat they pull out warms the room they stand in, so a
+# system's room full of them makes its AC work harder. In EZvac itself food
+# never spoils; an addon such as EZclimates makes food keep longer the
+# colder it's kept. Rates are per in-game hour.
 refrigeration:
-  # false lets every fridge and freezer warm up and sit idle.
+  # false lets every one of them warm up and sit idle.
   enabled: true
+  # A new one's setpoints.
   fridge-default-f: 37
-  freezer-default-f: 0
+  deep-freezer-default-f: -10
+  refrigerator-freezer-default-f: 0
   # How fast a running compressor cools the barrel.
   pull-down-f-per-minecraft-hour: 20.0
   # The share of the gap to the air around it (its system's room, or the air
@@ -414,17 +416,19 @@ refrigeration:
   # It starts this far above its setpoint and runs down to it.
   hysteresis-f: 2.0
   # What a running one adds to its room, in a room of reference-cells; bigger
-  # rooms warm less.
+  # rooms warm less. A fridge adds its share for each barrel, a refrigerator
+  # both, a mini fridge half a fridge's.
   fridge-heat-f-per-minecraft-hour: 0.3
   freezer-heat-f-per-minecraft-hour: 0.5
   reference-cells: 1500
-  # Frost in freezers. It grows in round the edge of the barrel from the
+  # Frost in freezers (a deep freezer's, and a refrigerator's freezer). It grows in round the edge of the barrel from the
   # corners, a slot for every twentieth of a full ring (the middle row's inner
   # seven never frost). It fills the empty edge slots first; food against the
   # wall frosts over only once no empty edge is left, and then can't be taken
   # out until a defrost frees it (food is freed first, too). Frost also slows
-  # the freezer's cooling. Its menu has Defrost now and Auto
-  # defrost; /hvac frost <percent> sets it, looking at a freezer.
+  # the freezer's cooling. A deep freezer's lid lets in half the frost of a
+  # door. Its menu has Defrost now (and a refrigerator's, Auto defrost);
+  # /hvac frost <percent> sets it, looking at one.
   frost:
     # How much of a full ring each opening adds, in air of 50% RH: twice as
     # much at 100%, less in dry air.
@@ -433,7 +437,8 @@ refrigeration:
     per-running-hour: 0.005
     # A full ring slows its cooling by this share.
     slowdown: 0.5
-    # It defrosts itself at this much frost, unless Auto defrost is off.
+    # A refrigerator's freezer defrosts itself at this much frost, unless its
+    # Auto defrost is off. A deep freezer never does.
     auto-defrost-at: 0.6
     # A defrost: how long (in-game minutes), and the heater warming the
     # inside, never past defrost-ceiling-f, so food stays frozen.

@@ -105,7 +105,7 @@ devices:
 
 New in BETA 1.0. Device kinds switched off server-wide: `heat-pump`,
 `air-conditioner`, `furnace`, `boiler`, `pool-heat-pump`, `dehumidifier`,
-`humidifier`, `air-purifier`, and since Pilot 7 `fridge`, `mini-fridge`, `freezer` and `fridge-freezer`. Devices of a kind listed here stop, and no
+`humidifier`, `air-purifier`, and since Pilot 7 `mini-fridge`, `fridge`, `refrigerator` and `deep-freezer`. Devices of a kind listed here stop, and no
 new one can be made; taken off the list, each runs again as it was set. A
 name that is no kind is pointed out at start-up and ignored.
 
@@ -416,22 +416,22 @@ New in BETA 1.0 Pilot 4. See [Climate](climate.md#feels-like).
 
 ## refrigeration
 
-Fridges, mini fridges, freezers and fridge-freezers (BETA 1.0 Pilot 7); see [Fridges and freezers](fridges-and-freezers.md). Rates are per in-game hour.
+Mini fridges, fridges, refrigerators and deep freezers (BETA 1.0 Pilot 7); see [Refrigeration](fridges-and-freezers.md). Rates are per in-game hour.
 
 | Setting | Default | |
 |---|---|---|
-| `enabled` | true | false lets every fridge and freezer warm up and sit idle |
-| `fridge-default-f`, `freezer-default-f` | 37, 0 | a new one's setpoint (a fridge holds 33 to 50 °F, a freezer −10 to 20 °F) |
+| `enabled` | true | false lets every one of them warm up and sit idle |
+| `fridge-default-f`, `deep-freezer-default-f`, `refrigerator-freezer-default-f` | 37, −10, 0 | a new one's setpoints (a fridge holds 33 to 50 °F, a deep freezer −20 to 0 °F, a refrigerator's freezer −5 to 10 °F) |
 | `pull-down-f-per-minecraft-hour` | 20.0 | how fast a running compressor cools the barrel |
 | `leak-per-minecraft-hour` | 0.08 | the share of the gap to the air around it (its system's room, or outside) its inside closes, shut |
 | `door-share`, `door-leak-factor` | 0.15, 15.0 | opened, this share of the gap comes in at once (less when it was opened only a moment ago), and it leaks this many times faster while open |
 | `hysteresis-f` | 2.0 | it starts this far above its setpoint |
-| `fridge-heat-f-per-minecraft-hour`, `freezer-heat-f-per-minecraft-hour` | 0.3, 0.5 | what a running one adds to its system's room |
-| `reference-cells` | 1500 | the room size those are for; bigger rooms warm less (a fridge-freezer adds both) |
+| `fridge-heat-f-per-minecraft-hour`, `freezer-heat-f-per-minecraft-hour` | 0.3, 0.5 | what a running fridge (each barrel) and freezer add to its system's room; a refrigerator adds both, a mini fridge half a fridge's |
+| `reference-cells` | 1500 | the room size those are for; bigger rooms warm less |
 | `frost.per-opening` | 0.0025 | the frost each opening adds, of a full ring, in air of 50% RH (twice at 100%) |
 | `frost.per-running-hour` | 0.005 | the frost each in-game hour its compressor runs adds, at 50% RH |
 | `frost.slowdown` | 0.5 | a full ring slows its cooling by this share |
-| `frost.auto-defrost-at` | 0.6 | it defrosts itself at this much frost, unless Auto defrost is off |
+| `frost.auto-defrost-at` | 0.6 | a refrigerator's freezer defrosts itself at this much frost, unless its Auto defrost is off; a deep freezer never does |
 | `frost.defrost-minutes`, `frost.defrost-ceiling-f`, `frost.defrost-heat-f-per-minecraft-hour` | 30.0, 26.0, 20.0 | a defrost's length in in-game minutes, and its heater, never warming the inside past the ceiling |
 
 Air quality and air purifiers (3.2); see [Air quality](air-quality.md). Rates
