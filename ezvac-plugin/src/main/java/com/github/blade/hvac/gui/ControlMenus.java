@@ -360,7 +360,9 @@ public final class ControlMenus implements Listener {
         String compartment = refrigerator instanceof FridgeFreezer ? "Freezer: " : "";
         inventory.setItem(INFO, item(refrigerator instanceof Freezer ? Material.PACKED_ICE : Material.BARREL,
                 Component.text(compartment + "Set " + units.format(refrigerator.setpoint(), 0), NamedTextColor.AQUA),
-                List.of(gray("Inside " + (Double.isFinite(inside) ? units.format(inside, 1) : "--")),
+                List.of(gray("Inside " + (Double.isFinite(inside) ? units.format(inside, 1) : "--")
+                                + (refrigerator instanceof com.github.blade.hvac.model.MiniFridge mini
+                                && Double.isFinite(mini.chillerF()) ? " · Chiller " + units.format(mini.chillerF(), 1) : "")),
                         gray(refrigerator.activity()),
                         gray("Range " + units.format(refrigerator.minimumF(), 0) + " to "
                                 + units.format(refrigerator.maximumF(), 0)))));
@@ -411,7 +413,8 @@ public final class ControlMenus implements Listener {
             case HUMIDIFIER -> new int[] {climate.humidifier().minimumSetpoint(),
                     climate.humidifier().maximumSetpoint()};
             case AIR_PURIFIER -> new int[] {0, 0};    // it has modes, not a setpoint
-            case FRIDGE -> new int[] {RefrigerationSettings.FRIDGE_MINIMUM_F, RefrigerationSettings.FRIDGE_MAXIMUM_F};
+            case FRIDGE, MINI_FRIDGE -> new int[] {RefrigerationSettings.FRIDGE_MINIMUM_F,
+                    RefrigerationSettings.FRIDGE_MAXIMUM_F};
             case FREEZER, FRIDGE_FREEZER -> new int[] {RefrigerationSettings.FREEZER_MINIMUM_F,
                     RefrigerationSettings.FREEZER_MAXIMUM_F};
         };

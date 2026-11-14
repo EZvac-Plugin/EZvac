@@ -669,11 +669,13 @@ public final class DisplayService {
                     + applianceColumn("set " + applianceDegrees(both.setpoint(), true), false);
         } else {
             big = applianceDegrees(refrigerator.insideF(), true);
-            compartments = refrigerator instanceof Freezer ? "FREEZER" : "FRIDGE";
+            compartments = refrigerator instanceof Freezer ? "FREEZER"
+                    : refrigerator instanceof MiniFridge ? "MINI FRIDGE" : "FRIDGE";
             setpoints = "set " + applianceDegrees(refrigerator.setpoint(), true);
         }
+        String chiller = refrigerator instanceof MiniFridge mini ? "Chiller " + applianceDegrees(mini.chillerF(), true) : "";
         String fingerprint = refrigerator.label() + "|" + big + "|" + setpoints + "|" + activity + "|"
-                + (showsFrost ? Math.round(frost * 20) : -1);
+                + (showsFrost ? Math.round(frost * 20) : -1) + "|" + chiller;
         boolean twoColumns = refrigerator instanceof FridgeFreezer;
         render(refrigerator.position(), fingerprint, force, () -> {
             ScreenText screen = ScreenText
@@ -689,6 +691,7 @@ public final class DisplayService {
                 screen.line(Component.text(compartments + "  ", NamedTextColor.GRAY)
                         .append(Component.text(setpoints, NamedTextColor.WHITE)));
             }
+            if (!chiller.isEmpty()) screen.line(chiller, NamedTextColor.AQUA);
             screen.line(activity, color);
             if (showsFrost) screen.line(Component.text("Frost ", NamedTextColor.GRAY)
                     .append(Component.text(ScreenText.bar(frost, 10), NamedTextColor.AQUA)));

@@ -222,7 +222,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) {
             player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
                     + "|furnace|boiler|poolheatpump|thermometer|hygrometer|thermohygrometer|rpmmonitor"
-                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|freezer|fridge-freezer|airmonitor> ..."));
+                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|freezer|fridge-freezer|minifridge|airmonitor> ..."));
             return;
         }
         Block block = target(player);
@@ -308,6 +308,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "fridge", "refrigerator" -> createRefrigerator(player, block, position, args, false);
             case "freezer" -> createRefrigerator(player, block, position, args, true);
             case "fridge-freezer", "fridgefreezer", "combo" -> createFridgeFreezer(player, block, position, args);
+            case "minifridge", "mini-fridge", "mini" -> createMiniFridge(player, block, position, args);
             case "sensor" -> {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
@@ -435,6 +436,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         registry.addClimateUnit(unit);
         airflow.invalidate(ZoneId.of(unit));
         displays.refreshClimateUnit(unit, true);
+        if (unit instanceof MiniFridge mini) {
+            plugin.frost().showWalls(mini);
+            player.sendMessage(green("Created mini fridge '" + unit.label() + "' at "
+                    + settings.units().format(mini.setpoint(), 0) + ". Food goes along the middle row; the last slot"
+                    + " is the chiller box, about 10° colder. Click the sign to change it, sneak-click to switch it"
+                    + " on or off."));
+            return;
+        }
         if (unit instanceof FridgeFreezer both) {
             player.sendMessage(green("Created fridge-freezer '" + unit.label() + "': the fridge on top at "
                     + settings.units().format(both.fridgeSetpoint(), 0) + ", the freezer below at "
@@ -502,6 +511,23 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         registerUnit(player, new FridgeFreezer(position, BlockKey.of(iron.getLocation()),
                 BlockKey.of(freezer.getLocation()), BlockKey.of(fridge.getLocation()), label,
                 cold.freezerDefaultF(), cold.fridgeDefaultF()));
+    }
+
+    /**
+     * A mini fridge (BETA 1.0 Pilot 7): a barrel with the control sign on its
+     * side, its compressor inside, so no iron block.
+     */
+    private void createMiniFridge(Player player, Block sign, BlockKey position, String[] args) {
+        requireSwitchedOn(DeviceKind.MINI_FRIDGE);
+        requireSign(sign);
+        if (!(sign.getBlockData() instanceof WallSign wall))
+            throw new IllegalArgumentException("Put the sign on the side of the barrel.");
+        Block barrel = sign.getRelative(wall.getFacing().getOppositeFace());
+        if (barrel.getType() != Refrigerator.BARREL)
+            throw new IllegalArgumentException("Put the sign on the side of a barrel: a mini fridge is just that.");
+        String label = args.length >= 3 ? args[2] : "Mini-fridge";
+        registerUnit(player, new MiniFridge(position, BlockKey.of(barrel.getLocation()), label,
+                units.climate().refrigeration().fridgeDefaultF()));
     }
 
     /** Kinds switched off in /hvac quicksettings can't be made (BETA 1.0). */
@@ -1320,6 +1346,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         : "not measured yet"),
                 gray(" | Setpoint: "), white(settings.units().format(refrigerator.setpoint(), 0)),
                 gray(" | "), white(refrigerator.activity())));
+        if (refrigerator instanceof MiniFridge mini) {
+            double chiller = mini.chillerF();
+            player.sendMessage(join(gray("Chiller box: "), white(Double.isFinite(chiller)
+                    ? settings.units().format(chiller, 1) : "not measured yet"), gray(" (about 10° below the rest)")));
+        }
         if (refrigerator instanceof FridgeFreezer both) {
             double fridge = both.fridgeInsideF();
             player.sendMessage(join(gray("Fridge (top): "), white(Double.isFinite(fridge)
@@ -1529,7 +1560,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "create" -> filter(args[1], "thermostat", "poolthermostat", "heatpump",
                         "ac", "furnace", "boiler", "poolheatpump", "thermometer", "hygrometer",
                         "thermohygrometer", "airmonitor", "rpmmonitor", "settingspanel", "dehumidifier",
-                        "humidifier", "purifier", "fridge", "freezer", "fridge-freezer", "sensor", "sensor-hub",
+                        "humidifier", "purifier", "fridge", "freezer", "fridge-freezer", "minifridge", "sensor", "sensor-hub",
                         "weatherstation");
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");

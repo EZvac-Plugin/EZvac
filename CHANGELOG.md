@@ -25,6 +25,9 @@ default).
 - **Fridge-freezers:** `/hvac create fridge-freezer`, two barrels stacked
   on the iron block, the freezer below and the fridge on top, each at its
   own setpoint on one compressor, each barrel its own door.
+- **Mini fridges:** `/hvac create minifridge`, a barrel with the sign on its
+  side and no iron block. Seven slots of food and a chiller box about 10 °F
+  colder; half a fridge's pace and heat.
 - **Frost** in freezers: it builds a little with each opening (more in humid
   air) and while the compressor runs, fills the barrel's empty edge slots
   first and then frosts over food against the wall, which stays locked
@@ -37,10 +40,11 @@ default).
 
 ### For addon developers: API 1.12
 
-- `ClimateUnitView.Kind` `FRIDGE`, `FREEZER` and `FRIDGE_FREEZER`, with
-  `insideF()`.
+- `ClimateUnitView.Kind` `FRIDGE`, `FREEZER`, `FRIDGE_FREEZER` and
+  `MINI_FRIDGE`, with `insideF()`.
 - `storageTemperatureF(world, x, y, z)`: how cold it is inside a container,
-  either compartment of a fridge-freezer included.
+  either compartment of a fridge-freezer included; with a slot, a mini
+  fridge's chiller box too.
 
 ## BETA 1.0 Pilot 6
 

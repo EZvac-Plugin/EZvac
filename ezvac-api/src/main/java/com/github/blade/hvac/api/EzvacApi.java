@@ -332,6 +332,18 @@ public interface EzvacApi {
         return readingAt(new org.bukkit.Location(world, x + 0.5, y + 0.5, z + 0.5)).temperatureF();
     }
 
+    /**
+     * The same for one slot of the container: it differs only in a mini
+     * fridge's chiller box (the last slot of its middle row, about 10 F
+     * colder than the rest), so an addon keeping food slot by slot keeps
+     * what's in the chiller colder.
+     *
+     * @since 1.12
+     */
+    default double storageTemperatureF(World world, int x, int y, int z, int slot) {
+        return storageTemperatureF(world, x, y, z);
+    }
+
     /** The weather plan an addon registered, if any. @since 1.9 */
     default Optional<WeatherPlan> weatherPlan() {
         return Optional.empty();

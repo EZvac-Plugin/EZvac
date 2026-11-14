@@ -28,7 +28,9 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
         /** BETA 1.0 Pilot 7. */
         FRIDGE("Fridge"), FREEZER("Freezer"),
         /** BETA 1.0 Pilot 7: a freezer barrel with a fridge barrel on top of it. */
-        FRIDGE_FREEZER("Fridge-freezer");
+        FRIDGE_FREEZER("Fridge-freezer"),
+        /** BETA 1.0 Pilot 7: a barrel with the sign on it, seven slots and a chiller box. */
+        MINI_FRIDGE("Mini fridge");
 
         private final String displayName;
         Kind(String displayName) { this.displayName = displayName; }
@@ -112,6 +114,9 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
      * fridge barrel (BETA 1.0 Pilot 7). Each must stay what it is, or the unit is gone.
      */
     public java.util.List<BlockKey> extraBlocks() { return java.util.List.of(); }
+
+    /** What its main block must be: an iron block; a mini fridge's is its barrel. */
+    public Material unitMaterial() { return Material.IRON_BLOCK; }
 
     /** What each of its extra blocks must be. */
     public Material extraMaterial() { return partMaterial(); }
