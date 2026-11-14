@@ -20,6 +20,7 @@ public enum DeviceKind {
     AIR_PURIFIER("air-purifier", "Air purifier", "Air purifiers", Material.TUBE_CORAL_BLOCK),
     FRIDGE("fridge", "Fridge", "Fridges", Material.BARREL),
     FREEZER("freezer", "Freezer", "Freezers", Material.PACKED_ICE),
+    FRIDGE_FREEZER("fridge-freezer", "Fridge-freezer", "Fridge-freezers", Material.BLUE_ICE),
     WEATHER_STATION("weather-station", "Weather station", "Weather stations", Material.LIGHTNING_ROD);
 
     private final String configName;
@@ -57,6 +58,7 @@ public enum DeviceKind {
             case AIR_PURIFIER -> AIR_PURIFIER;
             case FRIDGE -> FRIDGE;
             case FREEZER -> FREEZER;
+            case FRIDGE_FREEZER -> FRIDGE_FREEZER;
         };
     }
 

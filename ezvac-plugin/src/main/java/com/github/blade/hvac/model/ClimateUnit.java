@@ -26,7 +26,9 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
     public enum Kind {
         DEHUMIDIFIER("Dehumidifier"), HUMIDIFIER("Humidifier"), AIR_PURIFIER("Air purifier"),
         /** BETA 1.0 Pilot 7. */
-        FRIDGE("Fridge"), FREEZER("Freezer");
+        FRIDGE("Fridge"), FREEZER("Freezer"),
+        /** BETA 1.0 Pilot 7: a freezer barrel with a fridge barrel on top of it. */
+        FRIDGE_FREEZER("Fridge-freezer");
 
         private final String displayName;
         Kind(String displayName) { this.displayName = displayName; }
@@ -104,6 +106,15 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
      * new one.
      */
     public boolean partRequired() { return true; }
+
+    /**
+     * Any blocks it owns past its sign, iron block and part: a fridge-freezer's
+     * fridge barrel (BETA 1.0 Pilot 7). Each must stay what it is, or the unit is gone.
+     */
+    public java.util.List<BlockKey> extraBlocks() { return java.util.List.of(); }
+
+    /** What each of its extra blocks must be. */
+    public Material extraMaterial() { return partMaterial(); }
 
     public State state() {
         if (!switchedOn()) return State.OFF;

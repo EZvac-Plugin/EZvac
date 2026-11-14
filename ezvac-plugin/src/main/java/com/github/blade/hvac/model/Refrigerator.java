@@ -45,8 +45,21 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
 
     public double insideF() { return insideF; }
 
-    /** Whether anyone has its barrel open. */
+    /** Whether anyone has its barrel open (a fridge-freezer: either of them). */
     public boolean doorOpen() { return viewers > 0; }
+
+    /**
+     * The inside of the barrel at this block: its own, or a fridge-freezer's
+     * fridge; NaN when it isn't one of its barrels, or before it first ran.
+     */
+    public double insideAt(BlockKey barrel) {
+        return barrel().equals(barrel) ? insideF : Double.NaN;
+    }
+
+    /** Whether the barrel at this block is one it keeps cold. */
+    public boolean keepsCold(BlockKey barrel) {
+        return barrel().equals(barrel);
+    }
 
     /** The setpoint's range in F, by kind. */
     public abstract int minimumF();
@@ -115,21 +128,34 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
         double stepHours = Math.max(0L, elapsedTicks) / ThermalModel.MINECRAFT_TICKS_PER_HOUR;
         // A freezer defrosting runs its heater instead of its compressor.
         boolean defrostingNow = advanceFrost(stepHours, humidity, elapsedTicks, settings);
-        boolean wanted = !defrostingNow && switchedOn() && settings.enabled()
-                && (running ? insideF > setpoint() : insideF > setpoint() + settings.hysteresisF());
+        boolean wanted = !defrostingNow && switchedOn() && settings.enabled() && needsCooling(settings);
         boolean changed = wanted != running;
         running = wanted;
         double hours = Math.max(0L, elapsedTicks) / ThermalModel.MINECRAFT_TICKS_PER_HOUR;
         // Shut, its cold air builds back up: all of it within an in-game hour.
-        if (!doorOpen()) spill = Math.min(1.0, spill + hours);
-        double leak = settings.leakPerHour() * (doorOpen() ? settings.doorLeakFactor() : 1.0);
+        boolean open = viewers > 0;
+        if (!open) spill = Math.min(1.0, spill + hours);
+        double leak = settings.leakPerHour() * (open ? settings.doorLeakFactor() : 1.0);
         insideF += (roomF - insideF) * (1.0 - Math.exp(-leak * hours));
         if (defrostingNow && insideF < settings.defrostCeilingF())
             insideF = Math.min(settings.defrostCeilingF(), insideF + settings.defrostHeatFPerHour() * hours);
         if (running) insideF = Math.max(Math.min(insideF, setpoint()),
                 insideF - settings.pullDownFPerHour() * pullFactor(settings) * hours);
         insideF = ThermalModel.clampTemperature(insideF);
+        stepCompartments(roomF, hours, settings);
         return changed;
+    }
+
+    /**
+     * Whether its compressor should run, starting {@code hysteresisF} above
+     * its setpoint and running down to it; a fridge-freezer's also for its fridge.
+     */
+    protected boolean needsCooling(RefrigerationSettings settings) {
+        return running ? insideF > setpoint() : insideF > setpoint() + settings.hysteresisF();
+    }
+
+    /** Any other compartment it cools, stepped after its own: a fridge-freezer's fridge. */
+    protected void stepCompartments(double roomF, double hours, RefrigerationSettings settings) {
     }
 
     /**

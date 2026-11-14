@@ -647,6 +647,10 @@ public final class DisplayService {
      * big, its setpoint, and whether it is cooling, holding, off or open.
      */
     private void refreshRefrigerator(Refrigerator refrigerator, boolean force) {
+        if (refrigerator instanceof FridgeFreezer both) {
+            refreshFridgeFreezer(both, force);
+            return;
+        }
         double inside = refrigerator.insideF();
         String big = Double.isFinite(inside) ? settings.units().format(inside, 1) : "--";
         String target = "Set " + settings.units().format(refrigerator.setpoint(), 0);
@@ -668,6 +672,37 @@ public final class DisplayService {
                         : refrigerator.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
                 .big(big)
                 .line(target + (frost.isEmpty() ? "" : " · " + frost), NamedTextColor.WHITE)
+                .line(activity, color));
+    }
+
+    /**
+     * A fridge-freezer's screen (BETA 1.0 Pilot 7): no big reading, but a line
+     * for each compartment, its inside and setpoint (the freezer's frost too),
+     * and what it is doing.
+     */
+    private void refreshFridgeFreezer(FridgeFreezer both, boolean force) {
+        var units = settings.units();
+        String fridge = "Fridge " + (Double.isFinite(both.fridgeInsideF()) ? units.format(both.fridgeInsideF(), 1) : "--")
+                + " · Set " + units.format(both.fridgeSetpoint(), 0);
+        String freezer = "Freezer " + (Double.isFinite(both.insideF()) ? units.format(both.insideF(), 1) : "--")
+                + " · Set " + units.format(both.setpoint(), 0)
+                + (both.frost() >= 0.01 ? " · Frost " + Math.round(both.frost() * 100) + "%" : "");
+        String activity = both.offServerWide() ? OFF_SERVER_WIDE : both.activity();
+        NamedTextColor color = switch (activity) {
+            case "Cooling" -> NamedTextColor.AQUA;
+            case "Holding" -> NamedTextColor.GREEN;
+            case "Door open" -> NamedTextColor.GOLD;
+            case "Defrosting" -> NamedTextColor.LIGHT_PURPLE;
+            default -> NamedTextColor.RED;
+        };
+        String fingerprint = both.label() + "|" + fridge + "|" + freezer + "|" + activity;
+        render(both.position(), fingerprint, force, () -> ScreenText
+                .titled(both.label(), both.kind().displayName())
+                .tone(!both.switchedOn() ? ScreenText.Tone.OFF
+                        : both.doorOpen() ? ScreenText.Tone.ALERT
+                        : both.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
+                .line(fridge, NamedTextColor.WHITE)
+                .line(freezer, NamedTextColor.AQUA)
                 .line(activity, color));
     }
 

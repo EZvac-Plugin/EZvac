@@ -22,6 +22,14 @@ default).
 - Its screen shows the inside temperature, the setpoint and what it's doing;
   the sign's menu sets the setpoint a degree at a time; `/hvac info` says
   which room it warms.
+- **Fridge-freezers:** `/hvac create fridge-freezer`, two barrels stacked
+  on the iron block, the freezer below and the fridge on top, each at its
+  own setpoint on one compressor, each barrel its own door.
+- **Frost** in freezers: it builds a little with each opening (more in humid
+  air) and while the compressor runs, fills the barrel's empty edge slots
+  first and then frosts over food against the wall, which stays locked
+  until a defrost. It slows the cooling too. Freezers defrost themselves at
+  60%, or from Defrost now in the menu; Auto defrost switches that off.
 - Food never spoils in EZvac itself; with EZclimates' Food spoiling, food
   keeps longer the colder it's kept.
 - A `refrigeration:` section in `config.yml`, added on upgrade, and a second
@@ -29,8 +37,10 @@ default).
 
 ### For addon developers: API 1.12
 
-- `ClimateUnitView.Kind` `FRIDGE` and `FREEZER`, with `insideF()`.
-- `storageTemperatureF(world, x, y, z)`: how cold it is inside a container.
+- `ClimateUnitView.Kind` `FRIDGE`, `FREEZER` and `FRIDGE_FREEZER`, with
+  `insideF()`.
+- `storageTemperatureF(world, x, y, z)`: how cold it is inside a container,
+  either compartment of a fridge-freezer included.
 
 ## BETA 1.0 Pilot 6
 

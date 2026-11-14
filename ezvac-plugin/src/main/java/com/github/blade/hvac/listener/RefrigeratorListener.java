@@ -1,6 +1,7 @@
 package com.github.blade.hvac.listener;
 
 import com.github.blade.hvac.model.BlockKey;
+import com.github.blade.hvac.model.FridgeFreezer;
 import com.github.blade.hvac.model.Refrigerator;
 import com.github.blade.hvac.service.ClimateUnitService;
 import com.github.blade.hvac.service.DisplayService;
@@ -36,6 +37,13 @@ public final class RefrigeratorListener implements Listener {
     public void onOpen(InventoryOpenEvent event) {
         Refrigerator refrigerator = of(event.getInventory());
         if (refrigerator == null) return;
+        // A fridge-freezer's fridge barrel: a fridge's door, which never frosts.
+        if (refrigerator instanceof FridgeFreezer both && isFridge(both, event.getInventory())) {
+            both.fridgeOpened(units.airAround(both), units.climate().refrigeration());
+            registry.markDirty();
+            displays.refreshClimateUnit(both, true);
+            return;
+        }
         double letIn = refrigerator.opened(units.airAround(refrigerator), units.climate().refrigeration());
         // A freezer's frost: the air that came in leaves some behind, more when it's humid; seen at once.
         if (refrigerator instanceof com.github.blade.hvac.model.Freezer freezer) {
@@ -50,7 +58,8 @@ public final class RefrigeratorListener implements Listener {
     public void onClose(InventoryCloseEvent event) {
         Refrigerator refrigerator = of(event.getInventory());
         if (refrigerator == null) return;
-        refrigerator.closed();
+        if (refrigerator instanceof FridgeFreezer both && isFridge(both, event.getInventory())) both.fridgeClosed();
+        else refrigerator.closed();
         displays.refreshClimateUnit(refrigerator, true);
     }
 
@@ -59,6 +68,11 @@ public final class RefrigeratorListener implements Listener {
         if (!(inventory.getHolder(false) instanceof Barrel barrel) || !registry.hasClimateUnits()) return null;
         BlockKey key = BlockKey.of(barrel.getLocation());
         Refrigerator refrigerator = registry.refrigeratorAt(key);
-        return refrigerator != null && refrigerator.barrel().equals(key) ? refrigerator : null;
+        return refrigerator != null && refrigerator.keepsCold(key) ? refrigerator : null;
+    }
+
+    private static boolean isFridge(FridgeFreezer both, Inventory inventory) {
+        return inventory.getHolder(false) instanceof Barrel barrel
+                && both.fridgeBarrel().equals(BlockKey.of(barrel.getLocation()));
     }
 }
