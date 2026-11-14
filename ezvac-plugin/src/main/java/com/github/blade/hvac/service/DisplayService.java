@@ -655,16 +655,19 @@ public final class DisplayService {
             case "Cooling" -> NamedTextColor.AQUA;
             case "Holding" -> NamedTextColor.GREEN;
             case "Door open" -> NamedTextColor.GOLD;
+            case "Defrosting" -> NamedTextColor.LIGHT_PURPLE;
             default -> NamedTextColor.RED;
         };
-        String fingerprint = refrigerator.label() + "|" + big + "|" + target + "|" + activity;
+        String frost = refrigerator instanceof Freezer freezer && freezer.frost() >= 0.01
+                ? "Frost " + Math.round(freezer.frost() * 100) + "%" : "";
+        String fingerprint = refrigerator.label() + "|" + big + "|" + target + "|" + activity + "|" + frost;
         render(refrigerator.position(), fingerprint, force, () -> ScreenText
                 .titled(refrigerator.label(), refrigerator.kind().displayName())
                 .tone(!refrigerator.switchedOn() ? ScreenText.Tone.OFF
                         : refrigerator.doorOpen() ? ScreenText.Tone.ALERT
                         : refrigerator.running() ? ScreenText.Tone.COOLING : ScreenText.Tone.HOLDING)
                 .big(big)
-                .line(target, NamedTextColor.WHITE)
+                .line(target + (frost.isEmpty() ? "" : " · " + frost), NamedTextColor.WHITE)
                 .line(activity, color));
     }
 

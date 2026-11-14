@@ -412,6 +412,27 @@ refrigeration:
   fridge-heat-f-per-minecraft-hour: 0.3
   freezer-heat-f-per-minecraft-hour: 0.5
   reference-cells: 1500
+  # Frost in freezers. It grows in round the edge of the barrel from the
+  # corners, a slot at a time (20 slots for a full ring; the middle row's
+  # inner seven never frost). Empty slots fill with Frost; food already there
+  # is frosted over and can't be taken out until a defrost frees it. Frost
+  # also slows the freezer's cooling. Its menu has Defrost now and Auto
+  # defrost; /hvac frost <percent> sets it, looking at a freezer.
+  frost:
+    # How much of a full ring each opening adds, in air of 50% RH: twice as
+    # much at 100%, less in dry air.
+    per-opening: 0.04
+    # How much it adds per in-game hour its compressor runs, at 50% RH.
+    per-running-hour: 0.005
+    # A full ring slows its cooling by this share.
+    slowdown: 0.5
+    # It defrosts itself at this much frost, unless Auto defrost is off.
+    auto-defrost-at: 0.6
+    # A defrost: how long (in-game minutes), and the heater warming the
+    # inside, never past defrost-ceiling-f, so food stays frozen.
+    defrost-minutes: 30.0
+    defrost-ceiling-f: 26.0
+    defrost-heat-f-per-minecraft-hour: 20.0
 
 # Air quality (3.2). Every room and standalone zone tracks fine particles
 # (PM2.5), coarse particles (up to PM10) and pollen. The AQI is the US EPA

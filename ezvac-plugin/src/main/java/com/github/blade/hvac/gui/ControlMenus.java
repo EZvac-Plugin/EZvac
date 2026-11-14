@@ -62,6 +62,8 @@ public final class ControlMenus implements Listener {
      * and the system's size on the right.
      */
     static final int ATTENTION = 0, PROFILE = 4, SYSTEM = 8;
+    /** A freezer's defrost (BETA 1.0 Pilot 7): start one now, and whether it defrosts on its own. */
+    static final int DEFROST = 20, AUTO_DEFROST = 24;
     /** Humidity only moves in fives, on the middle row. */
     static final int HUMIDITY_RAISE = 11, HUMIDITY_LOWER = 15;
 
@@ -359,6 +361,20 @@ public final class ControlMenus implements Listener {
                         gray("Range " + units.format(refrigerator.minimumF(), 0) + " to "
                                 + units.format(refrigerator.maximumF(), 0)))));
         inventory.setItem(POWER, power(refrigerator.powered(), refrigerator.kind().displayName()));
+        if (refrigerator instanceof Freezer freezer) {
+            int frost = (int) Math.round(freezer.frost() * 100);
+            inventory.setItem(DEFROST, item(Material.BLUE_ICE, Component.text(freezer.defrosting() ? "Defrosting..."
+                            : "Defrost now", NamedTextColor.AQUA),
+                    List.of(gray("Frost " + frost + "%"),
+                            gray("Melts the frost and frees frosted food;"),
+                            gray("food stays frozen. Works even when off."))));
+            inventory.setItem(AUTO_DEFROST, item(freezer.autoDefrost() ? Material.LIME_DYE : Material.RED_DYE,
+                    Component.text("Auto defrost: " + (freezer.autoDefrost() ? "On" : "Off"),
+                            freezer.autoDefrost() ? NamedTextColor.GREEN : NamedTextColor.RED),
+                    List.of(gray(freezer.autoDefrost() ? "It defrosts itself once the frost is heavy"
+                            : "Frost keeps growing until you defrost it"),
+                            gray("Click to switch " + (freezer.autoDefrost() ? "off" : "on")))));
+        }
     }
 
     /** An air purifier's modes, along the top row. */
@@ -483,6 +499,14 @@ public final class ControlMenus implements Listener {
                 return false;
             }
             purifier.setMode(PURIFIER_MODES[modeSlot]);
+        } else if (unit instanceof Freezer freezer && slot == DEFROST) {
+            if (freezer.defrosting()) {
+                click(player, false);
+                return false;
+            }
+            freezer.startDefrost(climate.refrigeration());
+        } else if (unit instanceof Freezer freezer && slot == AUTO_DEFROST) {
+            freezer.setAutoDefrost(!freezer.autoDefrost());
         } else if (unit instanceof Refrigerator refrigerator && (slot == HUMIDITY_RAISE || slot == HUMIDITY_LOWER)) {
             int setpoint = Math.max(refrigerator.minimumF(), Math.min(refrigerator.maximumF(),
                     refrigerator.setpoint() + (slot == HUMIDITY_RAISE ? 1 : -1)));

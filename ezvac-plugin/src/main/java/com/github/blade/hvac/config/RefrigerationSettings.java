@@ -22,10 +22,21 @@ import java.util.function.Consumer;
  * @param fridgeHeatFPerHour  what a running fridge adds to its room, F per in-game hour, at the reference size
  * @param freezerHeatFPerHour the same for a freezer
  * @param referenceCells   the room size those are for; a bigger room warms less
+ * @param frostPerOpening  how much frost (of a full ring) a freezer gains each time it's opened, in air of 50% RH
+ *                         (twice in 100%, less in dry air)
+ * @param frostPerRunningHour how much it gains per in-game hour its compressor runs, at 50% RH
+ * @param frostSlowdown    how much a full ring of frost slows its cooling (0.5: to half)
+ * @param autoDefrostAt    the frost at which it defrosts itself, unless that is switched off
+ * @param defrostMinutes   how long a defrost takes, in in-game minutes
+ * @param defrostCeilingF  a defrost never warms the inside past this, so food stays frozen
+ * @param defrostHeatFPerHour how fast its defrost heater warms the inside up to that
  */
 public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int freezerDefaultF, double pullDownFPerHour,
                                     double leakPerHour, double doorShare, double doorLeakFactor, double hysteresisF,
-                                    double fridgeHeatFPerHour, double freezerHeatFPerHour, int referenceCells) {
+                                    double fridgeHeatFPerHour, double freezerHeatFPerHour, int referenceCells,
+                                    double frostPerOpening, double frostPerRunningHour, double frostSlowdown,
+                                    double autoDefrostAt, double defrostMinutes, double defrostCeilingF,
+                                    double defrostHeatFPerHour) {
     public static final int FRIDGE_MINIMUM_F = 33, FRIDGE_MAXIMUM_F = 50;
     public static final int FREEZER_MINIMUM_F = -10, FREEZER_MAXIMUM_F = 20;
 
@@ -43,10 +54,25 @@ public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int fre
         nonNegative("refrigeration.fridge-heat-f-per-minecraft-hour", fridgeHeatFPerHour);
         nonNegative("refrigeration.freezer-heat-f-per-minecraft-hour", freezerHeatFPerHour);
         if (referenceCells < 1) throw new IllegalArgumentException("refrigeration.reference-cells must be positive");
+        fraction("refrigeration.frost.per-opening", frostPerOpening);
+        fraction("refrigeration.frost.per-running-hour", frostPerRunningHour);
+        fraction("refrigeration.frost.slowdown", frostSlowdown);
+        if (!Double.isFinite(autoDefrostAt) || autoDefrostAt <= 0.0 || autoDefrostAt > 1.0)
+            throw new IllegalArgumentException("refrigeration.frost.auto-defrost-at must be above 0 and at most 1");
+        positive("refrigeration.frost.defrost-minutes", defrostMinutes);
+        if (!Double.isFinite(defrostCeilingF) || defrostCeilingF > 31.0)
+            throw new IllegalArgumentException("refrigeration.frost.defrost-ceiling-f must be at most 31, so food stays frozen");
+        nonNegative("refrigeration.frost.defrost-heat-f-per-minecraft-hour", defrostHeatFPerHour);
+    }
+
+    /** How long a defrost takes, in ticks. */
+    public long defrostTicks() {
+        return Math.max(1L, Math.round(defrostMinutes * 1_000.0 / 60.0));
     }
 
     public static RefrigerationSettings defaults() {
-        return new RefrigerationSettings(true, 37, 0, 20.0, 0.08, 0.15, 15.0, 2.0, 0.3, 0.5, 1_500);
+        return new RefrigerationSettings(true, 37, 0, 20.0, 0.08, 0.15, 15.0, 2.0, 0.3, 0.5, 1_500,
+                0.04, 0.005, 0.5, 0.6, 30.0, 26.0, 20.0);
     }
 
     /** Reads the section; a bad value warns and the whole section keeps its defaults. */
@@ -63,7 +89,14 @@ public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int fre
                     config.getDouble("refrigeration.hysteresis-f", d.hysteresisF),
                     config.getDouble("refrigeration.fridge-heat-f-per-minecraft-hour", d.fridgeHeatFPerHour),
                     config.getDouble("refrigeration.freezer-heat-f-per-minecraft-hour", d.freezerHeatFPerHour),
-                    config.getInt("refrigeration.reference-cells", d.referenceCells));
+                    config.getInt("refrigeration.reference-cells", d.referenceCells),
+                    config.getDouble("refrigeration.frost.per-opening", d.frostPerOpening),
+                    config.getDouble("refrigeration.frost.per-running-hour", d.frostPerRunningHour),
+                    config.getDouble("refrigeration.frost.slowdown", d.frostSlowdown),
+                    config.getDouble("refrigeration.frost.auto-defrost-at", d.autoDefrostAt),
+                    config.getDouble("refrigeration.frost.defrost-minutes", d.defrostMinutes),
+                    config.getDouble("refrigeration.frost.defrost-ceiling-f", d.defrostCeilingF),
+                    config.getDouble("refrigeration.frost.defrost-heat-f-per-minecraft-hour", d.defrostHeatFPerHour));
         } catch (IllegalArgumentException invalid) {
             warn.accept(invalid.getMessage() + "; every refrigeration setting uses its default until it is fixed.");
             return d;

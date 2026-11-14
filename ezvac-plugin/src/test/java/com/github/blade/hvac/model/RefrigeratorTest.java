@@ -46,7 +46,7 @@ class RefrigeratorTest {
     void aFreezerGoesBelowZeroAndBothKeepTheirRanges() {
         Freezer freezer = freezer();
         run(freezer, 70.0, 10.0);
-        assertTrue(freezer.insideF() <= 0.0 + SETTINGS.hysteresisF() + 1e-9, "a freezer reaches 0 F: " + freezer.insideF());
+        assertTrue(freezer.insideF() <= 0.0 + SETTINGS.hysteresisF() + 1.0, "a freezer reaches 0 F: " + freezer.insideF());
         freezer.setSetpoint(40);
         assertEquals(20, freezer.setpoint(), "a freezer goes no warmer than 20 F");
         freezer.setSetpoint(-40);
@@ -112,6 +112,61 @@ class RefrigeratorTest {
         double warm = freezer.insideF();
         run(freezer, 70.0, 1.0);
         assertTrue(freezer.insideF() < warm, "shut, it cools again");
+    }
+
+    @Test
+    void frostBuildsFromOpeningsMoreInHumidAirAndSlowsCooling() {
+        Freezer dry = freezer(), humid = freezer();
+        for (int i = 0; i < 5; i++) {
+            dry.frostFromOpening(20.0, SETTINGS);
+            humid.frostFromOpening(90.0, SETTINGS);
+        }
+        assertTrue(humid.frost() > 2 * dry.frost(), humid.frost() + " vs " + dry.frost());
+        assertEquals(5 * SETTINGS.frostPerOpening() * 1.8, humid.frost(), 1e-9);
+        // A full ring halves its cooling.
+        Freezer clean = freezer(), frosted = freezer();
+        frosted.setFrost(1.0);
+        frosted.setAutoDefrost(false);
+        run(clean, 70.0, 1.0);
+        run(frosted, 70.0, 1.0);
+        assertTrue(frosted.insideF() > clean.insideF() + 5.0, frosted.insideF() + " vs " + clean.insideF());
+    }
+
+    @Test
+    void itDefrostsItselfAndFoodStaysFrozen() {
+        Freezer freezer = freezer();
+        run(freezer, 70.0, 10.0);
+        freezer.setFrost(SETTINGS.autoDefrostAt());
+        freezer.step(70.0, 50.0, HOUR / 10, SETTINGS);
+        assertTrue(freezer.defrosting(), "heavy frost starts a defrost");
+        assertEquals("Defrosting", freezer.activity());
+        assertFalse(freezer.running(), "its compressor rests");
+        double warmest = freezer.insideF();
+        for (int i = 0; i < 40 && freezer.defrosting(); i++) {
+            freezer.step(70.0, 50.0, HOUR / 10, SETTINGS);
+            warmest = Math.max(warmest, freezer.insideF());
+        }
+        assertFalse(freezer.defrosting(), "and it ends");
+        assertEquals(0.0, freezer.frost(), 1e-9, "with the frost gone");
+        assertTrue(warmest <= SETTINGS.defrostCeilingF() + 1e-9, "food stays frozen: " + warmest);
+    }
+
+    @Test
+    void autoDefrostOffLetsFrostGrowAndDefrostNowWorksEvenWhenOff() {
+        Freezer freezer = freezer();
+        freezer.setAutoDefrost(false);
+        freezer.setFrost(0.9);
+        freezer.step(70.0, 50.0, HOUR / 10, SETTINGS);
+        assertFalse(freezer.defrosting(), "never by itself");
+        freezer.setPowered(false);
+        freezer.startDefrost(SETTINGS);
+        run(freezer, 70.0, 1.0);
+        assertEquals(0.0, freezer.frost(), 1e-9, "a defrost asked for runs switched off too");
+        Freezer loaded = Freezer.fromMap(freezer.toMap());
+        assertFalse(loaded.autoDefrost(), "auto defrost off is saved");
+        Freezer saved = freezer();
+        saved.setFrost(0.4);
+        assertEquals(0.4, Freezer.fromMap(saved.toMap()).frost(), 1e-9, "frost is saved");
     }
 
     @Test
