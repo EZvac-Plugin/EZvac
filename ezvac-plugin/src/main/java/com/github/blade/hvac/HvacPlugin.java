@@ -148,8 +148,11 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(new HvacListener(
                     this, registry, airflow, displays, commandHandler, units), this);
             getServer().getPluginManager().registerEvents(hud, this);
+            frost = new com.github.blade.hvac.service.FreezerFrost(this, registry);
+            getServer().getPluginManager().registerEvents(frost, this);
+            frost.start();
             getServer().getPluginManager().registerEvents(
-                    new com.github.blade.hvac.listener.RefrigeratorListener(registry, units, displays), this);
+                    new com.github.blade.hvac.listener.RefrigeratorListener(registry, units, displays, frost), this);
             menus = new ControlMenus(this, registry, displays, settings, climate);
             getServer().getPluginManager().registerEvents(menus, this);
             forecastMenu = new ForecastMenu(this, registry, weatherStations, displays, commandHandler::isTool);
@@ -387,8 +390,15 @@ public final class HvacPlugin extends JavaPlugin {
     /** Whether this start stopped on hvac.yml. */
     public boolean stopped() { return notices != null && notices.stopped(); }
 
+    /** A freezer's frost in its barrel (BETA 1.0 Pilot 7). */
+    private com.github.blade.hvac.service.FreezerFrost frost;
+
+    public com.github.blade.hvac.service.FreezerFrost frost() { return frost; }
+
     @Override
     public void onDisable() {
+        // No frost is left in a barrel for a server without EZvac: it comes back from the save on the next start.
+        if (frost != null) frost.clearAll();
         if (menus != null) menus.closeAll();
         if (quickSettings != null) quickSettings.closeAll();
         if (forecastMenu != null) forecastMenu.closeAll();

@@ -93,6 +93,14 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
      * @return true when whether it runs changed
      */
     public boolean step(double roomF, long elapsedTicks, RefrigerationSettings settings) {
+        return step(roomF, Double.NaN, elapsedTicks, settings);
+    }
+
+    /**
+     * The same, knowing the air's relative humidity (NaN when unknown), which
+     * a freezer's frost builds from.
+     */
+    public boolean step(double roomF, double humidity, long elapsedTicks, RefrigerationSettings settings) {
         if (!Double.isFinite(roomF)) {
             // Out of reach (its chunk unloaded): it holds where it was, and stops as equipment does.
             boolean was = running;
@@ -100,7 +108,10 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
             return was;
         }
         if (!Double.isFinite(insideF)) insideF = ThermalModel.clampTemperature(roomF);
-        boolean wanted = switchedOn() && settings.enabled()
+        double stepHours = Math.max(0L, elapsedTicks) / ThermalModel.MINECRAFT_TICKS_PER_HOUR;
+        // A freezer defrosting runs its heater instead of its compressor.
+        boolean defrostingNow = advanceFrost(stepHours, humidity, elapsedTicks, settings);
+        boolean wanted = !defrostingNow && switchedOn() && settings.enabled()
                 && (running ? insideF > setpoint() : insideF > setpoint() + settings.hysteresisF());
         boolean changed = wanted != running;
         running = wanted;
@@ -109,9 +120,27 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
         if (!doorOpen()) spill = Math.min(1.0, spill + hours);
         double leak = settings.leakPerHour() * (doorOpen() ? settings.doorLeakFactor() : 1.0);
         insideF += (roomF - insideF) * (1.0 - Math.exp(-leak * hours));
-        if (running) insideF = Math.max(Math.min(insideF, setpoint()), insideF - settings.pullDownFPerHour() * hours);
+        if (defrostingNow && insideF < settings.defrostCeilingF())
+            insideF = Math.min(settings.defrostCeilingF(), insideF + settings.defrostHeatFPerHour() * hours);
+        if (running) insideF = Math.max(Math.min(insideF, setpoint()),
+                insideF - settings.pullDownFPerHour() * pullFactor(settings) * hours);
         insideF = ThermalModel.clampTemperature(insideF);
         return changed;
+    }
+
+    /**
+     * A freezer's frost for this step: built up, or melting away while it
+     * defrosts. Fridges never frost.
+     *
+     * @return true while it is defrosting
+     */
+    protected boolean advanceFrost(double hours, double humidity, long elapsedTicks, RefrigerationSettings settings) {
+        return false;
+    }
+
+    /** How much of its compressor's pull it gets: less for a frosted-up freezer. */
+    protected double pullFactor(RefrigerationSettings settings) {
+        return 1.0;
     }
 
     /** Cooling, holding (at its setpoint and resting), or off, for its screen. */

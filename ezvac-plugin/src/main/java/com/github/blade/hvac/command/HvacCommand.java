@@ -158,6 +158,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "thermostat" -> { if (requireAdmin(player)) thermostat(player, args); }
                 case "equipment" -> { if (requireAdmin(player)) equipment(player, args); }
                 case "rename" -> { if (requireAdmin(player)) rename(player, args); }
+                case "frost" -> { if (requireAdmin(player)) frost(player, args); }
                 case "group" -> { if (requireAdmin(player)) player.sendMessage(yellow("Groups are gone since EZvac"
                         + " 3.0. Link devices to a thermostat with /hvac link-tool; switch a system on or off by"
                         + " sneak-clicking its thermostat, and /hvac info on any part of it shows the system.")); }
@@ -1251,6 +1252,30 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    /**
+     * {@code /hvac frost <percent>} (BETA 1.0 Pilot 7): sets the frost of the
+     * freezer being looked at, to see it, or to test a server's settings.
+     */
+    private void frost(Player player, String[] args) {
+        if (args.length < 2) throw new IllegalArgumentException("Usage: /hvac frost <0-100>, looking at a freezer.");
+        int percent;
+        try {
+            percent = Integer.parseInt(args[1].replace("%", ""));
+        } catch (NumberFormatException notANumber) {
+            throw new IllegalArgumentException("Usage: /hvac frost <0-100>, looking at a freezer.");
+        }
+        Block block = target(player);
+        if (!(registry.refrigeratorAt(BlockKey.of(block.getLocation())) instanceof Freezer freezer))
+            throw new IllegalArgumentException("Look at a freezer: its sign, iron block or barrel.");
+        freezer.setFrost(Math.max(0, Math.min(100, percent)) / 100.0);
+        registry.markDirty();
+        plugin.frost().show(freezer);
+        displays.refreshClimateUnit(freezer, true);
+        player.sendMessage(green(freezer.label() + "'s frost is now " + Math.round(freezer.frost() * 100) + "%."
+                + (freezer.autoDefrost() && freezer.frost() >= units.climate().refrigeration().autoDefrostAt()
+                ? " That's past where it defrosts itself, so it will start shortly." : "")));
+    }
+
     /** A fridge or freezer (BETA 1.0 Pilot 7): its inside, setpoint, what it's doing, and the room it warms. */
     private void showRefrigerator(Player player, Refrigerator refrigerator) {
         String room = refrigerator.servedSystem() == null ? "the air outside where it stands (no system's room)"
@@ -1262,6 +1287,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         : "not measured yet"),
                 gray(" | Setpoint: "), white(settings.units().format(refrigerator.setpoint(), 0)),
                 gray(" | "), white(refrigerator.activity())));
+        if (refrigerator instanceof Freezer freezer)
+            player.sendMessage(join(gray("Frost: "), white(Math.round(freezer.frost() * 100) + "%"),
+                    gray(" | Auto defrost: "), white(freezer.autoDefrost() ? "on" : "off"),
+                    freezer.defrosting() ? gray(" | defrosting now") : gray("")));
     }
 
     private void showEquipment(Player player, EquipmentUnit unit) {
@@ -1387,6 +1416,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 lines.add(help("/hvac wind set <calm|breezy|windy|gale|auto>", "set today's wind, until the day ends"));
                 lines.add(help("/hvac hud sections", "the HUD sections addons have added"));
                 lines.add(help("/hvac registry [repair --force]", "hvac.yml's health; discard broken entries"));
+                lines.add(help("/hvac frost <0-100>", "set the frost of the freezer you look at"));
             }
             default -> {
                 lines.add(gold("EZvac commands"));
@@ -1415,7 +1445,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         List<String> words = new ArrayList<>(List.of("help", "temperature", "list", "info", "season", "wind",
                 "forecast"));
         if (hud) words.add("hud");
-        if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove",
+        if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove", "frost",
                 "stats", "sync", "update", "quicksettings", "addons", "registry"));
         return words;
     }
@@ -1463,6 +1493,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "thermostat" -> filter(args[1], "set", "enable", "disable", "info");
                 case "equipment" -> filter(args[1], "enable", "disable", "tier", "info");
                 case "remove" -> filter(args[1], "system");
+                case "frost" -> filter(args[1], "0", "25", "50", "75", "100");
                 case "stats" -> filter(args[1], "sizes");
                 default -> List.of();
             };

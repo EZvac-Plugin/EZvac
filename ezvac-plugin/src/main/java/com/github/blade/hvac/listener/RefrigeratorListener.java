@@ -22,11 +22,14 @@ public final class RefrigeratorListener implements Listener {
     private final HvacRegistry registry;
     private final ClimateUnitService units;
     private final DisplayService displays;
+    private final com.github.blade.hvac.service.FreezerFrost frost;
 
-    public RefrigeratorListener(HvacRegistry registry, ClimateUnitService units, DisplayService displays) {
+    public RefrigeratorListener(HvacRegistry registry, ClimateUnitService units, DisplayService displays,
+                                com.github.blade.hvac.service.FreezerFrost frost) {
         this.registry = registry;
         this.units = units;
         this.displays = displays;
+        this.frost = frost;
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
@@ -34,6 +37,11 @@ public final class RefrigeratorListener implements Listener {
         Refrigerator refrigerator = of(event.getInventory());
         if (refrigerator == null) return;
         refrigerator.opened(units.airAround(refrigerator), units.climate().refrigeration());
+        // A freezer's frost: the air that came in leaves some behind, more when it's humid; seen at once.
+        if (refrigerator instanceof com.github.blade.hvac.model.Freezer freezer) {
+            freezer.frostFromOpening(units.humidityAround(freezer), units.climate().refrigeration());
+            frost.show(freezer);
+        }
         registry.markDirty();
         displays.refreshClimateUnit(refrigerator, true);
     }

@@ -194,7 +194,8 @@ public final class ClimateUnitService {
         for (ClimateUnit climateUnit : ordered) {
             if (climateUnit instanceof Refrigerator refrigerator) {
                 boolean was = refrigerator.running();
-                refrigerator.step(airAround(refrigerator), elapsedTicks, climate.refrigeration());
+                refrigerator.step(airAround(refrigerator), humidityAround(refrigerator), elapsedTicks,
+                        climate.refrigeration());
                 if (refrigerator.running() && !was) started.add(refrigerator);
                 if (!refrigerator.running() && was) stopped.add(refrigerator);
                 if (refrigerator.running()) running.add(refrigerator);
@@ -248,6 +249,24 @@ public final class ClimateUnitService {
         if (thermostat != null && Double.isFinite(thermostat.roomF())) return thermostat.roomF();
         Location at = refrigerator.unit().location();
         return at == null ? Double.NaN : outdoor.climateAt(at.clone().add(0.5, 1.5, 0.5)).airF();
+    }
+
+    /**
+     * The relative humidity of the air a fridge or freezer stands in: its
+     * room's, or the air outside; NaN while its chunk is unloaded. A freezer's
+     * frost builds faster in humid air.
+     */
+    public double humidityAround(Refrigerator refrigerator) {
+        if (!refrigerator.unit().isChunkLoaded()) return Double.NaN;
+        SystemId served = refrigerator.servedSystem();
+        if (served != null) {
+            double humidity = systemHumidity(served);
+            if (Double.isFinite(humidity)) return humidity;
+        }
+        Location at = refrigerator.unit().location();
+        if (at == null) return Double.NaN;
+        OutdoorTemperatureService.Outdoor out = outdoor.climateAt(at.clone().add(0.5, 1.5, 0.5));
+        return Psychrometrics.relativeHumidity(out.airF(), out.dewPointF());
     }
 
     /**
