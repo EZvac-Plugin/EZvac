@@ -67,6 +67,8 @@ public final class HvacPlugin extends JavaPlugin {
     /** Units running after the last cycle, for the humidifier bubbles between cycles. */
     private List<com.github.blade.hvac.model.ClimateUnit> runningUnits = List.of();
     private BukkitTask bubbleTask;
+    /** Turns the new look's icons (BETA 1.0 Pilot 7). */
+    private BukkitTask panelTask;
     private ClimateHudService hud;
     private UpdateNotifier updates;
     private ServerSwitches switches;
@@ -154,6 +156,8 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(
                     new com.github.blade.hvac.listener.RefrigeratorListener(registry, units, displays, frost), this);
             menus = new ControlMenus(this, registry, displays, settings, climate);
+            getServer().getPluginManager().registerEvents(new com.github.blade.hvac.gui.PanelControls(this, registry,
+                    displays, settings, climate, displays.screens().panels()), this);
             getServer().getPluginManager().registerEvents(menus, this);
             forecastMenu = new ForecastMenu(this, registry, weatherStations, displays, commandHandler::isTool);
             getServer().getPluginManager().registerEvents(forecastMenu, this);
@@ -185,6 +189,9 @@ public final class HvacPlugin extends JavaPlugin {
                     tickCost.timed("Open-air smoke", () -> outdoorSmoke.refresh(getServer().getWorlds())),
                     OutdoorSmokeService.REFRESH_TICKS, OutdoorSmokeService.REFRESH_TICKS);
             sparkTask = getServer().getScheduler().runTaskTimer(this, weatherStations::watch, 20L, 20L);
+            long[] panelTicks = {0L};
+            panelTask = getServer().getScheduler().runTaskTimer(this,
+                    () -> displays.screens().panels().animate(panelTicks[0]++), 1L, 1L);
             bubbleTask = getServer().getScheduler().runTaskTimer(this,
                     () -> { audio.bubble(runningUnits); audio.ventBubbles(registry); }, HvacAudioService.BUBBLE_PERIOD_TICKS,
                     HvacAudioService.BUBBLE_PERIOD_TICKS);
@@ -416,6 +423,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (controllerTask != null) controllerTask.cancel();
         if (airflowTask != null) airflowTask.cancel();
         if (bubbleTask != null) bubbleTask.cancel();
+        if (panelTask != null) panelTask.cancel();
         if (displays != null) displays.screens().removeAll();
         if (registry != null) {
             registry.shutdownEquipment();

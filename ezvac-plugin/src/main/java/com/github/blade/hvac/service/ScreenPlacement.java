@@ -52,6 +52,11 @@ public final class ScreenPlacement {
         return spot(mount, facingX, facingZ, mount.centreY - height(mount, lines) / 2.0, 0.0);
     }
 
+    /** The middle of the board, where a panel is centred (BETA 1.0 Pilot 7). */
+    public static Spot centre(Mount mount, double facingX, double facingZ) {
+        return spot(mount, facingX, facingZ, mount.centreY, 0.0);
+    }
+
     /** How far in front of the body the big reading floats, in blocks, so the two never flicker. */
     static final double BIG_LIFT = 0.01;
 

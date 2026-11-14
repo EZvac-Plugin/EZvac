@@ -79,6 +79,7 @@ public final class RpmMonitor {
     public int page(int rows) { return pager.page(rows); }
     public static int pages(int rows) { return Pager.pages(rows); }
     public void nextPage(int rows) { pager.next(rows); }
+    public void previousPage(int rows) { pager.previous(rows); }
     public <T> List<T> onPage(List<T> rows) { return pager.onPage(rows); }
     public boolean advanceAutoFlip(long elapsedTicks, int rows) { return pager.advance(elapsedTicks, rows); }
 

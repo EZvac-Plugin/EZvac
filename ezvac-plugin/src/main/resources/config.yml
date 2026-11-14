@@ -394,6 +394,14 @@ humidifier:
 # system's room full of them makes its AC work harder. In EZvac itself food
 # never spoils; an addon such as EZclimates makes food keep longer the
 # colder it's kept. Rates are per in-game hour.
+# Screens (BETA 1.0 Pilot 7). The new look draws each device's screen as a
+# panel exactly the size of its sign, with buttons where a choice belongs on
+# the wall (a thermostat's setpoint, a fridge's, a monitor's pages) and bars
+# and icons that move smoothly while it works. false keeps the classic
+# screens. Screens not yet in the new look keep the classic one either way.
+screens:
+  new-look: true
+
 refrigeration:
   # false lets every one of them warm up and sit idle.
   enabled: true

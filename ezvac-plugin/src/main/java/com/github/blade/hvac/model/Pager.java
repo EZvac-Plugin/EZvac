@@ -37,6 +37,13 @@ public final class Pager {
         ticksOnPage = 0;
     }
 
+    /** The page before, wrapping round to the last (BETA 1.0 Pilot 7, a screen's &lt; button). */
+    public void previous(int items) {
+        int pages = pages(items);
+        page = (page(items) + pages - 1) % pages;
+        ticksOnPage = 0;
+    }
+
     /** Keeps the page in range after items were taken away. */
     public void settle(int items) { page = page(items); }
 
