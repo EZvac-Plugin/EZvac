@@ -15,7 +15,8 @@ default).
 
 - It keeps the barrel cold: a running compressor pulls the inside down to
   its setpoint, and its inside slowly closes on the room through the walls.
-- Opening the barrel lets the room in; the screen says "Door open".
+- Opening the barrel lets the air around it in (opening it over and over adds
+  next to nothing more); the screen says "Door open".
 - The heat it pulls out warms its system's room, so a kitchen full of
   freezers makes the AC work harder.
 - Its screen shows the inside temperature, the setpoint and what it's doing;

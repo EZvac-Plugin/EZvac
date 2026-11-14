@@ -26,6 +26,12 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
     private double insideF;
     /** Players with its barrel open right now; never saved. */
     private int viewers;
+    /**
+     * How much cold air is ready to spill out when it is next opened, 0 to 1:
+     * all of it after it has stood shut a while, little straight after it was
+     * opened, so opening it again and again lets in no more than once. Never saved.
+     */
+    private double spill = 1.0;
 
     protected Refrigerator(BlockKey position, BlockKey unit, BlockKey barrel, String label, int setpoint,
                            boolean powered, boolean running, double insideF) {
@@ -57,13 +63,16 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
     public boolean control(double humidity, ClimateSettings settings) { return false; }
 
     /**
-     * Its barrel was opened: the room's air comes in, a share of the gap at
-     * once, and it leaks faster until it is shut again.
+     * Its barrel was opened: its cold air spills out and the room's comes in,
+     * a share of the gap at once (less if it was opened only a moment ago,
+     * the spill building up again over an in-game hour), and it leaks faster
+     * until it is shut again.
      */
     public void opened(double roomF, RefrigerationSettings settings) {
         viewers++;
         if (Double.isFinite(roomF) && Double.isFinite(insideF))
-            insideF += (roomF - insideF) * settings.doorShare();
+            insideF += (roomF - insideF) * settings.doorShare() * spill;
+        spill = 0.0;
     }
 
     /** One player shut it (or left it open and went). */
@@ -96,6 +105,8 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
         boolean changed = wanted != running;
         running = wanted;
         double hours = Math.max(0L, elapsedTicks) / ThermalModel.MINECRAFT_TICKS_PER_HOUR;
+        // Shut, its cold air builds back up: all of it within an in-game hour.
+        if (!doorOpen()) spill = Math.min(1.0, spill + hours);
         double leak = settings.leakPerHour() * (doorOpen() ? settings.doorLeakFactor() : 1.0);
         insideF += (roomF - insideF) * (1.0 - Math.exp(-leak * hours));
         if (running) insideF = Math.max(Math.min(insideF, setpoint()), insideF - settings.pullDownFPerHour() * hours);

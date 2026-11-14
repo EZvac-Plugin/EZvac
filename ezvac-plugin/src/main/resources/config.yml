@@ -395,12 +395,14 @@ refrigeration:
   freezer-default-f: 0
   # How fast a running compressor cools the barrel.
   pull-down-f-per-minecraft-hour: 20.0
-  # The share of the gap to the room the barrel's inside closes through its
-  # walls, shut.
+  # The share of the gap to the air around it (its system's room, or the air
+  # outside where it stands) the barrel's inside closes through its walls, shut.
   leak-per-minecraft-hour: 0.08
-  # Opening the barrel lets the room in: this share of the gap at once, and it
-  # leaks door-leak-factor times faster while it stands open.
-  door-share: 0.25
+  # Opening the barrel lets that air in: this share of the gap at once, and it
+  # leaks door-leak-factor times faster while it stands open. Opened again
+  # soon after, less comes in at once: its cold air takes an in-game hour to
+  # build up again, so opening it over and over adds next to nothing.
+  door-share: 0.15
   door-leak-factor: 6.0
   # It starts this far above its setpoint and runs down to it.
   hysteresis-f: 2.0
