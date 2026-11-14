@@ -15,7 +15,8 @@ import java.util.function.Consumer;
  * @param freezerDefaultF  a new freezer's setpoint (-10 to 20 F)
  * @param pullDownFPerHour how fast a running one cools its inside, in F per in-game hour
  * @param leakPerHour      the share of the gap to the room its inside closes per in-game hour, shut
- * @param doorShare        the share of that gap that comes in at once when it is opened
+ * @param doorShare        the share of that gap that comes in at once when it is opened after standing shut
+ *                         (opened again soon after, less: its cold air takes an in-game hour to build up)
  * @param doorLeakFactor   how many times faster it leaks while it stands open
  * @param hysteresisF      it starts this far above its setpoint and runs down to it
  * @param fridgeHeatFPerHour  what a running fridge adds to its room, F per in-game hour, at the reference size
@@ -45,7 +46,7 @@ public record RefrigerationSettings(boolean enabled, int fridgeDefaultF, int fre
     }
 
     public static RefrigerationSettings defaults() {
-        return new RefrigerationSettings(true, 37, 0, 20.0, 0.08, 0.25, 6.0, 2.0, 0.3, 0.5, 1_500);
+        return new RefrigerationSettings(true, 37, 0, 20.0, 0.08, 0.15, 6.0, 2.0, 0.3, 0.5, 1_500);
     }
 
     /** Reads the section; a bad value warns and the whole section keeps its defaults. */

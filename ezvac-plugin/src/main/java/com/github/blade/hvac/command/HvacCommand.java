@@ -1253,11 +1253,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     /** A fridge or freezer (BETA 1.0 Pilot 7): its inside, setpoint, what it's doing, and the room it warms. */
     private void showRefrigerator(Player player, Refrigerator refrigerator) {
-        String room = refrigerator.servedSystem() == null ? "no system's room (it warms nothing EZvac tracks)"
-                : "system " + SystemNames.label(registry, refrigerator.servedSystem());
+        String room = refrigerator.servedSystem() == null ? "the air outside where it stands (no system's room)"
+                : "system " + SystemNames.label(registry, refrigerator.servedSystem()) + "'s room";
         double inside = refrigerator.insideF();
         player.sendMessage(join(gold(refrigerator.kind().displayName() + " "), white(refrigerator.label()),
-                gray(" | Warms: "), white(room)));
+                gray(" | Stands in: "), white(room)));
         player.sendMessage(join(gray("Inside: "), white(Double.isFinite(inside) ? settings.units().format(inside, 1)
                         : "not measured yet"),
                 gray(" | Setpoint: "), white(settings.units().format(refrigerator.setpoint(), 0)),

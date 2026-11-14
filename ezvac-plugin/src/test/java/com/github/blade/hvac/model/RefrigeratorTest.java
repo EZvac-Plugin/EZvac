@@ -77,6 +77,27 @@ class RefrigeratorTest {
     }
 
     @Test
+    void openingItOverAndOverLetsInLittleMoreThanOnce() {
+        Fridge once = fridge(), spammed = fridge();
+        run(once, 70.0, 8.0);
+        run(spammed, 70.0, 8.0);
+        once.opened(70.0, SETTINGS);
+        once.closed();
+        for (int i = 0; i < 10; i++) {
+            spammed.opened(70.0, SETTINGS);
+            spammed.closed();
+        }
+        assertEquals(once.insideF(), spammed.insideF(), 1e-9, "ten quick openings, the same as one");
+        // An hour shut, its cold air is back: the next opening lets in a full share again.
+        double before = once.insideF();
+        run(once, 70.0, 1.0);
+        double rested = once.insideF();
+        once.opened(70.0, SETTINGS);
+        assertEquals(rested + (70.0 - rested) * SETTINGS.doorShare(), once.insideF(), 1e-9);
+        assertTrue(before < 45.0);
+    }
+
+    @Test
     void openItLeaksFasterThanShut() {
         Fridge shut = fridge(), open = fridge();
         run(shut, 70.0, 8.0);
