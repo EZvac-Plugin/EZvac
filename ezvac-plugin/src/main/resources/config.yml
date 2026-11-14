@@ -403,7 +403,8 @@ refrigeration:
   # soon after, less comes in at once: its cold air takes an in-game hour to
   # build up again, so opening it over and over adds next to nothing.
   door-share: 0.15
-  door-leak-factor: 6.0
+  # Open, it warms faster than its compressor can cool it.
+  door-leak-factor: 15.0
   # It starts this far above its setpoint and runs down to it.
   hysteresis-f: 2.0
   # What a running one adds to its room, in a room of reference-cells; bigger

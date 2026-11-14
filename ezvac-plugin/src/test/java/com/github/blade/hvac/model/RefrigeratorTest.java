@@ -98,6 +98,23 @@ class RefrigeratorTest {
     }
 
     @Test
+    void leftOpenAFreezerWarmsEvenWithItsCompressorRunning() {
+        Freezer freezer = freezer();
+        run(freezer, 70.0, 10.0);
+        double cold = freezer.insideF();
+        freezer.opened(70.0, SETTINGS);
+        double afterOpening = freezer.insideF();
+        run(freezer, 70.0, 0.5);
+        assertTrue(freezer.running(), "its compressor runs");
+        assertTrue(freezer.insideF() > afterOpening + 5.0, "but standing open it warms: " + cold + " -> "
+                + afterOpening + " -> " + freezer.insideF());
+        freezer.closed();
+        double warm = freezer.insideF();
+        run(freezer, 70.0, 1.0);
+        assertTrue(freezer.insideF() < warm, "shut, it cools again");
+    }
+
+    @Test
     void openItLeaksFasterThanShut() {
         Fridge shut = fridge(), open = fridge();
         run(shut, 70.0, 8.0);
