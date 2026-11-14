@@ -40,10 +40,10 @@ import java.util.UUID;
 public final class PanelScreens {
     /**
      * A text display's background, for a single space at one times the size:
-     * 5 font pixels wide from -2, 11 tall from its foot. Fills are such a space,
+     * 5 font pixels wide from -2, 10 tall from its foot (seen in game). Fills are such a space,
      * stretched.
      */
-    static final double FILL_LEFT = -2.0, FILL_W = 5.0, FILL_H = 11.0;
+    static final double FILL_LEFT = -2.0, FILL_W = 5.0, FILL_H = 10.0;
     /** Where a line's glyphs start above a text display's foot, in font pixels. */
     static final double GLYPH_TOP = 9.0;
     /** A font pixel, in blocks, at a display scale of one. */

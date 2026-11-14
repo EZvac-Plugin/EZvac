@@ -107,7 +107,7 @@ public final class Panel {
     }
 
     public Panel big(String id, int x, int y, int w, String text, TextColor color, Align align) {
-        return add(new Label(id, x, y, w, Component.text(text, color).decorate(TextDecoration.BOLD), 2, align));
+        return add(new Label(id, x, y, w, Component.text(text, color).decorate(TextDecoration.BOLD), BIG, align));
     }
 
     public Panel bar(String id, int x, int y, int w, int h, double fraction, int argb) {
@@ -140,6 +140,8 @@ public final class Panel {
     public static final int PRESSED = 0xFF4A7BB0;
     /** Small text's size: three quarters of the font's, so it sits in its strip with room round it. */
     public static final double SMALL = 0.75;
+    /** A big reading's size: one and a half times the font's, so three digits still fit their zone. */
+    public static final double BIG = 1.5;
     /** How tall the header strip is. */
     public static final int HEADER = 9;
 
