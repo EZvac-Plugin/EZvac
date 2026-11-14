@@ -37,9 +37,11 @@ public final class Panels {
         Component right = Component.text(state, NamedTextColor.WHITE);
         if (attention > 0) right = right.append(Component.text(" ⚠" + attention, AMBER));
         int rightWidth = Panel.width(right);
-        panel.label("state", width - 3 - rightWidth, 1, rightWidth, right, 1, Panel.Align.RIGHT);
-        int titleZone = width - 9 - rightWidth;
-        panel.label("title", 3, 1, titleZone, TextWidth.fit(title, titleZone), NamedTextColor.WHITE, Panel.Align.LEFT);
+        int rightZone = (int) Math.ceil(rightWidth * Panel.SMALL);
+        panel.label("state", width - 3 - rightZone, 2, rightZone, right, Panel.SMALL, Panel.Align.RIGHT);
+        int titleZone = width - 9 - rightZone;
+        panel.label("title", 3, 2, titleZone, TextWidth.fit(title, (int) (titleZone / Panel.SMALL)), NamedTextColor.WHITE,
+                Panel.Align.LEFT);
     }
 
     /** {@code 72°}: whole degrees, as an appliance or a thermostat shows them. */
@@ -74,7 +76,7 @@ public final class Panels {
 
     static String state(ThermostatState t) {
         if (!t.enabled()) return "○ off";
-        if (!t.blocked().isEmpty()) return "! stopped";
+        if (!t.blocked().isEmpty()) return "stopped";
         return switch (t.mode()) {
             case COOLING -> "❄ cooling";
             case HEATING -> "♨ heating";
@@ -104,8 +106,8 @@ public final class Panels {
         panel.big("room", 22, 25, 56, degrees(units, t.roomF()), NamedTextColor.WHITE, Panel.Align.CENTER);
         if (!t.blocked().isEmpty()) panel.label("set", 26, 41, 48, t.blocked(), NamedTextColor.RED, Panel.Align.CENTER);
         else panel.label("set", 26, 41, 48, "set " + degrees(units, t.targetF()), text(t), Panel.Align.CENTER);
-        panel.button("down", 2, 38, 13, 11, "▼", "down");
-        panel.button("up", 85, 38, 13, 11, "▲", "up");
+        panel.button("down", 2, 38, 13, 11, "-", "down");
+        panel.button("up", 85, 38, 13, 11, "+", "up");
         return panel;
     }
 
@@ -123,9 +125,9 @@ public final class Panels {
             Component warning = Component.text(" ⚠" + t.attention(), AMBER);
             state = state.append(warning);
             // Too wide with the count: the state's glyph alone, and the count; never the count left out.
-            if (Panel.width(state) > 54) state = Component.text(said.substring(0, 1), saidColor).append(warning);
+            if (Panel.width(state) * Panel.SMALL > 54) state = Component.text(said.substring(0, 1), saidColor).append(warning);
         }
-        panel.label("state", 3, 2, 54, state, 1, Panel.Align.LEFT);
+        panel.label("state", 3, 2, 54, state, Panel.SMALL, Panel.Align.LEFT);
         String room = degrees(units, t.roomF());
         // A pool's 104° is too wide to be big on so small a panel: it is drawn at the normal size there.
         if (Panel.width(Component.text(room).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD)) * 2 <= 41)
@@ -135,8 +137,8 @@ public final class Panels {
         boolean working = t.enabled() && t.blocked().isEmpty() && t.mode() != OperatingMode.IDLE
                 && Double.isFinite(t.progress());
         panel.bar("progress", 3, 38, 40, 2, working ? t.progress() : 0.0, 0xFF000000 | text(t).value());
-        panel.button("up", 46, 13, 12, 11, "▲", "up");
-        panel.button("down", 46, 28, 12, 11, "▼", "down");
+        panel.button("up", 46, 13, 12, 11, "+", "up");
+        panel.button("down", 46, 28, 12, 11, "-", "down");
         return panel;
     }
 
@@ -187,8 +189,8 @@ public final class Panels {
         } else if (c.barrels() > 1)
             panel.label("barrels", 4, 40, 78, c.barrels() + " barrels", DIM, Panel.Align.LEFT);
         // A deep freezer's arrows sit higher, leaving the bottom right to its Defrost button.
-        panel.button("up", 86, 11, 12, c.deep() ? 11 : 12, "▲", "up");
-        panel.button("down", 86, c.deep() ? 24 : 37, 12, c.deep() ? 11 : 12, "▼", "down");
+        panel.button("up", 86, 11, 12, c.deep() ? 11 : 12, "+", "up");
+        panel.button("down", 86, c.deep() ? 24 : 37, 12, c.deep() ? 11 : 12, "-", "down");
         return panel;
     }
 
@@ -206,12 +208,12 @@ public final class Panels {
         panel.label("freezerName", 52, 28, 46, "FREEZER", DIM, Panel.Align.CENTER);
         if (r.frost() >= 0.05) panel.bar("frost", 58, 37, 34, 1, r.frost(), 0xFF7FDCFF);
         // Each compartment's setpoint between its arrows, a stepper.
-        panel.button("fridgeDown", 2, 39, 11, 10, "▼", "fridge-down");
+        panel.button("fridgeDown", 2, 39, 11, 10, "-", "fridge-down");
         panel.label("fridgeSet", 13, 40, 24, degrees(units, r.fridgeSetpoint()), NamedTextColor.WHITE, Panel.Align.CENTER);
-        panel.button("fridgeUp", 37, 39, 11, 10, "▲", "fridge-up");
-        panel.button("freezerDown", 51, 39, 11, 10, "▼", "down");
+        panel.button("fridgeUp", 37, 39, 11, 10, "+", "fridge-up");
+        panel.button("freezerDown", 51, 39, 11, 10, "-", "down");
         panel.label("freezerSet", 62, 40, 25, degrees(units, r.freezerSetpoint()), ICE_TEXT, Panel.Align.CENTER);
-        panel.button("freezerUp", 87, 39, 11, 10, "▲", "up");
+        panel.button("freezerUp", 87, 39, 11, 10, "+", "up");
         return panel;
     }
 
@@ -219,7 +221,7 @@ public final class Panels {
     static void bigOrNot(Panel panel, String id, int x, int y, int w, String text, TextColor color, Panel.Align align) {
         Component big = Component.text(text, color).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD);
         if (Panel.width(big) * 2 <= w) panel.big(id, x, y, w, text, color, align);
-        else panel.label(id, x, y + 4, w, big, 1, align);
+        else panel.label(id, x, y + 4, w, big, 1.25, align);
     }
 
     // ---- The equipment monitor ----
@@ -255,12 +257,12 @@ public final class Panels {
         panel.fill("header", 0, 0, 100, Panel.HEADER, tone);
         String title = system.isEmpty() ? name : name + " · " + system;
         if (pages > 1) {
-            panel.label("title", 3, 1, 55, TextWidth.fit(title, 55), NamedTextColor.WHITE, Panel.Align.LEFT);
+            panel.label("title", 3, 2, 55, TextWidth.fit(title, (int) (55 / Panel.SMALL)), NamedTextColor.WHITE, Panel.Align.LEFT);
             panel.button("prev", 60, 0, 10, 9, "<", "prev");
-            panel.label("page", 70, 1, 18, (page + 1) + "/" + pages, NamedTextColor.WHITE, Panel.Align.CENTER);
+            panel.label("page", 70, 2, 18, (page + 1) + "/" + pages, NamedTextColor.WHITE, Panel.Align.CENTER);
             panel.button("next", 88, 0, 10, 9, ">", "next");
         } else {
-            panel.label("title", 3, 1, 94, TextWidth.fit(title, 94), NamedTextColor.WHITE, Panel.Align.LEFT);
+            panel.label("title", 3, 2, 94, TextWidth.fit(title, (int) (94 / Panel.SMALL)), NamedTextColor.WHITE, Panel.Align.LEFT);
         }
         if (!linked) {
             panel.label("unlinked", 4, 18, 92, "Not linked:", DIM, Panel.Align.CENTER);
@@ -279,7 +281,7 @@ public final class Panels {
             panel.icon("icon" + i, 7, y + 5, 10, icon(row.type()), row.type().fixedSpeed() ? 0.0 : turns, !on);
             String what = kind(row.type()) + " T" + row.tier().number() + (row.units() > 1 ? " ×" + row.units() : "");
             TextColor color = on ? NamedTextColor.WHITE : OFF_TEXT;
-            panel.label("kind" + i, 14, y + 2, 48, TextWidth.fit(what, 48), color, Panel.Align.LEFT);
+            panel.label("kind" + i, 14, y + 2, 48, TextWidth.fit(what, (int) (48 / Panel.SMALL)), color, Panel.Align.LEFT);
             String speed = on ? String.format(Locale.US, "%,.0f", row.rpm()) : "off";
             panel.label("speed" + i, 63, y + 2, 34, speed, on ? HOLD_TEXT : OFF_TEXT, Panel.Align.RIGHT);
         }

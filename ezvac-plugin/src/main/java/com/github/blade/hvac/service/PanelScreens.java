@@ -224,8 +224,8 @@ public final class PanelScreens {
     }
 
     private static Panel.Label buttonLabel(Panel.Button b) {
-        return new Panel.Label(b.id() + "~text", b.x(), b.y() + (b.h() - 8) / 2, b.w(),
-                Component.text(b.label(), TextColor.color(b.textRgb())), 1, Panel.Align.CENTER);
+        return new Panel.Label(b.id() + "~text", b.x(), (int) Math.round(b.y() + (b.h() - 7 * Panel.SMALL) / 2.0), b.w(),
+                Component.text(b.label(), TextColor.color(b.textRgb())), Panel.SMALL, Panel.Align.CENTER);
     }
 
     private UUID text(Block block, BlockKey position, Shown shown, Component text, int background, boolean shadow,

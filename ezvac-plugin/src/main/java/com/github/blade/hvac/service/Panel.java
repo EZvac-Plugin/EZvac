@@ -53,11 +53,11 @@ public final class Panel {
      * Text in a zone {@code w} wide whose glyphs start at {@code y} (top), at
      * one or two times the size; a line is 8 pixels tall at one, 16 at two.
      */
-    public record Label(String id, int x, int y, int w, Component text, int scale, Align align) implements Part {
-        public int height() { return 9 * scale; }
+    public record Label(String id, int x, int y, int w, Component text, double scale, Align align) implements Part {
+        public int height() { return (int) Math.ceil(9 * scale); }
 
         /** How wide its text is drawn, in screen pixels: bold glyphs are a pixel wider. */
-        public int textWidth() { return Panel.width(text) * scale; }
+        public int textWidth() { return (int) Math.ceil(Panel.width(text) * scale); }
     }
 
     /** A bar filled {@code fraction} of the way from its left; the fill moves smoothly when it changes. */
@@ -98,12 +98,12 @@ public final class Panel {
         return add(new Fill(id, x, y, w, h, argb));
     }
 
-    public Panel label(String id, int x, int y, int w, Component text, int scale, Align align) {
+    public Panel label(String id, int x, int y, int w, Component text, double scale, Align align) {
         return add(new Label(id, x, y, w, text, scale, align));
     }
 
     public Panel label(String id, int x, int y, int w, String text, TextColor color, Align align) {
-        return add(new Label(id, x, y, w, Component.text(text, color), 1, align));
+        return add(new Label(id, x, y, w, Component.text(text, color), SMALL, align));
     }
 
     public Panel big(String id, int x, int y, int w, String text, TextColor color, Align align) {
@@ -138,6 +138,8 @@ public final class Panel {
     public static final int SELECTED = 0xFF2B5F3A;
     /** A button's face for a moment after it is pressed. */
     public static final int PRESSED = 0xFF4A7BB0;
+    /** Small text's size: three quarters of the font's, so it sits in its strip with room round it. */
+    public static final double SMALL = 0.75;
     /** How tall the header strip is. */
     public static final int HEADER = 9;
 
@@ -185,7 +187,7 @@ public final class Panel {
             if (part instanceof Label label && label.textWidth() > label.w())
                 problems.add(part.id() + "'s text is " + label.textWidth() + " wide in a zone of " + label.w());
             if (part instanceof Button button) {
-                int text = TextWidth.width(button.label());
+                int text = (int) Math.ceil(TextWidth.width(button.label()) * SMALL);
                 if (text > button.w() - 2) problems.add(part.id() + "'s label doesn't fit on it");
                 if (button.h() < 9) problems.add(part.id() + " is too short for its label");
             }
