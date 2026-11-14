@@ -297,6 +297,10 @@ public final class DisplayService {
     }
 
     public void refreshThermostat(Thermostat thermostat, boolean force) {
+        if (newLook()) {
+            refreshThermostatPanel(thermostat, force);
+            return;
+        }
         if (thermostat.mini()) {
             refreshMini(thermostat, force);
             return;
@@ -474,6 +478,9 @@ public final class DisplayService {
         return Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%";
     }
 
+    /** How many rows a monitor has, one for each kind of equipment in its system. */
+    public int rowCount(RpmMonitor monitor) { return rowsOf(monitor).size(); }
+
     private List<RpmMonitor.Row> rowsOf(RpmMonitor monitor) {
         return monitor.system() == null ? List.of() : RpmMonitor.rows(registry.equipmentFor(monitor.system()));
     }
@@ -484,6 +491,13 @@ public final class DisplayService {
      */
     public void refreshRpmMonitor(RpmMonitor monitor, boolean force) {
         List<RpmMonitor.Row> rows = rowsOf(monitor);
+        if (newLook()) {
+            int pages = RpmMonitor.pages(rows.size());
+            renderPanel(monitor.position(), force, false, Panels.monitor(monitor.label(),
+                    monitor.system() == null ? "" : SystemNames.label(registry, monitor.system()),
+                    monitor.system() != null, monitor.onPage(rows), monitor.page(rows.size()), pages));
+            return;
+        }
         int pages = RpmMonitor.pages(rows.size());
         String pageText = pages > 1 ? " " + (monitor.page(rows.size()) + 1) + "/" + pages : "";
         List<RpmMonitor.Row> shown = monitor.onPage(rows);
@@ -651,6 +665,10 @@ public final class DisplayService {
      * its two compartments side by side, the fridge on the left.
      */
     private void refreshRefrigerator(Refrigerator refrigerator, boolean force) {
+        if (newLook()) {
+            refreshRefrigeratorPanel(refrigerator, force);
+            return;
+        }
         String activity = refrigerator.offServerWide() ? OFF_SERVER_WIDE : refrigerator.activity();
         NamedTextColor color = switch (activity) {
             case "Cooling" -> NamedTextColor.AQUA;
@@ -832,6 +850,69 @@ public final class DisplayService {
             fingerprints.put(position, fingerprint);
         } catch (RuntimeException exception) {
             plugin.getLogger().log(Level.WARNING, "Could not refresh HVAC display at " + position, exception);
+        }
+    }
+
+    // ---- The new look (BETA 1.0 Pilot 7): panels the size of the sign, with buttons ----
+
+    /** Whether screens are drawn in the new look: {@code screens.new-look} in config.yml, on by default. */
+    public boolean newLook() {
+        return plugin.getConfig().getBoolean("screens.new-look", true);
+    }
+
+    private void refreshThermostatPanel(Thermostat thermostat, boolean force) {
+        java.util.Set<Attention> attention = thermostat.attention();
+        String blocked = thermostat.enabled() ? miniBlocked(attention, thermostat.waitingOnUnits() != null) : "";
+        var state = new Panels.ThermostatState(thermostat.id(), thermostat.pool(), thermostat.roomF(),
+                thermostat.targetF(), thermostat.mode(), thermostat.enabled(), blocked,
+                thermostat.pool() ? settings.poolMinimumTargetF() : settings.minimumTargetF(),
+                thermostat.pool() ? settings.poolMaximumTargetF() : settings.maximumTargetF(),
+                thermostat.progress(), attention.size());
+        renderPanel(thermostat.position(), force, thermostat.mini(), thermostat.mini()
+                ? Panels.mini(settings.units(), state) : Panels.thermostat(settings.units(), state));
+    }
+
+    private void refreshRefrigeratorPanel(Refrigerator refrigerator, boolean force) {
+        String activity = refrigerator.offServerWide() ? "Off" : refrigerator.activity();
+        Panel panel;
+        if (refrigerator instanceof FridgeFreezer both) {
+            panel = Panels.refrigerator(settings.units(), new Panels.RefrigeratorState(both.label(), activity,
+                    both.fridgeInsideF(), both.fridgeSetpoint(), both.insideF(), both.setpoint(), both.frost()));
+        } else {
+            Freezer deep = refrigerator instanceof Freezer freezer ? freezer : null;
+            MiniFridge mini = refrigerator instanceof MiniFridge m ? m : null;
+            panel = Panels.cold(settings.units(), new Panels.ColdState(refrigerator.label(), activity,
+                    refrigerator.insideF(), refrigerator.setpoint(), deep != null, mini != null,
+                    mini == null ? Double.NaN : mini.chillerF(),
+                    refrigerator instanceof Fridge fridge ? fridge.barrels() : 1,
+                    deep == null ? 0.0 : deep.frost(), deep != null && deep.defrosting()));
+        }
+        renderPanel(refrigerator.position(), force, false, panel);
+    }
+
+    /**
+     * Draws a panel in front of its sign (a mini thermostat's on its button):
+     * when it changed, on a forced refresh, and whenever it's missing.
+     */
+    private void renderPanel(BlockKey position, boolean force, boolean mini, Panel panel) {
+        if (!position.isChunkLoaded()) return;
+        var location = position.location();
+        var block = location == null ? null : location.getBlock();
+        if (block == null || !(mini ? org.bukkit.Tag.BUTTONS : org.bukkit.Tag.ALL_SIGNS).isTagged(block.getType())) {
+            screens.remove(position);
+            return;
+        }
+        String fingerprint = "panel|" + panel.fingerprint();
+        String before = fingerprints.get(position);
+        if (!force && fingerprint.equals(before) && screens.showingPanel(position, block)) return;
+        try {
+            screens.showPanel(position, block, panel);
+            if (!mini && (force || before == null) && block.getState() instanceof Sign sign
+                    && clear(sign.getSide(Side.FRONT)))
+                sign.update(false, false);
+            fingerprints.put(position, fingerprint);
+        } catch (RuntimeException exception) {
+            plugin.getLogger().log(Level.WARNING, "Could not draw the HVAC panel at " + position, exception);
         }
     }
 

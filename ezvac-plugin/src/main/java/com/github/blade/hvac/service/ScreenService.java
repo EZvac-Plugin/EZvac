@@ -51,9 +51,36 @@ public final class ScreenService {
 
     private final NamespacedKey tag;
     private final Map<BlockKey, Shown> screens = new HashMap<>();
+    /** The new look's panels (BETA 1.0 Pilot 7): a device shows one or the other. */
+    private final PanelScreens panels;
 
     public ScreenService(Plugin plugin) {
         this.tag = new NamespacedKey(Objects.requireNonNull(plugin, "plugin"), "screen");
+        this.panels = new PanelScreens(plugin);
+    }
+
+    public PanelScreens panels() { return panels; }
+
+    /**
+     * Shows a panel in front of a sign, or on a mini thermostat's button
+     * (BETA 1.0 Pilot 7, the new look), in place of a classic screen there.
+     */
+    public void showPanel(BlockKey position, Block block, Panel panel) {
+        Shown classic = screens.remove(position);
+        if (classic != null) take(block.getWorld(), classic);
+        BlockData data = block.getBlockData();
+        BlockFace facing = facing(data);
+        if (facing == null) {
+            panels.remove(position);
+            return;
+        }
+        ScreenPlacement.Mount mount = panel.size() == Panel.Size.MINI ? ScreenPlacement.Mount.BUTTON : mount(data);
+        panels.show(position, block, mount, facing.getDirection().getX(), facing.getDirection().getZ(), panel);
+    }
+
+    /** True while a panel is up there. */
+    public boolean showingPanel(BlockKey position, Block block) {
+        return panels.showing(position, block.getWorld());
     }
 
     /**
@@ -63,6 +90,7 @@ public final class ScreenService {
      * put up afresh.
      */
     public void show(BlockKey position, Block sign, ScreenText screen) {
+        panels.remove(position);
         Component headerText = screen.header(), bodyText = screen.body(), bigText = screen.bigText();
         int bodyLines = screen.bodyLines();
         World world = sign.getWorld();
@@ -104,6 +132,7 @@ public final class ScreenService {
      * again.
      */
     public void showMini(BlockKey position, Block button, MiniScreen screen) {
+        panels.remove(position);
         Component bodyText = screen.body(), bigText = screen.bigText();
         World world = button.getWorld();
         Shown shown = screens.get(position);
@@ -184,12 +213,14 @@ public final class ScreenService {
 
     /** Takes a sign's screen down, when its device is removed or its sign changes. */
     public void remove(BlockKey position) {
+        panels.remove(position);
         Shown shown = screens.remove(position);
         if (shown != null) take(position.world(), shown);
     }
 
     /** Takes down every screen whose device is gone. */
     public void retainOnly(Set<BlockKey> devices) {
+        panels.retainOnly(devices);
         for (Iterator<BlockKey> it = screens.keySet().iterator(); it.hasNext(); ) {
             BlockKey position = it.next();
             if (devices.contains(position)) continue;
@@ -201,6 +232,7 @@ public final class ScreenService {
     /** Takes down every screen, when EZvac stops; they would otherwise stay until their chunks unload. */
     public void removeAll() {
         for (BlockKey position : Set.copyOf(screens.keySet())) remove(position);
+        panels.removeAll();
     }
 
     private static ScreenPlacement.Mount mount(BlockData data) {
