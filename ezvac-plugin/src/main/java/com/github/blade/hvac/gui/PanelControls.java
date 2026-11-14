@@ -37,6 +37,9 @@ public final class PanelControls implements Listener {
     private final HvacSettings settings;
     private final ClimateSettings climate;
     private final PanelScreens panels;
+    /** Each player's last press, in server ticks: holding the button down repeats it, but not faster than this. */
+    private final java.util.Map<java.util.UUID, Integer> lastPress = new java.util.HashMap<>();
+    static final int PRESS_TICKS = 3;
 
     public PanelControls(HvacPlugin plugin, HvacRegistry registry, DisplayService displays, HvacSettings settings,
                          ClimateSettings climate, PanelScreens panels) {
@@ -60,12 +63,21 @@ public final class PanelControls implements Listener {
             return;
         }
         if (!PanelScreens.inReach(player, hit.position())) return;
+        int now = plugin.getServer().getCurrentTick();
+        Integer last = lastPress.get(player.getUniqueId());
+        if (last != null && now - last < PRESS_TICKS && now >= last) return;
+        lastPress.put(player.getUniqueId(), now);
         boolean worked = press(hit.position(), hit.action());
         ControlMenus.click(player, worked);
         if (!worked) return;
         panels.flash(hit.position(), hit.action());
         registry.markDirty();
         plugin.requestImmediateSync();
+    }
+
+    @EventHandler
+    public void onQuit(org.bukkit.event.player.PlayerQuitEvent event) {
+        lastPress.remove(event.getPlayer().getUniqueId());
     }
 
     /** Does what the button says: true when something changed. */
@@ -82,10 +94,59 @@ public final class PanelControls implements Listener {
             displays.refreshRpmMonitor(monitor, true);
             return true;
         }
+        var hub = registry.sensorHubAt(position);
+        if (hub != null) {
+            if (hub.pages() < 2) return false;
+            if (action.equals("next")) hub.nextPage();
+            else if (action.equals("prev")) hub.previousPage();
+            else return false;
+            displays.refreshSensorHub(hub, true);
+            return true;
+        }
+        var panel = registry.settingsPanelAt(position);
+        if (panel != null) {
+            if (panel.system() == null) return false;
+            com.github.blade.hvac.model.OperatingProfile profile = switch (action) {
+                case "eco" -> com.github.blade.hvac.model.OperatingProfile.ECO;
+                case "normal" -> com.github.blade.hvac.model.OperatingProfile.NORMAL;
+                case "turbo" -> com.github.blade.hvac.model.OperatingProfile.TURBO;
+                default -> null;
+            };
+            if (profile == null || profile == panel.profile()) return false;
+            registry.setProfile(panel.system(), profile);
+            displays.refreshSettingsPanel(panel, true);
+            Thermostat head = registry.thermostatFor(panel.system());
+            if (head != null) displays.refreshThermostat(head, true);
+            return true;
+        }
         ClimateUnit unit = registry.climateUnitAt(position);
-        if (unit instanceof Refrigerator refrigerator && unit.position().equals(position))
-            return refrigerator(refrigerator, action);
-        return false;
+        if (unit == null || !unit.position().equals(position)) return false;
+        if (unit instanceof Refrigerator refrigerator) return refrigerator(refrigerator, action);
+        if (unit instanceof com.github.blade.hvac.model.AirPurifier purifier) {
+            if (!action.startsWith("mode-")) return false;
+            com.github.blade.hvac.model.AirPurifier.Mode mode;
+            try {
+                mode = com.github.blade.hvac.model.AirPurifier.Mode.valueOf(
+                        action.substring(5).toUpperCase(java.util.Locale.ROOT));
+            } catch (IllegalArgumentException unknown) {
+                return false;
+            }
+            if (purifier.mode() == mode) return false;
+            purifier.setMode(mode);
+            displays.refreshClimateUnit(purifier, true);
+            return true;
+        }
+        // A dehumidifier or humidifier: five points at a time, within its presets, as its menu.
+        int step = action.equals("up") ? 5 : action.equals("down") ? -5 : 0;
+        if (step == 0) return false;
+        boolean drying = unit instanceof com.github.blade.hvac.model.Dehumidifier;
+        int low = drying ? climate.dehumidifier().minimumSetpoint() : climate.humidifier().minimumSetpoint();
+        int high = drying ? climate.dehumidifier().maximumSetpoint() : climate.humidifier().maximumSetpoint();
+        int setpoint = Setpoints.stepHumidity(unit.setpoint(), step, low, high);
+        if (setpoint == unit.setpoint()) return false;
+        unit.setSetpoint(setpoint);
+        displays.refreshClimateUnit(unit, true);
+        return true;
     }
 
     private boolean thermostat(Thermostat thermostat, String action) {

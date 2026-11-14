@@ -91,7 +91,7 @@ public final class Panels {
      */
     public static Panel thermostat(TemperatureUnit units, ThermostatState t) {
         Panel panel = new Panel(Panel.Size.SIGN);
-        header(panel, t.name() + (t.pool() ? " · pool" : ""), state(t), tone(t), t.attention());
+        header(panel, t.name(), state(t), tone(t), t.attention());
         int lit = tone(t) == OFF ? 0xFF5F6670 : (0xFF000000 | text(t).value());
         int ticks = 15;
         double low = Math.min(t.roomF(), t.targetF()), high = Math.max(t.roomF(), t.targetF());
@@ -104,8 +104,7 @@ public final class Panels {
             panel.tick("dial" + i, 50, 50, 31, angle, 4, 2, target ? 0xFFFFFFFF : between ? lit : DIAL_OFF);
         }
         bigOrNot(panel, "room", 30, 28, 40, degrees(units, t.roomF()), NamedTextColor.WHITE, Panel.Align.CENTER);
-        if (!t.blocked().isEmpty()) panel.label("set", 26, 41, 48, t.blocked(), NamedTextColor.RED, Panel.Align.CENTER);
-        else panel.label("set", 26, 41, 48, "set " + degrees(units, t.targetF()), text(t), Panel.Align.CENTER);
+        panel.label("set", 26, 41, 48, "set " + degrees(units, t.targetF()), text(t), Panel.Align.CENTER);
         panel.button("down", 2, 38, 13, 11, "-", "down");
         panel.button("up", 85, 38, 13, 11, "+", "up");
         return panel;
@@ -118,8 +117,9 @@ public final class Panels {
      */
     public static Panel mini(TemperatureUnit units, ThermostatState t) {
         Panel panel = new Panel(Panel.Size.MINI);
-        String said = t.blocked().isEmpty() ? state(t) : t.blocked();
-        TextColor saidColor = t.blocked().isEmpty() ? text(t) : NamedTextColor.RED;
+        // What stops it isn't spelt out: the ⚠ count says something does, and the menu says what.
+        String said = state(t);
+        TextColor saidColor = t.blocked().isEmpty() ? text(t) : OFF_TEXT;
         Component state = Component.text(said, saidColor);
         if (t.attention() > 0) {
             Component warning = Component.text(" ⚠" + t.attention(), AMBER);
@@ -130,13 +130,13 @@ public final class Panels {
         panel.label("state", 3, 2, 54, state, Panel.SMALL, Panel.Align.LEFT);
         String room = degrees(units, t.roomF());
         // A pool's 104° is too wide to be big on so small a panel: it is drawn at the normal size there.
-        bigOrNot(panel, "room", 3, 15, 41, room, text(t), Panel.Align.LEFT);
-        panel.label("set", 3, 30, 41, "set " + degrees(units, t.targetF()), DIM, Panel.Align.LEFT);
+        bigOrNot(panel, "room", 3, 13, 41, room, text(t), Panel.Align.LEFT);
+        panel.label("set", 3, 27, 41, "set " + degrees(units, t.targetF()), DIM, Panel.Align.LEFT);
         boolean working = t.enabled() && t.blocked().isEmpty() && t.mode() != OperatingMode.IDLE
                 && Double.isFinite(t.progress());
-        panel.bar("progress", 3, 38, 40, 2, working ? t.progress() : 0.0, 0xFF000000 | text(t).value());
-        panel.button("up", 46, 13, 12, 11, "+", "up");
-        panel.button("down", 46, 28, 12, 11, "-", "down");
+        panel.bar("progress", 3, 36, 40, 2, working ? t.progress() : 0.0, 0xFF000000 | text(t).value());
+        panel.button("up", 46, 11, 12, 11, "+", "up");
+        panel.button("down", 46, 25, 12, 11, "-", "down");
         return panel;
     }
 
@@ -215,11 +215,201 @@ public final class Panels {
         return panel;
     }
 
-    /** A reading big when it fits its zone, else at the normal size, centred where the big one would be. */
+    /** A reading big when it fits its zone, else a little smaller, else at the font's size; never cut. */
     static void bigOrNot(Panel panel, String id, int x, int y, int w, String text, TextColor color, Panel.Align align) {
         Component big = Component.text(text, color).decorate(net.kyori.adventure.text.format.TextDecoration.BOLD);
         if (Panel.width(big) * Panel.BIG <= w) panel.big(id, x, y, w, text, color, align);
-        else panel.label(id, x, y + 2, w, big, 1.25, align);
+        else if (Panel.width(big) * 1.25 <= w) panel.label(id, x, y + 2, w, big, 1.25, align);
+        else panel.label(id, x, y + 4, w, big, 1.0, align);
+    }
+
+    // ---- Point sensors: thermometers, hygrometers, air monitors ----
+
+    /** What a thermometer's, hygrometer's or air monitor's screen needs to know. */
+    public record PointState(String name, String reads, double localF, double feelsF, double outdoorF,
+                             String humidity, String outdoorHumidity, String sky, boolean airOn, boolean airKnown,
+                             String aqi, String band, TextColor bandColor, int bandTone, String cause, String pollen) {}
+
+    /**
+     * A point sensor: its reading big on the left, what goes with it on the
+     * right, the sky and season along the bottom. Read-only: no buttons.
+     */
+    public static Panel point(TemperatureUnit units, PointState p) {
+        Panel panel = new Panel(Panel.Size.SIGN);
+        boolean air = p.reads().equals("AIR");
+        header(panel, p.name(), "", air && p.airOn() && p.airKnown() ? p.bandTone() : NEUTRAL, 0);
+        switch (p.reads()) {
+            case "TEMPERATURE" -> {
+                bigOrNot(panel, "reading", 4, 13, 54, units.compact(p.localF()).replace(units.name(), "°"),
+                        NamedTextColor.WHITE, Panel.Align.LEFT);
+                panel.label("feels", 56, 14, 41, "feels " + degrees(units, p.feelsF()), NamedTextColor.YELLOW, Panel.Align.RIGHT);
+                panel.label("out", 56, 24, 41, "out " + degrees(units, p.outdoorF()), DIM, Panel.Align.RIGHT);
+            }
+            case "HUMIDITY" -> {
+                bigOrNot(panel, "reading", 4, 13, 54, p.humidity(), NamedTextColor.WHITE, Panel.Align.LEFT);
+                panel.label("what", 56, 14, 41, "humidity", NamedTextColor.WHITE, Panel.Align.RIGHT);
+                panel.label("out", 56, 24, 41, "out " + p.outdoorHumidity(), DIM, Panel.Align.RIGHT);
+            }
+            case "BOTH" -> {
+                bigOrNot(panel, "reading", 4, 13, 54, units.compact(p.localF()).replace(units.name(), "°"),
+                        NamedTextColor.WHITE, Panel.Align.LEFT);
+                panel.label("humidity", 56, 14, 41, p.humidity() + " RH", NamedTextColor.WHITE, Panel.Align.RIGHT);
+                panel.label("feels", 56, 24, 41, "feels " + degrees(units, p.feelsF()), NamedTextColor.YELLOW, Panel.Align.RIGHT);
+                panel.label("out", 4, 31, 92, "out " + degrees(units, p.outdoorF()) + " · " + p.outdoorHumidity(), DIM,
+                        Panel.Align.LEFT);
+            }
+            default -> {
+                if (!p.airOn() || !p.airKnown()) {
+                    bigOrNot(panel, "reading", 4, 13, 54, "--", NamedTextColor.WHITE, Panel.Align.LEFT);
+                    panel.label("what", 56, 14, 41, p.airOn() ? "AQI" : "air off", DIM, Panel.Align.RIGHT);
+                } else {
+                    bigOrNot(panel, "reading", 4, 13, 40, p.aqi(), p.bandColor(), Panel.Align.LEFT);
+                    panel.label("band", 44, 14, 53, fit(p.band(), 53), p.bandColor(), Panel.Align.RIGHT);
+                    if (!p.cause().isEmpty())
+                        panel.label("cause", 44, 24, 53, fit("mostly " + p.cause(), 53), NamedTextColor.WHITE, Panel.Align.RIGHT);
+                    if (!p.pollen().isEmpty())
+                        panel.label("pollen", 4, 31, 92, fit(p.pollen(), 92), NamedTextColor.YELLOW, Panel.Align.LEFT);
+                }
+            }
+        }
+        if (!p.sky().isEmpty()) panel.label("sky", 4, 41, 92, fit(p.sky(), 92), DIM, Panel.Align.LEFT);
+        return panel;
+    }
+
+    /** Text cut to fit a zone at the small size. */
+    static String fit(String text, int zone) {
+        return TextWidth.fit(text, (int) (zone / Panel.SMALL));
+    }
+
+    // ---- The settings panel ----
+
+    /** A settings panel: the system's profile, big, and Eco, Normal and Turbo as buttons; the one in use is lit. */
+    public static Panel settings(String name, String system, String profile) {
+        Panel panel = new Panel(Panel.Size.SIGN);
+        int tone = switch (profile) {
+            case "ECO" -> HOLDING;
+            case "TURBO" -> HEATING;
+            default -> NEUTRAL;
+        };
+        header(panel, name, system.isEmpty() ? "not linked" : system, tone, 0);
+        if (system.isEmpty()) {
+            panel.label("hint", 4, 22, 92, "link it with the link-tool", DIM, Panel.Align.CENTER);
+            return panel;
+        }
+        panel.big("profile", 10, 15, 80, profile.charAt(0) + profile.substring(1).toLowerCase(Locale.ROOT),
+                NamedTextColor.WHITE, Panel.Align.CENTER);
+        String[][] buttons = {{"Eco", "eco", "6", "26"}, {"Normal", "normal", "36", "30"}, {"Turbo", "turbo", "70", "26"}};
+        for (String[] b : buttons) {
+            int x = Integer.parseInt(b[2]), w = Integer.parseInt(b[3]);
+            if (b[0].equalsIgnoreCase(profile)) panel.selected(b[1], x, 37, w, 11, b[0], b[1]);
+            else panel.button(b[1], x, 37, w, 11, b[0], b[1]);
+        }
+        return panel;
+    }
+
+    // ---- Dehumidifiers and humidifiers ----
+
+    /** What a dehumidifier's or humidifier's screen needs to know. */
+    public record HumidityState(String name, boolean drying, String state, int tone, TextColor stateColor,
+                                double humidity, int setpoint, double tank) {}
+
+    /** A dehumidifier or humidifier: the room's humidity big, its target, what it's doing; a dehumidifier's tank. */
+    public static Panel humidity(HumidityState h) {
+        Panel panel = new Panel(Panel.Size.SIGN);
+        header(panel, h.name(), h.drying() ? "dehumidifier" : "humidifier", h.tone(), 0);
+        bigOrNot(panel, "humidity", 4, 13, 44, Double.isFinite(h.humidity()) ? Math.round(h.humidity()) + "%" : "--%",
+                NamedTextColor.WHITE, Panel.Align.LEFT);
+        panel.label("set", 4, 30, 44, "set " + h.setpoint() + "%", DIM, Panel.Align.LEFT);
+        panel.label("doing", 4, 40, 78, fit(h.state(), 78), h.stateColor(), Panel.Align.LEFT);
+        if (h.drying()) {
+            panel.label("tankLabel", 52, 14, 30, "tank", DIM, Panel.Align.LEFT);
+            panel.bar("tank", 52, 24, 30, 3, h.tank(), 0xFF5AB4FF);
+        }
+        panel.button("up", 86, 11, 12, 12, "+", "up");
+        panel.button("down", 86, 37, 12, 12, "-", "down");
+        return panel;
+    }
+
+    // ---- Air purifiers ----
+
+    /** What an air purifier's screen needs to know. */
+    public record PurifierState(String name, int tone, String aqi, String band, TextColor bandColor, String mode,
+                                boolean filterIn, double filter, String state, TextColor stateColor) {}
+
+    /** An air purifier: the AQI big, its band, the filter; its fan speeds along the bottom, the one in use lit. */
+    public static Panel purifier(PurifierState p) {
+        Panel panel = new Panel(Panel.Size.SIGN);
+        header(panel, p.name(), fit(p.state(), 40), p.tone(), 0);
+        bigOrNot(panel, "aqi", 4, 11, 36, p.aqi(), p.bandColor(), Panel.Align.LEFT);
+        panel.label("band", 42, 12, 55, fit(p.band(), 55), p.bandColor(), Panel.Align.RIGHT);
+        if (p.filterIn()) {
+            panel.label("filterLabel", 42, 23, 22, "filter", DIM, Panel.Align.LEFT);
+            panel.bar("filter", 66, 25, 30, 3, p.filter(), 0xFF5AB4FF);
+        } else panel.label("filterLabel", 42, 23, 55, "no filter", NamedTextColor.GOLD, Panel.Align.RIGHT);
+        String[][] modes = {{"L", "LOW", "4", "18"}, {"M", "MEDIUM", "24", "18"}, {"H", "HIGH", "44", "18"},
+                {"Auto", "AUTO", "64", "32"}};
+        for (String[] m : modes) {
+            int x = Integer.parseInt(m[2]), w = Integer.parseInt(m[3]);
+            String action = "mode-" + m[1].toLowerCase(Locale.ROOT);
+            if (m[1].equals(p.mode())) panel.selected(action, x, 38, w, 11, m[0], action);
+            else panel.button(action, x, 38, w, 11, m[0], action);
+        }
+        return panel;
+    }
+
+    // ---- Sensor hubs ----
+
+    /** A sensor hub: a line for each sensor on the page, three to a page, &lt; &gt; to turn it. Read-only otherwise. */
+    public static Panel hub(String name, List<String> lines, boolean empty, int page, int pages) {
+        Panel panel = new Panel(Panel.Size.SIGN);
+        pagedHeader(panel, name, NEUTRAL, page, pages);
+        if (empty) {
+            panel.label("empty", 4, 14, 92, "No sensors yet:", DIM, Panel.Align.CENTER);
+            panel.label("empty1", 4, 23, 92, "link them", DIM, Panel.Align.CENTER);
+            panel.label("empty2", 4, 32, 92, "with the sensor-tool", DIM, Panel.Align.CENTER);
+            return panel;
+        }
+        for (int i = 0; i < lines.size() && i < 3; i++)
+            panel.label("line" + i, 4, 13 + i * 12, 92, fit(lines.get(i), 92), NamedTextColor.WHITE, Panel.Align.LEFT);
+        return panel;
+    }
+
+    /** A header with the name on the left and, when there's more than a page, &lt; page/pages &gt; on the right. */
+    static void pagedHeader(Panel panel, String title, int tone, int page, int pages) {
+        panel.fill("header", 0, 0, 100, Panel.HEADER, tone);
+        if (pages > 1) {
+            panel.label("title", 3, 2, 55, fit(title, 55), NamedTextColor.WHITE, Panel.Align.LEFT);
+            panel.button("prev", 60, 0, 10, 9, "<", "prev");
+            panel.label("page", 70, 2, 18, (page + 1) + "/" + pages, NamedTextColor.WHITE, Panel.Align.CENTER);
+            panel.button("next", 88, 0, 10, 9, ">", "next");
+        } else panel.label("title", 3, 2, 94, fit(title, 94), NamedTextColor.WHITE, Panel.Align.LEFT);
+    }
+
+    // ---- Weather stations ----
+
+    /** What a weather station's screen needs to know; {@code state} is set while it can't forecast. */
+    public record StationState(String name, String state, int tone, String now, String sky, String highLow,
+                               String conditions, String note, String tomorrow) {}
+
+    /** A weather station: the temperature now big, today's sky and high/low beside it, the wind and air, then tomorrow. */
+    public static Panel station(StationState s) {
+        Panel panel = new Panel(Panel.Size.SIGN);
+        header(panel, s.name(), "", s.tone(), 0);
+        if (!s.state().isEmpty()) {
+            panel.label("status", 4, 20, 92, s.state(), s.state().equals("Damaged") ? NamedTextColor.GOLD : DIM,
+                    Panel.Align.CENTER);
+            if (s.state().equals("Damaged"))
+                panel.label("hint", 4, 30, 92, "rebuild its tower", DIM, Panel.Align.CENTER);
+            return panel;
+        }
+        bigOrNot(panel, "now", 4, 12, 46, s.now(), NamedTextColor.WHITE, Panel.Align.LEFT);
+        panel.label("sky", 50, 13, 47, fit(s.sky(), 47), NamedTextColor.WHITE, Panel.Align.RIGHT);
+        panel.label("highLow", 50, 23, 47, fit(s.highLow(), 47), DIM, Panel.Align.RIGHT);
+        if (!s.conditions().isEmpty()) panel.label("conditions", 4, 31, 92, fit(s.conditions(), 92), DIM, Panel.Align.LEFT);
+        if (!s.note().isEmpty()) panel.label("note", 4, 41, 92, fit(s.note(), 92), NamedTextColor.GOLD, Panel.Align.LEFT);
+        else if (!s.tomorrow().isEmpty())
+            panel.label("tomorrow", 4, 41, 92, fit(s.tomorrow(), 92), COOL_TEXT, Panel.Align.LEFT);
+        return panel;
     }
 
     // ---- The equipment monitor ----
@@ -252,16 +442,7 @@ public final class Panels {
         Panel panel = new Panel(Panel.Size.SIGN);
         boolean running = rows.stream().anyMatch(row -> row.running() > 0);
         int tone = !linked || rows.isEmpty() ? NEUTRAL : running ? HOLDING : OFF;
-        panel.fill("header", 0, 0, 100, Panel.HEADER, tone);
-        String title = system.isEmpty() ? name : name + " · " + system;
-        if (pages > 1) {
-            panel.label("title", 3, 2, 55, TextWidth.fit(title, (int) (55 / Panel.SMALL)), NamedTextColor.WHITE, Panel.Align.LEFT);
-            panel.button("prev", 60, 0, 10, 9, "<", "prev");
-            panel.label("page", 70, 2, 18, (page + 1) + "/" + pages, NamedTextColor.WHITE, Panel.Align.CENTER);
-            panel.button("next", 88, 0, 10, 9, ">", "next");
-        } else {
-            panel.label("title", 3, 2, 94, TextWidth.fit(title, (int) (94 / Panel.SMALL)), NamedTextColor.WHITE, Panel.Align.LEFT);
-        }
+        pagedHeader(panel, system.isEmpty() ? name : name + " · " + system, tone, page, pages);
         if (!linked) {
             panel.label("unlinked", 4, 18, 92, "Not linked:", DIM, Panel.Align.CENTER);
             panel.label("unlinked2", 4, 28, 92, "use the link-tool", DIM, Panel.Align.CENTER);

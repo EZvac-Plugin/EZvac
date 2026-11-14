@@ -53,6 +53,7 @@ public final class SensorHub {
     }
 
     public void nextPage() { pager.next(sensors.size()); }
+    public void previousPage() { pager.previous(sensors.size()); }
 
     public List<BlockKey> sensorsOnPage() { return pager.onPage(sensors); }
 

@@ -74,7 +74,7 @@ public final class ScreenService {
             panels.remove(position);
             return;
         }
-        ScreenPlacement.Mount mount = panel.size() == Panel.Size.MINI ? ScreenPlacement.Mount.BUTTON : mount(data);
+        ScreenPlacement.Mount mount = panel.size() == Panel.Size.MINI ? ScreenPlacement.Mount.MINI_PANEL : mount(data);
         panels.show(position, block, mount, facing.getDirection().getX(), facing.getDirection().getZ(), panel);
     }
 
