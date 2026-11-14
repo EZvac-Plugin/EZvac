@@ -54,16 +54,15 @@ class RpmMonitorRowsTest {
         assertEquals("Heat pump T3 ×4 2,950", row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 4, 2, 2950, 300));
         assertEquals("Furnace T1 off", row(EquipmentType.FURNACE, Tier.SINGLE_STAGE, 1, 0, 0, 300),
                 "no ×1 for a single unit");
-        assertEquals("Furnace T3 ×2 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 2, 1, 715, 300),
-                "a furnace's blower speed says nothing, so it is on or off");
+        assertEquals("Furnace T3 ×2 715", row(EquipmentType.FURNACE, Tier.VARIABLE, 2, 1, 715, 300),
+                "a furnace shows its blower's speed, as every kind shows its motor's");
         for (EquipmentType type : EquipmentType.values())
             for (Tier tier : Tier.values())
                 for (int units = 1; units <= 9; units++) {
                     String text = row(type, tier, units, 1, 4_150, 90);
                     assertTrue(TextWidth.width(text) <= 90, text);
                     assertTrue(text.contains(" T" + tier.number()), "the tier fits: " + text);
-                    assertTrue(text.endsWith(type.fixedSpeed() ? " on" : "4.2k")
-                            || text.endsWith("4,150"), "and so does the speed: " + text);
+                    assertTrue(text.endsWith("4.2k") || text.endsWith("4,150"), "and so does the speed: " + text);
                 }
         assertEquals("HP T2 ×4 2,940", row(EquipmentType.HEAT_PUMP, Tier.TWO_STAGE, 4, 2, 2940, 90),
                 "the kind is shortened first");
@@ -82,15 +81,15 @@ class RpmMonitorRowsTest {
                             for (double rpm : new double[]{1_250, 4_150, 12_400}) {
                                 String text = row(type, tier, units, running, rpm, width);
                                 assertTrue(TextWidth.width(text) <= width, width + ": " + text);
-                                assertTrue(running == 0 ? text.endsWith(" off") : type.fixedSpeed() ? text.endsWith(" on")
+                                assertTrue(running == 0 ? text.endsWith(" off")
                                         : text.matches(".* [0-9][0-9,]*|.* [0-9]+\\.[0-9]k"), width + ": " + text);
                             }
-        assertEquals("Furn T3 ×10 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 10, 1, 715, 90));
+        assertTrue(row(EquipmentType.FURNACE, Tier.VARIABLE, 10, 1, 715, 90).endsWith(" 715"));
         assertEquals("HP T3 4.2k", row(EquipmentType.HEAT_PUMP, Tier.VARIABLE, 2, 1, 4_150,
                 60));
         assertEquals("PHP T3 4.2k", row(EquipmentType.POOL_HEAT_PUMP, Tier.VARIABLE, 12, 1, 4_150,
                 60), "the count goes before the speed");
-        assertEquals("Furn T3 on", row(EquipmentType.FURNACE, Tier.VARIABLE, 120, 1, 715, 60));
+        assertTrue(row(EquipmentType.FURNACE, Tier.VARIABLE, 120, 1, 715, 60).endsWith(" 715"));
     }
 
     @Test

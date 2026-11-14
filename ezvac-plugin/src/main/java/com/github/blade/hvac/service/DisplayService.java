@@ -518,9 +518,10 @@ public final class DisplayService {
     static String rowText(RpmMonitor.Row row, int width) {
         String tier = " T" + row.tier().number();
         String count = row.units() > 1 ? " ×" + row.units() : "";
-        boolean fixed = row.type().fixedSpeed();
-        String state = row.running() == 0 ? "off" : fixed ? "on" : String.format(Locale.US, "%,.0f", row.rpm());
-        String compact = row.running() == 0 || fixed ? state : String.format(Locale.US, "%.1fk", row.rpm() / 1000.0);
+        // Every kind's motor speed, a furnace's blower and a boiler's pump too: they ramp and modulate as well.
+        String state = row.running() == 0 ? "off" : String.format(Locale.US, "%,.0f", row.rpm());
+        String compact = row.running() == 0 || row.rpm() < 1_000 ? state
+                : String.format(Locale.US, "%.1fk", row.rpm() / 1000.0);
         String name = compactName(row.type());
         String[] forms = {
                 row.type().displayName() + tier + count + " " + state,
