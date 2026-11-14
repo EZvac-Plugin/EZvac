@@ -67,12 +67,16 @@ public abstract sealed class Refrigerator extends ClimateUnit permits Fridge, Fr
      * a share of the gap at once (less if it was opened only a moment ago,
      * the spill building up again over an in-game hour), and it leaks faster
      * until it is shut again.
+     *
+     * @return how much of a full opening's air came in, 0 to 1 (a freezer's frost goes by it)
      */
-    public void opened(double roomF, RefrigerationSettings settings) {
+    public double opened(double roomF, RefrigerationSettings settings) {
         viewers++;
+        double letIn = spill;
         if (Double.isFinite(roomF) && Double.isFinite(insideF))
-            insideF += (roomF - insideF) * settings.doorShare() * spill;
+            insideF += (roomF - insideF) * settings.doorShare() * letIn;
         spill = 0.0;
+        return letIn;
     }
 
     /** One player shut it (or left it open and went). */

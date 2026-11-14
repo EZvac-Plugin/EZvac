@@ -36,10 +36,10 @@ public final class RefrigeratorListener implements Listener {
     public void onOpen(InventoryOpenEvent event) {
         Refrigerator refrigerator = of(event.getInventory());
         if (refrigerator == null) return;
-        refrigerator.opened(units.airAround(refrigerator), units.climate().refrigeration());
+        double letIn = refrigerator.opened(units.airAround(refrigerator), units.climate().refrigeration());
         // A freezer's frost: the air that came in leaves some behind, more when it's humid; seen at once.
         if (refrigerator instanceof com.github.blade.hvac.model.Freezer freezer) {
-            freezer.frostFromOpening(units.humidityAround(freezer), units.climate().refrigeration());
+            freezer.frostFromOpening(units.humidityAround(freezer), letIn, units.climate().refrigeration());
             frost.show(freezer);
         }
         registry.markDirty();
