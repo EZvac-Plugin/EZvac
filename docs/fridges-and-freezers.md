@@ -24,7 +24,7 @@ Breaking the sign, the iron block or the barrel removes it; the barrel drops wha
 
 - **Cooling.** A running compressor pulls the inside down (20 °F an in-game hour), stopping at the setpoint and starting again 2 °F above it. A fridge from room temperature is cold in about two in-game hours; a freezer takes about four.
 - **The walls.** Its inside slowly closes on the air around it: its system's room temperature, or the air outside where no system's room holds it. Switched off, it warms to that.
-- **The door.** Opening the barrel lets 15% of the gap to that air in at once, and while anyone has it open it warms six times faster. Opened again soon after, less comes in at once: its cold air takes an in-game hour to build up again, so opening it over and over adds next to nothing.
+- **The door.** Opening the barrel lets 15% of the gap to that air in at once, and while anyone has it open it warms fifteen times faster, faster than its compressor can cool it, so a barrel left open warms up. Opened again soon after, less comes in at once: its cold air takes an in-game hour to build up again, so opening it over and over adds next to nothing.
 - **The room.** A running fridge adds 0.3 °F an in-game hour to its system's room, a freezer 0.5, less in a bigger room: a kitchen full of freezers makes its AC work harder.
 
 All of this is under [`refrigeration:`](configuration.md#refrigeration) in `config.yml`. Fridges and freezers can be switched off server-wide in [quick settings](screens-and-menus.md#devices), on the Devices page's second row.
