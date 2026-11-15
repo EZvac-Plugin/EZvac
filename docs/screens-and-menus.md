@@ -55,8 +55,11 @@ panel is exactly its button's face.
   repeats it at a steady pace. Clicking the sign anywhere else opens the
   menu, as before; sneak-clicking switches the device, as before.
 - **The sign behind is blank**, so only the screen shows.
-- Screens light themselves, so they're readable at night, and are drawn for
-  players within about 40 blocks.
+- Screens light themselves, so they're readable at night.
+- **A screen wakes as you walk up to it:** a panel is up only within 32
+  blocks of a player and is taken down when everyone has gone, since each is
+  many small parts. A server full of devices costs no more than with the
+  classic screens.
 - Screens update when someone is nearby, and only send what changed.
 - Screens are never saved with the world. They disappear when their chunk
   unloads or the server stops, and come back when it loads again. Removing
