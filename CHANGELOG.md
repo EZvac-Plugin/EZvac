@@ -4,7 +4,8 @@ All notable changes to EZvac are recorded here.
 
 ## BETA 1.0 Pilot 7
 
-**EZvac/R: refrigeration.** The save is unchanged (format 8).
+**EZvac/R: refrigeration, and a new look for every screen.** The save is
+unchanged (format 8).
 
 ### Refrigeration
 
@@ -43,10 +44,36 @@ How they work:
 - A `refrigeration:` section in `config.yml`, added on upgrade, and a second
   row on the quick settings Devices page.
 
+### Screens: a new look
+
+Every screen is redrawn as a panel exactly the size of its sign (a mini
+thermostat's exactly its button's face), with buttons on the wall and parts
+that move smoothly.
+
+- **Buttons** where a choice belongs on the wall: a thermostat's target, a
+  dehumidifier's or humidifier's setpoint, a purifier's fan speeds, a fridge's
+  or freezer's setpoint and a deep freezer's Defrost, a settings panel's
+  profile, a monitor's or hub's pages. They do what the menu does, with the
+  same permission, and light up when pressed; the menu is still a click away.
+- **A thermostat's half-ring dial** lit between the room and the target.
+- **Bars that fill smoothly** and an equipment monitor's icons turning at
+  their equipment's speed.
+- **No warning text that repeats the ⚠**: what needs looking at is counted
+  in the header, and listed in the menu.
+- Readings never cut off: one too wide is drawn a size smaller.
+- `screens.new-look: false` keeps the classic screens.
+
+### Fixes
+
+- RPM monitors show a furnace's blower and a boiler's pump speed, not just
+  "on".
+
 ### For addon developers: API 1.12
 
 - `ClimateUnitView.Kind` `MINI_FRIDGE`, `FRIDGE`, `REFRIGERATOR` and
-  `DEEP_FREEZER`, with `insideF()`.
+  `DEEP_FREEZER`, with `insideF()`, and `cold()`: a refrigeration appliance's
+  door, frost, defrost, a refrigerator's fridge and a mini fridge's chiller
+  (`ColdStorage`).
 - `storageTemperatureF(world, x, y, z)`: how cold it is inside a container,
   either compartment of a refrigerator included; with a slot, a mini
   fridge's chiller box too.

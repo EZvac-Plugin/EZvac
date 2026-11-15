@@ -304,14 +304,16 @@ A sign that shows the equipment of its system, one row per kind and tier:
 ```text
 EZvac | Fans 1/2
 HP T3 ×3 2,950
-Furnace T2 off
+Furnace T2 715
 AC T1 ×2 3,100
 ```
 
 - **A row** is the kind, its tier (`T1` to `T3`), how many there are when more than
-  one, and the average speed of those running. Furnaces and boilers say `on`,
-  since they run at a fixed speed, and anything stopped says `off`. Green while
-  any runs.
+  one, and the average speed of those running: a furnace's blower and a
+  boiler's pump too (BETA 1.0 Pilot 7). Anything stopped says `off`. Green
+  while any runs. In the new look each row has an icon that turns at that
+  kind's speed (a flame for a furnace or boiler), and < > on the screen turn
+  the page.
 - **Long rows are shortened:** the kind first (`HP`), then the speed
   (`2.9k`), then the count and the tier drop. The speed is never cut off, so
   on a hanging sign a row may be just `PHP 2.9k`.

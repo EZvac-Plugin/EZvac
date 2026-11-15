@@ -7,53 +7,67 @@ whole server.
 
 ## Screens
 
-Every EZvac sign has a screen in front of it, with more room than a sign's
-four lines. Since BETA 1.0 each screen is a **status strip**:
+Every EZvac sign has a screen in front of it. Since BETA 1.0 Pilot 7 each is
+a **panel exactly the size of its sign**, drawn on a fixed grid so that
+everything sits in its own place, with buttons where a choice belongs on the
+wall and parts that move smoothly while the device works. A mini thermostat's
+panel is exactly its button's face.
 
-- **A header** with the device's name, coloured by what it's doing, with a
-  glyph at its right end:
+- **The header** has the device's name, and on the right its state, coloured
+  by what it's doing:
 
   | Header | Means |
   | --- | --- |
   | Blue ❄ | Cooling |
   | Orange ♨ | Heating |
   | Green ● | Holding the target, or running |
-  | Grey ○ | Switched off |
-  | Amber ! | Needs you: no filter, a spent filter, air too cold to dry |
-  | The AQI's colour ● | An air monitor or purifier: green for Good, through yellow, orange, red and purple, to maroon for Hazardous |
+  | Grey ○ | Switched off, or stopped |
+  | Amber ! | Needs you: no filter, a spent filter, air too cold to dry, a door left open |
+  | The AQI's colour | An air monitor or purifier: green for Good, through yellow, orange, red and purple, to maroon for Hazardous |
   | Slate | Nothing to report, such as a thermometer |
 
-- **An opaque body** under it, with the main reading big and centred, and a
-  few lines under that.
+  When something needs looking at, an amber **⚠** and a count follow the
+  state. The screen doesn't spell out what: the device's menu (or
+  `/hvac info`) lists it.
+- **The main reading** is big. A reading too wide for its place (three
+  digits, Celsius) is drawn a size smaller rather than ever cut off.
+- **Bars** (a frost, a filter, a tank, a mini thermostat's progress) fill and
+  drain smoothly, and an equipment monitor's icons turn at their equipment's
+  speed.
 
-All screens are the same size, so a wall of devices lines up.
+| Device | Shows | Buttons |
+| --- | --- | --- |
+| Thermostat | A half-ring dial lit between the room and the target, the room temperature big, the target under it. A pool thermostat looks the same, with its own range | − and + for the target |
+| Mini thermostat | Its state, the room temperature big in the colour of what it's doing, the target, and a bar filling as the room comes round | + and − |
+| Thermometer, hygrometer, thermo-hygrometer | The reading big; feels-like, humidity and the outdoors beside it; the weather and season | |
+| Air monitor | The AQI big, its band and what's behind it, pollen | |
+| Dehumidifier, humidifier | The humidity big, the setpoint, what it's doing, a dehumidifier's tank | + and −, five points at a time |
+| Air purifier | The AQI big, its band, its filter | L, M, H and Auto; the one in use is lit |
+| Fridge, mini fridge, deep freezer | The inside in whole degrees, the setpoint; a mini fridge's chiller, a deep freezer's frost | + and −; a deep freezer's Defrost |
+| Refrigerator | The fridge and the freezer side by side | − setpoint + for each |
+| Equipment monitor | A row per kind of equipment in its system, each with its own icon and speed (`HP T3 ×2 2,950`, `Furnace T2 715`, `AC T1 off`), three to a page | < and > when there are more |
+| Sensor hub | A line per sensor, three to a page | < and > when there are more |
+| Settings panel | The system's profile | Eco, Normal and Turbo; the one in use is lit |
+| Weather station | The outdoor temperature big, today's sky and high and low, the wind and air, then a note or tomorrow's sky | |
 
-| Device | Shows |
-| --- | --- |
-| Thermostat | Its name (and "Pool" for a pool thermostat), the room temperature big, what it's doing (`Cooling to 70.0°F`, `Heating to`, `Holding`), a load bar (how hard it's working, 0-100%), the ETA and the room's humidity, the outdoor temperature and season (the season is left off on a day too hot to fit both). An amber **⚠2** beside the header's glyph counts what needs attention, which its menu lists (BETA 1.0 Pilot 2); what keeps it from starting is said in red instead of what it's doing (`Needs a vent`, `Needs a unit`, `Units off`) |
-| Mini thermostat | On its wall button (BETA 1.0 Pilot 2): the room temperature big in whole degrees, coloured by what it's doing, the target (`Set 85°`), and a gauge of thin bars of how far the room has come toward it since it started heating or cooling; a green dot while it holds. `⚠2` follows the target when something needs attention, and a short reason (`No vent`) replaces the gauge when something stops it. No outdoor readings or season |
-| Thermometer, hygrometer, thermo-hygrometer | The reading, feels-like, the outdoors, the weather and season |
-| Air monitor | The AQI, its band, what's behind it, pollen |
-| Dehumidifier, humidifier | The humidity, the setpoint, its state, and a dehumidifier's tank |
-| Air purifier | The AQI, its fan, its filter, pollen |
-| Sensor hub | Up to five sensors at once; with more, it pages along with the sign |
-| RPM monitor | Its system's equipment, one row per kind and tier, up to six: `HP T3 ×2 2,950` (the kind, its tier, how many, and the average speed of those running; `on` or `off`). See [RPM monitors](equipment.md#rpm-monitors) |
-| Settings panel | The profile, and how to change it |
-| Weather station | The outdoor temperature around it big, today's weather, high and low, and wind, then what's certain today or tomorrow's weather; the header coloured by today's sky (BETA 1.0, see [Weather stations](weather-stations.md)) |
-
-- **The sign behind is blank** (BETA 1.0), so only the screen shows.
-  Clicking the sign works exactly as before.
-- Screens light themselves, so they're readable at night.
-- Like signs, screens update when someone is nearby, and only when what they
-  show has changed.
+- **Buttons** do what the same button in the device's menu does, with the
+  same permission (`ezvac.use`), and light up when pressed. Holding one down
+  repeats it at a steady pace. Clicking the sign anywhere else opens the
+  menu, as before; sneak-clicking switches the device, as before.
+- **The sign behind is blank**, so only the screen shows.
+- Screens light themselves, so they're readable at night, and are drawn for
+  players within about 40 blocks.
+- Screens update when someone is nearby, and only send what changed.
 - Screens are never saved with the world. They disappear when their chunk
   unloads or the server stops, and come back when it loads again. Removing
   EZvac leaves nothing floating behind.
 - Placed on wall signs, standing signs and hanging signs alike.
+- `screens.new-look: false` in `config.yml` keeps the classic screens of
+  BETA 1.0 Pilots 1 to 6: a status strip with the reading and a few lines,
+  no buttons.
 
 **Screens are the only display** (BETA 1.0 Pilot 4). Devices no longer write
-on their signs, and `displays.screens` is gone from `config.yml`. Bedrock
-players coming in through Geyser can't see screens.
+on their signs. Bedrock players coming in through Geyser can't see screens.
 
 ## Control menus
 
@@ -127,7 +141,9 @@ corner to return and **Close** in the bottom-right.
 
 One switch for each kind that changes the climate: heat pumps, air
 conditioners, furnaces, boilers, pool heat pumps, dehumidifiers, humidifiers
-and air purifiers, and one for [weather stations](weather-stations.md). Each
+and air purifiers, and one for [weather stations](weather-stations.md); on a
+second row, mini fridges, fridges, refrigerators and deep freezers (BETA 1.0
+Pilot 7). Each
 shows how many the server has and how many run.
 
 - **Switched off,** every device of that kind stops, and equipment takes its
