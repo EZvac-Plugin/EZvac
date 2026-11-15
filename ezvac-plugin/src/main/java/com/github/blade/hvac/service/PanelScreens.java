@@ -364,9 +364,18 @@ public final class PanelScreens {
      * quarter: for screens a player is near. Called every tick.
      */
     public void animate(long tick) {
+        // Where the players are, gathered once a tick: each turning screen then just measures, with no entity search.
+        Map<UUID, java.util.List<Location>> players = null;
         for (Map.Entry<BlockKey, Shown> entry : screens.entrySet()) {
+            if (!entry.getValue().turns) continue;
+            if (players == null) {
+                players = new HashMap<>();
+                for (Player player : plugin.getServer().getOnlinePlayers())
+                    players.computeIfAbsent(player.getWorld().getUID(), ignored -> new java.util.ArrayList<>())
+                            .add(player.getLocation());
+            }
             try {
-                animate(entry.getKey(), entry.getValue(), tick);
+                animate(entry.getKey(), entry.getValue(), tick, players);
             } catch (RuntimeException failed) {
                 // One screen that can't be turned never stops the others; the next refresh puts it right.
                 plugin.getLogger().log(java.util.logging.Level.FINE, "Could not animate the panel at " + entry.getKey(), failed);
@@ -374,23 +383,29 @@ public final class PanelScreens {
         }
     }
 
-    private void animate(BlockKey position, Shown shown, long tick) {
-        if (!shown.turns) return;
-        World world = position.world();
-        if (world == null || !position.isChunkLoaded()) return;
-        // Players near: looked for twice a second, not every tick, so many screens cost little.
+    private void animate(BlockKey position, Shown shown, long tick, Map<UUID, java.util.List<Location>> players) {
+        java.util.List<Location> here = players.get(position.worldId());
+        if (here == null) return;
+        // Players near: measured twice a second, not every tick.
         if (tick >= shown.nextNearCheck) {
-            Location centre = new Location(world, position.x() + 0.5, position.y() + 0.5, position.z() + 0.5);
-            shown.near = !world.getNearbyPlayers(centre, ANIMATE_RANGE).isEmpty();
+            shown.near = false;
+            for (Location player : here) {
+                double dx = player.getX() - position.x() - 0.5, dy = player.getY() - position.y() - 0.5,
+                        dz = player.getZ() - position.z() - 0.5;
+                if (dx * dx + dy * dy + dz * dz <= ANIMATE_RANGE * ANIMATE_RANGE) { shown.near = true; break; }
+            }
             shown.nextNearCheck = tick + NEAR_CHECK_TICKS;
         }
         if (!shown.near) return;
+        World world = position.world();
+        if (world == null || !position.isChunkLoaded()) return;
         {
             for (Drawn drawn : shown.parts.values()) {
                 if (!(drawn.part() instanceof Panel.Icon icon) || icon.turnsPerSecond() <= 0.0) continue;
                 long[] state = shown.turning.computeIfAbsent(icon.id(), ignored -> new long[] {0L, tick});
                 if (tick < state[1]) continue;
-                int ticks = (int) Math.max(2, Math.min(40, Math.round(5.0 / icon.turnsPerSecond())));
+                // A quarter turn at most every five ticks: still faster for a faster fan, at far fewer updates.
+                int ticks = (int) Math.max(5, Math.min(40, Math.round(5.0 / icon.turnsPerSecond())));
                 state[0]++;
                 state[1] = tick + ticks;
                 if (world.getEntity(drawn.entity()) instanceof ItemDisplay display) {
@@ -439,6 +454,11 @@ public final class PanelScreens {
     }
 
     // ---- Taking down ----
+
+    /** Whether a panel is up (or was put up) there, intact or not. */
+    public boolean has(BlockKey position) {
+        return screens.containsKey(position);
+    }
 
     public boolean showing(BlockKey position, World world) {
         Shown shown = screens.get(position);
