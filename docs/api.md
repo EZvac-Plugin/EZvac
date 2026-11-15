@@ -150,16 +150,69 @@ measures the air; what it does to players is up to addons.
 **Every temperature is Fahrenheit**, whatever the server's `units`. Records
 have `...C()` helpers, and `Temperatures` converts.
 
+## Controlling devices
+
+Since 1.12 (BETA 1.0 Pilot 7) a plugin can change devices the way a player
+can at their signs and screens: from a web panel, a Discord bot, an
+automation, anything. Get a controller with `control(plugin)`, and say whose
+behalf it acts on with `as(playerUuid)`:
+
+```java
+EzvacControl control = EzvacApi.get().control(this).as(user.minecraftId());
+control.setTarget(thermostat.position(), 70.0).thenAccept(result -> {
+    if (result.ok()) panel.show(result.device().orElseThrow());
+    else panel.error(result.message());
+});
+```
+
+**EZvac checks nothing.** It does what a controller asks, on any device.
+Deciding who may control which thermostat, and logging people in, is your
+plugin's job. The player you pass is only recorded: in
+`DeviceControlEvent`, and as "Last changed by" in `/hvac info`.
+
+**Any thread.** Every call returns a `CompletableFuture` at once. The change
+is made on the main thread: straight away when you're already on it, else on
+the next tick. A web server can call straight from its request threads. To
+read views from another thread, wrap the read: `control.read(() ->
+api.thermostats())`. If EZvac stops while a call waits, its future still
+completes.
+
+| Call | On |
+| --- | --- |
+| `setTarget(position, targetF)` | a thermostat; kept within its range (a pool thermostat's is wider) |
+| `setEnabled(position, on)` | a thermostat, and so its whole system |
+| `setProfile(position, profile)` | the system of a thermostat or a linked settings panel |
+| `setPowered(position, on)` | a dehumidifier, humidifier, air purifier, or refrigeration appliance |
+| `setSetpoint(position, value)` | a dehumidifier's or humidifier's % RH (to its nearest preset); a fridge's, mini fridge's or deep freezer's °F; a refrigerator's freezer's °F |
+| `setFridgeSetpoint(position, f)` | a refrigerator's fridge |
+| `setFan(position, fan)` | an air purifier: `LOW`, `MEDIUM`, `HIGH` or `AUTO` |
+| `startDefrost(position)` | a deep freezer, or a refrigerator's freezer |
+| `setAutoDefrost(position, on)` | a refrigerator's freezer (a deep freezer never defrosts itself) |
+| `setEquipmentEnabled(position, on)` | a heat pump, AC, furnace, boiler or pool heat pump |
+
+A device's position is the one its view gives, or any other block of it (a
+fridge's barrel). Each call's `ControlResult` has a `status` (`DONE`,
+`ADJUSTED` when kept within range or rounded to a preset, `UNCHANGED`,
+`NOT_FOUND`, `NOT_SUPPORTED`, or `CANCELLED`), a short `message` fit to show
+a player, and the `device` as it is now.
+
+Before every change made through the API or by a button on a device's
+screen, EZvac fires `DeviceControlEvent`: the device, the setting, the value
+asked for, and its source (`API` with the plugin's name, or `SCREEN`, each
+with the player). Cancel it to stop the change: a claims plugin can keep
+strangers off a thermostat this way.
+
 ## Events
 
-All fired on the main thread. They are informational: none can be
-cancelled.
+All fired on the main thread. They are informational, except
+`DeviceControlEvent` (1.12), which can be cancelled.
 
 | Event | When |
 | --- | --- |
 | `PlayerClimateUpdateEvent` | Every player's climate is read again, on the HUD's cadence (`hud.update-ticks`, every half second by default), with the previous reading. Fired only while some plugin listens to it |
 | `ThermostatModeChangeEvent` | A system starts cooling or heating, or goes idle |
-| `ThermostatTargetChangeEvent` | A target changes, from the control menu (`MENU`) or `/hvac thermostat set` (`COMMAND`) |
+| `ThermostatTargetChangeEvent` | A target changes, from the control menu (`MENU`), `/hvac thermostat set` (`COMMAND`), a plugin (`API`, 1.12) or a button on its screen (`SCREEN`, 1.12) |
+| `DeviceControlEvent` | A device is about to be changed through the API or by a button on its screen; cancellable (1.12) |
 | `EquipmentStateChangeEvent` | A heat pump, air conditioner, furnace, boiler or pool heat pump starts or stops |
 | `SeasonChangeEvent` | A world's season turns, as the days pass or when an admin sets it |
 | `DeviceAddedEvent` | A device is created: with `/hvac create`, or a vent with the link tool (1.2) |
@@ -303,7 +356,9 @@ ezvac.hud().register(this, "thirst", context -> {
 ## Threads
 
 Call the API's methods on the main thread, except `latestFor`, which is safe
-from any thread (scoreboard and chat plugins often ask from other threads).
+from any thread (scoreboard and chat plugins often ask from other threads),
+and a controller's (1.12), which are safe from any thread and do their work
+on the main thread; `control.read(...)` reads views safely from anywhere.
 Everything the API hands out is an immutable snapshot: keep it as long as you
 like, but it won't change; ask again for fresh numbers.
 
@@ -371,5 +426,5 @@ depend: [EZvac]
   station's `wind()`, `airQuality()` and each day's `aqi()`), and 1.9 with
   BETA 1.0 Pilot 4 (`precipitationAt()`, `snowLineAt()`, `freezingWaterF()`, `dailyMeanAirF()`, `WeatherPlan`, `WeatherEvent`, `setWeatherPlan()`, `Precipitation`,
   `SeasonView.progress()`, and `registerAddon()` with `Addon` and `AddonSwitches`), and 1.10 with BETA 1.0
-  Pilot 5 (`systemSpace()` and `SystemSpace`), and 1.11 (`setShowsWeather()`, `HudContext.gauge()`), and 1.12 with BETA 1.0 Pilot 7 (refrigeration: `ClimateUnitView.Kind` `MINI_FRIDGE`, `FRIDGE`, `REFRIGERATOR` and `DEEP_FREEZER` with `insideF()`, and `storageTemperatureF()`, also by slot).
+  Pilot 5 (`systemSpace()` and `SystemSpace`), and 1.11 (`setShowsWeather()`, `HudContext.gauge()`), and 1.12 with BETA 1.0 Pilot 7 (refrigeration: `ClimateUnitView.Kind` `MINI_FRIDGE`, `FRIDGE`, `REFRIGERATOR` and `DEEP_FREEZER` with `insideF()`, and `storageTemperatureF()`, also by slot; and controlling devices: `control()`, `EzvacControl`, `ControlResult`, `ControlSource`, `DeviceControlEvent`, and `ThermostatTargetChangeEvent.Cause` `API` and `SCREEN`).
   Depend on the oldest EZvac whose API has what you use.

@@ -344,6 +344,18 @@ public interface EzvacApi {
         return storageTemperatureF(world, x, y, z);
     }
 
+    /**
+     * A controller for changing devices on a plugin's behalf (BETA 1.0 Pilot
+     * 7): thermostats, dehumidifiers, humidifiers, air purifiers, fridges and
+     * freezers, and equipment, from any thread. EZvac checks no permission:
+     * the plugin decides who may control what. See {@link com.github.blade.hvac.api.control.EzvacControl}.
+     *
+     * @since 1.12
+     */
+    default com.github.blade.hvac.api.control.EzvacControl control(org.bukkit.plugin.Plugin plugin) {
+        throw new UnsupportedOperationException("Controlling devices needs EZvac BETA 1.0 Pilot 7 or newer");
+    }
+
     /** The weather plan an addon registered, if any. @since 1.9 */
     default Optional<WeatherPlan> weatherPlan() {
         return Optional.empty();

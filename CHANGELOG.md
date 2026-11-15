@@ -50,6 +50,17 @@ How they work:
 - `storageTemperatureF(world, x, y, z)`: how cold it is inside a container,
   either compartment of a refrigerator included; with a slot, a mini
   fridge's chiller box too.
+- **Controlling devices:** `control(plugin)` gives an `EzvacControl` that
+  changes thermostats (target, on/off, profile), dehumidifiers, humidifiers,
+  air purifiers (fan), fridges and freezers (setpoints, defrost, auto
+  defrost) and equipment, from any thread, as a web panel would. EZvac checks
+  no permission: the plugin decides who may control what; `as(player)`
+  records whose behalf it acts on, shown as "Last changed by" in
+  `/hvac info`. Each call answers with a `ControlResult` and the device as it
+  is now.
+- `DeviceControlEvent`, cancellable, before every change made through the API
+  or a screen's buttons, saying who asked; `ThermostatTargetChangeEvent.Cause`
+  gains `API` and `SCREEN`.
 
 ## BETA 1.0 Pilot 6
 

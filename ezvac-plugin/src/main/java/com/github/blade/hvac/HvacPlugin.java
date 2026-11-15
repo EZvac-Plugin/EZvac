@@ -69,6 +69,10 @@ public final class HvacPlugin extends JavaPlugin {
     private BukkitTask bubbleTask;
     /** Turns the new look's icons (BETA 1.0 Pilot 7). */
     private BukkitTask panelTask;
+    /** Changes to devices from plugins and screen buttons (BETA 1.0 Pilot 7). */
+    private com.github.blade.hvac.integration.api.DeviceControls controls;
+
+    public com.github.blade.hvac.integration.api.DeviceControls controls() { return controls; }
     private ClimateHudService hud;
     private UpdateNotifier updates;
     private ServerSwitches switches;
@@ -156,8 +160,11 @@ public final class HvacPlugin extends JavaPlugin {
             getServer().getPluginManager().registerEvents(
                     new com.github.blade.hvac.listener.RefrigeratorListener(registry, units, displays, frost), this);
             menus = new ControlMenus(this, registry, displays, settings, climate);
+            // Every change to a device by a plugin (API 1.12) or a screen button goes through one place.
+            controls = new com.github.blade.hvac.integration.api.DeviceControls(this, registry, displays, settings,
+                    climate, key -> api == null ? java.util.Optional.empty() : api.deviceView(key));
             getServer().getPluginManager().registerEvents(new com.github.blade.hvac.gui.PanelControls(this, registry,
-                    displays, settings, climate, displays.screens().panels()), this);
+                    displays, settings, climate, displays.screens().panels(), controls), this);
             getServer().getPluginManager().registerEvents(menus, this);
             forecastMenu = new ForecastMenu(this, registry, weatherStations, displays, commandHandler::isTool);
             getServer().getPluginManager().registerEvents(forecastMenu, this);
@@ -424,6 +431,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (airflowTask != null) airflowTask.cancel();
         if (bubbleTask != null) bubbleTask.cancel();
         if (panelTask != null) panelTask.cancel();
+        if (api != null) api.stopControls();
         if (displays != null) displays.screens().removeAll();
         if (registry != null) {
             registry.shutdownEquipment();
@@ -529,6 +537,7 @@ public final class HvacPlugin extends JavaPlugin {
     private void registerApi() {
         api = new EzvacApiImpl(getPluginMeta().getVersion(), settings, registry, controller, airflow, outdoor, seasons,
                 hud, getLogger());
+        api.setControls(controls, this);
         getServer().getServicesManager().register(EzvacApi.class, api, this, ServicePriority.Normal);
         getServer().getPluginManager().registerEvents(api, this);
         getServer().getPluginManager().registerEvents(api.sections(), this);
