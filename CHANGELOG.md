@@ -61,6 +61,9 @@ that move smoothly.
 - **No warning text that repeats the ⚠**: what needs looking at is counted
   in the header, and listed in the menu.
 - Readings never cut off: one too wide is drawn a size smaller.
+- A screen wakes as you walk up: a panel is up only within 32 blocks of a
+  player, so a server full of devices costs no more than before (1,000 rooms:
+  about the same time a tick as Pilot 6, with smaller spikes).
 - `screens.new-look: false` keeps the classic screens.
 
 ### Fixes
