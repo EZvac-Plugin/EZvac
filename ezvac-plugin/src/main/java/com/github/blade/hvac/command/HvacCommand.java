@@ -1001,14 +1001,21 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         return system == null ? gray(" | Not linked") : join(gray(" | System: "), white(SystemNames.of(registry, system)));
     }
 
+    /** Who last changed it from a plugin (a web panel, say) or its screen (BETA 1.0 Pilot 7), when anyone has. */
+    private void lastChange(Player player, BlockKey position) {
+        if (plugin.controls() == null) return;
+        plugin.controls().lastChange(position).ifPresent(change ->
+                player.sendMessage(join(gray("Last changed by "), white(change))));
+    }
+
     private void info(Player player) {
         Block block = target(player);
         if (block == null) return;
         BlockKey key = BlockKey.of(block.getLocation());
         Thermostat thermostat = registry.thermostatAt(key);
-        if (thermostat != null) { showThermostat(player, thermostat); return; }
+        if (thermostat != null) { showThermostat(player, thermostat); lastChange(player, thermostat.position()); return; }
         EquipmentUnit unit = registry.equipmentAt(key);
-        if (unit != null) { showEquipment(player, unit); return; }
+        if (unit != null) { showEquipment(player, unit); lastChange(player, unit.position()); return; }
         ClimateVent vent = registry.ventAt(key);
         if (vent != null) { player.sendMessage(join(gold("Vent"), systemOf(vent.system()))); return; }
         Thermometer thermometer = registry.thermometerAt(key);
@@ -1033,7 +1040,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (panel != null) { player.sendMessage(join(gold("Settings panel "), white(panel.label()),
                 systemOf(panel.system()), gray(" | Profile: "), white(panel.profile().name()))); return; }
         ClimateUnit climateUnit = registry.climateUnitAt(key);
-        if (climateUnit != null) { showClimateUnit(player, climateUnit); return; }
+        if (climateUnit != null) {
+            showClimateUnit(player, climateUnit);
+            lastChange(player, climateUnit.position());
+            return;
+        }
         Sensor sensor = registry.sensorAt(key);
         if (sensor != null) {
             player.sendMessage(describeSensor(sensor));

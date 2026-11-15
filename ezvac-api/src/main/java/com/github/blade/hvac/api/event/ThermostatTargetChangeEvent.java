@@ -19,7 +19,11 @@ public final class ThermostatTargetChangeEvent extends Event {
         /** From the control menu its sign opens. */
         MENU,
         /** With {@code /hvac thermostat <id> set}. */
-        COMMAND
+        COMMAND,
+        /** By a plugin, through {@link com.github.blade.hvac.api.control.EzvacControl} (1.12). */
+        API,
+        /** By a player pressing a button on its screen (1.12). */
+        SCREEN
     }
 
     private final ThermostatView thermostat;

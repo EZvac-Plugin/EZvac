@@ -580,6 +580,46 @@ public final class EzvacApiImpl implements EzvacApi, Listener, ClimateHudService
         return season(world).map(SeasonView::season);
     }
 
+    // ---- API 1.12: control ----
+
+    /** The changes plugins make (and screen buttons), once EZvac has started. */
+    private volatile DeviceControls controls;
+    private org.bukkit.plugin.Plugin ezvac;
+    /** Control calls from other threads still waiting for the main thread. */
+    private final java.util.Set<java.util.concurrent.CompletableFuture<?>> waiting = ControlImpl.waitingSet();
+
+    public void setControls(DeviceControls controls, org.bukkit.plugin.Plugin ezvac) {
+        this.controls = controls;
+        this.ezvac = ezvac;
+    }
+
+    /** EZvac stopping: calls still waiting complete now. */
+    public void stopControls() {
+        ControlImpl.stopping(waiting);
+    }
+
+    @Override
+    public com.github.blade.hvac.api.control.EzvacControl control(org.bukkit.plugin.Plugin plugin) {
+        if (ezvac == null) throw new IllegalStateException("EZvac hasn't finished starting");
+        return new ControlImpl(ezvac, plugin, Optional.empty(), () -> controls, waiting);
+    }
+
+    /** The device at a block (any of its blocks), as the API shows it: what a control call answers with. */
+    public Optional<HvacDevice> deviceView(BlockKey key) {
+        Thermostat thermostat = registry.thermostatAt(key);
+        if (thermostat != null) return Optional.of(view(thermostat));
+        com.github.blade.hvac.model.ClimateUnit unit = registry.climateUnitAt(key);
+        if (unit != null) return Optional.of(ApiViews.climateUnit(unit, air()));
+        com.github.blade.hvac.model.EquipmentUnit equipment = registry.equipmentAt(key);
+        if (equipment != null) return Optional.of(ApiViews.equipment(equipment));
+        com.github.blade.hvac.model.SettingsPanel panel = registry.settingsPanelAt(key);
+        if (panel != null && panel.system() != null) {
+            Thermostat head = registry.thermostatFor(panel.system());
+            if (head != null) return Optional.of(view(head));
+        }
+        return Optional.empty();
+    }
+
     private ThermostatView view(Thermostat thermostat) {
         return ApiViews.thermostat(thermostat, controller.status(thermostat.system()), air(),
                 registry.profileFor(thermostat.system()));
