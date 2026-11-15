@@ -67,6 +67,8 @@ that move smoothly.
 
 - RPM monitors show a furnace's blower and a boiler's pump speed, not just
   "on".
+- Addon descriptions are never cut short in the menus: a long one goes on
+  as many lines as it needs.
 
 ### For addon developers: API 1.12
 
