@@ -92,21 +92,22 @@ public final class DisplayService {
     public void refreshAll(boolean force) {
         if (force) screens.retainOnly(devicePositions());
         Map<UUID, LongOpenHashSet> watched = watchedChunks();
+        playerSpots = newLook() ? playerSpots() : null;
         if (watched.isEmpty()) return;
         for (Thermostat thermostat : registry.thermostats())
-            if (watched(watched, thermostat.position())) refreshThermostat(thermostat, force);
+            if (watched(watched, thermostat.position()) && showHere(thermostat.position())) refreshThermostat(thermostat, force);
         for (Thermometer thermometer : registry.thermometers())
-            if (watched(watched, thermometer.position())) refreshThermometer(thermometer, force);
+            if (watched(watched, thermometer.position()) && showHere(thermometer.position())) refreshThermometer(thermometer, force);
         for (RpmMonitor monitor : registry.rpmMonitors())
-            if (watched(watched, monitor.position())) refreshRpmMonitor(monitor, force);
+            if (watched(watched, monitor.position()) && showHere(monitor.position())) refreshRpmMonitor(monitor, force);
         for (SettingsPanel panel : registry.settingsPanels())
-            if (watched(watched, panel.position())) refreshSettingsPanel(panel, force);
+            if (watched(watched, panel.position()) && showHere(panel.position())) refreshSettingsPanel(panel, force);
         for (ClimateUnit unit : registry.climateUnits())
-            if (watched(watched, unit.position())) refreshClimateUnit(unit, force);
+            if (watched(watched, unit.position()) && showHere(unit.position())) refreshClimateUnit(unit, force);
         for (SensorHub hub : registry.sensorHubs())
-            if (watched(watched, hub.position())) refreshSensorHub(hub, force);
+            if (watched(watched, hub.position()) && showHere(hub.position())) refreshSensorHub(hub, force);
         for (WeatherStation station : registry.weatherStations())
-            if (watched(watched, station.position())) refreshWeatherStation(station, force);
+            if (watched(watched, station.position()) && showHere(station.position())) refreshWeatherStation(station, force);
     }
 
     /** Every device with a screen, so the screens of devices that are gone can be taken down. */
@@ -922,6 +923,40 @@ public final class DisplayService {
 
     // ---- The new look (BETA 1.0 Pilot 7): panels the size of the sign, with buttons ----
 
+    /** How near a player must be for a device's panel to be up, in blocks; beyond it the panel is taken down. */
+    static final double PANEL_RANGE = 32.0;
+    /** Where the players were at the last refresh, by world: which panels are up. Null in the classic look. */
+    private Map<UUID, List<Location>> playerSpots;
+
+    private Map<UUID, List<Location>> playerSpots() {
+        Map<UUID, List<Location>> spots = new HashMap<>();
+        for (Player player : plugin.getServer().getOnlinePlayers())
+            spots.computeIfAbsent(player.getWorld().getUID(), ignored -> new ArrayList<>()).add(player.getLocation());
+        return spots;
+    }
+
+    /**
+     * Whether a device's screen is drawn now: always in the classic look; in
+     * the new look only within {@link #PANEL_RANGE} of a player, since a panel
+     * is many entities. A panel no one is near is taken down, and drawn again
+     * as someone comes back: a screen waking as you walk up to it.
+     */
+    private boolean showHere(BlockKey position) {
+        if (playerSpots == null) return true;
+        List<Location> spots = playerSpots.get(position.worldId());
+        if (spots != null)
+            for (Location spot : spots) {
+                double dx = spot.getX() - position.x() - 0.5, dy = spot.getY() - position.y() - 0.5,
+                        dz = spot.getZ() - position.z() - 0.5;
+                if (dx * dx + dy * dy + dz * dz <= PANEL_RANGE * PANEL_RANGE) return true;
+            }
+        if (screens.panels().has(position)) {
+            screens.panels().remove(position);
+            fingerprints.remove(position);
+        }
+        return false;
+    }
+
     /** Whether screens are drawn in the new look: {@code screens.new-look} in config.yml, on by default. */
     public boolean newLook() {
         return plugin.getConfig().getBoolean("screens.new-look", true);
@@ -991,7 +1026,7 @@ public final class DisplayService {
      * when it changed, on a forced refresh, and whenever it's missing.
      */
     private void renderPanel(BlockKey position, boolean force, boolean mini, Panel panel) {
-        if (!position.isChunkLoaded()) return;
+        if (!position.isChunkLoaded() || !showHere(position)) return;
         var location = position.location();
         var block = location == null ? null : location.getBlock();
         if (block == null || !(mini ? org.bukkit.Tag.BUTTONS : org.bukkit.Tag.ALL_SIGNS).isTagged(block.getType())) {

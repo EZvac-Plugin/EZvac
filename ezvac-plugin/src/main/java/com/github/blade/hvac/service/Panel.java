@@ -208,7 +208,26 @@ public final class Panel {
     /** A fingerprint of everything shown: two panels that look the same have the same one. */
     public String fingerprint() {
         StringBuilder out = new StringBuilder(size.name());
-        for (Part part : parts.values()) out.append('|').append(part);
+        for (Part part : parts.values()) {
+            out.append('|').append(part.id());
+            switch (part) {
+                // A label's text by its plain characters and a hash of its colours: far cheaper than printing it whole.
+                case Label l -> out.append(l.x()).append(',').append(l.y()).append(',').append(l.w()).append(',')
+                        .append(l.scale()).append(l.align().ordinal()).append(':')
+                        .append(PlainTextComponentSerializer.plainText().serialize(l.text())).append('#')
+                        .append(l.text().hashCode());
+                case Fill f -> out.append(f.x()).append(',').append(f.y()).append(',').append(f.w()).append(',')
+                        .append(f.h()).append(',').append(f.argb());
+                case Bar bar -> out.append(bar.x()).append(',').append(bar.y()).append(',').append(bar.w()).append(',')
+                        .append(bar.h()).append(',').append(Math.round(bar.fraction() * 1000)).append(',').append(bar.argb());
+                case Icon i -> out.append(i.cx()).append(',').append(i.cy()).append(',').append(i.size()).append(',')
+                        .append(i.item().ordinal()).append(',').append(i.turnsPerSecond()).append(i.dim());
+                case Button btn -> out.append(btn.x()).append(',').append(btn.y()).append(',').append(btn.w()).append(',')
+                        .append(btn.h()).append(btn.label()).append(btn.action()).append(btn.argb());
+                case Tick t -> out.append(t.cx()).append(',').append(t.cy()).append(',').append(t.r()).append(',')
+                        .append(t.angle()).append(',').append(t.argb());
+            }
+        }
         return out.toString();
     }
 }

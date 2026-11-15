@@ -93,7 +93,7 @@ public final class Panels {
         Panel panel = new Panel(Panel.Size.SIGN);
         header(panel, t.name(), state(t), tone(t), t.attention());
         int lit = tone(t) == OFF ? 0xFF5F6670 : (0xFF000000 | text(t).value());
-        int ticks = 15;
+        int ticks = 11;
         double low = Math.min(t.roomF(), t.targetF()), high = Math.max(t.roomF(), t.targetF());
         for (int i = 0; i < ticks; i++) {
             double angle = -80.0 + i * (160.0 / (ticks - 1));
