@@ -75,7 +75,8 @@ class RegistryCompatibilityTest {
                 Arguments.of("BETA-1.0-P3", true, true, true, true, true, true, true, true, true),
                 Arguments.of("BETA-1.0-P4", true, true, true, true, true, true, true, true, true),
                 Arguments.of("BETA-1.0-P5", true, true, true, true, true, true, true, true, true),
-                Arguments.of("BETA-1.0-P6", true, true, true, true, true, true, true, true, true));
+                Arguments.of("BETA-1.0-P6", true, true, true, true, true, true, true, true, true),
+                Arguments.of("BETA-1.0-P7", true, true, true, true, true, true, true, true, true));
     }
 
     @TempDir Path folder;
@@ -99,7 +100,7 @@ class RegistryCompatibilityTest {
         assertEquals(0, registry.keptAside(), () -> "kept aside: " + registry.keptAsideRecords());
         assertNull(registry.recoveredFrom());
         // Format 8 arrived with ALPHA 3.1: every release before it is told as a successful upgrade.
-        assertEquals(java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6")
+        assertEquals(java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6", "BETA-1.0-P7")
                 .contains(release) ? 0 : 1,
                 Math.min(1, registry.migratedFrom()), release);
         assertSavesAsGolden(registry, release, "expected-save.yml");
@@ -179,7 +180,7 @@ class RegistryCompatibilityTest {
      * fixture bot's click leaves the setpoint at its default.
      */
     private static final java.util.Set<String> MENU_RELEASES = java.util.Set.of("ALPHA-2.2", "ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2",
-            "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6");
+            "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6", "BETA-1.0-P7");
 
     /**
      * Releases built with the link tool (3.0 on): their systems are numbered
@@ -187,7 +188,7 @@ class RegistryCompatibilityTest {
      * linked to it.
      */
     private static final java.util.Set<String> LINKED_RELEASES = java.util.Set.of("ALPHA-3.0", "ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1",
-            "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6");
+            "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6", "BETA-1.0-P7");
 
     /**
      * Releases built with tiers (3.1 on): the fixture bot makes the house heat
@@ -195,19 +196,24 @@ class RegistryCompatibilityTest {
      * the two-stage default.
      */
     private static final java.util.Set<String> TIER_RELEASES = java.util.Set.of("ALPHA-3.1", "ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2",
-            "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6");
+            "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6", "BETA-1.0-P7");
     /**
      * Releases whose fixture has the 3.2 air and wind devices: an air purifier set to High, an air
      * monitor, and a cherry-button air sensor and bamboo-button wind sensor on the hub.
      */
-    private static final java.util.Set<String> AIR_RELEASES = java.util.Set.of("ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6");
+    private static final java.util.Set<String> AIR_RELEASES = java.util.Set.of("ALPHA-3.2", "BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6", "BETA-1.0-P7");
     /** Releases whose fixture has a weather station (BETA 1.0 on): 'Harbour', measured, on a 1.21.1 tower. */
-    private static final java.util.Set<String> STATION_RELEASES = java.util.Set.of("BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6");
+    private static final java.util.Set<String> STATION_RELEASES = java.util.Set.of("BETA-1.0-P1", "BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6", "BETA-1.0-P7");
     /**
      * Releases whose fixture has a mini thermostat (BETA 1.0 Pilot 2 on): 'nook' on a wall button, its profile
      * set to Eco from its menu, so the thermostat itself holds it.
      */
-    private static final java.util.Set<String> MINI_RELEASES = java.util.Set.of("BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6");
+    private static final java.util.Set<String> MINI_RELEASES = java.util.Set.of("BETA-1.0-P2", "BETA-1.0-P3", "BETA-1.0-P4", "BETA-1.0-P5", "BETA-1.0-P6", "BETA-1.0-P7");
+    /**
+     * Releases whose fixture has refrigeration (BETA 1.0 Pilot 7 on): a mini fridge 'minibar', a three-barrel fridge
+     * 'pantry', a refrigerator 'kitchen' with its fridge at 38 and auto defrost off, a deep freezer 'chest' at 30% frost.
+     */
+    private static final java.util.Set<String> FRIDGE_RELEASES = java.util.Set.of("BETA-1.0-P7");
 
     /** A fixture's system is its old group name before 3.0; from 3.0 it only has to be a numbered one. */
     private static void assertSystem(String release, String group, Thermostat thermostat) {
@@ -361,6 +367,24 @@ class RegistryCompatibilityTest {
             assertEquals(0, harbour.strikes());
             assertNotNull(harbour.area(), "it measured its area while the bot stood by it");
             assertTrue(harbour.area().noonF() > harbour.area().midnightF(), () -> "plains: " + harbour.area());
+        }
+
+        boolean fridges = FRIDGE_RELEASES.contains(release);
+        assertEquals(fridges ? 4 : 0, registry.refrigerators().size());
+        if (fridges) {
+            java.util.Map<String, Refrigerator> byLabel = new java.util.HashMap<>();
+            for (Refrigerator cold : registry.refrigerators()) byLabel.put(cold.label(), cold);
+            assertInstanceOf(MiniFridge.class, byLabel.get("minibar"));
+            assertTrue(Double.isFinite(((MiniFridge) byLabel.get("minibar")).chillerF()), "its chiller is kept");
+            Fridge pantry = assertInstanceOf(Fridge.class, byLabel.get("pantry"));
+            assertEquals(3, pantry.barrels());
+            FridgeFreezer kitchen = assertInstanceOf(FridgeFreezer.class, byLabel.get("kitchen"));
+            assertEquals(38, kitchen.fridgeSetpoint());
+            assertFalse(kitchen.autoDefrost());
+            Freezer chest = assertInstanceOf(Freezer.class, byLabel.get("chest"));
+            assertFalse(chest instanceof FridgeFreezer);
+            assertEquals(-10, chest.setpoint());
+            assertEquals(0.3, chest.frost(), 0.02);
         }
     }
 
