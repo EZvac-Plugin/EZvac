@@ -156,7 +156,24 @@ public final class ApiViews {
                 unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.mode())) : Optional.empty(),
                 unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.speed())) : Optional.empty(),
                 unit instanceof com.github.blade.hvac.model.Refrigerator cold && Double.isFinite(cold.insideF())
-                        ? OptionalDouble.of(cold.insideF()) : OptionalDouble.empty());
+                        ? OptionalDouble.of(cold.insideF()) : OptionalDouble.empty(),
+                unit instanceof com.github.blade.hvac.model.Refrigerator cold ? Optional.of(cold(cold)) : Optional.empty());
+    }
+
+    /** A refrigeration appliance's door, frost, defrost, a refrigerator's fridge and a mini fridge's chiller (1.12). */
+    static com.github.blade.hvac.api.ColdStorage cold(com.github.blade.hvac.model.Refrigerator cold) {
+        var freezer = cold instanceof com.github.blade.hvac.model.Freezer f ? f : null;
+        var both = cold instanceof com.github.blade.hvac.model.FridgeFreezer f ? f : null;
+        var mini = cold instanceof com.github.blade.hvac.model.MiniFridge m ? m : null;
+        int barrels = cold instanceof com.github.blade.hvac.model.Fridge fridge ? fridge.barrels() : both != null ? 2 : 1;
+        return new com.github.blade.hvac.api.ColdStorage(cold.doorOpen(),
+                freezer == null ? OptionalDouble.empty() : OptionalDouble.of(freezer.frost()),
+                freezer != null && freezer.defrosting(), freezer != null && freezer.autoDefrost(),
+                both != null && Double.isFinite(both.fridgeInsideF()) ? OptionalDouble.of(both.fridgeInsideF())
+                        : OptionalDouble.empty(),
+                both == null ? java.util.OptionalInt.empty() : java.util.OptionalInt.of(both.fridgeSetpoint()),
+                mini != null && Double.isFinite(mini.chillerF()) ? OptionalDouble.of(mini.chillerF())
+                        : OptionalDouble.empty(), barrels);
     }
 
     private static ClimateUnitView.Fan fan(AirPurifier.Mode mode) {

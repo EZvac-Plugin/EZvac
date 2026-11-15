@@ -75,6 +75,8 @@ public final class PanelScreens {
         /** Whether a player was near at the last look, and the tick of the next look. */
         boolean near;
         long nextNearCheck;
+        /** Whether any icon on it turns: worked out when it's drawn, not every tick. */
+        boolean turns;
 
         Shown(Panel.Size size, ScreenPlacement.Mount mount, ScreenPlacement.Spot centre, double facingX, double facingZ) {
             this.size = size;
@@ -135,6 +137,7 @@ public final class PanelScreens {
             if (before != null) remove(world, shown, before);
             shown.parts.put(part.id(), spawn(block, position, shown, part));
         }
+        shown.turns = hasTurning(shown);
     }
 
     // ---- Drawing ----
@@ -372,7 +375,7 @@ public final class PanelScreens {
     }
 
     private void animate(BlockKey position, Shown shown, long tick) {
-        if (shown.turning.isEmpty() && !hasTurning(shown)) return;
+        if (!shown.turns) return;
         World world = position.world();
         if (world == null || !position.isChunkLoaded()) return;
         // Players near: looked for twice a second, not every tick, so many screens cost little.

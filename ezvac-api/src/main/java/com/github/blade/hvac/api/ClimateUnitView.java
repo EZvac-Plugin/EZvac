@@ -22,13 +22,15 @@ import java.util.OptionalDouble;
  * @param fanMode  an air purifier's mode (1.5): a fixed speed, or {@code AUTO}; empty for the others
  * @param fanSpeed the speed an air purifier runs at (1.5), never {@code AUTO}; empty for the others
  * @param insideF  a fridge's or freezer's inside, in F (1.12; a refrigerator's freezer, its fridge being
- *                 in {@code storageTemperatureF} at its barrel); empty for the others, and before it first ran
+ *                 in {@code cold}); empty for the others, and before it first ran
+ * @param cold     a refrigeration appliance's door, frost, defrost, a refrigerator's fridge and a mini fridge's
+ *                 chiller (1.12); empty for the others
  * @since 1.0
  */
 public record ClimateUnitView(String label, Kind kind, Position position, double humidity, int setpoint,
                               boolean powered, State state, double tank, OptionalDouble filter,
                               Optional<AirQuality> airQuality, Optional<Fan> fanMode, Optional<Fan> fanSpeed,
-                              OptionalDouble insideF)
+                              OptionalDouble insideF, Optional<ColdStorage> cold)
         implements HvacDevice {
     public ClimateUnitView {
         Objects.requireNonNull(label, "label");
@@ -40,6 +42,7 @@ public record ClimateUnitView(String label, Kind kind, Position position, double
         fanMode = fanMode == null ? Optional.empty() : fanMode;
         fanSpeed = fanSpeed == null ? Optional.empty() : fanSpeed;
         insideF = insideF == null ? OptionalDouble.empty() : insideF;
+        cold = cold == null ? Optional.empty() : cold;
     }
 
     /** As in API 1.5 to 1.11, without a fridge's inside. */
@@ -47,14 +50,14 @@ public record ClimateUnitView(String label, Kind kind, Position position, double
                            boolean powered, State state, double tank, OptionalDouble filter,
                            Optional<AirQuality> airQuality, Optional<Fan> fanMode, Optional<Fan> fanSpeed) {
         this(label, kind, position, humidity, setpoint, powered, state, tank, filter, airQuality, fanMode, fanSpeed,
-                OptionalDouble.empty());
+                OptionalDouble.empty(), Optional.empty());
     }
 
     /** A dehumidifier or humidifier, as before API 1.5. */
     public ClimateUnitView(String label, Kind kind, Position position, double humidity, int setpoint,
                            boolean powered, State state, double tank) {
         this(label, kind, position, humidity, setpoint, powered, state, tank, OptionalDouble.empty(),
-                Optional.empty(), Optional.empty(), Optional.empty(), OptionalDouble.empty());
+                Optional.empty(), Optional.empty(), Optional.empty(), OptionalDouble.empty(), Optional.empty());
     }
 
     /** An air purifier's fan (1.5). */
