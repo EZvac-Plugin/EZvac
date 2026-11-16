@@ -58,6 +58,10 @@ public final class HvacController {
         this.units = Objects.requireNonNull(units, "units");
     }
 
+    /** This cycle's answers: whether each thermostat is there to control, and the units out of reach. */
+    private final Map<Thermostat, Boolean> presence = new IdentityHashMap<>();
+    private final Set<EquipmentUnit> away = Collections.newSetFromMap(new IdentityHashMap<>());
+
     /** Time the last cycle spent on systems out of reach, and how many there were (BETA 1.0 Pilot 8). */
     private long unloadedNanos;
     private int unloadedSystems;
@@ -184,6 +188,12 @@ public final class HvacController {
     public CycleResult cycle(long elapsedTicks) {
         if (elapsedTicks < 0) throw new IllegalArgumentException("elapsed ticks must be non-negative");
         simulatedTicks += elapsedTicks;
+        // Who is in reach is worked out once a cycle (BETA 1.0 Pilot 8): asked per unit at every step,
+        // the chunk lookups cost more than the rest of running them.
+        presence.clear();
+        away.clear();
+        if (settings.unloadedDevices())
+            for (EquipmentUnit unit : registry.equipment()) if (!unit.inReach()) away.add(unit);
         HvacRegistry.PruneResult pruned = registry.pruneMissingLoadedDevices();
         for (SystemId system : pruned.invalidatedSystems()) airflow.invalidate(system);
         // Units broken without a break event (an explosion, a piston) leave their zone behind otherwise.
@@ -252,7 +262,7 @@ public final class HvacController {
                 boolean validController = controller != null && controllerPresent(controller)
                         && controller.enabled() && controller.mode() == unit.operatingMode();
                 boolean delivering;
-                if (settings.unloadedDevices() && !unit.inReach()) {
+                if (away.contains(unit)) {
                     // Out of reach (BETA 1.0 Pilot 8): it runs in its numbers, its output waiting for its chunk.
                     BlockKey front = unit.front();
                     delivering = validController && unit.deliversUnloaded()
@@ -491,7 +501,7 @@ public final class HvacController {
         for (EquipmentUnit unit : registry.equipmentFor(system)) {
             // A kind switched off server-wide (BETA 1.0) can't answer a call, so the system doesn't make one.
             if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
-            if (settings.unloadedDevices() && !unit.inReach()) {
+            if (away.contains(unit)) {
                 if (unit.availableUnloaded(mode)) return true;
                 continue;
             }
@@ -515,7 +525,7 @@ public final class HvacController {
                     || controller.mode() == OperatingMode.IDLE || !unit.type().supports(controller.mode())) continue;
             // A kind switched off server-wide (BETA 1.0) is never picked, so it stops like any unit not needed.
             if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
-            if (settings.unloadedDevices() && !unit.inReach()) {
+            if (away.contains(unit)) {
                 // Out of reach (BETA 1.0 Pilot 8): picked on what it was last seen able to do.
                 BlockKey front = unit.front();
                 if (unit.availableUnloaded(controller.mode()) && (front == null || reserved.add(front)))
@@ -543,7 +553,7 @@ public final class HvacController {
             if (!selected.contains(unit)) continue;
             Thermostat controller = registry.thermostatFor(unit.system());
             try {
-                boolean unloaded = settings.unloadedDevices() && !unit.inReach();
+                boolean unloaded = away.contains(unit);
                 record(unloaded ? unit.startUnloaded(controller.mode()) : unit.start(controller.mode()),
                         unit, started, stopped);
             } catch (RuntimeException exception) {
@@ -571,6 +581,10 @@ public final class HvacController {
      * chunk loads if it turns out to be gone.
      */
     private boolean controllerPresent(Thermostat thermostat) {
+        return presence.computeIfAbsent(thermostat, this::controllerPresentNow);
+    }
+
+    private boolean controllerPresentNow(Thermostat thermostat) {
         if (settings.unloadedDevices() && !thermostat.position().isChunkLoaded())
             return thermostat.position().world() != null;
         return isControllerLoaded(thermostat);
