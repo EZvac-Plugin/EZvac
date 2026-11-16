@@ -22,8 +22,12 @@ something runs.
   while away shows as spent then, not as a new one.
 - A room's size is saved with its thermostat, so it runs at its real size
   after a restart before anyone visits.
-- `/hvac list` says which systems are running unloaded.
+- `/hvac list` says which systems are running unloaded, and the Health page
+  (and `/hvac stats`) what running them costs: on 1,000 systems with nobody
+  near, about 0.08 ms a tick more than letting them stop.
 - `simulation.unloaded-devices: false` stops what is out of reach, as before.
+- An addon's controls still answer while a server is paused for being empty
+  (`pause-when-empty-seconds`).
 
 ### Mode times
 
@@ -38,6 +42,13 @@ something runs.
   a history, log `ThermostatModeChangeEvent`.
 - `loaded()` on thermostat, equipment and climate unit views: whether the
   device's chunk is loaded, so a dashboard can show a house running remotely.
+
+### Fixes
+
+- A forecast said "Rain from 03:00. Snowstorm from 03:00" where an addon's
+  planned snowstorm came down as rain: a planned snowstorm is named only
+  where the station's day snows, and where it does, "Snowstorm from 03:00"
+  takes the place of "Snow from 03:00".
 
 ## BETA 1.0 Pilot 7
 
