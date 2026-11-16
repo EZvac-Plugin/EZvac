@@ -58,6 +58,14 @@ public final class HvacController {
         this.units = Objects.requireNonNull(units, "units");
     }
 
+    /** Time the last cycle spent on systems out of reach, and how many there were (BETA 1.0 Pilot 8). */
+    private long unloadedNanos;
+    private int unloadedSystems;
+
+    public long unloadedNanos() { return unloadedNanos; }
+
+    public int unloadedSystems() { return unloadedSystems; }
+
     public void setSizing(SizingSettings sizing) { this.sizing = Objects.requireNonNull(sizing, "sizing"); }
 
     public SizingSettings sizing() { return sizing; }
@@ -197,10 +205,19 @@ public final class HvacController {
         for (Thermostat thermostat : thermostats)
             if (registry.thermostatFor(thermostat.system()) == thermostat) startF.put(thermostat.system(), thermostat.roomF());
         cycleStartF = startF;
+        unloadedNanos = 0L;
+        int unloaded = 0;
         for (Thermostat thermostat : thermostats) {
             OperatingMode before = thermostat.mode();
+            // What running systems out of reach costs, for the Health page (BETA 1.0 Pilot 8).
+            boolean away = settings.unloadedDevices() && !thermostat.position().isChunkLoaded();
+            long awayFrom = away ? System.nanoTime() : 0L;
             try {
                 updateThermostat(thermostat, deliveredEquivalent, elapsedTicks, managedOutputs, packedOutputs);
+                if (away) {
+                    unloadedNanos += System.nanoTime() - awayFrom;
+                    unloaded++;
+                }
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.SEVERE, "Could not update thermostat '"
                         + thermostat.id() + "' at " + thermostat.position(), exception);
@@ -208,6 +225,7 @@ public final class HvacController {
             }
             ApiEvents.modeChanged(thermostat, before, this);
         }
+        unloadedSystems = unloaded;
 
         reconcileActuators(started, stopped);
         stopped.removeAll(started); // a repaired actuator emits one restart transition, not stop+start noise
