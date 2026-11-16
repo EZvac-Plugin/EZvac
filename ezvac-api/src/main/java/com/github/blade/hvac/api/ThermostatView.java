@@ -1,5 +1,7 @@
 package com.github.blade.hvac.api;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,12 +28,20 @@ import java.util.Optional;
  * @param mini         true for a mini thermostat: a small display on a wall button instead of a sign (1.7)
  * @param attention    what its system needs someone to look at, in the order its menu lists them; its
  *                     screen counts them beside a ⚠ (1.7)
+ * @param modeSince    when it went into its mode, in real time (1.13, EZvac BETA 1.0 Pilot 8): "Heating since
+ *                     14:02"; it counts across restarts. Empty when not known
+ * @param lastRun      its last finished heating or cooling run (1.13), so an idle thermostat can say "Last
+ *                     heated 14:02 to 14:20"; empty before one has ended. For a full history, log
+ *                     {@link com.github.blade.hvac.api.event.ThermostatModeChangeEvent}
+ * @param loaded       whether its sign's chunk is loaded (1.13). False, EZvac runs it from what it last saw
+ *                     there, where the server keeps devices running unloaded
  * @since 1.0
  */
 public record ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
                              boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits,
                              Optional<AirQuality> airQuality, boolean unitsOff, Profile profile, boolean mini,
-                             List<Attention> attention)
+                             List<Attention> attention, Optional<Instant> modeSince, Optional<Run> lastRun,
+                             boolean loaded)
         implements HvacDevice {
     public ThermostatView {
         Objects.requireNonNull(id, "id");
@@ -41,6 +51,43 @@ public record ThermostatView(String id, String system, Position position, double
         airQuality = airQuality == null ? Optional.empty() : airQuality;
         profile = profile == null ? Profile.NORMAL : profile;
         attention = attention == null ? List.of() : List.copyOf(attention);
+        modeSince = modeSince == null ? Optional.empty() : modeSince;
+        lastRun = lastRun == null ? Optional.empty() : lastRun;
+    }
+
+    /** A view as in API 1.7 to 1.12, before when its mode began, its last run and whether it is loaded. */
+    public ThermostatView(String id, String system, Position position, double roomF, double targetF, Mode mode,
+                          boolean enabled, boolean pool, double humidity, int runningUnits, int totalUnits,
+                          Optional<AirQuality> airQuality, boolean unitsOff, Profile profile, boolean mini,
+                          List<Attention> attention) {
+        this(id, system, position, roomF, targetF, mode, enabled, pool, humidity, runningUnits, totalUnits,
+                airQuality, unitsOff, profile, mini, attention, Optional.empty(), Optional.empty(), true);
+    }
+
+    /**
+     * A finished heating or cooling run (1.13).
+     *
+     * @param mode    HEATING or COOLING
+     * @param started when it began, in real time
+     * @param ended   when it stopped
+     */
+    public record Run(Mode mode, Instant started, Instant ended) {
+        public Run {
+            Objects.requireNonNull(mode, "mode");
+            Objects.requireNonNull(started, "started");
+            Objects.requireNonNull(ended, "ended");
+            if (ended.isBefore(started)) throw new IllegalArgumentException("a run can't end before it starts");
+        }
+
+        public Duration duration() { return Duration.between(started, ended); }
+    }
+
+    /** How long it has been in its mode until now (1.13): "Heating for 12 min"; empty when not known. */
+    public Optional<Duration> timeInMode() {
+        return modeSince.map(since -> {
+            Duration time = Duration.between(since, Instant.now());
+            return time.isNegative() ? Duration.ZERO : time;
+        });
     }
 
     /** A view as in API 1.6, before profiles, mini thermostats and attention. */
