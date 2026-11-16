@@ -370,4 +370,27 @@ class HudFormatterTest {
         FakeSections one = new FakeSections().with("body_temp:main", "B");
         assertEquals(List.of(), plainLines(hiding.lines(List.of("{addons}"), cooled(72.0), one)));
     }
+
+    @Test
+    void theFastEscapeIsMiniMessagesOwn() {
+        // BETA 1.0 Pilot 9: plain text skips MiniMessage's parser; the result must not change.
+        var mini = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage();
+        for (String text : List.of("", "72.4°F", "Upstairs bathroom", "★☆☆", "█", "▮", "50%", "Gale · 31 mph NNE",
+                "<b>bold</b>", "a<b", "back\\slash", "\\<red>", "<", "\\", "x > y", "<#ff0000>", "<!-- -->"))
+            assertEquals(mini.escapeTags(text), HudFormatter.escape(text), text);
+    }
+
+    @Test
+    void aLineDrawnBeforeIsTheSameLine() {
+        // BETA 1.0 Pilot 9: lines are kept by their text; a kept line must equal a freshly parsed one.
+        var mini = net.kyori.adventure.text.minimessage.MiniMessage.miniMessage();
+        List<String> templates = HudSettings.defaults().air().sidebarLines();
+        for (int round = 0; round < 2; round++)
+            for (double f = 40.0; f <= 100.0; f += 0.7)
+                for (String template : templates) {
+                    ClimateSnapshot snapshot = cooled(f);
+                    assertEquals(mini.deserialize(format.fill(template, snapshot)), format.render(template, snapshot),
+                            template + " at " + f);
+                }
+    }
 }

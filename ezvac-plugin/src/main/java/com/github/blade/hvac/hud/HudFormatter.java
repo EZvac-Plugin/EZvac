@@ -358,36 +358,68 @@ public final class HudFormatter {
 
     /** Replaces the tokens in a MiniMessage template. Plain values are escaped. */
     public String fill(String template, ClimateSnapshot snapshot) {
+        // Only the tokens a line holds are worked out (BETA 1.0 Pilot 9): each line used to work out all
+        // of them, bars included, for every line of every player's HUD at every update.
+        if (template.indexOf('{') < 0) return template;
         HudSettings.Medium medium = medium(snapshot);
-        return template
-                .replace("{temp}", escape(temperature(snapshot.localF())))
-                .replace("{feels}", escape(feelsLike(snapshot)))
-                .replace("{humidity}", escape(humidity(snapshot)))
-                .replace("{aqi_band}", escape(aqiBand(snapshot)))
-                .replace("{aqi}", aqiMini(snapshot))
-                .replace("{pollen}", escape(pollen(snapshot)))
-                .replace("{wind_level}", escape(windLevel(snapshot)))
-                .replace("{wind}", escape(wind(snapshot)))
-                .replace("{weather}", escape(snapshot.weather()))
-                .replace("{season_day}", snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "")
-                .replace("{season}", escape(snapshot.season()))
-                .replace("{time}", escape(time(snapshot)))
-                .replace("{bar}", barMini(snapshot.comfortF(), medium))
-                .replace("{comfort}", comfortMini(snapshot.comfortF(), medium))
-                .replace("{outdoor}", escape(temperature(snapshot.outdoorF())))
-                .replace("{system_mode}", systemModeMini(snapshot))
-                .replace("{mode_icon}", modeIconMini(snapshot))
-                .replace("{system}", escape(system(snapshot)))
-                .replace("{group}", escape(system(snapshot)))
-                .replace("{thermostat}", escape(thermostat(snapshot)))
-                .replace("{mode}", escape(mode(snapshot)))
-                .replace("{target}", escape(target(snapshot)))
-                .replace("{zone}", zoneMini(snapshot))
-                .replace("{version}", escape(version));
+        String text = template;
+        text = put(text, "{temp}", () -> escape(temperature(snapshot.localF())));
+        text = put(text, "{feels}", () -> escape(feelsLike(snapshot)));
+        text = put(text, "{humidity}", () -> escape(humidity(snapshot)));
+        text = put(text, "{aqi_band}", () -> escape(aqiBand(snapshot)));
+        text = put(text, "{aqi}", () -> aqiMini(snapshot));
+        text = put(text, "{pollen}", () -> escape(pollen(snapshot)));
+        text = put(text, "{wind_level}", () -> escape(windLevel(snapshot)));
+        text = put(text, "{wind}", () -> escape(wind(snapshot)));
+        text = put(text, "{weather}", () -> escape(snapshot.weather()));
+        text = put(text, "{season_day}", () -> snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "");
+        text = put(text, "{season}", () -> escape(snapshot.season()));
+        text = put(text, "{time}", () -> escape(time(snapshot)));
+        text = put(text, "{bar}", () -> barMini(snapshot.comfortF(), medium));
+        text = put(text, "{comfort}", () -> comfortMini(snapshot.comfortF(), medium));
+        text = put(text, "{outdoor}", () -> escape(temperature(snapshot.outdoorF())));
+        text = put(text, "{system_mode}", () -> systemModeMini(snapshot));
+        text = put(text, "{mode_icon}", () -> modeIconMini(snapshot));
+        text = put(text, "{system}", () -> escape(system(snapshot)));
+        text = put(text, "{group}", () -> escape(system(snapshot)));
+        text = put(text, "{thermostat}", () -> escape(thermostat(snapshot)));
+        text = put(text, "{mode}", () -> escape(mode(snapshot)));
+        text = put(text, "{target}", () -> escape(target(snapshot)));
+        text = put(text, "{zone}", () -> zoneMini(snapshot));
+        text = put(text, "{version}", () -> escape(version));
+        return text;
+    }
+
+    private static String put(String text, String token, java.util.function.Supplier<String> value) {
+        return text.contains(token) ? text.replace(token, value.get()) : text;
     }
 
     public Component render(String template, ClimateSnapshot snapshot) {
-        return MINI.deserialize(fill(template, snapshot));
+        return parse(fill(template, snapshot));
+    }
+
+    /** Lines parsed lately, by their MiniMessage text: most updates draw what was drawn before. */
+    private final java.util.Map<String, Component> parsed = new java.util.LinkedHashMap<>(256, 0.75f, true) {
+        @Override
+        protected boolean removeEldestEntry(java.util.Map.Entry<String, Component> eldest) {
+            return size() > 512;
+        }
+    };
+
+    /**
+     * A filled template as a component (BETA 1.0 Pilot 9): the same text
+     * parses to the same component, so a line drawn before isn't parsed again.
+     */
+    private Component parse(String mini) {
+        synchronized (parsed) {
+            Component cached = parsed.get(mini);
+            if (cached != null) return cached;
+        }
+        Component component = MINI.deserialize(mini);
+        synchronized (parsed) {
+            parsed.put(mini, component);
+        }
+        return component;
     }
 
     /**
@@ -407,7 +439,7 @@ public final class HudFormatter {
             from = match.end();
         }
         out.append(fill(template.substring(from), snapshot));
-        return MINI.deserialize(out.toString());
+        return parse(out.toString());
     }
 
     /** A section id as the registry writes it: lowercase, with spaces in a plugin's name as underscores. */
@@ -483,7 +515,15 @@ public final class HudFormatter {
         return settings.hiddenSections().contains(id);
     }
 
-    private static String escape(String value) {
+    /**
+     * Text made safe to put in a MiniMessage template. MiniMessage's own
+     * escaping runs its whole parser on the text, and the HUD escapes dozens
+     * of values each update for every player (one per bar glyph, too): that
+     * was most of what the HUD cost (BETA 1.0 Pilot 9). Text without a
+     * {@code <} or a {@code \} has nothing to escape, so it is returned as it is.
+     */
+    static String escape(String value) {
+        if (value != null && value.indexOf('<') < 0 && value.indexOf('\\') < 0) return value;
         return MINI.escapeTags(value);
     }
 
