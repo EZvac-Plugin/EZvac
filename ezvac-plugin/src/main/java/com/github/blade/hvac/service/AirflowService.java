@@ -847,8 +847,19 @@ public final class AirflowService {
         if (feet.getBlock().getType() == Material.WATER) return temperatureAt(feet);
         TemperatureReading head = temperatureAt(eyes);
         if (head.conditioned()) return head;
+        // The feet only count where a room's air reaches them (BETA 1.0 Pilot 9): outdoors, a second whole
+        // reading, the outdoor climate worked out again, came to the same head reading.
+        if (!reachedByAnySystem(feet)) return head;
         TemperatureReading foot = temperatureAt(feet);
         return foot.conditioned() ? foot : head;
+    }
+
+    /** Whether some system's completed map reaches this block: only then can a reading there be conditioned. */
+    private boolean reachedByAnySystem(Location location) {
+        if (location == null || location.getWorld() == null) return false;
+        Set<SystemId> candidates = candidateSystems(location.getWorld().getUID(), location.getBlockX(), location.getBlockZ());
+        if (candidates.isEmpty()) return false;
+        return nearestSystem(candidates, pack(location.getBlockX(), location.getBlockY(), location.getBlockZ()), null) != null;
     }
 
     public TemperatureReading temperatureAt(Location location, SystemId requiredSystem) {
