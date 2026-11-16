@@ -105,7 +105,9 @@ public final class QuickSettingsMenu implements Listener {
     static final int DEVICE_COUNTS = 10, SYSTEM_COUNTS = 11, SIZES = 13, AIRFLOW = 15, REFRESH = 22;
     /** The systems the sizes item lists at most, the worst sized first. */
     private static final int LISTED_SYSTEMS = 10;
-    static final int RUNNING = 10, CHECK_NOW = 12, BACKGROUND = 14, TELL_ADMINS = 16;
+    static final int RUNNING = 10, CHECK_NOW = 12, BACKGROUND = 14, TELL_ADMINS = 15;
+    /** Anonymous usage statistics through bStats (BETA 1.0 Pilot 9). */
+    static final int USAGE_STATS = 16, ADDON_STATS = 17;
     /** Under the running version (BETA 1.0 Pilot 2): which releases this server hears about. */
     static final int CHANNEL = 19;
     private static final String ADMIN = "ezvac.admin";
@@ -672,6 +674,14 @@ public final class QuickSettingsMenu implements Listener {
                 gray("At start-up and every 6 hours"), clickTo(updates.checking())));
         placeSwitch(inventory, TELL_ADMINS, Material.BELL, "Tell admins on join", updates.notifyAdmins(), List.of(
                 gray("When a background check finds one"), clickTo(updates.notifyAdmins())));
+        boolean stats = plugin.usageStatsOn();
+        placeSwitch(inventory, USAGE_STATS, Material.COMPASS, "Anonymous statistics", stats, List.of(
+                gray("Counts of servers and players, and"), gray("versions, to bstats.org: nothing"),
+                gray("that names a server or a player"), clickTo(stats)));
+        boolean addonStats = plugin.addonStatsOn();
+        placeSwitch(inventory, ADDON_STATS, Material.BOOKSHELF, "Addon versions", addonStats, List.of(
+                gray("With the statistics: which official"), gray("addons run here, and their versions"),
+                gray(stats ? "Never any other plugin" : "Statistics are off, so nothing is sent"), clickTo(addonStats)));
     }
 
     /**
@@ -1058,6 +1068,14 @@ public final class QuickSettingsMenu implements Listener {
             plugin.getConfig().set("updates.notify-admins", on);
             plugin.saveConfig();
             logChange(player, "switched update notices for admins " + (on ? "on" : "off"));
+        } else if (at == USAGE_STATS) {
+            boolean on = !plugin.usageStatsOn();
+            plugin.setUsageStats(on);
+            logChange(player, "switched anonymous usage statistics " + (on ? "on" : "off"));
+        } else if (at == ADDON_STATS) {
+            boolean on = !plugin.addonStatsOn();
+            plugin.setAddonStats(on);
+            logChange(player, "switched addon versions in the statistics " + (on ? "on" : "off"));
         } else return false;
         click(player, true);
         return false;

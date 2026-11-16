@@ -282,3 +282,8 @@ admins when they join (`updates.check` and `updates.notify-admins`).
 server hears about: **Stable**, full releases and their hotfixes, or
 **Pilot**, pilots too. Click to step through auto, stable and pilot; auto
 follows the EZvac the server runs. It's `updates.channel` in `config.yml`.
+
+**Anonymous statistics** and **Addon versions** (BETA 1.0 Pilot 9) switch
+what EZvac sends to bStats, at once: the first everything, the second just
+which official addons run and their versions (`metrics.enabled` and
+`metrics.addons`; see [metrics](configuration.md#metrics)).

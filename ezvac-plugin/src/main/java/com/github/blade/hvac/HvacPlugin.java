@@ -227,6 +227,7 @@ public final class HvacPlugin extends JavaPlugin {
             ezdebug.start();
             backups = new RegistryBackups(this, registry, getConfig(), this::saveConfig);
             backups.start();
+            usageStats = com.github.blade.hvac.service.UsageStats.start(this);
             quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates,
                     addons);
             getServer().getPluginManager().registerEvents(quickSettings, this);
@@ -421,6 +422,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (smokeTask != null) smokeTask.cancel();
         if (sparkTask != null) sparkTask.cancel();
         if (backups != null) backups.stop();
+        if (usageStats != null) usageStats.stop();
         getServer().getServicesManager().unregisterAll(this);
         if (api != null) api.clear();
         if (placeholderUnregister != null) placeholderUnregister.run();
@@ -520,6 +522,36 @@ public final class HvacPlugin extends JavaPlugin {
     }
 
     public HvacSettings settings() { return settings; }
+
+    public HvacRegistry registry() { return registry; }
+
+    public com.github.blade.hvac.addons.AddonService addons() { return addons; }
+
+    /** Whether the statistics include the official addons and their versions (BETA 1.0 Pilot 9). */
+    public boolean addonStatsOn() { return getConfig().getBoolean("metrics.addons", true); }
+
+    /** Switches the addon versions in the statistics; it takes at the next report. */
+    public void setAddonStats(boolean on) {
+        getConfig().set("metrics.addons", on);
+        saveConfig();
+    }
+
+    /** Anonymous usage statistics (BETA 1.0 Pilot 9); null while off. */
+    private com.github.blade.hvac.service.UsageStats usageStats;
+
+    /** Whether EZvac sends anonymous usage statistics to bStats. */
+    public boolean usageStatsOn() { return getConfig().getBoolean("metrics.enabled", true); }
+
+    /** Switches anonymous usage statistics on or off, at once and in config.yml (quick settings). */
+    public void setUsageStats(boolean on) {
+        getConfig().set("metrics.enabled", on);
+        saveConfig();
+        if (usageStats != null) {
+            usageStats.stop();
+            usageStats = null;
+        }
+        if (on) usageStats = com.github.blade.hvac.service.UsageStats.start(this);
+    }
     public ClimateSettings climate() { return climate; }
 
     /** Air quality and what burns in each space (3.2). */

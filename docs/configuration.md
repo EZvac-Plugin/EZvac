@@ -67,6 +67,29 @@ releases.
 A failed check (no internet, GitHub busy) is logged once and tried again 6
 hours later.
 
+## metrics
+
+Anonymous usage statistics (BETA 1.0 Pilot 9), through
+[bStats](https://bstats.org/plugin/bukkit/EZvac/35377), so the project can see
+how many servers and players run EZvac and which versions are in use.
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `enabled` | true | Send anonymous statistics. `false` stops them for EZvac |
+| `addons` | true | Include which of EZvac's official addons run, and their versions. Never any other plugin |
+
+What is sent, about every 30 minutes, in the background: a random id that
+stands for the server, the number of players online, the Minecraft, Java,
+server software and EZvac versions, and a few settings: Fahrenheit or
+Celsius, whether devices run unloaded, and the number of systems in a band
+(such as 11-50, never the exact number). Nothing names a server or a player,
+and nothing is sent about what is built or where. The totals are public on
+EZvac's bStats page.
+
+To turn it off for EZvac, set `enabled: false` here or use `/hvac quicksettings`
+› Updates. To turn it off for every plugin that uses bStats, set
+`enabled: false` in `plugins/bStats/config.yml`.
+
 ## addons
 
 ```yaml
