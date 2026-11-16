@@ -273,8 +273,8 @@ public final class WeatherStationService implements Listener {
                     rules, season, byAir);
             boolean snow = byAir ? Forecast.snows(day.highF(), day.lowF(), rules, winter) : Forecast.snowsByBiome(area);
             String note = Forecast.note(clocks, ahead, snow, dry);
-            if (planned != null && !planned.note().isEmpty())
-                note = note.isEmpty() ? planned.note() : note + ". " + planned.note();
+            if (planned != null)
+                note = Forecast.withPlanned(note, planned.event().orElse(null), planned.note(), snow);
             days.add(day.withNote(note).withAqi(aqi));
         }
         return days;

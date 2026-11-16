@@ -156,4 +156,19 @@ class ForecastTest {
         assertEquals(2, both.size());
         assertEquals(100, Forecast.overlap(both, 0, 1000));
     }
+
+    @Test
+    void aPlannedSnowstormIsNamedOnlyWhereItSnows() {
+        var storm = com.github.blade.hvac.api.WeatherEvent.SNOWSTORM;
+        // Seen 2026-11-16: "Rain from 03:00. Snowstorm from 03:00" at a station whose day was 40 to 50 F.
+        assertEquals("Rain from 03:00", Forecast.withPlanned("Rain from 03:00", storm, "Snowstorm from 03:00", false));
+        assertEquals("", Forecast.withPlanned("", storm, "Snowstorm likely", false));
+        assertEquals("Snowstorm from 03:00", Forecast.withPlanned("Snow from 03:00", storm, "Snowstorm from 03:00", true),
+                "one note, not the same time twice");
+        assertEquals("Snowstorm from 03:00", Forecast.withPlanned("", storm, "Snowstorm from 03:00", true));
+        var thunder = com.github.blade.hvac.api.WeatherEvent.THUNDERSTORM;
+        assertEquals("Rain from 03:00. Thunder from 05:00",
+                Forecast.withPlanned("Rain from 03:00", thunder, "Thunder from 05:00", false), "other events as before");
+        assertEquals("Clear all day", Forecast.withPlanned("Clear all day", null, "", false));
+    }
 }

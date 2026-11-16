@@ -181,6 +181,24 @@ public final class Forecast {
         return (clocks.raining() ? word + " until " : word + " from ") + clock(clocks.dayTime() + at);
     }
 
+    /**
+     * A day's note with an addon's planned one (API 1.9), as the station's
+     * own day stands. A planned snowstorm is the world's, but where the
+     * station's day is rain it rains there: it isn't named, as the HUD
+     * doesn't name it. Where it snows, "Snowstorm from 03:00" says what
+     * "Snow from 03:00" would, so it takes that note's place.
+     */
+    public static String withPlanned(String note, com.github.blade.hvac.api.WeatherEvent event, String planned,
+                                     boolean snow) {
+        if (planned == null || planned.isEmpty()) return note;
+        if (event == com.github.blade.hvac.api.WeatherEvent.SNOWSTORM) {
+            if (!snow) return note;
+            if (note.startsWith("Snow from ") || note.startsWith("Snow until ") || note.equals("Snow all day"))
+                return planned;
+        }
+        return note.isEmpty() ? planned : note + ". " + planned;
+    }
+
     /** A time of day as a clock: sunrise (0) is 06:00, rounded to the hour. */
     static String clock(long dayTime) {
         long hour = (Math.floorMod(dayTime, 24_000L) + 6_000L + 500L) / 1_000L % 24L;
