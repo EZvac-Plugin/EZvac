@@ -55,7 +55,8 @@ public final class QuickSettingsMenu implements Listener {
         CLIMATE("Quick settings › Climate systems", 36), BACKUPS("Quick settings › Backups & registry", 36),
         STATISTICS("Quick settings › Health", 36), UPDATES("Quick settings › Updates", 36),
         SEASONS("Quick settings › Seasons & wind", 36), DISPLAY("Quick settings › Display & sound", 36),
-        ADDONS("Quick settings › Addons", 54), ADDON_PARTS("Quick settings › Addon", 36);
+        ADDONS("Quick settings › Addons", 54), ADDON_PARTS("Quick settings › Addon", 36),
+        SHARING("Quick settings › Anonymous statistics", 36);
 
         final String title;
         final int size;
@@ -75,6 +76,14 @@ public final class QuickSettingsMenu implements Listener {
      */
     static final int DEVICES = 10, CLIMATE = 12, SEASONS_AND_WIND = 14, DISPLAY = 16;
     static final int ADDONS = 19, BACKUPS = 21, STATISTICS = 23, UPDATES = 25;
+    /** Anonymous statistics (BETA 1.0 Pilot 9), under the others. */
+    static final int SHARING_SECTION = 31;
+    /**
+     * The statistics page: what always goes while they're on, the switch for
+     * all of them, and one for each of EZvac's own charts, lights beneath.
+     */
+    static final int ALWAYS_SENT = 4, SHARE_ALL = 10, SHARE_UNITS = 12, SHARE_UNLOADED = 13, SHARE_SYSTEMS = 14,
+            SHARE_ADDONS = 15;
     /** Seasons & wind: the world it is about, its calendar's buttons, and today's wind. */
     static final int WORLD_INFO = 4, SEASON_NOW = 10, DAY_BACK = 11, DAY_ON = 12, NEXT_SEASON = 13, PAUSE = 14,
             WIND_NOW = 16;
@@ -105,9 +114,7 @@ public final class QuickSettingsMenu implements Listener {
     static final int DEVICE_COUNTS = 10, SYSTEM_COUNTS = 11, SIZES = 13, AIRFLOW = 15, REFRESH = 22;
     /** The systems the sizes item lists at most, the worst sized first. */
     private static final int LISTED_SYSTEMS = 10;
-    static final int RUNNING = 10, CHECK_NOW = 12, BACKGROUND = 14, TELL_ADMINS = 15;
-    /** Anonymous usage statistics through bStats (BETA 1.0 Pilot 9). */
-    static final int USAGE_STATS = 16, ADDON_STATS = 17;
+    static final int RUNNING = 10, CHECK_NOW = 12, BACKGROUND = 14, TELL_ADMINS = 16;
     /** Under the running version (BETA 1.0 Pilot 2): which releases this server hears about. */
     static final int CHANNEL = 19;
     private static final String ADMIN = "ezvac.admin";
@@ -186,6 +193,7 @@ public final class QuickSettingsMenu implements Listener {
             case ADDON_PARTS -> drawAddonParts(inventory, menu.addon);
             case SEASONS -> drawSeasons(inventory, menu.world);
             case DISPLAY -> drawDisplay(inventory);
+            case SHARING -> drawSharing(inventory);
         }
     }
 
@@ -550,6 +558,62 @@ public final class QuickSettingsMenu implements Listener {
         inventory.setItem(ADDONS, section(Material.BOOKSHELF, "Addons",
                 installed + " installed" + (news == 0 ? "" : ", " + news + " with an update"),
                 "Switch official addons; find more"));
+        inventory.setItem(SHARING_SECTION, section(Material.COMPASS, "Anonymous statistics",
+                plugin.usageStatsOn() ? "Sending to bStats" : "Off: nothing is sent",
+                "Choose what EZvac shares, or nothing"));
+    }
+
+    /**
+     * What EZvac sends to bStats (BETA 1.0 Pilot 9): bStats' own figures,
+     * which go together while statistics are on, and each of EZvac's charts
+     * on its own switch.
+     */
+    private void drawSharing(Inventory inventory) {
+        boolean on = plugin.usageStatsOn();
+        inventory.setItem(ALWAYS_SENT, item(Material.PAPER, Component.text("Always sent while on", NamedTextColor.AQUA),
+                List.of(gray("A random id for this server"), gray("Players online, online mode"),
+                        gray("Server software and version"), gray("Java, the OS and CPU cores"),
+                        gray("EZvac's version"), gray("bStats works out the country"),
+                        gray("from where it comes, and keeps"), gray("only that, not the address"),
+                        gray("Nothing names a server or a player"))));
+        placeSwitch(inventory, SHARE_ALL, Material.COMPASS, "Anonymous statistics", on, List.of(
+                gray("Everything here, to bstats.org,"), gray("about every 30 minutes"), clickTo(on)));
+        shareSwitch(inventory, SHARE_UNITS, Material.PAINTING, "Temperature units", "temperature-unit", on,
+                "°F or °C");
+        shareSwitch(inventory, SHARE_UNLOADED, Material.MAP, "Unloaded devices", "unloaded-devices", on,
+                "Whether devices run unloaded");
+        shareSwitch(inventory, SHARE_SYSTEMS, Material.IRON_TRAPDOOR, "Number of systems", "systems", on,
+                "In a band, such as 11-50");
+        shareSwitch(inventory, SHARE_ADDONS, Material.BOOKSHELF, "Official addons", "addons", on,
+                "Which run here, and their versions");
+    }
+
+    private void shareSwitch(Inventory inventory, int slot, Material icon, String name, String chart, boolean all,
+                             String what) {
+        boolean on = plugin.statOn(chart);
+        placeSwitch(inventory, slot, icon, name, on, List.of(gray(what),
+                gray(all ? "Sent while statistics are on" : "Statistics are off: nothing is sent"), clickTo(on)));
+    }
+
+    private void clickSharing(Player player, int slot) {
+        int at = switchedAt(slot);
+        String chart = switch (at) {
+            case SHARE_UNITS -> "temperature-unit";
+            case SHARE_UNLOADED -> "unloaded-devices";
+            case SHARE_SYSTEMS -> "systems";
+            case SHARE_ADDONS -> "addons";
+            default -> null;
+        };
+        if (at == SHARE_ALL) {
+            boolean on = !plugin.usageStatsOn();
+            plugin.setUsageStats(on);
+            logChange(player, "switched anonymous statistics " + (on ? "on" : "off"));
+        } else if (chart != null) {
+            boolean on = !plugin.statOn(chart);
+            plugin.setStat(chart, on);
+            logChange(player, "switched " + chart + " in the anonymous statistics " + (on ? "on" : "off"));
+        } else return;
+        click(player, true);
     }
 
     private static ItemStack section(Material icon, String name, String state, String what) {
@@ -674,14 +738,6 @@ public final class QuickSettingsMenu implements Listener {
                 gray("At start-up and every 6 hours"), clickTo(updates.checking())));
         placeSwitch(inventory, TELL_ADMINS, Material.BELL, "Tell admins on join", updates.notifyAdmins(), List.of(
                 gray("When a background check finds one"), clickTo(updates.notifyAdmins())));
-        boolean stats = plugin.usageStatsOn();
-        placeSwitch(inventory, USAGE_STATS, Material.COMPASS, "Anonymous statistics", stats, List.of(
-                gray("Counts of servers and players, and"), gray("versions, to bstats.org: nothing"),
-                gray("that names a server or a player"), clickTo(stats)));
-        boolean addonStats = plugin.addonStatsOn();
-        placeSwitch(inventory, ADDON_STATS, Material.BOOKSHELF, "Addon versions", addonStats, List.of(
-                gray("With the statistics: which official"), gray("addons run here, and their versions"),
-                gray(stats ? "Never any other plugin" : "Statistics are off, so nothing is sent"), clickTo(addonStats)));
     }
 
     /**
@@ -758,6 +814,7 @@ public final class QuickSettingsMenu implements Listener {
                     case ADDONS -> Page.ADDONS;
                     case SEASONS_AND_WIND -> Page.SEASONS;
                     case DISPLAY -> Page.DISPLAY;
+                    case SHARING_SECTION -> Page.SHARING;
                     default -> null;
                 };
                 if (page != null) {
@@ -781,6 +838,7 @@ public final class QuickSettingsMenu implements Listener {
             case ADDON_PARTS -> clickAddonParts(player, slot, menu.addon);
             case SEASONS -> clickSeasons(player, slot, menu.world);
             case DISPLAY -> clickDisplay(player, slot);
+            case SHARING -> clickSharing(player, slot);
         }
         draw(menu);
     }
@@ -1068,14 +1126,7 @@ public final class QuickSettingsMenu implements Listener {
             plugin.getConfig().set("updates.notify-admins", on);
             plugin.saveConfig();
             logChange(player, "switched update notices for admins " + (on ? "on" : "off"));
-        } else if (at == USAGE_STATS) {
-            boolean on = !plugin.usageStatsOn();
-            plugin.setUsageStats(on);
-            logChange(player, "switched anonymous usage statistics " + (on ? "on" : "off"));
-        } else if (at == ADDON_STATS) {
-            boolean on = !plugin.addonStatsOn();
-            plugin.setAddonStats(on);
-            logChange(player, "switched addon versions in the statistics " + (on ? "on" : "off"));
+
         } else return false;
         click(player, true);
         return false;

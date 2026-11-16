@@ -75,20 +75,24 @@ how many servers and players run EZvac and which versions are in use.
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
-| `enabled` | true | Send anonymous statistics. `false` stops them for EZvac |
-| `addons` | true | Include which of EZvac's official addons run, and their versions. Never any other plugin |
+| `enabled` | true | Send anonymous statistics. `false` stops them all for EZvac |
+| `temperature-unit` | true | Whether the server shows Fahrenheit or Celsius |
+| `unloaded-devices` | true | Whether devices run in unloaded chunks (`simulation.unloaded-devices`) |
+| `systems` | true | The number of systems, in a band (such as 11-50), never the exact number |
+| `addons` | true | Which of EZvac's official addons run, and their versions. Never any other plugin |
 
-What is sent, about every 30 minutes, in the background: a random id that
-stands for the server, the number of players online, the Minecraft, Java,
-server software and EZvac versions, and a few settings: Fahrenheit or
-Celsius, whether devices run unloaded, and the number of systems in a band
-(such as 11-50, never the exact number). Nothing names a server or a player,
-and nothing is sent about what is built or where. The totals are public on
-EZvac's bStats page.
+While `enabled` is true, bStats itself always sends, about every 30 minutes
+and in the background: a random id that stands for the server, the players
+online and online mode, the server software and version, the Java version,
+the OS and the number of CPU cores, and EZvac's version. bStats works out
+the country from where a report comes, and keeps only that. The four
+settings above are EZvac's own charts, each sent only while its switch is
+on. Nothing names a server or a player, and nothing is sent about what is
+built or where. The totals are public on EZvac's bStats page.
 
-To turn it off for EZvac, set `enabled: false` here or use `/hvac quicksettings`
-› Updates. To turn it off for every plugin that uses bStats, set
-`enabled: false` in `plugins/bStats/config.yml`.
+`/hvac quicksettings` › **Anonymous statistics** lists what is always sent and
+switches each of these at once. To turn statistics off for every plugin that
+uses bStats, set `enabled: false` in `plugins/bStats/config.yml`.
 
 ## addons
 

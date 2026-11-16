@@ -15,8 +15,7 @@ import java.util.Map;
  * bStats sends a random server id, counts and versions, never anything that
  * names a server or a player. Off with {@code metrics.enabled: false} in
  * EZvac's config, or for every plugin in {@code plugins/bStats/config.yml}.
- * Which official addons run, and their versions, has its own switch,
- * {@code metrics.addons}.
+ * Each of EZvac's own charts has its own switch too.
  */
 public final class UsageStats {
     /** EZvac on bstats.org: https://bstats.org/plugin/bukkit/EZvac/35377 */
@@ -33,12 +32,16 @@ public final class UsageStats {
         if (!plugin.getConfig().getBoolean("metrics.enabled", true)) return null;
         Metrics metrics = new Metrics(plugin, PLUGIN_ID);
         // A few settings worth knowing which way servers go; all of them asked of bStats' own schedule.
-        metrics.addCustomChart(new SimplePie("temperature_unit", () -> plugin.settings().units().name()));
+        // Each chart has its own switch (metrics.<chart>, quick settings › Anonymous statistics); one switched
+        // off answers nothing, which bStats leaves out.
+        metrics.addCustomChart(new SimplePie("temperature_unit",
+                () -> plugin.statOn("temperature-unit") ? plugin.settings().units().name() : null));
         metrics.addCustomChart(new SimplePie("unloaded_devices",
-                () -> plugin.settings().unloadedDevices() ? "On" : "Off"));
-        metrics.addCustomChart(new SimplePie("systems", () -> systemsBand(plugin.registry().thermostats().size())));
-        // The official addons installed, each with its version; only while metrics.addons is on.
-        metrics.addCustomChart(new DrilldownPie("official_addons", () -> !plugin.getConfig().getBoolean("metrics.addons", true)
+                () -> !plugin.statOn("unloaded-devices") ? null : plugin.settings().unloadedDevices() ? "On" : "Off"));
+        metrics.addCustomChart(new SimplePie("systems",
+                () -> plugin.statOn("systems") ? systemsBand(plugin.registry().thermostats().size()) : null));
+        // The official addons installed, each with its version.
+        metrics.addCustomChart(new DrilldownPie("official_addons", () -> !plugin.statOn("addons")
                 ? null : addonVersions(plugin.addons().installed().stream()
                         .map(addon -> Map.entry(addon.entry().name(), addon.version() == null ? "" : addon.version())).toList())));
         return new UsageStats(metrics);

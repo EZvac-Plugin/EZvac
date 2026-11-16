@@ -90,9 +90,9 @@ listed on the [EZvac-Plugin](https://github.com/EZvac-Plugin) page.
 [![EZvac on bStats](https://bstats.org/signatures/bukkit/EZvac.svg)](https://bstats.org/plugin/bukkit/EZvac/35377)
 
 Servers running BETA 1.0 Pilot 9 or newer send anonymous statistics through
-bStats: counts and versions, nothing that names a server or a player. It can
-be turned off in quick settings or `config.yml`; see
-[metrics](docs/configuration.md#metrics).
+bStats: counts and versions, nothing that names a server or a player. Quick
+settings › Anonymous statistics shows what is sent and switches each part, or
+all of it, off; see [metrics](docs/configuration.md#metrics).
 
 ## Building from source
 
