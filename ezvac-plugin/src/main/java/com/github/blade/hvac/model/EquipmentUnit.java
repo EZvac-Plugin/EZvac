@@ -29,6 +29,17 @@ public final class EquipmentUnit {
     private Tier tier;
     /** The share of flat out a two-stage or modulating furnace or boiler burns at; never saved. */
     private double share = 1.0;
+    /**
+     * The block in front of it, as last seen with its chunk loaded (BETA 1.0
+     * Pilot 8), so it can run while its chunk is unloaded; null until seen.
+     */
+    private BlockKey front;
+    /**
+     * Whether something stood in front of it the last time that was looked
+     * at with its chunk loaded (BETA 1.0 Pilot 8): unloaded, it isn't counted
+     * on to run until it has been seen clear.
+     */
+    private boolean outputBlocked;
     /** Told (previous, current) on every owned-output change, so the registry's index stays current. */
     private BiConsumer<BlockKey, BlockKey> ownedOutputWatcher;
 
@@ -70,6 +81,43 @@ public final class EquipmentUnit {
     /** The share of flat out a furnace or boiler burns at: 1 unless it is on a lower stage. */
     public double share() { return share; }
     public boolean hasOwnedOutput() { return ownedOutput != null; }
+    /** The block in front of it as last seen loaded, or null (BETA 1.0 Pilot 8). */
+    public BlockKey front() { return front; }
+    public boolean outputBlocked() { return outputBlocked; }
+
+    /**
+     * Whether it and the block in front of it are in loaded chunks (BETA 1.0
+     * Pilot 8). Out of reach, EZvac can run it only in its numbers.
+     */
+    public boolean inReach() {
+        return position.isChunkLoaded() && (front == null || front.isChunkLoaded());
+    }
+
+    /**
+     * Whether, out of reach, it could answer a call in this mode: switched on,
+     * able to, and with nothing in front of it when last seen (BETA 1.0 Pilot 8).
+     */
+    public boolean availableUnloaded(OperatingMode mode) {
+        return enabled && type.supports(mode) && !outputBlocked;
+    }
+
+    /** Out of reach, whether it is running in its numbers this interval (BETA 1.0 Pilot 8). */
+    public boolean deliversUnloaded() {
+        return running && enabled && type.supports(operatingMode);
+    }
+
+    /**
+     * Starts it while its chunk is unloaded (BETA 1.0 Pilot 8): it runs in
+     * its numbers and touches no block; its output goes in once its chunk is
+     * loaded, as after a restart.
+     */
+    public Actuation startUnloaded(OperatingMode requestedMode) {
+        if (!enabled || !type.supports(requestedMode)) return stop();
+        boolean wasRunning = running;
+        running = true;
+        operatingMode = requestedMode;
+        return wasRunning ? Actuation.UNCHANGED : Actuation.STARTED;
+    }
 
     /** Installed by HvacRegistry while it tracks this unit; null stops reporting. */
     public void watchOwnedOutput(BiConsumer<BlockKey, BlockKey> watcher) { this.ownedOutputWatcher = watcher; }
@@ -116,9 +164,11 @@ public final class EquipmentUnit {
         Block dispenser = source.getBlock();
         if (dispenser.getType() != Material.DISPENSER
                 || !(dispenser.getBlockData() instanceof Directional directional)) return null;
-        Block front = dispenser.getRelative(directional.getFacing());
-        if (!front.getWorld().isChunkLoaded(front.getX() >> 4, front.getZ() >> 4)) return null;
-        return BlockKey.of(front.getLocation());
+        Block ahead = dispenser.getRelative(directional.getFacing());
+        BlockKey key = BlockKey.of(ahead.getLocation());
+        front = key; // remembered, so it can run while unloaded (BETA 1.0 Pilot 8)
+        if (!ahead.getWorld().isChunkLoaded(ahead.getX() >> 4, ahead.getZ() >> 4)) return null;
+        return key;
     }
 
     public boolean blockExists() {
@@ -148,9 +198,12 @@ public final class EquipmentUnit {
         Material material = block.getType();
         boolean usable = clearable(material, material.isAir(), fluidLevel(block)) || (managedFluidAtOutput
                 && (material == Material.WATER || material == Material.LAVA));
-        if (ownedOutput == null) return usable;
-        if (ownedOutput.equals(output)) return material == type.outputMaterial() || material.isAir();
-        return ownedOutput.isChunkLoaded() && usable;
+        boolean can;
+        if (ownedOutput == null) can = usable;
+        else if (ownedOutput.equals(output)) can = material == type.outputMaterial() || material.isAir();
+        else can = ownedOutput.isChunkLoaded() && usable;
+        outputBlocked = !can;
+        return can;
     }
 
     public Actuation start(OperatingMode requestedMode) {
@@ -273,6 +326,12 @@ public final class EquipmentUnit {
         map.put("operatingMode", operatingMode.name());
         map.put("motorRpm", motorRpm);
         if (ownedOutput != null) ownedOutput.write(map, "output");
+        if (front != null) {
+            map.put("frontDx", front.x() - position.x());
+            map.put("frontDy", front.y() - position.y());
+            map.put("frontDz", front.z() - position.z());
+        }
+        if (outputBlocked) map.put("outputBlocked", true);
         return map;
     }
 
@@ -294,6 +353,12 @@ public final class EquipmentUnit {
                 number(map, "motorRpm", 0.0), output);
         // A save without a tier is from before 3.0; HvacRegistry also gives a 3.0 save (format 7) its legacy tiers.
         if (map.get("tier") instanceof Number number) unit.tier = Tier.of((int) Math.round(number.doubleValue()));
+        // BETA 1.0 Pilot 8: what it last saw in front of it, to run while unloaded after a restart.
+        if (map.get("frontDx") instanceof Number dx && map.get("frontDy") instanceof Number dy
+                && map.get("frontDz") instanceof Number dz)
+            unit.front = new BlockKey(position.worldId(), position.x() + dx.intValue(), position.y() + dy.intValue(),
+                    position.z() + dz.intValue());
+        unit.outputBlocked = bool(map, "outputBlocked", false);
         return unit;
     }
 

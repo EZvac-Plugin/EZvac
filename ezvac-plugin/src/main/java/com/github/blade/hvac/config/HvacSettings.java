@@ -43,7 +43,8 @@ public record HvacSettings(
         double twoStageCapacity,
         double twoStageLow,
         String fullStar,
-        String emptyStar
+        String emptyStar,
+        boolean unloadedDevices
 ) {
     public HvacSettings {
         requirePositive("controller.period-ticks", controllerPeriodTicks);
@@ -192,7 +193,8 @@ public record HvacSettings(
                 config.getDouble("performance.tiers.two-stage.capacity", defaults.twoStageCapacity),
                 config.getDouble("performance.tiers.two-stage.low-stage", defaults.twoStageLow),
                 config.getString("displays.stars.full", defaults.fullStar),
-                config.getString("displays.stars.empty", defaults.emptyStar)
+                config.getString("displays.stars.empty", defaults.emptyStar),
+                config.getBoolean("simulation.unloaded-devices", defaults.unloadedDevices)
         );
     }
 
@@ -204,7 +206,7 @@ public record HvacSettings(
                 15, 30, 4_000, 200_000,
                 true, 25.0, 60, TemperatureUnit.F,
                 0.70, 0.85, 0.65,
-                "★", "☆");
+                "★", "☆", true);
     }
 
     /**

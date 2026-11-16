@@ -139,6 +139,7 @@ public final class HvacPlugin extends JavaPlugin {
             displays.setWeatherStations(weatherStations);
             airQuality = new AirQualityService(airflow, climate.airQuality());
             units = new ClimateUnitService(registry, airflow, outdoor, airQuality);
+            units.setUnloadedDevices(settings.unloadedDevices());
             controller = new HvacController(this, registry, outdoor, airflow, settings, units);
             controller.setSizing(sizing);
             audio = new HvacAudioService(settings, loadSounds(), registry);

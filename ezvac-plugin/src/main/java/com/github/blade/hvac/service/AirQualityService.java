@@ -56,7 +56,10 @@ public final class AirQualityService {
         long now = world.getGameTime();
         Reading reading = readings.get(target);
         if (reading == null || now - reading.measuredAt() >= REFRESH_TICKS || now < reading.measuredAt()) {
-            reading = new Reading(measure(world, smoke), now);
+            AirQualityModel.Air measured = measure(world, smoke);
+            // None of its sources in reach (BETA 1.0 Pilot 8): what they last gave off stands.
+            if (measured == null) measured = reading == null ? AirQualityModel.Air.NONE : reading.atReference();
+            reading = new Reading(measured, now);
             readings.put(target, reading);
         }
         return reading.atReference().times(dilution(cells, settings.referenceCells()));
@@ -67,11 +70,14 @@ public final class AirQualityService {
         return referenceCells / (double) Math.max(cells, Math.max(1, referenceCells / 4));
     }
 
+    /** What the sources give off now; null when none of them is in a loaded chunk. */
     private AirQualityModel.Air measure(World world, long[] smoke) {
         double fine = 0.0, coarse = 0.0;
+        boolean seen = false;
         for (long cell : smoke) {
             int x = AirflowService.unpackX(cell), y = AirflowService.unpackY(cell), z = AirflowService.unpackZ(cell);
             if (!world.isChunkLoaded(x >> 4, z >> 4)) continue;
+            seen = true;
             Block block = world.getBlockAt(x, y, z);
             // The block may have changed since the scan; it only counts while it is still a burning source.
             SmokeSource source = SmokeSource.of(block.getType());
@@ -80,7 +86,7 @@ public final class AirQualityService {
             fine += emission.fine();
             coarse += emission.coarse();
         }
-        return new AirQualityModel.Air(fine, coarse, 0.0);
+        return seen ? new AirQualityModel.Air(fine, coarse, 0.0) : null;
     }
 
     /** Drops a removed space's reading. */

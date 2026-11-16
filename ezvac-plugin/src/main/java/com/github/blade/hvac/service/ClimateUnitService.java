@@ -44,6 +44,8 @@ public final class ClimateUnitService {
     private final Map<SystemId, Double> refrigerating = new HashMap<>();
     /** Purifiers whose filter filled this cycle. */
     private final List<AirPurifier> spent = new ArrayList<>();
+    /** Whether units in unloaded chunks keep running in their numbers (BETA 1.0 Pilot 8). */
+    private boolean unloadedDevices = true;
 
     public ClimateUnitService(HvacRegistry registry, AirflowService airflow, OutdoorTemperatureService outdoor,
                               AirQualityService air) {
@@ -55,6 +57,8 @@ public final class ClimateUnitService {
     }
 
     public ClimateSettings climate() { return climate; }
+
+    public void setUnloadedDevices(boolean unloadedDevices) { this.unloadedDevices = unloadedDevices; }
 
     public AirQualityService air() { return air; }
 
@@ -219,6 +223,13 @@ public final class ClimateUnitService {
                 }
                 if (climateUnit instanceof Dehumidifier dehumidifier) dehumidifier.advanceEmptying(elapsedTicks);
                 if (climateUnit instanceof AirPurifier purifier) purifier.readFilterBlock();
+            } else if (unloadedDevices && servesRoom(climateUnit)) {
+                // Out of reach (BETA 1.0 Pilot 8): it keeps working on the room it serves, in numbers;
+                // a grate's water and a filter's coral catch up once its chunk loads.
+                humidity = systemHumidity(climateUnit.servedSystem());
+                dewPointF = systemDewPoint(climateUnit.servedSystem());
+                spaceAir = systemAir(climateUnit.servedSystem());
+                if (climateUnit instanceof Dehumidifier dehumidifier) dehumidifier.advanceEmptying(elapsedTicks);
             }
             if (climateUnit instanceof Dehumidifier dehumidifier)
                 dehumidifier.updateTooCold(dewPointF, climate.dehumidifier());
@@ -243,12 +254,26 @@ public final class ClimateUnitService {
      * its iron block; NaN while its chunk is unloaded.
      */
     public double airAround(Refrigerator refrigerator) {
-        if (!refrigerator.unit().isChunkLoaded()) return Double.NaN;
         SystemId served = refrigerator.servedSystem();
         Thermostat thermostat = served == null ? null : registry.thermostatFor(served);
-        if (thermostat != null && Double.isFinite(thermostat.roomF())) return thermostat.roomF();
+        boolean inRoom = thermostat != null && !thermostat.pool() && Double.isFinite(thermostat.roomF());
+        if (!refrigerator.unit().isChunkLoaded()) {
+            // Out of reach (BETA 1.0 Pilot 8): its room's temperature, else the air it last stood in.
+            if (!unloadedDevices) return Double.NaN;
+            return inRoom ? thermostat.roomF() : refrigerator.lastAirF();
+        }
         Location at = refrigerator.unit().location();
-        return at == null ? Double.NaN : outdoor.climateAt(at.clone().add(0.5, 1.5, 0.5)).airF();
+        double air = inRoom ? thermostat.roomF()
+                : at == null ? Double.NaN : outdoor.climateAt(at.clone().add(0.5, 1.5, 0.5)).airF();
+        refrigerator.setLastAirF(air);
+        return air;
+    }
+
+    /** Whether a unit's zone is in a system's air room, whose numbers it can work on unloaded. */
+    private boolean servesRoom(ClimateUnit unit) {
+        SystemId served = unit.servedSystem();
+        Thermostat thermostat = served == null ? null : registry.thermostatFor(served);
+        return thermostat != null && !thermostat.pool();
     }
 
     /**
@@ -257,7 +282,8 @@ public final class ClimateUnitService {
      * frost builds faster in humid air.
      */
     public double humidityAround(Refrigerator refrigerator) {
-        if (!refrigerator.unit().isChunkLoaded()) return Double.NaN;
+        if (!refrigerator.unit().isChunkLoaded())
+            return unloadedDevices && servesRoom(refrigerator) ? systemHumidity(refrigerator.servedSystem()) : Double.NaN;
         SystemId served = refrigerator.servedSystem();
         if (served != null) {
             double humidity = systemHumidity(served);

@@ -54,6 +54,12 @@ public final class AirPurifier extends ClimateUnit {
     /** 1 fresh .. 0 full. */
     private double filter;
     private Filter installed = Filter.FRESH;
+    /**
+     * Its filter filled while its chunk was unloaded (BETA 1.0 Pilot 8), so
+     * its coral is still alive in the world: it dies once seen, and isn't
+     * taken for a new filter.
+     */
+    private boolean spentUnseen;
     private Mode mode;
     /** The fan speed it runs at: its mode's, or the one Auto picked; never AUTO. Auto's isn't saved. */
     private Mode speed;
@@ -145,8 +151,22 @@ public final class AirPurifier extends ClimateUnit {
     public boolean readFilterBlock() {
         if (!filterBlock().isChunkLoaded()) return false;
         Location location = filterBlock().location();
-        return location != null && readFilter(location.getBlock().getType());
+        if (location == null) return false;
+        Material block = location.getBlock().getType();
+        if (spentUnseen) {
+            spentUnseen = false;
+            // Filled while away (BETA 1.0 Pilot 8): the live coral is that full filter, not a new one.
+            if (block == FILTER && filter <= 0.0) {
+                showSpentFilter();
+                installed = Filter.SPENT;
+                running = false;
+                return false;
+            }
+        }
+        return readFilter(block);
     }
+
+    public boolean spentUnseen() { return spentUnseen; }
 
     @Override
     public boolean control(double humidity, ClimateSettings settings) {
@@ -232,7 +252,10 @@ public final class AirPurifier extends ClimateUnit {
 
     /** A full filter's coral dies; set without physics, and never loads a chunk. */
     public void showSpentFilter() {
-        if (!filterBlock().isChunkLoaded()) return;
+        if (!filterBlock().isChunkLoaded()) {
+            spentUnseen = true;
+            return;
+        }
         Location location = filterBlock().location();
         if (location == null) return;
         Block block = location.getBlock();
@@ -246,6 +269,7 @@ public final class AirPurifier extends ClimateUnit {
         map.remove("setpoint");    // it has none: its mode says how hard it works
         map.put("mode", mode.name());
         map.put("filterLife", filter);
+        if (spentUnseen) map.put("spentUnseen", true);
         writeZone(map);
         return map;
     }
@@ -257,6 +281,7 @@ public final class AirPurifier extends ClimateUnit {
                 bool(map, "powered", true), bool(map, "running", false),
                 number(map, "filterLife", 1.0), number(map, "zoneDewPointF", Double.NaN));
         purifier.readZoneAir(map);
+        purifier.spentUnseen = bool(map, "spentUnseen", false);
         return purifier;
     }
 }

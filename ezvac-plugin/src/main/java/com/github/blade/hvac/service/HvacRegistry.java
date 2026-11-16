@@ -247,19 +247,19 @@ public final class HvacRegistry {
                 this::loadRpmMonitor);
         readSection(configuration, "settingsPanels", SettingsPanel::fromMap,
                 this::loadSettingsPanel);
-        readSection(configuration, "dehumidifiers", Dehumidifier::fromMap,
+        readSection(configuration, "dehumidifiers", withUnloaded(Dehumidifier::fromMap),
                 this::loadDehumidifier);
-        readSection(configuration, "humidifiers", Humidifier::fromMap,
+        readSection(configuration, "humidifiers", withUnloaded(Humidifier::fromMap),
                 this::loadHumidifier);
-        readSection(configuration, "purifiers", AirPurifier::fromMap,
+        readSection(configuration, "purifiers", withUnloaded(AirPurifier::fromMap),
                 value -> loadByPosition(purifiers, "purifiers", value.position(), value, value.toMap()));
-        readSection(configuration, "fridges", Fridge::fromMap,
+        readSection(configuration, "fridges", withUnloaded(Fridge::fromMap),
                 value -> loadByPosition(fridges, "fridges", value.position(), value, value.toMap()));
-        readSection(configuration, "freezers", Freezer::fromMap,
+        readSection(configuration, "freezers", withUnloaded(Freezer::fromMap),
                 value -> loadByPosition(freezers, "freezers", value.position(), value, value.toMap()));
-        readSection(configuration, "fridgeFreezers", FridgeFreezer::fromMap,
+        readSection(configuration, "fridgeFreezers", withUnloaded(FridgeFreezer::fromMap),
                 value -> loadByPosition(fridgeFreezers, "fridgeFreezers", value.position(), value, value.toMap()));
-        readSection(configuration, "miniFridges", MiniFridge::fromMap,
+        readSection(configuration, "miniFridges", withUnloaded(MiniFridge::fromMap),
                 value -> loadByPosition(miniFridges, "miniFridges", value.position(), value, value.toMap()));
         readSection(configuration, "sensors", Sensor::fromMap,
                 value -> loadByPosition(sensors, "sensors", value.position(), value, value.toMap()));
@@ -436,6 +436,16 @@ public final class HvacRegistry {
         keptAside.clear();
         if (discarded > 0) dirty = true;
         return discarded;
+    }
+
+    /** Also restores what a unit needs to run while its chunk is unloaded (BETA 1.0 Pilot 8). */
+    private static <T extends ClimateUnit> Function<Map<String, Object>, T> withUnloaded(
+            Function<Map<String, Object>, T> parser) {
+        return map -> {
+            T unit = parser.apply(map);
+            if (unit != null) unit.readUnloaded(map);
+            return unit;
+        };
     }
 
     private <T> void readSection(YamlConfiguration configuration, String section,
