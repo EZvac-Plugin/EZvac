@@ -231,11 +231,19 @@ public final class HvacController {
         for (EquipmentUnit unit : ordered) {
             try {
                 Thermostat controller = registry.thermostatFor(unit.system());
-                boolean validController = controller != null && isControllerLoaded(controller)
+                boolean validController = controller != null && controllerPresent(controller)
                         && controller.enabled() && controller.mode() == unit.operatingMode();
-                BlockKey output = unit.ownedOutput();
-                boolean delivering = validController && unit.isDelivering() && output != null
-                        && reservedOutputs.add(output);
+                boolean delivering;
+                if (settings.unloadedDevices() && !unit.inReach()) {
+                    // Out of reach (BETA 1.0 Pilot 8): it runs in its numbers, its output waiting for its chunk.
+                    BlockKey front = unit.front();
+                    delivering = validController && unit.deliversUnloaded()
+                            && (front == null || reservedOutputs.add(front));
+                } else {
+                    BlockKey output = unit.ownedOutput();
+                    delivering = validController && unit.isDelivering() && output != null
+                            && reservedOutputs.add(output);
+                }
                 if (!delivering) {
                     record(unit.stop(), unit, null, stopped);
                     unit.advanceMotor(0.0, elapsedTicks, settings);
@@ -275,7 +283,12 @@ public final class HvacController {
                                   long elapsedTicks, Set<BlockKey> managedOutputs,
                                   Map<UUID, LongOpenHashSet> packedOutputs) {
         boolean authoritative = registry.thermostatFor(thermostat.system()) == thermostat;
-        boolean controllerLoaded = authoritative && isControllerLoaded(thermostat);
+        boolean controllerLoaded = authoritative && controllerPresent(thermostat);
+        if (authoritative) {
+            // What its map came to, saved so it runs at its real size while unloaded (BETA 1.0 Pilot 8).
+            AirSummary summary = airflow.summary(thermostat.system());
+            if (summary != null) thermostat.setAirSummary(summary);
+        }
         double outside = outdoor.driftBaselineFor(thermostat);
         OperatingMode intervalMode = controllerLoaded && thermostat.enabled()
                 ? thermostat.mode() : OperatingMode.IDLE;
@@ -447,7 +460,8 @@ public final class HvacController {
             total += airflow.waterTemperatureAt(world, x, AirflowService.unpackY(cells[index]), z);
             samples++;
         }
-        double value = samples == 0 ? Double.NaN : total / samples;
+        // None of its water in reach (BETA 1.0 Pilot 8): its last reading stands.
+        double value = samples > 0 ? total / samples : cached != null ? cached.temperatureF() : Double.NaN;
         // Systems come and go; a stale entry only costs one map slot until the next sweep.
         if (waterReadings.size() > 2 * registry.thermostats().size() + 16) waterReadings.clear();
         waterReadings.put(thermostat.system(), new WaterReading(value, simulatedTicks));
@@ -459,6 +473,10 @@ public final class HvacController {
         for (EquipmentUnit unit : registry.equipmentFor(system)) {
             // A kind switched off server-wide (BETA 1.0) can't answer a call, so the system doesn't make one.
             if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
+            if (settings.unloadedDevices() && !unit.inReach()) {
+                if (unit.availableUnloaded(mode)) return true;
+                continue;
+            }
             BlockKey output = unit.outputPosition();
             if (output != null && unit.canStart(mode, managedOutputs.contains(output))) return true;
         }
@@ -475,10 +493,17 @@ public final class HvacController {
 
         for (EquipmentUnit unit : ordered) {
             Thermostat controller = registry.thermostatFor(unit.system());
-            if (controller == null || !isControllerLoaded(controller) || !controller.enabled()
+            if (controller == null || !controllerPresent(controller) || !controller.enabled()
                     || controller.mode() == OperatingMode.IDLE || !unit.type().supports(controller.mode())) continue;
             // A kind switched off server-wide (BETA 1.0) is never picked, so it stops like any unit not needed.
             if (ServerSwitches.deviceOff(DeviceKind.of(unit.type()))) continue;
+            if (settings.unloadedDevices() && !unit.inReach()) {
+                // Out of reach (BETA 1.0 Pilot 8): picked on what it was last seen able to do.
+                BlockKey front = unit.front();
+                if (unit.availableUnloaded(controller.mode()) && (front == null || reserved.add(front)))
+                    selected.add(unit);
+                continue;
+            }
             BlockKey output = unit.outputPosition();
             if (output != null && unit.canStart(controller.mode(), managedOutputs.contains(output))
                     && reserved.add(output)) selected.add(unit);
@@ -500,7 +525,9 @@ public final class HvacController {
             if (!selected.contains(unit)) continue;
             Thermostat controller = registry.thermostatFor(unit.system());
             try {
-                record(unit.start(controller.mode()), unit, started, stopped);
+                boolean unloaded = settings.unloadedDevices() && !unit.inReach();
+                record(unloaded ? unit.startUnloaded(controller.mode()) : unit.start(controller.mode()),
+                        unit, started, stopped);
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.WARNING, "Could not actuate HVAC equipment at "
                         + unit.position(), exception);
@@ -519,6 +546,18 @@ public final class HvacController {
      * runs several times per equipment unit per cycle. The material tag answers
      * the same question - verified equivalent for every block material.
      */
+    /**
+     * Whether a thermostat is there to control its system: standing on its
+     * block, or in an unloaded chunk where nothing can have broken it, while
+     * devices run unloaded (BETA 1.0 Pilot 8). Its record is pruned once its
+     * chunk loads if it turns out to be gone.
+     */
+    private boolean controllerPresent(Thermostat thermostat) {
+        if (settings.unloadedDevices() && !thermostat.position().isChunkLoaded())
+            return thermostat.position().world() != null;
+        return isControllerLoaded(thermostat);
+    }
+
     private static boolean isControllerLoaded(Thermostat thermostat) {
         if (!thermostat.position().isChunkLoaded()) return false;
         var location = thermostat.position().location();

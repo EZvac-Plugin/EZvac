@@ -48,6 +48,8 @@ public final class Thermostat {
     private OutdoorAir.Baseline outdoorAir;
     /** How much of the wind reaches its spot (3.2); NaN until sampled, which reads as fully open. */
     private double outdoorWindExposure = Double.NaN;
+    /** What its airflow map came to when last walked (BETA 1.0 Pilot 8); null until then. */
+    private AirSummary airSummary;
     /** What is in the room's air (3.2); unknown until first simulated, when it starts at the outdoor air. */
     private AirQualityModel.Air roomAir = AirQualityModel.Air.UNKNOWN;
     /**
@@ -296,8 +298,14 @@ public final class Thermostat {
         // Saved only when it holds one (BETA 1.0 Pilot 2), so older saves save back unchanged.
         if (profile != OperatingProfile.NORMAL) map.put("profile", profile.name());
         if (mini) map.put("mini", true);
+        if (airSummary != null) airSummary.write(map);
         return map;
     }
+
+    /** What its airflow map came to when last walked (BETA 1.0 Pilot 8), or null. */
+    public AirSummary airSummary() { return airSummary; }
+
+    public void setAirSummary(AirSummary summary) { this.airSummary = summary; }
 
     public static Thermostat fromMap(Map<String, Object> map, HvacSettings settings) {
         BlockKey position = BlockKey.read(map, "");
@@ -340,6 +348,7 @@ public final class Thermostat {
         thermostat.setRoomAir(AirQualityModel.Air.read(map, "room"));
         thermostat.profile = OperatingProfile.parse(map.get("profile"));
         thermostat.mini = bool(map, "mini", false);
+        thermostat.airSummary = AirSummary.read(map);
         return thermostat;
     }
 

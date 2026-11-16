@@ -252,6 +252,13 @@ public final class AirflowService {
     /** Each system's owned size, openings and contacts, worked out after its map and its neighbours'. */
     private final Map<SystemId, Shape> shapes = new HashMap<>();
     private final LinkedHashSet<SystemId> shapeQueue = new LinkedHashSet<>();
+    /**
+     * Maps out of reach (BETA 1.0 Pilot 8): a system or zone with a vent or
+     * its unit in an unloaded chunk isn't walked again, which would find
+     * nothing; what its map came to is kept instead, and its cell map dropped.
+     */
+    private final Map<SystemId, Shape> frozenShapes = new HashMap<>();
+    private final Map<AirflowTarget, Integer> frozenSizes = new HashMap<>();
     private ShapeJob shapeJob;
     /**
      * Which systems' maps span each 32-block square, per world, so finding the
@@ -279,6 +286,80 @@ public final class AirflowService {
         this.settings = Objects.requireNonNull(settings, "settings");
         for (ClimateVent vent : registry.vents()) dirty.add(vent.system());
         for (ClimateUnit unit : registry.climateUnits()) dirty.add(ZoneId.of(unit));
+        // What each system's map came to before the restart, for those still out of reach (BETA 1.0 Pilot 8).
+        for (Thermostat thermostat : registry.thermostats()) {
+            AirSummary summary = thermostat.airSummary();
+            if (summary == null || registry.thermostatFor(thermostat.system()) != thermostat) continue;
+            frozenShapes.put(thermostat.system(), new Shape(summary.owned(), summary.openings(), Map.of(), summary.water()));
+            frozenSizes.put(thermostat.system(), summary.cells());
+        }
+    }
+
+    /**
+     * What a system's map came to, while it has a walked one (BETA 1.0 Pilot
+     * 8); null while it has none or only a kept one.
+     */
+    public AirSummary summary(SystemId system) {
+        Long2ByteMap map = completed.get(system);
+        if (map == null) return null;
+        Shape shape = shape(system);
+        return shape == null || shape.owned() <= 0 ? null
+                : new AirSummary(shape.owned(), shape.openings(), shape.water(), map.size());
+    }
+
+    /** Whether a system or zone runs on a kept map because something of it is out of reach (BETA 1.0 Pilot 8). */
+    public boolean frozen(AirflowTarget target) {
+        return !completed.containsKey(target) && frozenSizes.containsKey(target);
+    }
+
+    /** Whether a vent of the system, or the unit of the zone, is in an unloaded chunk. */
+    private boolean outOfReach(AirflowTarget target) {
+        return switch (target) {
+            case SystemId system -> {
+                for (ClimateVent vent : registry.ventsFor(system))
+                    if (!vent.position().isChunkLoaded()) yield true;
+                yield false;
+            }
+            case ZoneId zone -> !zone.unit().isChunkLoaded();
+        };
+    }
+
+    /** Whether any vent of the system, or the unit of the zone, is in a loaded chunk. */
+    private boolean partlyInReach(AirflowTarget target) {
+        return switch (target) {
+            case SystemId system -> {
+                for (ClimateVent vent : registry.ventsFor(system))
+                    if (vent.position().isChunkLoaded()) yield true;
+                yield false;
+            }
+            case ZoneId zone -> zone.unit().isChunkLoaded();
+        };
+    }
+
+    /**
+     * Keeps what an out-of-reach map came to instead of walking it again
+     * (BETA 1.0 Pilot 8). Partly in reach, the map stands as it is, so the
+     * part near a player still reads its room. Wholly out of reach, the cell
+     * map is dropped: it can hold hundreds of thousands of cells, and nothing
+     * reads it then. False when there is nothing to keep, so it is walked as before.
+     */
+    private boolean freeze(AirflowTarget target) {
+        Long2ByteMap map = completed.get(target);
+        if (map == null) return frozenSizes.containsKey(target);
+        if (partlyInReach(target)) return true;
+        if (target instanceof SystemId system) {
+            Shape shape = shape(system);
+            dropShape(system);
+            if (shape != null) frozenShapes.put(system, shape);
+        }
+        frozenSizes.put(target, map.size());
+        completed.remove(target);
+        return true;
+    }
+
+    private void thaw(AirflowTarget target) {
+        frozenSizes.remove(target);
+        if (target instanceof SystemId system) frozenShapes.remove(system);
     }
 
     public void setSizing(SizingSettings sizing) { this.sizing = Objects.requireNonNull(sizing, "sizing"); }
@@ -444,6 +525,7 @@ public final class AirflowService {
         dirtySince.remove(target);
         dirtyFirst.remove(target);
         completed.remove(target);
+        thaw(target);
         exposures.remove(target);
         smoke.remove(target);
         if (target instanceof SystemId system) dropShape(system);
@@ -461,9 +543,11 @@ public final class AirflowService {
                 if (started >= MAXIMUM_REBUILD_STARTS_PER_TICK) return;
                 AirflowTarget target = nextSettledTarget();
                 if (target == null) return;
+                if (settings.unloadedDevices() && outOfReach(target) && freeze(target)) continue;
                 started++;
                 active = begin(target);
                 if (active == null) {
+                    thaw(target);
                     completed.remove(target);
                     exposures.remove(target);
                     smoke.remove(target);
@@ -479,6 +563,7 @@ public final class AirflowService {
                 // handed over directly. Copying it cost ~42 ms in a single
                 // tick at the configured cell cap.
                 completed.put(active.target, active.distances);
+                thaw(active.target);
                 if (active.water || active.waterCells.isEmpty()) exposures.remove(active.target);
                 else exposures.put(active.target, new WaterExposure(active.distances.size(),
                         active.waterCells.toLongArray()));
@@ -915,7 +1000,7 @@ public final class AirflowService {
     /** Cells in a target's last completed map; 0 when it has none yet. */
     public int mapSize(AirflowTarget target) {
         Long2ByteMap map = completed.get(target);
-        return map == null ? 0 : map.size();
+        return map == null ? frozenSizes.getOrDefault(target, 0) : map.size();
     }
 
     /** The system whose completed map reaches this block soonest, or null. */
@@ -1107,7 +1192,7 @@ public final class AirflowService {
     /** The system's shape, or null while it has no map. Until its shape is first worked out, its whole map. */
     public Shape shape(SystemId system) {
         Long2ByteMap map = completed.get(system);
-        if (map == null) return null;
+        if (map == null) return frozenShapes.get(system);
         Shape shape = shapes.get(system);
         if (shape != null) return shape;
         Raw raw = raws.get(system);
@@ -1322,6 +1407,11 @@ public final class AirflowService {
         }
         mapped(system, new Raw(system.worldId(), water, openings, minimumX, maximumX, minimumZ, maximumZ,
                 openingCells));
+    }
+
+    /** Test support: what the next settled rebuild does to a map out of reach (BETA 1.0 Pilot 8). */
+    boolean freezeNow(AirflowTarget target) {
+        return freeze(target);
     }
 
     /** Test support: works out every queued shape. */

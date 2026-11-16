@@ -49,8 +49,14 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
     protected boolean running;
     /** Moisture of its own zone when no system's room holds it; NaN until first simulated. */
     private double zoneDewPointF;
-    /** The system whose room its zone touches, or null; worked out each cycle, never saved. */
+    /**
+     * The system whose room its zone touches, or null; worked out each cycle
+     * while its chunk is loaded, and saved (BETA 1.0 Pilot 8) so it keeps
+     * serving that room while unloaded.
+     */
     private SystemId servedSystem;
+    /** The air it stood in when last in reach (BETA 1.0 Pilot 8); NaN until then. */
+    private double lastAirF = Double.NaN;
     /** RH of the space it serves at the last cycle, for its sign; never saved. */
     private double lastHumidity = Double.NaN;
     /** What is in its own zone's air when no system's room holds it (3.2); unknown until first simulated. */
@@ -95,6 +101,8 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
     public double zoneDewPointF() { return zoneDewPointF; }
     public SystemId servedSystem() { return servedSystem; }
     public void setServedSystem(SystemId system) { this.servedSystem = system; }
+    public double lastAirF() { return lastAirF; }
+    public void setLastAirF(double airF) { if (Double.isFinite(airF)) this.lastAirF = airF; }
     public double lastHumidity() { return lastHumidity; }
     public void setLastHumidity(double humidity) { this.lastHumidity = humidity; }
     public AirQualityModel.Air zoneAir() { return zoneAir; }
@@ -180,6 +188,20 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
         map.put("setpoint", setpoint);
         map.put("powered", powered);
         map.put("running", running);
+        // To run while its chunk is unloaded (BETA 1.0 Pilot 8).
+        if (servedSystem != null) map.put("servedSystem", servedSystem.key());
+        if (Double.isFinite(lastAirF)) map.put("lastAirF", lastAirF);
+    }
+
+    /** Restores what {@link #writeCommon} saved for running unloaded (BETA 1.0 Pilot 8). */
+    public void readUnloaded(Map<String, Object> map) {
+        String served = text(map, "servedSystem", null);
+        if (served != null) {
+            try { servedSystem = SystemId.of(unit, served); }
+            catch (IllegalArgumentException ignored) { /* a hand-edited key: worked out again once loaded */ }
+        }
+        double air = number(map, "lastAirF", Double.NaN);
+        if (Double.isFinite(air)) lastAirF = air;
     }
 
     protected void writeZone(Map<String, Object> map) {

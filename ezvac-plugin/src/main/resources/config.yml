@@ -67,6 +67,18 @@ controller:
   minimum-run-ticks: 300
   minimum-off-ticks: 200
 
+# Devices in unloaded chunks (BETA 1.0 Pilot 8). true keeps them running
+# while nobody is near: a thermostat keeps calling, its heat pumps and
+# furnaces run, fridges stay cold and purifiers clean, all from what EZvac
+# last saw there, so a house holds its temperature while its owner is away
+# and an addon (a web or phone dashboard) can control it from anywhere.
+# Nothing is placed or read in an unloaded chunk, and no chunk is loaded:
+# units put out their water or lava once their chunk loads again. It costs
+# a few microseconds per system. false stops what is out of reach, as
+# before Pilot 8.
+simulation:
+  unloaded-devices: true
+
 temperature:
   minimum-target-f: 60.0
   maximum-target-f: 85.0
