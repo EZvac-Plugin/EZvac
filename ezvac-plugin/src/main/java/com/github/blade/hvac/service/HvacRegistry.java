@@ -1481,12 +1481,25 @@ public final class HvacRegistry {
     }
 
     public PruneResult pruneMissingLoadedDevices() {
+        return pruneMissingLoadedDevices(0, 1);
+    }
+
+    /**
+     * The same for one slice of every device (BETA 1.0 Pilot 9): {@code slice}
+     * of {@code slices}, by position. The controller checks a different slice
+     * each cycle, so every device is still checked within a few seconds, for a
+     * fraction of the cost: this is a safety net for blocks broken without a
+     * break event (an explosion, a piston), which events otherwise handle.
+     */
+    public PruneResult pruneMissingLoadedDevices(int slice, int slices) {
+        java.util.function.Predicate<BlockKey> mine = slices <= 1 ? key -> true
+                : key -> Math.floorMod(key.hashCode(), slices) == slice;
         Set<SystemId> invalidated = new HashSet<>();
         int removed = 0;
         Iterator<Thermostat> thermostatIterator = thermostats.values().iterator();
         while (thermostatIterator.hasNext()) {
             Thermostat value = thermostatIterator.next();
-            if (!value.position().isChunkLoaded()) continue;
+            if (!mine.test(value.position()) || !value.position().isChunkLoaded()) continue;
             var location = value.position().location();
             if (location != null && Thermostat.standsOn(location.getBlock().getType(), value.mini())) continue;
             thermostatIterator.remove(); removed++;
@@ -1495,7 +1508,7 @@ public final class HvacRegistry {
         Iterator<EquipmentUnit> equipmentIterator = equipment.values().iterator();
         while (equipmentIterator.hasNext()) {
             EquipmentUnit value = equipmentIterator.next();
-            if (!value.position().isChunkLoaded() || value.blockExists()) continue;
+            if (!mine.test(value.position()) || !value.position().isChunkLoaded() || value.blockExists()) continue;
             value.stop();
             if (value.hasOwnedOutput()) pendingCleanup.add(value);
             else untrackOutput(value);
@@ -1505,31 +1518,32 @@ public final class HvacRegistry {
         Iterator<ClimateVent> ventIterator = vents.values().iterator();
         while (ventIterator.hasNext()) {
             ClimateVent value = ventIterator.next();
-            if (!value.position().isChunkLoaded()) continue;
+            if (!mine.test(value.position()) || !value.position().isChunkLoaded()) continue;
             var location = value.position().location();
             if (location != null && ClimateVent.isVentBlock(location.getBlock().getType())) continue;
             invalidated.add(value.system()); ventIterator.remove(); removed++;
             removed(value, DeviceObserver.Cause.MISSING);
         }
-        removed += pruneSigns(thermometers.values().iterator(), Thermometer::position);
-        removed += pruneSigns(rpmMonitors.values().iterator(), RpmMonitor::position);
-        removed += pruneSigns(settingsPanels.values().iterator(), SettingsPanel::position);
+        removed += pruneSigns(thermometers.values().iterator(), Thermometer::position, mine);
+        removed += pruneSigns(rpmMonitors.values().iterator(), RpmMonitor::position, mine);
+        removed += pruneSigns(settingsPanels.values().iterator(), SettingsPanel::position, mine);
         List<ClimateUnit> removedUnits = new ArrayList<>();
-        pruneUnits(dehumidifiers.values().iterator(), removedUnits);
-        pruneUnits(humidifiers.values().iterator(), removedUnits);
-        pruneUnits(purifiers.values().iterator(), removedUnits);
-        pruneUnits(fridges.values().iterator(), removedUnits);
-        pruneUnits(freezers.values().iterator(), removedUnits);
-        pruneUnits(fridgeFreezers.values().iterator(), removedUnits);
-        pruneUnits(miniFridges.values().iterator(), removedUnits);
+        pruneUnits(dehumidifiers.values().iterator(), removedUnits, mine);
+        pruneUnits(humidifiers.values().iterator(), removedUnits, mine);
+        pruneUnits(purifiers.values().iterator(), removedUnits, mine);
+        pruneUnits(fridges.values().iterator(), removedUnits, mine);
+        pruneUnits(freezers.values().iterator(), removedUnits, mine);
+        pruneUnits(fridgeFreezers.values().iterator(), removedUnits, mine);
+        pruneUnits(miniFridges.values().iterator(), removedUnits, mine);
         removed += removedUnits.size();
         removedUnits.forEach(unit -> removed(unit, DeviceObserver.Cause.MISSING));
-        removed += pruneSigns(sensorHubs.values().iterator(), SensorHub::position);
-        removed += pruneSigns(weatherStations.values().iterator(), WeatherStation::position);
+        removed += pruneSigns(sensorHubs.values().iterator(), SensorHub::position, mine);
+        removed += pruneSigns(weatherStations.values().iterator(), WeatherStation::position, mine);
         // A button pops off when its wall is broken, without any break event of its own.
         Iterator<Sensor> sensorIterator = sensors.values().iterator();
         while (sensorIterator.hasNext()) {
             Sensor value = sensorIterator.next();
+            if (!mine.test(value.position())) continue;
             if (blockIs(value.position(), type -> type == Sensor.button(value.reads()))) continue;
             sensorIterator.remove(); removed++;
             for (SensorHub hub : sensorHubs.values()) hub.unlink(value.position());
@@ -1540,12 +1554,13 @@ public final class HvacRegistry {
         return new PruneResult(Set.copyOf(invalidated), removed, List.copyOf(removedUnits));
     }
 
-    private <T> int pruneSigns(Iterator<T> iterator, Function<T, BlockKey> positionOf) {
+    private <T> int pruneSigns(Iterator<T> iterator, Function<T, BlockKey> positionOf,
+                               java.util.function.Predicate<BlockKey> mine) {
         int removed = 0;
         while (iterator.hasNext()) {
             T value = iterator.next();
             BlockKey position = positionOf.apply(value);
-            if (!position.isChunkLoaded()) continue;
+            if (!mine.test(position) || !position.isChunkLoaded()) continue;
             var location = position.location();
             if (location != null && Tag.ALL_SIGNS.isTagged(location.getBlock().getType())) continue;
             iterator.remove(); removed++;
@@ -1554,10 +1569,11 @@ public final class HvacRegistry {
         return removed;
     }
 
-    private static void pruneUnits(Iterator<? extends ClimateUnit> iterator, List<ClimateUnit> removed) {
+    private static void pruneUnits(Iterator<? extends ClimateUnit> iterator, List<ClimateUnit> removed,
+                                   java.util.function.Predicate<BlockKey> mine) {
         while (iterator.hasNext()) {
             ClimateUnit value = iterator.next();
-            if (unitIntact(value)) continue;
+            if (!mine.test(value.position()) || unitIntact(value)) continue;
             value.setPartWater(false);
             iterator.remove();
             removed.add(value);
