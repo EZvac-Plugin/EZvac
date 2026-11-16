@@ -27,11 +27,17 @@ updates:
 # systems). A random id stands for the server: nothing names a server or a
 # player. false stops it for EZvac; enabled: false in
 # plugins/bStats/config.yml stops it for every plugin that uses bStats.
-# addons: which of EZvac's official addons run here, and their versions
-# (never any other plugin); false leaves them out. /hvac quicksettings ›
-# Updates switches both while the server runs.
+# Each of EZvac's own charts can be left out on its own: temperature-unit
+# (F or C), unloaded-devices (whether devices run unloaded), systems (the
+# number of systems, in a band such as 11-50) and addons (which of EZvac's
+# official addons run here, and their versions; never any other plugin).
+# /hvac quicksettings › Anonymous statistics switches all of them while the
+# server runs.
 metrics:
   enabled: true
+  temperature-unit: true
+  unloaded-devices: true
+  systems: true
   addons: true
 
 # EZvac's official addons (BETA 1.0 Pilot 4). /hvac addons lists the ones

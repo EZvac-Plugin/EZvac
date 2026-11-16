@@ -527,12 +527,12 @@ public final class HvacPlugin extends JavaPlugin {
 
     public com.github.blade.hvac.addons.AddonService addons() { return addons; }
 
-    /** Whether the statistics include the official addons and their versions (BETA 1.0 Pilot 9). */
-    public boolean addonStatsOn() { return getConfig().getBoolean("metrics.addons", true); }
+    /** Whether one of EZvac's statistics charts is sent (BETA 1.0 Pilot 9): metrics.<chart>, on unless set false. */
+    public boolean statOn(String chart) { return getConfig().getBoolean("metrics." + chart, true); }
 
-    /** Switches the addon versions in the statistics; it takes at the next report. */
-    public void setAddonStats(boolean on) {
-        getConfig().set("metrics.addons", on);
+    /** Switches one chart; it takes at the next report. */
+    public void setStat(String chart, boolean on) {
+        getConfig().set("metrics." + chart, on);
         saveConfig();
     }
 

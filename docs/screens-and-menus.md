@@ -283,7 +283,12 @@ server hears about: **Stable**, full releases and their hotfixes, or
 **Pilot**, pilots too. Click to step through auto, stable and pilot; auto
 follows the EZvac the server runs. It's `updates.channel` in `config.yml`.
 
-**Anonymous statistics** and **Addon versions** (BETA 1.0 Pilot 9) switch
-what EZvac sends to bStats, at once: the first everything, the second just
-which official addons run and their versions (`metrics.enabled` and
-`metrics.addons`; see [metrics](configuration.md#metrics)).
+### Anonymous statistics
+
+What EZvac sends to bStats (BETA 1.0 Pilot 9), and the switches for it. The
+paper at the top lists what bStats always sends while statistics are on.
+**Anonymous statistics** switches them all on or off; the four beside it
+switch EZvac's own charts one by one: **Temperature units**, **Unloaded
+devices**, **Number of systems** (in a band) and **Official addons** (which
+run, and their versions). Each takes effect at once. See
+[metrics](configuration.md#metrics).
