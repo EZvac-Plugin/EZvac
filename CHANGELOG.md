@@ -2,6 +2,41 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 9
+
+**Faster: a performance patch.** The save is unchanged (format 8) and the
+API stays 1.13. Measured against Pilot 8 on the same machine.
+
+### Performance
+
+- **The HUD is about twenty times cheaper.** Twenty players with the sidebar
+  cost 2.40 ms a tick on Pilot 8 and 0.12 ms now. Most of it was
+  MiniMessage's escaping, which ran its whole parser on every value (once
+  per bar glyph, too): text with nothing to escape is now left as it is,
+  each line works out only the tokens it holds, a line drawn before isn't
+  parsed again, and outdoors the climate is read once per update, not
+  twice.
+- **No more quarter-second stall from backups.** The automatic backup turned
+  the whole registry into text on the main thread, a minute after start and
+  then daily: about 250 ms on 1,000 rooms. Only its snapshot is taken there
+  now, as `hvac.yml`'s own save already did.
+- **The controller does about 63% less work.** Each unit's dispenser was read
+  from the world about nine times a cycle; once now. The safety net for
+  devices broken without an event (an explosion, a piston) checks a fifth of
+  them each cycle, so every one is still checked within five seconds.
+
+### Anonymous statistics
+
+- **EZvac reports anonymous statistics to [bStats](https://bstats.org/plugin/bukkit/EZvac/35377)**:
+  counts of servers and players and their versions, and a few settings
+  (F or C, devices running unloaded, the number of systems in a band, the
+  official addons and their versions). Nothing names a server or a player.
+- **Quick settings › Anonymous statistics** lists what bStats always sends,
+  and switches all of it, or each of EZvac's own charts, at once
+  (`metrics:` in `config.yml`). `plugins/bStats/config.yml` turns it off for
+  every plugin.
+- The README shows EZvac's chart.
+
 ## BETA 1.0 Pilot 8
 
 **Devices that keep running while nobody is near.** The save is unchanged
