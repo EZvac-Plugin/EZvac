@@ -981,7 +981,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     white(status.mode().name()), gray(" | "), white(status.profile().name()), gray(" | "),
                     white(temp(status.roomF()) + " / " + temp(status.targetF())),
                     gray(" | equipment "), white(status.running() + "/" + status.equipment()),
-                    gray(" | "), white(SystemNames.count(members.vents(), "vent"))));
+                    gray(" | "), white(SystemNames.count(members.vents(), "vent")),
+                    // BETA 1.0 Pilot 8: running from what EZvac last saw there.
+                    members.thermostat().position().isChunkLoaded() ? Component.empty()
+                            : gray(plugin.settings().unloadedDevices() ? " | running unloaded" : " | unloaded")));
         }
     }
 
@@ -1262,6 +1265,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 + temp(thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
                 gray(" | Profile: "), white(registry.profileFor(thermostat.system()).name()),
                 gray(" | "), white(thermostat.enabled() ? "enabled" : "disabled")));
+        String times = ModeTimes.line(thermostat, System.currentTimeMillis());
+        if (!times.isEmpty()) player.sendMessage(gray(times));
         showSize(player, thermostat);
         if (thermostat.enabled() && thermostat.waitingOnUnits() != null)
             player.sendMessage(yellow("It needs " + (thermostat.waitingOnUnits() == OperatingMode.HEATING ? "heat"

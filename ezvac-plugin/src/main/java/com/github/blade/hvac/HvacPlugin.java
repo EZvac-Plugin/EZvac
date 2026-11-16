@@ -498,8 +498,11 @@ public final class HvacPlugin extends JavaPlugin {
             // is the final lifecycle guard for truly systemic failures.
             getLogger().log(Level.SEVERE, "EZvac controller cycle failed", exception);
         } finally {
-            tickCost.add("Controller", System.nanoTime() - started - screens);
+            long away = controller == null ? 0L : controller.unloadedNanos();
+            tickCost.add("Controller", System.nanoTime() - started - screens - away);
             tickCost.add("Screens", screens);
+            // Systems running out of reach (BETA 1.0 Pilot 8), apart so servers can see what they cost.
+            if (away > 0L) tickCost.add("Unloaded", away);
         }
     }
 

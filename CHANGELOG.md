@@ -2,6 +2,43 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 8
+
+**Devices that keep running while nobody is near.** The save is unchanged
+(format 8): every older `hvac.yml` loads, and saves back unchanged until
+something runs.
+
+### Devices in unloaded chunks
+
+- A house holds its temperature while its owner is away. Out of reach, a
+  thermostat keeps calling, its heat pumps, air conditioners, furnaces and
+  boilers run (their motors and RPM too), fridges and freezers stay cold and
+  frost, and dehumidifiers, humidifiers and purifiers serving a room keep
+  working on it.
+- EZvac runs them from what it last saw there: the room's size and openings,
+  which units were clear to run, the air a fridge stood in. Nothing is placed
+  or read in an unloaded chunk, and no chunk is loaded. A unit's water or
+  lava goes in once its chunk loads again; a purifier filter that filled
+  while away shows as spent then, not as a new one.
+- A room's size is saved with its thermostat, so it runs at its real size
+  after a restart before anyone visits.
+- `/hvac list` says which systems are running unloaded.
+- `simulation.unloaded-devices: false` stops what is out of reach, as before.
+
+### Mode times
+
+- `/hvac info` on a thermostat says how long it has been in its mode and its
+  last run: `Heating for 12 min · last cooled 14:02 to 14:20`.
+
+### For addon developers: API 1.13
+
+- `ThermostatView.modeSince()`, `lastRun()` and `timeInMode()`: when it went
+  into its mode, in real time, and its last finished heating or cooling run
+  with its start and end. EZvac keeps the current mode and the last run; for
+  a history, log `ThermostatModeChangeEvent`.
+- `loaded()` on thermostat, equipment and climate unit views: whether the
+  device's chunk is loaded, so a dashboard can show a house running remotely.
+
 ## BETA 1.0 Pilot 7
 
 **EZvac/R: refrigeration, and a new look for every screen.** The save is

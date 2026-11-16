@@ -146,6 +146,23 @@ When the thermostat acts.
 | `minimum-run-ticks` | 300 | Equipment runs at least this long once started |
 | `minimum-off-ticks` | 200 | Equipment rests at least this long once stopped |
 
+## simulation
+
+Devices in unloaded chunks (BETA 1.0 Pilot 8).
+
+| Setting | Default | Meaning |
+| --- | ---: | --- |
+| `unloaded-devices` | true | Devices keep running while nobody is near: a thermostat keeps calling, its heat pumps and furnaces run, fridges and freezers stay cold, and dehumidifiers, humidifiers and purifiers serving a room keep working on it. `false` stops what is out of reach, as before Pilot 8 |
+
+Out of reach, EZvac runs devices from what it last saw there: the size of the
+room and its openings, which units were clear to run, the air a fridge stood
+in. Nothing is placed or read in an unloaded chunk and no chunk is loaded: a
+unit's water or lava goes in once its chunk loads again, a purifier's filter
+that filled while away shows as spent then, and frost appears in a freezer.
+A room's size is saved with its thermostat, so a house nobody has visited
+since a restart still runs at its real size. It costs a few microseconds per
+system per cycle.
+
 ## temperature
 
 | Setting | Default | Meaning |
