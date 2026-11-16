@@ -61,6 +61,20 @@ public final class HvacController {
     /** This cycle's answers: whether each thermostat is there to control, and the units out of reach. */
     private final Map<Thermostat, Boolean> presence = new IdentityHashMap<>();
     private final Set<EquipmentUnit> away = Collections.newSetFromMap(new IdentityHashMap<>());
+    /**
+     * Each unit's output block as read this cycle (BETA 1.0 Pilot 9): which way a dispenser faces
+     * can't change within a cycle, and reading it was a fifth of the cycle.
+     */
+    private final Map<EquipmentUnit, Optional<BlockKey>> outputs = new IdentityHashMap<>();
+    /** Devices are checked for vanished blocks a fifth at a time, each within five cycles. */
+    private static final int PRUNE_SLICES = 5;
+    private int pruneSlice;
+
+    private BlockKey output(EquipmentUnit unit) {
+        Optional<BlockKey> known = outputs.get(unit);
+        if (known == null) outputs.put(unit, known = Optional.ofNullable(unit.outputPosition()));
+        return known.orElse(null);
+    }
 
     /** Time the last cycle spent on systems out of reach, and how many there were (BETA 1.0 Pilot 8). */
     private long unloadedNanos;
@@ -192,9 +206,13 @@ public final class HvacController {
         // the chunk lookups cost more than the rest of running them.
         presence.clear();
         away.clear();
+        outputs.clear();
         if (settings.unloadedDevices())
             for (EquipmentUnit unit : registry.equipment()) if (!unit.inReach()) away.add(unit);
-        HvacRegistry.PruneResult pruned = registry.pruneMissingLoadedDevices();
+        // A fifth of the devices are checked for blocks gone without an event each cycle (BETA 1.0 Pilot 9);
+        // a sync asked for by a command or an event checks them all, as before.
+        HvacRegistry.PruneResult pruned = elapsedTicks == 0 ? registry.pruneMissingLoadedDevices()
+                : registry.pruneMissingLoadedDevices(pruneSlice++ % PRUNE_SLICES, PRUNE_SLICES);
         for (SystemId system : pruned.invalidatedSystems()) airflow.invalidate(system);
         // Units broken without a break event (an explosion, a piston) leave their zone behind otherwise.
         for (ClimateUnit unit : pruned.removedUnits()) units.release(unit);
@@ -269,7 +287,7 @@ public final class HvacController {
                             && (front == null || reservedOutputs.add(front));
                 } else {
                     BlockKey output = unit.ownedOutput();
-                    delivering = validController && unit.isDelivering() && output != null
+                    delivering = validController && unit.isDelivering(output(unit)) && output != null
                             && reservedOutputs.add(output);
                 }
                 if (!delivering) {
@@ -505,8 +523,8 @@ public final class HvacController {
                 if (unit.availableUnloaded(mode)) return true;
                 continue;
             }
-            BlockKey output = unit.outputPosition();
-            if (output != null && unit.canStart(mode, managedOutputs.contains(output))) return true;
+            BlockKey output = output(unit);
+            if (output != null && unit.canStart(mode, managedOutputs.contains(output), output)) return true;
         }
         return false;
     }
@@ -532,8 +550,8 @@ public final class HvacController {
                     selected.add(unit);
                 continue;
             }
-            BlockKey output = unit.outputPosition();
-            if (output != null && unit.canStart(controller.mode(), managedOutputs.contains(output))
+            BlockKey output = output(unit);
+            if (output != null && unit.canStart(controller.mode(), managedOutputs.contains(output), output)
                     && reserved.add(output)) selected.add(unit);
         }
 
@@ -545,7 +563,7 @@ public final class HvacController {
         // Rotation cleanup is a separate pass so swaps cannot depend on iteration order.
         for (EquipmentUnit unit : ordered) {
             if (!selected.contains(unit)) continue;
-            BlockKey output = unit.outputPosition();
+            BlockKey output = output(unit);
             if (unit.ownedOutput() != null && output != null && !unit.ownedOutput().equals(output))
                 unit.retractOwnedOutput();
         }
@@ -554,7 +572,7 @@ public final class HvacController {
             Thermostat controller = registry.thermostatFor(unit.system());
             try {
                 boolean unloaded = away.contains(unit);
-                record(unloaded ? unit.startUnloaded(controller.mode()) : unit.start(controller.mode()),
+                record(unloaded ? unit.startUnloaded(controller.mode()) : unit.start(controller.mode(), output(unit)),
                         unit, started, stopped);
             } catch (RuntimeException exception) {
                 plugin.getLogger().log(Level.WARNING, "Could not actuate HVAC equipment at "

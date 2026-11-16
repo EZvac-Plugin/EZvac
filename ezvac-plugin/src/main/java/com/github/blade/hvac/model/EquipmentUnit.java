@@ -179,8 +179,16 @@ public final class EquipmentUnit {
 
     /** True only while the registered dispenser still owns its current, loaded output. */
     public boolean isDelivering() {
+        return isDelivering(outputPosition());
+    }
+
+    /**
+     * The same, with the block in front of it already looked up this cycle
+     * (BETA 1.0 Pilot 9): the controller asked about nine times a unit a
+     * cycle, each a read of the dispenser from the world.
+     */
+    public boolean isDelivering(BlockKey currentOutput) {
         if (!running || !enabled || !type.supports(operatingMode) || !position.isChunkLoaded()) return false;
-        BlockKey currentOutput = outputPosition();
         if (currentOutput == null || ownedOutput == null || !ownedOutput.equals(currentOutput)
                 || !ownedOutput.isChunkLoaded()) return false;
         Location location = ownedOutput.location();
@@ -189,8 +197,12 @@ public final class EquipmentUnit {
 
     /** Read-only availability check; never force-loads either source or output chunks. */
     public boolean canStart(OperatingMode mode, boolean managedFluidAtOutput) {
+        return canStart(mode, managedFluidAtOutput, outputPosition());
+    }
+
+    /** The same, with the block in front of it already looked up this cycle (BETA 1.0 Pilot 9). */
+    public boolean canStart(OperatingMode mode, boolean managedFluidAtOutput, BlockKey output) {
         if (!enabled || !type.supports(mode) || !position.isChunkLoaded()) return false;
-        BlockKey output = outputPosition();
         if (output == null) return false;
         Location outputLocation = output.location();
         if (outputLocation == null) return false;
@@ -207,9 +219,13 @@ public final class EquipmentUnit {
     }
 
     public Actuation start(OperatingMode requestedMode) {
+        return start(requestedMode, outputPosition());
+    }
+
+    /** The same, with the block in front of it already looked up this cycle (BETA 1.0 Pilot 9). */
+    public Actuation start(OperatingMode requestedMode, BlockKey output) {
         boolean wasRunning = running;
         if (!enabled || !type.supports(requestedMode)) return stop();
-        BlockKey output = outputPosition();
         if (output == null) {
             running = false;
             operatingMode = OperatingMode.IDLE;

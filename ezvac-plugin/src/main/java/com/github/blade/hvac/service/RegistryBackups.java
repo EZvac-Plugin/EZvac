@@ -126,8 +126,10 @@ public final class RegistryBackups {
             done.accept(null, "a backup is already being written");
             return;
         }
-        // The snapshot is taken here, on the main thread; only the writing moves off it.
-        String yaml = registry.snapshot().saveToString();
+        // The snapshot is taken here, on the main thread; turning it into text and writing it move off it,
+        // as hvac.yml's own save does: the dump was a stall of a quarter of a second on 1,000 rooms
+        // (BETA 1.0 Pilot 9). The snapshot is freshly built maps that nothing else touches.
+        YamlConfiguration snapshot = registry.snapshot();
         String stamp = LocalDateTime.now().format(STAMP);
         File target = new File(folder, name("hvac", stamp, auto));
         File seasonsTarget = new File(folder, name("seasons", stamp, auto));
@@ -136,7 +138,7 @@ public final class RegistryBackups {
             String failure = null;
             try {
                 Files.createDirectories(folder.toPath());
-                write(yaml, target);
+                write(snapshot.saveToString(), target);
                 if (seasons.isFile()) Files.copy(seasons.toPath(), seasonsTarget.toPath(),
                         StandardCopyOption.REPLACE_EXISTING);
                 if (auto) prune();
