@@ -20,6 +20,20 @@ updates:
   notify-admins: true
   channel: auto
 
+# Anonymous usage statistics (BETA 1.0 Pilot 9), through bStats
+# (https://bstats.org/plugin/bukkit/EZvac/35377): how many servers and
+# players run EZvac, the Minecraft, Java and EZvac versions, and a few
+# settings (F or C, devices running unloaded or not, a rough count of
+# systems). A random id stands for the server: nothing names a server or a
+# player. false stops it for EZvac; enabled: false in
+# plugins/bStats/config.yml stops it for every plugin that uses bStats.
+# addons: which of EZvac's official addons run here, and their versions
+# (never any other plugin); false leaves them out. /hvac quicksettings ›
+# Updates switches both while the server runs.
+metrics:
+  enabled: true
+  addons: true
+
 # EZvac's official addons (BETA 1.0 Pilot 4). /hvac addons lists the ones
 # installed, switches them and their parts on and off while the server runs,
 # and gives the link for the others; these lists are what it switched (an

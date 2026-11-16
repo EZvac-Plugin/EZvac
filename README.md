@@ -85,6 +85,15 @@ every device, controlling them, and events. Add
 and see [The EZvac API](docs/api.md). Official and third-party addons are
 listed on the [EZvac-Plugin](https://github.com/EZvac-Plugin) page.
 
+## Statistics
+
+[![EZvac on bStats](https://bstats.org/signatures/bukkit/EZvac.svg)](https://bstats.org/plugin/bukkit/EZvac/35377)
+
+Servers running BETA 1.0 Pilot 9 or newer send anonymous statistics through
+bStats: counts and versions, nothing that names a server or a player. It can
+be turned off in quick settings or `config.yml`; see
+[metrics](docs/configuration.md#metrics).
+
 ## Building from source
 
 You need Java 21 or newer and Maven 3.9 or newer. One jar runs on 1.21.x and

@@ -48,6 +48,16 @@
             <version>2.11.6</version>
             <scope>provided</scope>
         </dependency>
+        <!--
+            Anonymous usage statistics (bstats.org, BETA 1.0 Pilot 9), bundled
+            and relocated into EZvac's own package, as bStats requires.
+        -->
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-bukkit</artifactId>
+            <version>3.2.1</version>
+            <scope>compile</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -82,7 +92,8 @@
             <!--
                 Copies the API's classes into the plugin jar as they are (no
                 relocation): addons compiled against ezvac-api load them from
-                EZvac at runtime.
+                EZvac at runtime. bStats goes in relocated, so it never clashes
+                with another plugin's copy.
             -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -98,8 +109,15 @@
                             <artifactSet>
                                 <includes>
                                     <include>com.github.blade:ezvac-api</include>
+                                    <include>org.bstats:*</include>
                                 </includes>
                             </artifactSet>
+                            <relocations>
+                                <relocation>
+                                    <pattern>org.bstats</pattern>
+                                    <shadedPattern>com.github.blade.hvac.libs.bstats</shadedPattern>
+                                </relocation>
+                            </relocations>
                             <filters>
                                 <filter>
                                     <artifact>com.github.blade:ezvac-api</artifact>
