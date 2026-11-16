@@ -90,7 +90,19 @@ public final class ApiViews {
                 thermostat.pool() ? Optional.empty() : airQuality(thermostat.roomAir(), air),
                 thermostat.enabled() && thermostat.waitingOnUnits() != null,
                 ThermostatView.Profile.valueOf(profile.name()), thermostat.mini(),
-                thermostat.attention().stream().map(each -> ThermostatView.Attention.valueOf(each.name())).toList());
+                thermostat.attention().stream().map(each -> ThermostatView.Attention.valueOf(each.name())).toList(),
+                thermostat.modeSinceMillis() > 0L
+                        ? Optional.of(java.time.Instant.ofEpochMilli(thermostat.modeSinceMillis())) : Optional.empty(),
+                lastRun(thermostat), thermostat.position().isChunkLoaded());
+    }
+
+    /** A thermostat's last finished heating or cooling run (API 1.13), or empty. */
+    static Optional<ThermostatView.Run> lastRun(Thermostat thermostat) {
+        if (thermostat.lastRunMode() == OperatingMode.IDLE || thermostat.lastRunStartMillis() <= 0L
+                || thermostat.lastRunEndMillis() < thermostat.lastRunStartMillis()) return Optional.empty();
+        return Optional.of(new ThermostatView.Run(mode(thermostat.lastRunMode()),
+                java.time.Instant.ofEpochMilli(thermostat.lastRunStartMillis()),
+                java.time.Instant.ofEpochMilli(thermostat.lastRunEndMillis())));
     }
 
     /** A weather station and its forecast (API 1.6); an empty forecast while it isn't forecasting. */
@@ -157,7 +169,8 @@ public final class ApiViews {
                 unit instanceof AirPurifier purifier ? Optional.of(fan(purifier.speed())) : Optional.empty(),
                 unit instanceof com.github.blade.hvac.model.Refrigerator cold && Double.isFinite(cold.insideF())
                         ? OptionalDouble.of(cold.insideF()) : OptionalDouble.empty(),
-                unit instanceof com.github.blade.hvac.model.Refrigerator cold ? Optional.of(cold(cold)) : Optional.empty());
+                unit instanceof com.github.blade.hvac.model.Refrigerator cold ? Optional.of(cold(cold)) : Optional.empty(),
+                unit.unit().isChunkLoaded());
     }
 
     /** A refrigeration appliance's door, frost, defrost, a refrigerator's fridge and a mini fridge's chiller (1.12). */
@@ -281,7 +294,8 @@ public final class ApiViews {
         ThermostatView.Mode mode = unit.running() && unit.operatingMode() != null
                 ? mode(unit.operatingMode()) : ThermostatView.Mode.IDLE;
         return new EquipmentView(equipment(unit.type()), unit.system().key(), position(unit.position()),
-                unit.enabled(), unit.running(), mode, unit.running() ? unit.motorRpm() : 0.0, unit.tier().number());
+                unit.enabled(), unit.running(), mode, unit.running() ? unit.motorRpm() : 0.0, unit.tier().number(),
+                unit.inReach());
     }
 
     /** A vent; {@code water} when its system is a pool system. */

@@ -17,16 +17,26 @@ import java.util.Objects;
  * @param rpm      its motor's simulated speed, as an RPM monitor shows it; 0 when stopped
  * @param tier     its tier, shown as stars (1.4, EZvac 3.1): 1 single-stage, 2 two-stage, 3 variable-speed
  *                 (a modulating furnace or boiler). Every unit from before 3.1 is 3
+ * @param loaded   whether its chunk is loaded (1.13, EZvac BETA 1.0 Pilot 8). False, it runs in EZvac's
+ *                 numbers alone, where the server keeps devices running unloaded, and puts out its water or
+ *                 lava once its chunk loads
  * @since 1.2
  */
 public record EquipmentView(EquipmentStateChangeEvent.Kind kind, String system, Position position, boolean enabled,
-                            boolean running, ThermostatView.Mode mode, double rpm, int tier) implements HvacDevice {
+                            boolean running, ThermostatView.Mode mode, double rpm, int tier, boolean loaded)
+        implements HvacDevice {
     public EquipmentView {
         Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(system, "system");
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(mode, "mode");
         if (tier < 1 || tier > 3) throw new IllegalArgumentException("tier must be 1 to 3");
+    }
+
+    /** As in API 1.4 to 1.12, before whether it is loaded. */
+    public EquipmentView(EquipmentStateChangeEvent.Kind kind, String system, Position position, boolean enabled,
+                         boolean running, ThermostatView.Mode mode, double rpm, int tier) {
+        this(kind, system, position, enabled, running, mode, rpm, tier, true);
     }
 
     /** A variable unit (tier 3), as every unit from before API 1.4 is. */

@@ -25,12 +25,14 @@ import java.util.OptionalDouble;
  *                 in {@code cold}); empty for the others, and before it first ran
  * @param cold     a refrigeration appliance's door, frost, defrost, a refrigerator's fridge and a mini fridge's
  *                 chiller (1.12); empty for the others
+ * @param loaded   whether its chunk is loaded (1.13, EZvac BETA 1.0 Pilot 8). False, EZvac runs it from what it
+ *                 last saw there, where the server keeps devices running unloaded
  * @since 1.0
  */
 public record ClimateUnitView(String label, Kind kind, Position position, double humidity, int setpoint,
                               boolean powered, State state, double tank, OptionalDouble filter,
                               Optional<AirQuality> airQuality, Optional<Fan> fanMode, Optional<Fan> fanSpeed,
-                              OptionalDouble insideF, Optional<ColdStorage> cold)
+                              OptionalDouble insideF, Optional<ColdStorage> cold, boolean loaded)
         implements HvacDevice {
     public ClimateUnitView {
         Objects.requireNonNull(label, "label");
@@ -43,6 +45,15 @@ public record ClimateUnitView(String label, Kind kind, Position position, double
         fanSpeed = fanSpeed == null ? Optional.empty() : fanSpeed;
         insideF = insideF == null ? OptionalDouble.empty() : insideF;
         cold = cold == null ? Optional.empty() : cold;
+    }
+
+    /** As in API 1.12, before whether it is loaded. */
+    public ClimateUnitView(String label, Kind kind, Position position, double humidity, int setpoint,
+                           boolean powered, State state, double tank, OptionalDouble filter,
+                           Optional<AirQuality> airQuality, Optional<Fan> fanMode, Optional<Fan> fanSpeed,
+                           OptionalDouble insideF, Optional<ColdStorage> cold) {
+        this(label, kind, position, humidity, setpoint, powered, state, tank, filter, airQuality, fanMode, fanSpeed,
+                insideF, cold, true);
     }
 
     /** As in API 1.5 to 1.11, without a fridge's inside. */

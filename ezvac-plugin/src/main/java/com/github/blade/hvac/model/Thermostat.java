@@ -23,6 +23,18 @@ public final class Thermostat {
     private boolean enabled;
     private OperatingMode mode;
     private long ticksInMode;
+    /**
+     * When it went into its mode, in real time (BETA 1.0 Pilot 8): "Heating
+     * since 14:02" for an addon. Real time, so it holds across restarts and
+     * while its chunk is unloaded; 0 until first known.
+     */
+    private long modeSinceMillis;
+    /** For a save from before Pilot 8, counted back from how long it had been in its mode; never saved. */
+    private long estimatedSinceMillis;
+    /** Its last finished heating or cooling run, in real time (BETA 1.0 Pilot 8); IDLE and 0s until one ends. */
+    private OperatingMode lastRunMode = OperatingMode.IDLE;
+    private long lastRunStartMillis;
+    private long lastRunEndMillis;
     private double outdoorNoonF;
     private double outdoorMidnightF;
     private double lastOutdoorF;
@@ -223,6 +235,17 @@ public final class Thermostat {
     public void setControlState(OperatingMode mode, long ticksInMode) {
         Objects.requireNonNull(mode, "mode");
         if (mode != this.mode || !Double.isFinite(runStartF)) runStartF = mode == OperatingMode.IDLE ? Double.NaN : roomF;
+        if (mode != this.mode) {
+            long now = System.currentTimeMillis();
+            if (this.mode != OperatingMode.IDLE && modeSinceMillis > 0L) {
+                lastRunMode = this.mode;
+                lastRunStartMillis = modeSinceMillis;
+                lastRunEndMillis = now;
+            }
+            modeSinceMillis = now;
+        } else if (modeSinceMillis <= 0L) {
+            modeSinceMillis = estimatedSinceMillis > 0L ? estimatedSinceMillis : System.currentTimeMillis();
+        }
         this.mode = mode;
         this.ticksInMode = Math.max(0L, ticksInMode);
     }
@@ -299,8 +322,21 @@ public final class Thermostat {
         if (profile != OperatingProfile.NORMAL) map.put("profile", profile.name());
         if (mini) map.put("mini", true);
         if (airSummary != null) airSummary.write(map);
+        if (modeSinceMillis > 0L) map.put("modeSince", modeSinceMillis);
+        if (lastRunMode != OperatingMode.IDLE) {
+            map.put("lastRunMode", lastRunMode.name());
+            map.put("lastRunStart", lastRunStartMillis);
+            map.put("lastRunEnd", lastRunEndMillis);
+        }
         return map;
     }
+
+    /** When it went into its mode, in epoch milliseconds (BETA 1.0 Pilot 8); 0 until known. */
+    public long modeSinceMillis() { return modeSinceMillis > 0L ? modeSinceMillis : estimatedSinceMillis; }
+    /** Its last finished heating or cooling run's mode (BETA 1.0 Pilot 8); IDLE before one has ended. */
+    public OperatingMode lastRunMode() { return lastRunMode; }
+    public long lastRunStartMillis() { return lastRunStartMillis; }
+    public long lastRunEndMillis() { return lastRunEndMillis; }
 
     /** What its airflow map came to when last walked (BETA 1.0 Pilot 8), or null. */
     public AirSummary airSummary() { return airSummary; }
@@ -349,6 +385,18 @@ public final class Thermostat {
         thermostat.profile = OperatingProfile.parse(map.get("profile"));
         thermostat.mini = bool(map, "mini", false);
         thermostat.airSummary = AirSummary.read(map);
+        // Saves from before Pilot 8 only know how long, in game ticks: counted back from now.
+        // Kept apart until its first cycle, so an older save saves back unchanged.
+        long since = whole(map, "modeSince", 0L);
+        if (since > 0L) thermostat.modeSinceMillis = since;
+        else thermostat.estimatedSinceMillis = System.currentTimeMillis() - ticks * 50L;
+        OperatingMode lastRun = OperatingMode.parse(map.get("lastRunMode"));
+        long start = whole(map, "lastRunStart", 0L), end = whole(map, "lastRunEnd", 0L);
+        if (lastRun != OperatingMode.IDLE && start > 0L && end >= start) {
+            thermostat.lastRunMode = lastRun;
+            thermostat.lastRunStartMillis = start;
+            thermostat.lastRunEndMillis = end;
+        }
         return thermostat;
     }
 
