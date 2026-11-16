@@ -101,6 +101,16 @@ and admins are told once. Switch it on in `/hvac quicksettings` › Climate
 systems; `/hvac stats sizes` then shows which systems need more units, and
 it switches off again there anytime. See [Sizing](equipment.md#sizing).
 
+### Devices keep running while nobody is near
+
+From BETA 1.0 Pilot 8 a house keeps its temperature, and its fridges stay
+cold, while its chunks are unloaded: EZvac runs them from what it last saw
+there, and puts a unit's water or lava in once its chunk loads again. Until
+Pilot 8 they stopped. To keep that, set `simulation.unloaded-devices: false`
+(see [Configuration](configuration.md#simulation)). A room's size is worked
+out the first time its chunks load after the upgrade; until then it runs as
+if building size were off.
+
 ### Moving to Minecraft 26.x
 
 BETA 1.0 runs on 1.21.x and on 26.1 to 26.3, so EZvac and the server can be
