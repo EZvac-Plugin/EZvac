@@ -30,9 +30,9 @@ time of day and the weather.
 - **Fahrenheit or Celsius,** server wide. No fuel, power or items needed.
 
 > **Release status:** EZvac is in BETA. The latest pilot,
-> [BETA 1.0 Pilot 9](https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0-P9),
-> makes EZvac much lighter: the HUD about twenty times cheaper, no backup
-> stall, and a leaner controller. Pilots are test builds ahead of
+> [BETA 1.0 Pilot 10](https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0-P10),
+> welcomes new servers: a first-start setup, and a guided tutorial that
+> builds your first system in a world of its own. Pilots are test builds ahead of
 > the full BETA 1.0. Every release is in the [changelog](CHANGELOG.md).
 
 ## Minecraft versions
