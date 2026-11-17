@@ -1,0 +1,119 @@
+# EZvac's tutorial hut (BETA 1.0 Pilot 10), from the maintainer's build: a hut on a floating platform.
+# Markers, relative to the platform's lowest north-west corner: where the player arrives (and faces),
+# the wall block's inside face the thermostat sign goes on, the heat pump's dispenser (facing up, in the
+# middle of its 3x3x3 casing's bottom layer) and the four vents under the ceiling.
+size 30 9 30
+spawn 12 2 20 north
+sign 12 3 5 south
+dispenser 23 2 7
+vents 9 5 6;15 5 6;9 5 8;15 5 8
+palette 12
+minecraft:waxed_copper_block
+minecraft:grass_block[snowy=false]
+minecraft:oak_planks
+minecraft:dirt
+minecraft:air
+minecraft:spruce_log[axis=y]
+minecraft:sea_lantern
+minecraft:glass
+minecraft:spruce_door[facing=north,half=lower,hinge=right,open=false,powered=false]
+minecraft:smooth_stone
+minecraft:spruce_door[facing=north,half=upper,hinge=right,open=false,powered=false]
+minecraft:brick_slab[type=bottom,waterlogged=false]
+rows
+0 0 0*30
+0 1 0*30
+0 2 0*30
+0 3 0*30
+0 4 0*30
+0 5 0*30
+0 6 0*30
+0 7 0*30
+0 8 0*30
+0 9 0*30
+0 10 0*30
+0 11 0*30
+0 12 0*30
+0 13 0*30
+0 14 0*30
+0 15 0*30
+0 16 0*30
+0 17 0*30
+0 18 0*30
+0 19 0*30
+0 20 0*30
+0 21 0*30
+0 22 0*30
+0 23 0*30
+0 24 0*30
+0 25 0*30
+0 26 0*30
+0 27 0*30
+0 28 0*30
+0 29 0*30
+1 0 0*30
+1 1 0 1*28 0
+1 2 0 1*28 0
+1 3 0 1*28 0
+1 4 0 1*6 2*11 1*11 0
+1 5 0 1*6 2*11 1*11 0
+1 6 0 1*6 2*11 1*11 0
+1 7 0 1*6 2*11 1*5 3 1*5 0
+1 8 0 1*6 2*11 1*11 0
+1 9 0 1*6 2*11 1*11 0
+1 10 0 1*6 2*11 1*11 0
+1 11 0 1*28 0
+1 12 0 1*28 0
+1 13 0 1*28 0
+1 14 0 1*28 0
+1 15 0 1*28 0
+1 16 0 1*28 0
+1 17 0 1*28 0
+1 18 0 1*28 0
+1 19 0 1*28 0
+1 20 0 1*28 0
+1 21 0 1*28 0
+1 22 0 1*28 0
+1 23 0 1*28 0
+1 24 0 1*28 0
+1 25 0 1*28 0
+1 26 0 1*28 0
+1 27 0 1*28 0
+1 28 0 1*28 0
+1 29 0*30
+2 4 4*7 5 2*9 5 4*12
+2 5 4*7 2 6 4*7 6 2 4*12
+2 6 4*7 2 4*9 2 4*12
+2 7 4*7 2 4*9 2 4*12
+2 8 4*7 2 4*9 2 4*12
+2 9 4*7 2 4*9 2 4*12
+2 10 4*7 5 2 7*2 2 8 2 7*2 2 5 4*12
+3 4 4*7 5 2*4 9 2*4 5 4*12
+3 5 4*7 2 6 4*7 6 2 4*12
+3 6 4*7 2 4*9 2 4*12
+3 7 4*7 2 4*9 2 4*12
+3 8 4*7 2 4*9 2 4*12
+3 9 4*7 2 4*9 2 4*12
+3 10 4*7 5 2 7*2 2 10 2 7*2 2 5 4*12
+4 4 4*7 5 2*9 5 4*12
+4 5 4*7 2 6 4*7 6 2 4*12
+4 6 4*7 2 4*9 2 4*12
+4 7 4*7 2 4*9 2 4*12
+4 8 4*7 2 4*9 2 4*12
+4 9 4*7 2 4*9 2 4*12
+4 10 4*7 5 2 7*2 2*3 7*2 2 5 4*12
+5 4 4*7 5 2*9 5 4*12
+5 5 4*7 2 6 4*7 6 2 4*12
+5 6 4*7 2 4*9 2 4*12
+5 7 4*7 2 4*9 2 4*12
+5 8 4*7 2 4*9 2 4*12
+5 9 4*7 2 4*9 2 4*12
+5 10 4*7 5 2*9 5 4*12
+6 4 4*7 2*11 4*12
+6 5 4*7 2*11 4*12
+6 6 4*7 2*11 4*12
+6 7 4*7 2*11 4*12
+6 8 4*7 2*11 4*12
+6 9 4*7 2*11 4*12
+6 10 4*7 2*11 4*12
+6 11 4*7 11*11 4*12

@@ -173,6 +173,16 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                     if (args.length > 1 && args[1].equalsIgnoreCase("skip")) plugin.setup().skip(player);
                     else plugin.setup().open(player);
                 }
+                // Build your first system (BETA 1.0 Pilot 10): a guided tutorial in a world of its own.
+                case "tutorial" -> {
+                    if (!requireAdmin(player)) return true;
+                    var tutorial = plugin.tutorial();
+                    if (tutorial == null) player.sendMessage(red("The tutorial is unavailable here: see the console."));
+                    else if (args.length > 1 && args[1].equalsIgnoreCase("leave")) {
+                        if (tutorial.inTutorial(player)) tutorial.leave(player, true);
+                        else player.sendMessage(yellow("You're not in the tutorial. /hvac tutorial starts it."));
+                    } else tutorial.begin(player);
+                }
                 case "addons", "addon" -> { if (requireAdmin(player)) plugin.quickSettings().openAddons(player); }
                 case "forecast", "weatherfc" -> plugin.forecastMenu().openForecast(player, null);
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
@@ -1512,9 +1522,9 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         + "|settingspanel|sensor-hub [label]", "a sign"));
                 lines.add(help("/hvac create dehumidifier|humidifier|purifier|fridge|freezer [label]",
                         "the sign on its iron block"));
-                lines.add(help("/hvac create sensor [label]", "a button"));
-                lines.add(help("/hvac create weatherstation [label]", "the sign on its tower"));
+                lines.add(help("/hvac create sensor|weatherstation [label]", "a button, or the sign on its tower"));
                 lines.add(help("/hvac link-tool", "link devices to a thermostat, or sensors to a hub"));
+                lines.add(help("/hvac tutorial [leave]", "build a first system, guided, in a world of its own"));
                 lines.add(help("/hvac thermostat set|enable|disable", "the thermostat you look at"));
                 lines.add(help("/hvac equipment enable|disable|tier", "the unit you look at"));
                 lines.add(help("/hvac rename <label>", "the sign you look at"));
@@ -1562,7 +1572,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 "forecast"));
         if (hud) words.add("hud");
         if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove", "frost",
-                "stats", "sync", "update", "quicksettings", "setup", "addons", "registry"));
+                "stats", "sync", "update", "quicksettings", "setup", "tutorial", "addons", "registry"));
         return words;
     }
 
@@ -1572,6 +1582,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length == 1)
             return filter(args[0], subcommands(sender.hasPermission(HUD_PERMISSION), admin).toArray(String[]::new));
         if (args.length == 2 && args[0].equalsIgnoreCase("setup")) return admin ? filter(args[1], "skip") : List.of();
+        if (args.length == 2 && args[0].equalsIgnoreCase("tutorial")) return admin ? filter(args[1], "leave") : List.of();
         if (args[0].equalsIgnoreCase("season")) {
             if (args.length == 2) return admin ? filter(args[1], "set", "next", "pause", "resume") : List.of();
             if (args.length == 3 && args[1].equalsIgnoreCase("set"))

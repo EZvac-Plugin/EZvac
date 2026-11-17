@@ -16,6 +16,11 @@ reach (gold under 50%), and **Outside** where no system reaches.
 
 - It's off by default for each player, and EZvac remembers each player's
   choice across restarts. With no argument the command toggles it.
+- A server can show it to players who never chose (BETA 1.0 Pilot 10):
+  `hud.show-to-new-players`, which [the setup](getting-started.md#the-setup)
+  asks about along with the style. A player's own `/hvac hud on` or `off`
+  always wins. The setup can also rename the title, as **Climate - Your
+  Server** (`hud.sidebar.title`).
 - It needs `ezvac.hud`, which everyone has by default.
 
 <!-- screenshot: the sidebar HUD in a conditioned room -->

@@ -321,7 +321,8 @@ public final class SetupWizard implements Listener {
         lines.add("All in /hvac quicksettings.");
         info(inventory, Material.NETHER_STAR, "EZvac is set up", lines.toArray(String[]::new));
         inventory.setItem(FIRST_SYSTEM, item(Material.STICK, Component.text("Build your first system", NamedTextColor.GOLD),
-                List.of(gray("Gives you the link tool and the"), gray("step-by-step guide's link")), false));
+                List.of(gray("A guided build in a world of its"), gray("own: a heat pump, a thermostat"),
+                        gray("and vents in a little hut. You"), gray("come back here with your things")), false));
         inventory.setItem(FINISH, item(Material.LIME_CONCRETE, Component.text("Finish", NamedTextColor.GREEN),
                 List.of(gray("Close the setup")), false));
     }
@@ -441,8 +442,12 @@ public final class SetupWizard implements Listener {
                 if (slot == FIRST_SYSTEM) {
                     player.closeInventory();
                     plugin.setSetupDone(true);
-                    player.performCommand("hvac link-tool");
-                    link(player, "Build your first system, step by step", GETTING_STARTED);
+                    // The guided tutorial; where it can't run, the link tool and the written guide as before.
+                    var tutorial = plugin.tutorial();
+                    if (tutorial == null || !tutorial.begin(player)) {
+                        player.performCommand("hvac link-tool");
+                        link(player, "Build your first system, step by step", GETTING_STARTED);
+                    }
                     return false;
                 }
                 if (slot == FINISH) {

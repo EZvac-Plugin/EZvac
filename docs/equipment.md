@@ -232,6 +232,14 @@ obsidian, so units built side by side in one casing never block each other,
 and a unit that starts before its casing is finished doesn't flood the build.
 The casing is how a unit is meant to look.
 
+**Build it however you like.** The cube below is the ideal template, not a
+rule. Heat pumps, air conditioners and furnaces are all the same base
+structure, a dispenser with an empty output cell, and only how you create it
+makes the difference: `/hvac create heatpump`, `/hvac create ac` or
+`/hvac create furnace` on the same dispenser. What you build around it is up
+to you: a brick outdoor unit, a copper box, a furnace hidden in a chimney.
+EZvac only needs the dispenser and its free output cell.
+
 The usual build is a 3×3×3 cube, three layers of 3×3, with the dispenser
 facing up in the middle of the bottom layer:
 
