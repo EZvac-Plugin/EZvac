@@ -2,6 +2,58 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0 Pilot 10
+
+**A first start that doesn't leave you lost: a setup, and a guided first
+system.** The last pilot before BETA 1.0. The save is unchanged (format 8)
+and the API stays 1.13.
+
+### The setup
+
+- **On a new install, the first admin to join is asked to set EZvac up**, in
+  chat: **[Set up]**, **[Later]** or **[Don't ask again]**. It never opens a
+  menu by itself, and servers upgrading from an earlier version are never
+  asked (`setup.done`).
+- **Nine short pages:** a welcome with the Getting started guide, °F or °C,
+  wind speeds, the HUD for new players (off, sidebar, action bar or boss bar,
+  and its title renamed to **Climate - Your Server**), update news, backups,
+  anonymous statistics with what they are and why they help, and the
+  official addons. Each choice applies at once; all of them are in quick
+  settings too.
+- `/hvac setup` runs it again any time; `/hvac setup skip` marks it done.
+- **The HUD can be on for new players** (`hud.show-to-new-players`, off by
+  default). A player's own `/hvac hud on` or `off` always wins. Its style and
+  title now change live.
+- Legacy addons folded into others, such as LiveExposure, are marked
+  "Legacy: no longer supported" and no longer offered.
+
+### Build your first system
+
+- **A guided tutorial in a world of its own**, from the setup's last page or
+  `/hvac tutorial`: a little hut on a floating platform, built by the
+  maintainer, with the player in creative and everything they need.
+- **Glowing ghost blocks show where to act at every step**: the heat pump's
+  dispenser, `/hvac create heatpump`, the thermostat's sign inside the hut,
+  four vents, linking them, and the casing, in any blocks. Each step chimes
+  when it's done.
+- **Leaks glow red**, link tool in hand or not, and the tutorial explains
+  them: openings work against your system, so close your doors and don't
+  leave gaps in your walls.
+- **Your things are safe:** leaving (**[Back to my world]** or
+  `/hvac tutorial leave`) puts you back where you were with your inventory
+  and game mode, kept on disk meanwhile, so quitting or a restart loses
+  nothing. Stay as long as you like; the tutorial world is deleted 10 seconds
+  after its last player leaves, so each one starts fresh.
+- It covers one heat pump for now and will grow to more devices: pools,
+  purifiers, humidifiers and dehumidifiers, fridges and deep freezers.
+
+### Docs
+
+- The casing is the ideal template, not a rule: heat pumps, air
+  conditioners and furnaces are all the same dispenser, created with a
+  different command, and can be styled however you like. Create and link the
+  dispenser before closing its casing.
+
 ## BETA 1.0 Pilot 9
 
 **Faster: a performance patch.** The save is unchanged (format 8) and the
