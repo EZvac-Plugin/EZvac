@@ -50,9 +50,15 @@ public final class ClimateHudService implements Listener {
     /** Null, or switched off, shows no wind (3.2). */
     private final WindSettings wind;
     private final HudFormatter format;
-    private final HudRenderer renderer;
+    /** Where the HUD is drawn; changed by {@link #setStyle} (BETA 1.0 Pilot 10). */
+    private HudRenderer renderer;
     /** The scoreboard plugin that pushed the HUD from the sidebar to the action bar, or null. */
-    private final String sidebarYieldedTo;
+    private String sidebarYieldedTo;
+    /**
+     * Whether a player who never chose shows the HUD (BETA 1.0 Pilot 10,
+     * hud.show-to-new-players): a player's own /hvac hud always wins.
+     */
+    private boolean showToNewPlayers;
     private final NamespacedKey toggleKey;
     private final Map<UUID, ClimateSnapshot> snapshots = new ConcurrentHashMap<>();
     /** Players with the HUD switched on. Main thread only; mirrors their persistent data. */
@@ -83,22 +89,71 @@ public final class ClimateHudService implements Listener {
         this.seasons = seasons;
         this.air = air;
         this.format = new HudFormatter(settings, plugin.getPluginMeta().getVersion());
-        // Scoreboard plugins like TAB draw their sidebar with raw packets, which
-        // the server's scoreboard API cannot see, so the sidebar's own conflict
-        // check would miss them and the two boards would fight. Their presence
-        // is checked by name instead (loaded counts: they may enable after us).
+        install(settings.style());
+        this.toggleKey = new NamespacedKey(plugin, "hud");
+    }
+
+    /**
+     * Picks the renderer for a style. Scoreboard plugins like TAB draw their
+     * sidebar with raw packets, which the server's scoreboard API cannot see,
+     * so the sidebar's own conflict check would miss them and the two boards
+     * would fight. Their presence is checked by name instead (loaded counts:
+     * they may enable after us).
+     */
+    private void install(HudSettings.Style wanted) {
         String yieldedTo = null;
-        if (settings.style() == HudSettings.Style.SIDEBAR)
-            for (String name : settings.sidebarYieldTo())
+        if (wanted == HudSettings.Style.SIDEBAR)
+            for (String name : format.settings().sidebarYieldTo())
                 if (plugin.getServer().getPluginManager().getPlugin(name) != null) { yieldedTo = name; break; }
         this.sidebarYieldedTo = yieldedTo;
-        HudSettings.Style style = yieldedTo == null ? settings.style() : HudSettings.Style.ACTIONBAR;
+        HudSettings.Style style = yieldedTo == null ? wanted : HudSettings.Style.ACTIONBAR;
         this.renderer = switch (style) {
             case SIDEBAR -> new SidebarRenderer(format);
             case ACTIONBAR -> new ActionBarRenderer(format);
             case BOSSBAR -> new BossBarRenderer(format);
         };
-        this.toggleKey = new NamespacedKey(plugin, "hud");
+    }
+
+    /**
+     * Draws the HUD another way from now on (BETA 1.0 Pilot 10, the setup):
+     * every player shown it moves to the new style at once.
+     */
+    public void setStyle(HudSettings.Style style) {
+        for (Player player : plugin.getServer().getOnlinePlayers())
+            if (showing.contains(player.getUniqueId())) renderer.clear(player);
+        install(style);
+        for (Player player : plugin.getServer().getOnlinePlayers())
+            if (showing.contains(player.getUniqueId())) render(player);
+    }
+
+    /**
+     * Whether players who never chose show the HUD (BETA 1.0 Pilot 10); those
+     * online now follow at once.
+     */
+    public void setShowToNewPlayers(boolean show) {
+        this.showToNewPlayers = show;
+        for (Player player : plugin.getServer().getOnlinePlayers()) {
+            if (player.getPersistentDataContainer().has(toggleKey, PersistentDataType.BYTE)) continue;
+            boolean shown = showing.contains(player.getUniqueId());
+            if (show && enabled() && !shown) {
+                showing.add(player.getUniqueId());
+                render(player);
+            } else if (!show && shown && showing.remove(player.getUniqueId())) {
+                renderer.clear(player);
+            }
+        }
+    }
+
+    /** Changes the sidebar's title at once (BETA 1.0 Pilot 10, the setup); MiniMessage, as hud.sidebar.title. */
+    public void setTitle(String mini) {
+        format.setTitle(mini);
+        for (Player player : plugin.getServer().getOnlinePlayers())
+            if (showing.contains(player.getUniqueId())) render(player);
+    }
+
+    /** Whether a player shows the HUD: by their own choice, or by default when they never made one. */
+    static boolean shows(Byte stored, boolean byDefault) {
+        return stored == null ? byDefault : stored == 1;
     }
 
     public HudFormatter format() { return format; }
@@ -152,7 +207,7 @@ public final class ClimateHudService implements Listener {
 
     private void restore(Player player) {
         Byte stored = player.getPersistentDataContainer().get(toggleKey, PersistentDataType.BYTE);
-        if (enabled() && stored != null && stored == 1) showing.add(player.getUniqueId());
+        if (enabled() && shows(stored, showToNewPlayers)) showing.add(player.getUniqueId());
     }
 
     /**
