@@ -167,6 +167,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         { if (requireAdmin(player)) linkTool.give(player); }
                 case "remove" -> { if (requireAdmin(player)) remove(player, args); }
                 case "quicksettings", "qs" -> { if (requireAdmin(player)) plugin.quickSettings().open(player); }
+                // The first-start setup (BETA 1.0 Pilot 10), again any time; skip marks it done.
+                case "setup" -> {
+                    if (!requireAdmin(player)) return true;
+                    if (args.length > 1 && args[1].equalsIgnoreCase("skip")) plugin.setup().skip(player);
+                    else plugin.setup().open(player);
+                }
                 case "addons", "addon" -> { if (requireAdmin(player)) plugin.quickSettings().openAddons(player); }
                 case "forecast", "weatherfc" -> plugin.forecastMenu().openForecast(player, null);
                 default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
@@ -1517,6 +1523,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "server" -> {
                 lines.add(gold("EZvac commands: running the server"));
                 lines.add(help("/hvac quicksettings", "devices, climate systems, backups, statistics, updates"));
+                lines.add(help("/hvac setup", "the first-start setup, again; skip marks it done"));
                 lines.add(help("/hvac addons", "official addons: switch them, find more, see updates"));
                 lines.add(help("/hvac stats [sizes]", "device totals, or every system's size"));
                 lines.add(help("/hvac sync", "map every system's air again, after /fill or WorldEdit"));
@@ -1555,7 +1562,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 "forecast"));
         if (hud) words.add("hud");
         if (admin) words.addAll(List.of("create", "thermostat", "equipment", "link-tool", "rename", "remove", "frost",
-                "stats", "sync", "update", "quicksettings", "addons", "registry"));
+                "stats", "sync", "update", "quicksettings", "setup", "addons", "registry"));
         return words;
     }
 
@@ -1564,6 +1571,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         boolean admin = sender.hasPermission(ADMIN_PERMISSION);
         if (args.length == 1)
             return filter(args[0], subcommands(sender.hasPermission(HUD_PERMISSION), admin).toArray(String[]::new));
+        if (args.length == 2 && args[0].equalsIgnoreCase("setup")) return admin ? filter(args[1], "skip") : List.of();
         if (args[0].equalsIgnoreCase("season")) {
             if (args.length == 2) return admin ? filter(args[1], "set", "next", "pause", "resume") : List.of();
             if (args.length == 3 && args[1].equalsIgnoreCase("set"))

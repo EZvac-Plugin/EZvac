@@ -61,6 +61,9 @@ public final class SidebarRenderer implements HudRenderer {
             }
             attach(player, board);
         }
+        // A title changed while it shows (the setup, BETA 1.0 Pilot 10) takes at the next update.
+        Component title = format.title();
+        if (!title.equals(board.objective.displayName())) board.objective.displayName(title);
         update(board, format.lines(format.medium(snapshot).sidebarLines(), snapshot, sections));
     }
 

@@ -492,8 +492,21 @@ public final class HudFormatter {
         return lines.size();
     }
 
+    /** The sidebar's title as MiniMessage, set anew by the setup (BETA 1.0 Pilot 10); null keeps the config's. */
+    private volatile String titleText;
+    private volatile Component titleComponent;
+
+    /** Changes the sidebar's title from now on (MiniMessage, as hud.sidebar.title takes). */
+    public void setTitle(String mini) {
+        titleText = mini;
+        titleComponent = null;
+    }
+
     public Component title() {
-        return MINI.deserialize(settings.title().replace("{version}", escape(version)));
+        Component kept = titleComponent;
+        if (kept != null) return kept;
+        String text = titleText != null ? titleText : settings.title();
+        return titleComponent = MINI.deserialize(text.replace("{version}", escape(version)));
     }
 
     public BossBar.Color bossBarColor(double fahrenheit) { return bossBarColor(fahrenheit, air); }

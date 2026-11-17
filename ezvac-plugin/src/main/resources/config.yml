@@ -5,6 +5,14 @@
 # this says. The temperatures in this file stay in F (their keys end in -f).
 units: F
 
+# The first-start setup (BETA 1.0 Pilot 10). On a new install EZvac asks an
+# admin, when they join, to choose its key settings in a short menu:
+# temperatures, wind speeds, the HUD for new players, updates, backups and
+# anonymous statistics. done: true once they have, or chose not to.
+# /hvac setup runs it again any time.
+setup:
+  done: true
+
 # Checks GitHub for a newer EZvac release (BETA 1.0), in the background: at
 # start-up, then every 6 hours. A newer one is logged, and players with
 # ezvac.admin hear about it when they join, with a link. It only reads
@@ -680,6 +688,9 @@ hud:
   enabled: true
   # sidebar (scoreboard on the right), actionbar (above the hotbar) or bossbar (top)
   style: sidebar
+  # Whether players who never chose see the HUD (BETA 1.0 Pilot 10). A
+  # player's own /hvac hud always wins. The setup asks.
+  show-to-new-players: false
   update-ticks: 10
   # Shown where no system conditions the air.
   none-text: none

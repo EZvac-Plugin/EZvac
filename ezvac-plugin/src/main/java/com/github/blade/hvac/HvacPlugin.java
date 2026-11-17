@@ -96,8 +96,16 @@ public final class HvacPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         try {
+            // A new install (BETA 1.0 Pilot 10): no config.yml yet, so an admin is asked to set EZvac up.
+            boolean fresh = !new File(getDataFolder(), "config.yml").isFile();
             saveDefaultConfig();
             addNewSettingsToConfig();
+            if (fresh) {
+                getConfig().set("setup.done", false);
+                saveConfig();
+                getLogger().info("EZvac is newly installed: an admin will be asked to set it up when they join"
+                        + " (/hvac setup).");
+            }
             // Installed first: every settings record answers its enabled() from them (BETA 1.0).
             switches = ServerSwitches.load(getConfig(), this::saveConfig, getLogger()::warning);
             switches.install();
@@ -174,6 +182,7 @@ public final class HvacPlugin extends JavaPlugin {
             api.setLinkTool(commandHandler.linkTool());
             api.setBeta(weatherStations, switches);
             hud.setTiming(work -> tickCost.timed("HUD", work));
+            hud.setShowToNewPlayers(getConfig().getBoolean("hud.show-to-new-players", false));
             hud.start();
             if (hud.sidebarYieldedTo() != null)
                 getLogger().info(hud.sidebarYieldedTo() + " draws its own scoreboard, so the /hvac hud overlay uses"
@@ -228,6 +237,8 @@ public final class HvacPlugin extends JavaPlugin {
             backups = new RegistryBackups(this, registry, getConfig(), this::saveConfig);
             backups.start();
             usageStats = com.github.blade.hvac.service.UsageStats.start(this);
+            setup = new com.github.blade.hvac.gui.SetupWizard(this);
+            getServer().getPluginManager().registerEvents(setup, this);
             quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates,
                     addons);
             getServer().getPluginManager().registerEvents(quickSettings, this);
@@ -561,6 +572,25 @@ public final class HvacPlugin extends JavaPlugin {
     public ControlMenus menus() { return menus; }
     public HvacController controller() { return controller; }
     public UpdateNotifier updates() { return updates; }
+
+    public ClimateHudService hud() { return hud; }
+
+    public ServerSwitches switches() { return switches; }
+
+    public RegistryBackups backups() { return backups; }
+
+    /** The first-start setup (BETA 1.0 Pilot 10). */
+    private com.github.blade.hvac.gui.SetupWizard setup;
+
+    public com.github.blade.hvac.gui.SetupWizard setup() { return setup; }
+
+    /** Whether the first-start setup has been done (or chosen not to be): setup.done. */
+    public boolean setupDone() { return getConfig().getBoolean("setup.done", true); }
+
+    public void setSetupDone(boolean done) {
+        getConfig().set("setup.done", done);
+        saveConfig();
+    }
     public QuickSettingsMenu quickSettings() { return quickSettings; }
     public WeatherStationService weatherStations() { return weatherStations; }
     public ForecastMenu forecastMenu() { return forecastMenu; }
