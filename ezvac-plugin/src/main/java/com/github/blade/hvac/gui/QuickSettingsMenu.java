@@ -422,6 +422,7 @@ public final class QuickSettingsMenu implements Listener {
             describe(lore, entry);
             if (entry.folded()) {
                 AddonCatalogue.Entry into = addons.entry(entry.foldedInto());
+                lore.add(colored("Legacy: no longer supported", NamedTextColor.RED));
                 lore.add(colored("Now part of " + (into == null ? entry.foldedInto() : into.name()),
                         NamedTextColor.GOLD));
             }

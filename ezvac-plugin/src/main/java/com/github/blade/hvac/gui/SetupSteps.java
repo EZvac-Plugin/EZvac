@@ -16,8 +16,8 @@ public final class SetupSteps {
 
     /** The pages, in order. */
     public enum Step {
-        WELCOME("Welcome"), TEMPERATURES("Temperatures"), WIND("Wind speeds"), HUD("The HUD"), UPDATES("Updates"),
-        BACKUPS("Backups"), STATISTICS("Anonymous statistics"), ADDONS("Official addons"), DONE("All set");
+        WELCOME("Welcome"), TEMPERATURES("Temperatures"), WIND("Wind"), HUD("HUD"), UPDATES("Updates"),
+        BACKUPS("Backups"), STATISTICS("Statistics"), ADDONS("Addons"), DONE("All set");
 
         private final String title;
 
@@ -37,9 +37,12 @@ public final class SetupSteps {
             return ordinal() > 0 ? values()[ordinal() - 1] : null;
         }
 
-        /** "EZvac setup · 3 of 9: Wind speeds". */
+        /**
+         * "Setup 3/9 · Wind": short, so it fits a chest's title (BETA 1.0
+         * Pilot 10: "EZvac setup · 7 of 9: Anonymous statistics" ran off it).
+         */
         public String menuTitle() {
-            return "EZvac setup · " + (ordinal() + 1) + " of " + values().length;
+            return "Setup " + (ordinal() + 1) + "/" + values().length + " · " + title;
         }
     }
 

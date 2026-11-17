@@ -122,7 +122,7 @@ public final class SetupWizard implements Listener {
             plugin.saveConfig();
         }
         Menu menu = new Menu(step);
-        menu.inventory = Bukkit.createInventory(menu, 36, Component.text(step.menuTitle() + ": " + step.title()));
+        menu.inventory = Bukkit.createInventory(menu, 36, Component.text(step.menuTitle()));
         draw(menu);
         player.openInventory(menu.inventory);
     }
@@ -288,17 +288,30 @@ public final class SetupWizard implements Listener {
         AddonService addons = plugin.addons();
         List<AddonCatalogue.Entry> installed = new ArrayList<>();
         for (AddonService.Installed one : addons.installed()) installed.add(one.entry());
-        List<AddonCatalogue.Entry> all = new ArrayList<>(installed);
-        all.addAll(addons.store());
+        List<AddonCatalogue.Entry> all = addonsShown();
         for (int i = 0; i < all.size() && i < ADDON_SLOTS.length; i++) {
             AddonCatalogue.Entry entry = all.get(i);
             Material icon = Material.matchMaterial(entry.icon());
-            List<Component> lore = new ArrayList<>(wrap(entry.description(), 34, 4));
+            // The whole description, wrapped (BETA 1.0 Pilot 10: four lines cut the longer ones short).
+            List<Component> lore = new ArrayList<>(wrap(entry.description(), 34, Integer.MAX_VALUE));
+            if (entry.folded()) {
+                AddonCatalogue.Entry into = addons.entry(entry.foldedInto());
+                lore.add(Component.text("Legacy: no longer supported", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+                lore.add(gray("Now part of " + (into == null ? entry.foldedInto() : into.name())));
+            }
             lore.add(installed.contains(entry) ? Component.text("Installed", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false)
                     : Component.text("Click for the link", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
             inventory.setItem(ADDON_SLOTS[i], item(icon == null ? Material.PAPER : icon,
                     Component.text(entry.name(), NamedTextColor.AQUA), lore, false));
         }
+    }
+
+    /** The addons on the setup's page: those installed (a legacy one marked so), then the store. */
+    private List<AddonCatalogue.Entry> addonsShown() {
+        List<AddonCatalogue.Entry> all = new ArrayList<>();
+        for (AddonService.Installed one : plugin.addons().installed()) all.add(one.entry());
+        all.addAll(plugin.addons().store());
+        return all;
     }
 
     private void drawDone(Inventory inventory) {
@@ -419,9 +432,7 @@ public final class SetupWizard implements Listener {
             case ADDONS -> {
                 int at = indexOf(ADDON_SLOTS, slot);
                 if (at < 0) return false;
-                List<AddonCatalogue.Entry> all = new ArrayList<>();
-                for (AddonService.Installed one : plugin.addons().installed()) all.add(one.entry());
-                all.addAll(plugin.addons().store());
+                List<AddonCatalogue.Entry> all = addonsShown();
                 if (at >= all.size()) return false;
                 link(player, all.get(at).name(), all.get(at).url());
                 return true;
