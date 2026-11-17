@@ -21,7 +21,11 @@ class SetupStepsTest {
         assertNull(Step.DONE.next());
         assertEquals(Step.WIND, Step.TEMPERATURES.next());
         assertEquals(Step.TEMPERATURES, Step.WIND.previous());
-        assertEquals("EZvac setup · 3 of 9", Step.WIND.menuTitle());
+        assertEquals("Setup 3/9 · Wind", Step.WIND.menuTitle());
+        // A chest's title has about 160 pixels; "EZvac setup · 7 of 9: Anonymous statistics" ran off it.
+        for (Step step : Step.values())
+            assertTrue(com.github.blade.hvac.service.TextWidth.width(step.menuTitle()) <= 150,
+                    step.menuTitle() + " is " + com.github.blade.hvac.service.TextWidth.width(step.menuTitle()) + " px");
     }
 
     @Test

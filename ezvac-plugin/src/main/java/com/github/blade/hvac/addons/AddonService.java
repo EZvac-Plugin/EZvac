@@ -227,10 +227,15 @@ public final class AddonService implements Listener {
         }
     }
 
-    /** The official addons that aren't installed here: the store. */
+    /**
+     * The official addons that aren't installed here: the store. A legacy
+     * addon, one taken into another (LiveExposure, into EZclimates), is never
+     * offered (BETA 1.0 Pilot 10); installed, it still shows, marked legacy.
+     */
     public List<AddonCatalogue.Entry> store() {
         List<AddonCatalogue.Entry> missing = new ArrayList<>();
         for (AddonCatalogue.Entry entry : catalogue) {
+            if (entry.folded()) continue;
             Plugin there = plugin.getServer().getPluginManager().getPlugin(entry.plugin());
             if (there == null || !entry.mainClass().equals(there.getClass().getName())) missing.add(entry);
         }
