@@ -9,13 +9,47 @@ You need Paper or Purpur for Minecraft **26.1 to 26.3**, on Java 25 (Paper's
 own requirement). Minecraft 1.21.x on Java 21 still works in BETA 1.x, with a
 warning, but BETA 2.x will drop it.
 
-1. Put `EzVac-BETA-1.0-P3.jar` in your server's `plugins` folder.
+1. Put `EzVac-BETA-1.0-P10.jar` in your server's `plugins` folder.
 2. Start the server. EZvac writes `plugins/EZvac/config.yml` and logs a line
    such as `EZvac enabled: 0 thermostat(s), ...`.
 3. In game, `/hvac help` lists the commands you can use.
 
 Building things needs `ezvac.admin` (operators have it). Players need only
 `ezvac.use`, which everyone has by default. See [Commands](commands.md).
+
+## The setup
+
+On a new install, the first operator to join is asked in chat to set EZvac up
+(BETA 1.0 Pilot 10): **[Set up]**, **[Later]** or **[Don't ask again]**. The
+setup is a short menu of nine pages: °F or °C, wind speeds, the HUD for new
+players (and its title), update news, backups, anonymous statistics and the
+official addons. Each choice applies at once, and every one can be changed
+later in `/hvac quicksettings`. `/hvac setup` runs it again any time.
+
+## The tutorial
+
+The setup's last page offers **Build your first system**, and
+`/hvac tutorial` starts it any time: a guided build in a world of its own
+(BETA 1.0 Pilot 10). You're taken to a little hut on a floating platform, in
+creative with what you need, and glowing blocks show where each part goes:
+
+1. a dispenser beside the hut, facing up;
+2. `/hvac create heatpump` on it;
+3. a sign on the inside of the hut's wall, and `/hvac create thermostat`;
+4. four iron trapdoors under the ceiling, the vents;
+5. linking them all with the link tool;
+6. the casing around the heat pump, in any blocks you like.
+
+Each step chimes when it's done. Stay as long as you like afterwards; leave
+with **[Back to my world]** or `/hvac tutorial leave`, and you're back where
+you were with your inventory and game mode. Your things are kept on disk
+meanwhile, so leaving the server or a restart loses nothing. The tutorial
+world is deleted 10 seconds after its last player leaves, so each tutorial
+starts fresh. The rest of this page is the same build, written out.
+
+The tutorial is basic for now: one heat pump, one thermostat and four vents.
+It will be expanded to more devices over time, such as pools, air purifiers,
+humidifiers and dehumidifiers, fridges and deep freezers.
 
 ## Your first system
 
@@ -49,12 +83,20 @@ spills. The usual build is a 3×3×3 cube, three layers of 3×3:
 
 ![A heat pump casing](images/equipment-casing.webp)
 
+That cube is the ideal template, not a rule: style it however you like.
+Heat pumps, air conditioners and furnaces are all this same dispenser; only
+the command you create it with differs.
+
 The casing doesn't have to touch the room: the room is reached through vents,
 linked in step 4. Look at the dispenser and run:
 
 ```text
 /hvac create heatpump
 ```
+
+A finished casing hides the dispenser, so create it, and link it in step 4,
+before you put the last casing block on (or leave the glass window out until
+then): EZvac needs to see the dispenser for both.
 
 More on every kind of equipment, and on the casing, in
 [Equipment and thermostats](equipment.md).

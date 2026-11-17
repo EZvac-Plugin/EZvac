@@ -48,6 +48,12 @@ updates). Tab completion only offers commands you can run (BETA 1.0).
 Creating, linking, changing and removing devices. `/hvac help build` lists
 these in game.
 
+**`/hvac tutorial`** takes you to a guided first build in a world of its own,
+a hut on a floating platform, and **`/hvac tutorial leave`** brings you back
+where you were with your things (BETA 1.0 Pilot 10). The world is deleted 10
+seconds after its last player leaves. See
+[The tutorial](getting-started.md#the-tutorial).
+
 ### Creating devices
 
 | Command | Look at | Notes |
@@ -147,6 +153,7 @@ game.
 | Command | Does |
 | --- | --- |
 | `/hvac quicksettings` (`qs`) | Opens the [quick settings](screens-and-menus.md#quick-settings) menu: device kinds and climate systems on or off, the season and the wind, units and sounds, addons, registry backups, health and updates (BETA 1.0) |
+| `/hvac setup` | The first-start setup again: units, wind, the HUD for new players, updates, backups, anonymous statistics and the official addons (BETA 1.0 Pilot 10, see [The setup](getting-started.md#the-setup)). `/hvac setup skip` marks it done without asking |
 | `/hvac addons` | Opens the [Addons](screens-and-menus.md#addons) page: EZvac's official addons on this server, switched on and off (with their parts), the ones it doesn't have with their links, and which have an update (BETA 1.0 Pilot 4) |
 | `/hvac stats` | Device totals and airflow statistics, and what each part of EZvac costs the server's tick over the last minute (BETA 1.0 Pilot 4) |
 | `/hvac stats sizes` | Every system's size and openings, and what it has of the units it needs for cooling and heating, the worst sized first (BETA 1.0, see [Sizing](equipment.md#sizing)) |

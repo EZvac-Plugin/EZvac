@@ -239,6 +239,14 @@ public final class HvacPlugin extends JavaPlugin {
             usageStats = com.github.blade.hvac.service.UsageStats.start(this);
             setup = new com.github.blade.hvac.gui.SetupWizard(this);
             getServer().getPluginManager().registerEvents(setup, this);
+            try {
+                tutorial = new com.github.blade.hvac.tutorial.TutorialService(this);
+                getServer().getPluginManager().registerEvents(tutorial, this);
+                tutorial.start();
+            } catch (java.io.IOException | RuntimeException failed) {
+                tutorial = null;
+                getLogger().log(java.util.logging.Level.WARNING, "The first-system tutorial is unavailable", failed);
+            }
             quickSettings = new QuickSettingsMenu(this, registry, airflow, displays, switches, backups, updates,
                     addons);
             getServer().getPluginManager().registerEvents(quickSettings, this);
@@ -427,6 +435,8 @@ public final class HvacPlugin extends JavaPlugin {
         // No frost is left in a barrel for a server without EZvac: it comes back from the save on the next start.
         if (frost != null) frost.clearAll();
         if (menus != null) menus.closeAll();
+        // Everyone in the tutorial goes back where they were, with their things.
+        if (tutorial != null) tutorial.stop();
         if (quickSettings != null) quickSettings.closeAll();
         if (forecastMenu != null) forecastMenu.closeAll();
         if (stationTask != null) stationTask.cancel();
@@ -584,6 +594,11 @@ public final class HvacPlugin extends JavaPlugin {
 
     public com.github.blade.hvac.gui.SetupWizard setup() { return setup; }
 
+    /** Build your first system (BETA 1.0 Pilot 10); null when its hut couldn't be read. */
+    private com.github.blade.hvac.tutorial.TutorialService tutorial;
+
+    public com.github.blade.hvac.tutorial.TutorialService tutorial() { return tutorial; }
+
     /** Whether the first-start setup has been done (or chosen not to be): setup.done. */
     public boolean setupDone() { return getConfig().getBoolean("setup.done", true); }
 
@@ -618,6 +633,7 @@ public final class HvacPlugin extends JavaPlugin {
     }
     public OutdoorTemperatureService outdoor() { return outdoor; }
     public AirflowService airflow() { return airflow; }
+    public ClimateUnitService units() { return units; }
 
     /** Each world with a sun looks at its clock, so its calendar moves on as the days pass. */
     private void advanceSeasons() {

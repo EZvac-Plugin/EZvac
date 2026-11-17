@@ -37,6 +37,19 @@ Before 2.1 only the HUD could show Celsius, through `hud.units`. A config that
 had `hud.units: C` starts with `units: C` when it's updated, and `hud.units` is
 no longer read.
 
+## setup
+
+```yaml
+setup:
+  done: true
+```
+
+Whether an admin has been through the first-start setup (BETA 1.0 Pilot 10),
+or chosen not to. A new install writes `done: false`, and admins are asked in
+chat when they join until someone finishes or skips it; servers upgrading
+from an earlier version get `true` and are never asked. `/hvac setup` runs it
+again whatever this says. See [The setup](getting-started.md#the-setup).
+
 ## updates
 
 ```yaml
@@ -526,6 +539,7 @@ New in BETA 1.0. See [Weather stations](weather-stations.md).
 | --- | --- | --- |
 | `enabled` | true | The `/hvac hud` command works at all |
 | `style` | sidebar | `sidebar`, `actionbar` or `bossbar` |
+| `show-to-new-players` | false | Whether players who never chose see the HUD (BETA 1.0 Pilot 10). A player's own `/hvac hud on` or `off` always wins. The setup asks |
 | `update-ticks` | 10 | How often each player's HUD is refreshed |
 | `none-text` | none | Shown where no system conditions the air |
 | `sidebar.title`, `sidebar.lines` | | The sidebar's title and lines |

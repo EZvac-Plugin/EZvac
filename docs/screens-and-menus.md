@@ -120,6 +120,30 @@ humidifier). The lever switches it off or on.
   typed on line 3 of its sign; the menu replaces that.
 - Nothing can be taken out of or put into a menu.
 
+## The setup
+
+The first-start setup (BETA 1.0 Pilot 10), from the chat prompt a new install
+gives admins or `/hvac setup`: nine pages in a small chest, titled
+**Setup 3/9 · Wind** and so on. **Back** is bottom left, **Skip setup** in the
+middle (it marks the setup done) and **Next** bottom right. On each page the
+current choice is lime and glinting; clicking another applies and saves it at
+once.
+
+| Page | Choices |
+| --- | --- |
+| Welcome | What EZvac is; a book that sends the Getting started link |
+| Temperatures | °F or °C |
+| Wind | Follow the temperatures, m/s, km/h or mph |
+| HUD | For new players: off, sidebar, action bar or boss bar; **Rename the title** asks for a name in chat |
+| Updates | Stable, Pilot, or follow this build |
+| Backups | Off, every 12 hours, every 24 hours or weekly |
+| Statistics | Anonymous statistics on or off, with what they are and why they help |
+| Addons | The official addons: installed or not, a click sends the link. Folded, legacy addons aren't offered |
+| Done | A summary of the choices, **Build your first system** (the [tutorial](getting-started.md#the-tutorial)) and **Finish** |
+
+Closing the menu partway keeps what was chosen; the next join asks to carry
+on.
+
 ## Quick settings
 
 New in BETA 1.0. `/hvac quicksettings` (or `/hvac qs`) opens a menu for the
