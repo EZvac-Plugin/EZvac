@@ -1,8 +1,13 @@
 # EZvac
 
+<img width="1080" height="540" alt="EZvac" src="https://github.com/user-attachments/assets/95b2a2b3-4525-4d7d-b38b-214916050f73" />
 
-<img width="1080" height="540" alt="ezv_D" src="https://github.com/user-attachments/assets/95b2a2b3-4525-4d7d-b38b-214916050f73" />
-
+[![Release](https://img.shields.io/github/v/release/EZvac-Plugin/EZvac?include_prereleases&label=release&color=0e7c86)](https://github.com/EZvac-Plugin/EZvac/releases)
+[![Minecraft](https://img.shields.io/badge/Minecraft-26.1%E2%80%9326.3-0e7c86)](#minecraft-versions)
+[![Java](https://img.shields.io/badge/Java-25-0e7c86)](#minecraft-versions)
+[![Modrinth](https://img.shields.io/modrinth/dt/ezvac-plugin?label=Modrinth&logo=modrinth&color=0e7c86)](https://modrinth.com/plugin/ezvac-plugin)
+[![Build](https://img.shields.io/github/actions/workflow/status/EZvac-Plugin/EZvac/build.yml?branch=main&label=build)](https://github.com/EZvac-Plugin/EZvac/actions/workflows/build.yml)
+[![License](https://img.shields.io/github/license/EZvac-Plugin/EZvac?color=0e7c86)](LICENSE)
 
 EZvac is a standalone HVAC and indoor-climate simulation plugin for Paper and
 its forks, such as Purpur. Build heat pumps, air conditioners and furnaces out
@@ -52,8 +57,9 @@ Pilot for pilots too.
    [releases](https://github.com/EZvac-Plugin/EZvac/releases) or
    [Modrinth](https://modrinth.com/plugin/ezvac-plugin).
 2. Put it in your server's `plugins` folder.
-3. Start the server, then follow [Getting started](docs/getting-started.md) to
-   build your first system.
+3. Start the server and join as an operator: EZvac asks, in chat, to be set
+   up, then offers a guided tutorial that builds your first system with you.
+   [Getting started](docs/getting-started.md) has the same steps written out.
 
 ## Documentation
 
