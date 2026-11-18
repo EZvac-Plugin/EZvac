@@ -21,3 +21,4 @@ logs/
 plugins/EZvac/hvac.yml
 plugins/EZvac/hvac.yml.bak
 plugins/EZvac/hvac.yml.tmp
+site/

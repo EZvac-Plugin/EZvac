@@ -1,0 +1,51 @@
+/* EZvac's colours: the logo's blue and orange, on Material's light and dark schemes. */
+:root {
+  --md-primary-fg-color: #0e7c86;
+  --md-primary-fg-color--light: #3999fb;
+  --md-primary-fg-color--dark: #0b5f66;
+  --md-accent-fg-color: #f69500;
+  --ez-orange: #f69500;
+  --ez-blue: #3999fb;
+}
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #0f1418;
+  --md-primary-fg-color: #12313a;
+  --md-typeset-a-color: #4fb3ff;
+}
+
+/* The front page */
+.ez-hero { text-align: center; }
+.ez-hero h1 { font-weight: 700; margin: 0.6em 0 0.4em; }
+.ez-hero p { max-width: 46em; margin-left: auto; margin-right: auto; }
+.ez-banner { border-radius: 12px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35); width: 100%; height: auto; }
+.md-typeset .md-button--primary { background: var(--ez-orange); border-color: var(--ez-orange); color: #1b1300; }
+.md-typeset .md-button--primary:hover { background: #ffad2e; border-color: #ffad2e; }
+
+.ez-downloads {
+  display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin: 1.6rem 0 0.4rem;
+}
+.md-typeset a.ez-release {
+  display: flex; flex-direction: column; min-width: 15rem; padding: 0.9rem 1.2rem;
+  border-radius: 10px; border: 1px solid var(--md-default-fg-color--lightest);
+  background: var(--md-code-bg-color); color: var(--md-default-fg-color);
+  transition: transform 0.15s, border-color 0.15s;
+}
+.md-typeset a.ez-release:hover { transform: translateY(-2px); border-color: var(--ez-blue); }
+.md-typeset a.ez-pilot:hover { border-color: var(--ez-orange); }
+.ez-kind { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.7; }
+.ez-tag { font-size: 1.05rem; font-weight: 700; color: var(--ez-blue); }
+.ez-pilot .ez-tag { color: var(--ez-orange); }
+.ez-date { font-size: 0.75rem; opacity: 0.7; }
+.ez-versions { text-align: center; font-size: 0.75rem; opacity: 0.7; }
+
+.md-typeset .grid.cards .lg { color: var(--ez-orange); }
+
+/* The secondary button, readable on dark */
+[data-md-color-scheme="slate"] .md-typeset .md-button:not(.md-button--primary) {
+  color: #e6edf3; border-color: rgba(230, 237, 243, 0.45);
+}
+[data-md-color-scheme="slate"] .md-typeset .md-button:not(.md-button--primary):hover {
+  color: #1b1300; background: var(--ez-blue); border-color: var(--ez-blue);
+}
+/* Addons two by two */
+.md-typeset .ez-two.grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }

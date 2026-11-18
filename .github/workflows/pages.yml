@@ -1,0 +1,53 @@
+# Builds EZvac's website (the front page and the docs, from docs/ with MkDocs
+# Material) and publishes it to GitHub Pages: ezvac-plugin.github.io/EZvac.
+# Runs whenever the docs or the site's config change on main, or by hand.
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push replaces one still waiting.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install MkDocs Material
+        run: pip install "mkdocs-material==9.8.1"
+      - name: Build the site
+        env:
+          NO_MKDOCS_2_WARNING: "1"
+        # --strict fails the build on a broken link, so one never goes live.
+        run: mkdocs build --strict
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
