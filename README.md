@@ -11,11 +11,11 @@
 [![Build](https://img.shields.io/github/actions/workflow/status/EZvac-Plugin/EZvac/build.yml?branch=main&label=build&logo=githubactions&style=for-the-badge&labelColor=1f2328)](https://github.com/EZvac-Plugin/EZvac/actions/workflows/build.yml)
 [![License](https://img.shields.io/github/license/EZvac-Plugin/EZvac?color=0e7c86&logo=opensourceinitiative&style=for-the-badge&labelColor=1f2328)](LICENSE)
 
-[**Download**](https://modrinth.com/plugin/ezvac-plugin) ·
-[**Getting started**](docs/getting-started.md) ·
-[**Docs**](#documentation) ·
-[**Addons**](#addons) ·
-[**Changelog**](CHANGELOG.md)
+[![Download](https://img.shields.io/badge/Download-f69500?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTcgMWgydjdsMi41LTIuNSAxLjQgMS40TDggMTEuOCAzLjEgNi45bDEuNC0xLjRMNyA4eiIvPjxwYXRoIGZpbGw9IiNmZmYiIGQ9Ik0yIDEyaDJ2MS41aDhWMTJoMnYzLjVIMnoiLz48L3N2Zz4=)](https://modrinth.com/plugin/ezvac-plugin)
+[![Getting started](https://img.shields.io/badge/Getting%20started-f69500?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZmlsbD0iI2ZmZiIgZD0iTTQgMmwxMCA2LTEwIDZ6Ii8+PC9zdmc+)](docs/getting-started.md)
+[![Docs](https://img.shields.io/badge/Docs-f69500?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZmlsbD0iI2ZmZiIgZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNMyAxaDdsNCA0djEwSDN6TTkuNSAxLjhWNS41aDMuN3pNNSA3LjVoNnYxLjNINXpNNSAxMGg2djEuM0g1ek01IDEyLjVoNHYxLjNINXoiLz48L3N2Zz4=)](#documentation)
+[![Addons](https://img.shields.io/badge/Addons-f69500?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHJlY3QgZmlsbD0iI2ZmZiIgeD0iMS41IiB5PSIxLjUiIHdpZHRoPSI1LjUiIGhlaWdodD0iNS41IiByeD0iMSIvPjxyZWN0IGZpbGw9IiNmZmYiIHg9IjkiIHk9IjEuNSIgd2lkdGg9IjUuNSIgaGVpZ2h0PSI1LjUiIHJ4PSIxIi8+PHJlY3QgZmlsbD0iI2ZmZiIgeD0iMS41IiB5PSI5IiB3aWR0aD0iNS41IiBoZWlnaHQ9IjUuNSIgcng9IjEiLz48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTAuOSA5aDEuN3YyLjJoMi4ydjEuN2gtMi4ydjIuMmgtMS43di0yLjJIOC43di0xLjdoMi4yeiIvPjwvc3ZnPg==)](#addons)
+[![Changelog](https://img.shields.io/badge/Changelog-f69500?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHJlY3QgZmlsbD0iI2ZmZiIgeD0iMS41IiB5PSIyLjUiIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIHJ4PSIuNSIvPjxyZWN0IGZpbGw9IiNmZmYiIHg9IjUiIHk9IjIuNSIgd2lkdGg9IjkuNSIgaGVpZ2h0PSIyIiByeD0iLjUiLz48cmVjdCBmaWxsPSIjZmZmIiB4PSIxLjUiIHk9IjciIHdpZHRoPSIyIiBoZWlnaHQ9IjIiIHJ4PSIuNSIvPjxyZWN0IGZpbGw9IiNmZmYiIHg9IjUiIHk9IjciIHdpZHRoPSI5LjUiIGhlaWdodD0iMiIgcng9Ii41Ii8+PHJlY3QgZmlsbD0iI2ZmZiIgeD0iMS41IiB5PSIxMS41IiB3aWR0aD0iMiIgaGVpZ2h0PSIyIiByeD0iLjUiLz48cmVjdCBmaWxsPSIjZmZmIiB4PSI1IiB5PSIxMS41IiB3aWR0aD0iNyIgaGVpZ2h0PSIyIiByeD0iLjUiLz48L3N2Zz4=)](CHANGELOG.md)
 
 </div>
 
