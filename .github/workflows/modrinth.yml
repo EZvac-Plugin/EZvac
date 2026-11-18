@@ -78,7 +78,9 @@ jobs:
               --argjson games "$GAME_VERSIONS" --argjson loaders "$LOADERS" '{
                 name: $release[0].name,
                 version_number: $tag,
-                changelog: $release[0].body,
+                # Modrinth narrows images but keeps a fixed height, squashing banners: send
+                # them without one, so they scale. The GitHub release keeps its own text.
+                changelog: ($release[0].body | gsub("(?<a><img[^>]*?)\\s+height=\"[0-9]+\""; "\(.a)")),
                 version_type: (if $release[0].isPrerelease then "beta" else "release" end),
                 game_versions: $games,
                 loaders: $loaders,
