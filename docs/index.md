@@ -138,6 +138,12 @@ Paper and Purpur.
 Addons are ordinary Paper plugins on EZvac's open API, and anyone can make
 their own: see [The EZvac API](api.md).
 
+## Translations
+
+EZvac is English only for now. Translations are planned after BETA 1.0, so
+players can enjoy it in their own language. If you'd like to help translate,
+say so on our [Discord](https://discord.gg/tCedQgFFDU).
+
 ## Built to be safe
 
 Every release is tested against save files from every earlier release,
