@@ -157,6 +157,12 @@ every device, controls and events. Add
 [The EZvac API](docs/api.md). More are listed on the
 [EZvac-Plugin](https://github.com/EZvac-Plugin) page.
 
+## Translations
+
+EZvac is English only for now. Translations are planned after BETA 1.0, so
+players can enjoy it in their own language. If you'd like to help translate,
+say so on our [Discord](https://discord.gg/tCedQgFFDU).
+
 ## Statistics
 
 [![EZvac on bStats](https://bstats.org/signatures/bukkit/EZvac.svg)](https://bstats.org/plugin/bukkit/EZvac/35377)
