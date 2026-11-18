@@ -1,0 +1,102 @@
+# EZvac's website: a front page and the docs, built from docs/ with MkDocs Material
+# and published to GitHub Pages. Preview locally with `mkdocs serve`.
+site_name: EZvac
+site_description: Real heating, cooling and indoor climate for Paper and Purpur.
+site_url: https://ezvac-plugin.github.io/EZvac/
+repo_url: https://github.com/EZvac-Plugin/EZvac
+repo_name: EZvac-Plugin/EZvac
+edit_uri: edit/main/docs/
+copyright: MIT licensed. Copyright &copy; 2026 bladestech and EZvac contributors.
+
+docs_dir: docs
+exclude_docs: |
+  README.md
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+  icon:
+    logo: material/thermostat
+    repo: fontawesome/brands/github
+  favicon: assets/favicon.svg
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+
+extra_css:
+  - assets/extra.css
+extra_javascript:
+  - assets/releases.js
+
+extra:
+  social:
+    - icon: simple/modrinth
+      link: https://modrinth.com/plugin/ezvac-plugin
+      name: EZvac on Modrinth
+    - icon: fontawesome/brands/discord
+      link: https://discord.gg/tCedQgFFDU
+      name: The EZvac Discord
+    - icon: fontawesome/brands/github
+      link: https://github.com/EZvac-Plugin
+      name: EZvac on GitHub
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      # GitHub's anchors ("Backups & registry" -> backups--registry), so links work in both places.
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Building:
+      - Equipment and thermostats: equipment.md
+      - Vents and airflow: airflow.md
+      - Dehumidifiers and humidifiers: dehumidifiers-and-humidifiers.md
+      - Refrigeration: fridges-and-freezers.md
+      - Air quality and purifiers: air-quality.md
+      - Sensors and readings: sensors.md
+      - Weather stations: weather-stations.md
+  - Climate:
+      - Climate: climate.md
+      - Wind: wind.md
+  - Server:
+      - Screens and menus: screens-and-menus.md
+      - HUD and placeholders: hud-and-placeholders.md
+      - Configuration: configuration.md
+      - Commands and permissions: commands.md
+      - Upgrading and troubleshooting: upgrading-and-troubleshooting.md
+  - Addons:
+      - The EZvac API: api.md
