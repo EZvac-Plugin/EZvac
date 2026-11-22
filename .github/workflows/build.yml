@@ -10,6 +10,10 @@ on:
     branches: [main]          # every pull request targeting main
   workflow_dispatch:          # lets you run it by hand from the Actions tab
 
+# The token only reads: building, testing and uploading the jar need nothing more.
+permissions:
+  contents: read
+
 jobs:
   build:
     name: Build and test

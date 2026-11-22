@@ -86,6 +86,21 @@ class RegistryLoadFailureTest {
     }
 
     @Test
+    void aBackupFromANewerEzvacIsNeverCopiedOverHvacYml() throws IOException {
+        // Audit 2.2: recovery skips a backup this build can't read, rather than promoting it first.
+        String newer = VALID.replace("format: 5", "format: 999");
+        Files.writeString(data, BROKEN, StandardCharsets.UTF_8);
+        Files.writeString(backup, newer, StandardCharsets.UTF_8);
+        HvacRegistry registry = registry();
+        IllegalStateException refused = assertThrows(IllegalStateException.class, registry::load);
+        assertTrue(refused.getMessage().contains("unreadable"), refused.getMessage());
+        shutDown(registry);
+        assertEquals(BROKEN, Files.readString(data, StandardCharsets.UTF_8), "hvac.yml is left as it was");
+        assertEquals(newer, Files.readString(backup, StandardCharsets.UTF_8));
+        assertEquals(List.of("hvac.yml", "hvac.yml.bak"), files(), "nothing set aside, nothing copied");
+    }
+
+    @Test
     void anUnreadableFileAndBackupAreBothLeftUntouched() throws IOException {
         Files.writeString(data, BROKEN, StandardCharsets.UTF_8);
         Files.writeString(backup, "also: [broken\n", StandardCharsets.UTF_8);

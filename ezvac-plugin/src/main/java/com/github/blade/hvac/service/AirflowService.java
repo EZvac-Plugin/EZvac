@@ -1374,10 +1374,31 @@ public final class AirflowService {
      */
     public record Space(long[] edge, long[] openings, boolean water, boolean capped) {}
 
+    /**
+     * The last space worked out for each system, with the map and walk it came from. A rebuild always
+     * swaps in a new map and walk rather than changing them, so while both are the same objects the
+     * space is too: EZdebug and the tutorial ask twice a second, and a large system's full scan is
+     * milliseconds. Callers only read a Space's arrays, so it is shared as it is.
+     */
+    private record CachedSpace(Long2ByteMap map, Raw raw, Space space) {}
+
+    private final Map<SystemId, CachedSpace> spaces = new HashMap<>();
+
     public Space space(SystemId system) {
         Long2ByteMap map = completed.get(system);
-        if (map == null) return null;
+        if (map == null) {
+            spaces.remove(system);
+            return null;
+        }
         Raw raw = raws.get(system);
+        CachedSpace cached = spaces.get(system);
+        if (cached != null && cached.map() == map && cached.raw() == raw) return cached.space();
+        Space space = workOutSpace(map, raw);
+        spaces.put(system, new CachedSpace(map, raw, space));
+        return space;
+    }
+
+    private static Space workOutSpace(Long2ByteMap map, Raw raw) {
         it.unimi.dsi.fastutil.longs.LongArrayList edge = new it.unimi.dsi.fastutil.longs.LongArrayList();
         for (long key : map.keySet()) {
             int x = unpackX(key), y = unpackY(key), z = unpackZ(key);

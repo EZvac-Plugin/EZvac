@@ -1376,6 +1376,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             throw new IllegalArgumentException("Usage: /hvac frost <0-100>, looking at a freezer.");
         }
         Block block = target(player);
+        if (block == null) return;
         if (!(registry.refrigeratorAt(BlockKey.of(block.getLocation())) instanceof Freezer freezer))
             throw new IllegalArgumentException("Look at a deep freezer or a refrigerator: its sign, iron block or barrel.");
         freezer.setFrost(Math.max(0, Math.min(100, percent)) / 100.0);

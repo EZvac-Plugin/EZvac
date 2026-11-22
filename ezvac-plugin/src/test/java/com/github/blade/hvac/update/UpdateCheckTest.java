@@ -14,19 +14,19 @@ class UpdateCheckTest {
     /** GitHub's release list, trimmed to the fields EZvac reads, newest first. */
     private static final String RELEASES = """
             [
-              {"tag_name": "BETA-1.1-P1", "html_url": "https://github.com/x/releases/tag/BETA-1.1-P1",
+              {"tag_name": "BETA-1.1-P1", "html_url": "https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.1-P1",
                "draft": false, "prerelease": true},
-              {"tag_name": "BETA-1.0-HOTFIX1", "html_url": "https://github.com/x/releases/tag/BETA-1.0-HOTFIX1",
+              {"tag_name": "BETA-1.0-HOTFIX1", "html_url": "https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0-HOTFIX1",
                "draft": false, "prerelease": false},
-              {"tag_name": "BETA-2.0", "html_url": "https://github.com/x/releases/tag/BETA-2.0",
+              {"tag_name": "BETA-2.0", "html_url": "https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-2.0",
                "draft": true, "prerelease": false},
-              {"tag_name": "BETA-1.0", "html_url": "https://github.com/x/releases/tag/BETA-1.0",
+              {"tag_name": "BETA-1.0", "html_url": "https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0",
                "draft": false, "prerelease": false},
-              {"tag_name": "BETA-1.0-P2", "html_url": "https://github.com/x/releases/tag/BETA-1.0-P2",
+              {"tag_name": "BETA-1.0-P2", "html_url": "https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0-P2",
                "draft": false, "prerelease": true},
-              {"tag_name": "nightly", "html_url": "https://github.com/x/releases/tag/nightly",
+              {"tag_name": "nightly", "html_url": "https://github.com/EZvac-Plugin/EZvac/releases/tag/nightly",
                "draft": false, "prerelease": true},
-              {"tag_name": "ALPHA-3.2-HOTFIX1", "html_url": "https://github.com/x/releases/tag/ALPHA-3.2-HOTFIX1",
+              {"tag_name": "ALPHA-3.2-HOTFIX1", "html_url": "https://github.com/EZvac-Plugin/EZvac/releases/tag/ALPHA-3.2-HOTFIX1",
                "draft": false, "prerelease": false}
             ]
             """;
@@ -43,7 +43,19 @@ class UpdateCheckTest {
         assertTrue(releases.stream().noneMatch(release -> release.tag().equals("BETA-2.0")));
         assertTrue(releases.get(0).pilot());
         assertFalse(releases.get(1).pilot());
-        assertEquals("https://github.com/x/releases/tag/BETA-1.1-P1", releases.get(0).url());
+        assertEquals("https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.1-P1", releases.get(0).url());
+    }
+
+    @Test
+    void onlyLinksToEzvacsOwnReleasesAreOffered() {
+        // Audit 2.4: a link in GitHub's answer is never trusted further than EZvac's releases.
+        assertEquals("https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0",
+                UpdateCheck.releaseUrl("https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0", "BETA-1.0"));
+        assertEquals("https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0",
+                UpdateCheck.releaseUrl("https://evil.example/download", "BETA-1.0"));
+        assertEquals("https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0",
+                UpdateCheck.releaseUrl("https://github.com/EZvac-Plugin/EZvac/releases/x y", "BETA-1.0"));
+        assertEquals("https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0", UpdateCheck.releaseUrl(null, "BETA-1.0"));
     }
 
     @Test

@@ -42,4 +42,11 @@ class ReleaseVersionTest {
         assertNull(v("v1.0"));
         assertNull(v(null));
     }
+
+    @Test
+    void aNumberTooBigIsNotAReleaseName() {
+        // Audit 3.5: one odd tag must not throw and abort the whole update check.
+        org.junit.jupiter.api.Assertions.assertNull(ReleaseVersion.parse("ALPHA-99999999999999999999"));
+        org.junit.jupiter.api.Assertions.assertNull(ReleaseVersion.parse("BETA-1.0-P99999999999"));
+    }
 }

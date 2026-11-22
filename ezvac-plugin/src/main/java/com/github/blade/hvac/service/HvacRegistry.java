@@ -354,6 +354,14 @@ public final class HvacRegistry {
                     primary.addSuppressed(candidateFailure);
                     continue;
                 }
+                // One a newer EZvac wrote can't be read by this build: copying it over hvac.yml first
+                // would change the files before the format check refuses it. Look at older ones.
+                int format = configuration.getInt("meta.format", FORMAT_VERSION);
+                if (format > FORMAT_VERSION) {
+                    primary.addSuppressed(new IOException(candidate.getName() + " is format " + format
+                            + ", newer than this build's " + FORMAT_VERSION + "; not used"));
+                    continue;
+                }
                 return recoverFrom(candidate, configuration, primary);
             }
             throw new LoadFailure(candidates.isEmpty()

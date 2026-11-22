@@ -167,6 +167,15 @@ public final class TutorialService implements Listener {
             player.sendMessage(Component.text("The tutorial world couldn't be made: see the console.", NamedTextColor.RED));
             return false;
         }
+        // Things still kept from an earlier tutorial (just rejoined, before they're given back) must never
+        // be written over by a new save, nor laid over what the player carries now: it doesn't start.
+        if (saveFile(player.getUniqueId()).isFile()) {
+            player.sendMessage(Component.text("Your things from an earlier tutorial are still kept aside. Rejoin to"
+                    + " get them back, then start the tutorial again.", NamedTextColor.YELLOW));
+            plugin.getLogger().warning(player.getName() + " has things kept from an earlier tutorial in "
+                    + saveFile(player.getUniqueId()) + "; the tutorial didn't start over them.");
+            return false;
+        }
         if (!save(player)) {
             player.sendMessage(Component.text("Your things couldn't be kept safe, so the tutorial didn't start:"
                     + " see the console.", NamedTextColor.RED));
@@ -179,7 +188,17 @@ public final class TutorialService implements Listener {
         Spot spawn = hut.spawn();
         Location arrive = at(world, session, spawn).add(0.5, 0, 0.5);
         arrive.setYaw(yaw(hut.spawnFacing()));
-        player.teleport(arrive);
+        if (!player.teleport(arrive)) {
+            // Another plugin stopped the trip: nothing of theirs was touched, so nothing needs giving back.
+            sessions.remove(player.getUniqueId());
+            clearPlot(world, session);
+            if (!saveFile(player.getUniqueId()).delete())
+                plugin.getLogger().warning("Could not remove " + saveFile(player.getUniqueId()) + " after a cancelled tutorial");
+            deleteSoonIfEmpty();
+            player.sendMessage(Component.text("Another plugin stopped the trip to the tutorial world, so it didn't"
+                    + " start.", NamedTextColor.RED));
+            return false;
+        }
         player.setGameMode(GameMode.CREATIVE);
         player.getInventory().clear();
         player.getInventory().addItem(new ItemStack(Material.DISPENSER), new ItemStack(Material.STONE_BRICKS, 24),
@@ -203,9 +222,9 @@ public final class TutorialService implements Listener {
             World world = Bukkit.getWorld(WORLD);
             if (world != null) clearPlot(world, session);
         }
-        restore(player);
+        boolean restored = restore(player);
         deleteSoonIfEmpty();
-        if (told) say(player, "Back where you were, with your things. /hvac tutorial runs it again any time.");
+        if (told && restored) say(player, "Back where you were, with your things. /hvac tutorial runs it again any time.");
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -225,8 +244,8 @@ public final class TutorialService implements Listener {
         if (!saveFile(player.getUniqueId()).isFile()) return;
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline() && !inTutorial(player) && saveFile(player.getUniqueId()).isFile()) {
-                restore(player);
-                say(player, "You left the tutorial while away: you're back where you were, with your things.");
+                if (restore(player))
+                    say(player, "You left the tutorial while away: you're back where you were, with your things.");
             }
         }, 5L);
     }
@@ -693,7 +712,17 @@ public final class TutorialService implements Listener {
         yaml.set("flying", player.isFlying());
         try {
             if (!saves.isDirectory() && !saves.mkdirs()) throw new IOException("couldn't make " + saves);
-            yaml.save(saveFile(player.getUniqueId()));
+            // Written beside it and moved into place, so a crash mid-write can't leave half a file: the
+            // file exists to survive exactly that.
+            File file = saveFile(player.getUniqueId());
+            File partial = new File(saves, file.getName() + ".tmp");
+            yaml.save(partial);
+            try {
+                java.nio.file.Files.move(partial.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                        java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.AtomicMoveNotSupportedException notAtomic) {
+                java.nio.file.Files.move(partial.toPath(), file.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
             return true;
         } catch (IOException failed) {
             plugin.getLogger().log(Level.WARNING, "Could not keep " + player.getName() + "'s things for the tutorial", failed);
@@ -701,11 +730,31 @@ public final class TutorialService implements Listener {
         }
     }
 
-    /** Puts a player back from their saved place and things, and forgets the file. */
-    private void restore(Player player) {
+    /**
+     * Puts a player back from their saved place and things, and forgets the file. True when it did, or
+     * there was nothing to give back. A file that can't be read is never treated as "no things": it is
+     * kept aside for an admin and the player is told where their things are; they leave the tutorial's
+     * creative kit and game mode behind, at spawn. Only ever called for a player leaving the tutorial.
+     */
+    private boolean restore(Player player) {
         File file = saveFile(player.getUniqueId());
-        if (!file.isFile()) return;
-        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        if (!file.isFile()) return true;
+        YamlConfiguration yaml = new YamlConfiguration();
+        try {
+            yaml.load(file);
+            if (!yaml.isList("contents")) throw new org.bukkit.configuration.InvalidConfigurationException("no inventory in it");
+        } catch (IOException | org.bukkit.configuration.InvalidConfigurationException unreadable) {
+            File aside = new File(saves, file.getName() + ".unreadable-" + System.currentTimeMillis());
+            boolean kept = file.renameTo(aside);
+            plugin.getLogger().log(Level.SEVERE, "Could not read " + player.getName() + "'s things from the tutorial ("
+                    + file + "); " + (kept ? "kept as " + aside.getName() : "left in place") + " for an admin", unreadable);
+            player.getInventory().clear();
+            player.setGameMode(GameMode.SURVIVAL);
+            if (player.getWorld().getName().equals(WORLD)) player.teleport(Bukkit.getWorlds().get(0).getSpawnLocation());
+            player.sendMessage(Component.text("Your things from before the tutorial couldn't be read back. They"
+                    + " aren't lost: an admin can find them in plugins/EZvac/tutorial.", NamedTextColor.RED));
+            return false;
+        }
         World world = null;
         try {
             world = Bukkit.getWorld(UUID.fromString(yaml.getString("world", "")));
@@ -732,6 +781,7 @@ public final class TutorialService implements Listener {
         player.setSaturation((float) yaml.getDouble("saturation", 5.0));
         if (player.getAllowFlight()) player.setFlying(yaml.getBoolean("flying", false));
         if (!file.delete()) plugin.getLogger().warning("Could not remove " + file + " after giving its things back");
+        return true;
     }
 
     // ---- telling ----
