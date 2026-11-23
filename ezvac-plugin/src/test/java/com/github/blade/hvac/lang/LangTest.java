@@ -26,7 +26,7 @@ class LangTest {
     private static final Path SOURCES = Path.of("src/main/java");
     private static final Path LANG = Path.of("src/main/resources/lang");
     private static final Pattern ASKED = Pattern.compile(
-            "(?:Lang\\.(?:message|text)|new UserError|UserError\\.of)\\(\\s*\"([a-z0-9_.-]+)\"");
+            "(?:(?:Lang\\.(?:message|text)|new UserError|lore)\\(|(?:say|hint|done)\\([^,()]+(?:\\(\\))?,)\\s*\"([a-z0-9_.-]+)\"");
     private static final Pattern PREFIX = Pattern.compile("Lang\\.key\\(\\s*\"([a-z0-9_.-]+)\"");
     private static final Pattern LITERAL = Pattern.compile("\"([a-z0-9_-]+(?:\\.[a-z0-9_-]+)+)\"");
     private static final Pattern TAG = Pattern.compile("<([a-z0-9_-]+)(?::[^>]*)?>");
