@@ -23,6 +23,7 @@ import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.simulation.Psychrometrics;
 import com.github.blade.hvac.simulation.SizingModel;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -45,6 +46,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+
+import static com.github.blade.hvac.lang.Lang.arg;
 
 /**
  * The control menu a thermostat's or a dehumidifier's/humidifier's sign opens
@@ -104,8 +107,8 @@ public final class ControlMenus implements Listener {
 
     public void open(Player player, Thermostat thermostat) {
         Menu menu = new Menu(Device.THERMOSTAT, thermostat.position());
-        menu.inventory = Bukkit.createInventory(menu, 27, Component.text(thermostat.id() + " · "
-                + (thermostat.pool() ? "pool" : "room") + " thermostat"));
+        menu.inventory = Bukkit.createInventory(menu, 27, Lang.message(thermostat.pool() ? "menu.control.title.pool"
+                : "menu.control.title.room", arg("name", thermostat.id())));
         draw(menu);
         player.openInventory(menu.inventory);
     }
@@ -113,7 +116,8 @@ public final class ControlMenus implements Listener {
     public void open(Player player, ClimateUnit unit) {
         Menu menu = new Menu(Device.CLIMATE_UNIT, unit.position());
         menu.inventory = Bukkit.createInventory(menu, 27,
-                Component.text(unit.label() + " · " + unit.kind().displayName().toLowerCase(Locale.ROOT)));
+                Lang.message("menu.control.title.unit", arg("name", unit.label()),
+                        arg("kind", unit.kind().displayName().toLowerCase(Locale.ROOT))));
         draw(menu);
         player.openInventory(menu.inventory);
     }
@@ -143,13 +147,13 @@ public final class ControlMenus implements Listener {
         double minimum = thermostat.pool() ? settings.poolMinimumTargetF() : settings.minimumTargetF();
         double maximum = thermostat.pool() ? settings.poolMaximumTargetF() : settings.maximumTargetF();
         List<Component> lore = new ArrayList<>();
-        lore.add(gray("Now " + units.degrees(thermostat.roomF())
-                + (thermostat.hasRoomDewPoint() ? " · " + Math.round(Psychrometrics.relativeHumidity(
-                thermostat.roomF(), thermostat.roomDewPointF())) + "% RH" : "")));
-        lore.add(gray("Range " + units.degrees(minimum) + " to " + units.degrees(maximum)));
+        lore.add(thermostat.hasRoomDewPoint() ? lore("menu.control.now-rh", arg("now", units.degrees(thermostat.roomF())),
+                arg("rh", Math.round(Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF()))))
+                : lore("menu.control.now", arg("now", units.degrees(thermostat.roomF()))));
+        lore.add(lore("menu.control.range", arg("low", units.degrees(minimum)), arg("high", units.degrees(maximum))));
         inventory.setItem(INFO, item(Material.DAYLIGHT_DETECTOR,
-                Component.text("Set " + units.degrees(thermostat.targetF()), NamedTextColor.AQUA), lore));
-        inventory.setItem(POWER, power(thermostat.enabled(), "System"));
+                Lang.message("menu.control.set", arg("target", units.degrees(thermostat.targetF()))), lore));
+        inventory.setItem(POWER, power(thermostat.enabled(), Lang.text("menu.control.system-power")));
         inventory.setItem(PROFILE, profile(registry.profileFor(thermostat.system())));
         SizingModel.Assessment cooling = assess(thermostat, OperatingMode.COOLING);
         SizingModel.Assessment heating = assess(thermostat, OperatingMode.HEATING);
@@ -186,7 +190,7 @@ public final class ControlMenus implements Listener {
 
     /** {@code Eco}: a profile as players read it. */
     private static String title(OperatingProfile profile) {
-        return profile.name().charAt(0) + profile.name().substring(1).toLowerCase(Locale.ROOT);
+        return Lang.text(Lang.key("menu.control.profile-name", profile.name()));
     }
 
     /**
@@ -197,29 +201,27 @@ public final class ControlMenus implements Listener {
                                SizingModel.Assessment heating, OperatingProfile profile,
                                OperatingProfile betterProfile, OperatingMode needed) {
         if (attention.isEmpty())
-            return item(Material.LIME_DYE, Component.text("All good", NamedTextColor.GREEN),
-                    List.of(gray("Nothing needs your attention")));
+            return item(Material.LIME_DYE, Lang.message("menu.control.attention.all-good"),
+                    List.of(lore("menu.control.attention.nothing")));
         List<Component> lore = new ArrayList<>();
         for (Attention each : attention) {
             switch (each) {
                 case NO_UNITS -> {
-                    lore.add(warning("No units: it can't heat or cool"));
-                    lore.add(gray("  Link equipment with /hvac link-tool"));
+                    lore.add(lore("menu.control.attention.no-units"));
+                    lore.add(lore("menu.control.attention.no-units-fix"));
                 }
                 case NO_VENTS -> {
-                    lore.add(warning(pool ? "No water vent: it won't start" : "No vent: it won't start"));
-                    lore.add(gray(pool ? "  Link a water vent with /hvac link-tool"
-                            : "  Link a vent with /hvac link-tool"));
+                    lore.add(lore(pool ? "menu.control.attention.no-water-vent" : "menu.control.attention.no-vent"));
+                    lore.add(lore(pool ? "menu.control.attention.no-water-vent-fix" : "menu.control.attention.no-vent-fix"));
                 }
                 case UNITS_OFF -> {
-                    lore.add(warning("Its units are switched off server-wide"));
-                    lore.add(gray("  An admin switches them on in /hvac quicksettings"));
+                    lore.add(lore("menu.control.attention.units-off"));
+                    lore.add(lore("menu.control.attention.units-off-fix"));
                 }
                 case CANT_KEEP_UP -> {
-                    lore.add(warning(needed == OperatingMode.COOLING
-                            ? "Warming faster than it can cool: it can't reach its target"
-                            : "Losing heat faster than it can heat: it can't reach its target"));
-                    lore.add(gray("  Close openings, or add units"));
+                    lore.add(lore(needed == OperatingMode.COOLING ? "menu.control.attention.cant-cool"
+                            : "menu.control.attention.cant-heat"));
+                    lore.add(lore("menu.control.attention.cant-keep-up-fix"));
                 }
                 case UNDERSIZED -> {
                     // Only for the mode it runs or would start in, as the count judges it.
@@ -227,49 +229,60 @@ public final class ControlMenus implements Listener {
                             : needed == OperatingMode.HEATING ? heating : null;
                     for (SizingModel.Assessment sized : java.util.Arrays.asList(cooling, heating))
                         if (sized == judged && sized != null && sized.installed() > 0.0 && sized.undersized())
-                            lore.add(warning("Undersized for " + (sized == cooling ? "cooling" : "heating")
-                                    + (profile == OperatingProfile.NORMAL ? "" : " on " + title(profile))
-                                    + ": has " + sized.ratio().replace("/", " of ") + " ★★★"));
-                    lore.add(gray(betterProfile == null ? "  Add units, or vents to reach all of it"
-                            : "  " + title(betterProfile) + " would keep up, or add units"));
+                            lore.add(lore((sized == cooling ? "menu.control.attention.undersized-cooling"
+                                    : "menu.control.attention.undersized-heating")
+                                    + (profile == OperatingProfile.NORMAL ? "" : "-on"),
+                                    arg("profile", title(profile)), arg("has", ratio(sized))));
+                    lore.add(betterProfile == null ? lore("menu.control.attention.undersized-fix")
+                            : lore("menu.control.attention.undersized-profile", arg("profile", title(betterProfile))));
                 }
             }
         }
         int count = attention.size();
-        return item(Material.YELLOW_DYE, Component.text("⚠ " + count + (count == 1 ? " needs" : " need")
-                + " attention", NamedTextColor.GOLD).decorate(TextDecoration.BOLD), lore);
-    }
-
-    private static Component warning(String text) {
-        return Component.text(text, NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false);
+        return item(Material.YELLOW_DYE, Lang.message(count == 1 ? "menu.control.attention.one"
+                : "menu.control.attention.many", arg("count", count)), lore);
     }
 
     /** The system: what's linked, and with building size on, its size and what it has of what it needs. */
     private ItemStack system(Thermostat thermostat, SizingModel.Assessment cooling, SizingModel.Assessment heating) {
         List<Component> lore = new ArrayList<>();
-        lore.add(gray(count(registry.equipmentFor(thermostat.system()).size(), "unit") + " · "
-                + count(registry.ventsFor(thermostat.system()).size(), thermostat.pool() ? "water vent" : "vent")));
+        int unitCount = registry.equipmentFor(thermostat.system()).size();
+        int ventCount = registry.ventsFor(thermostat.system()).size();
+        lore.add(lore("menu.control.system.linked", arg("units", Lang.text(unitCount == 1 ? "menu.control.system.unit"
+                : "menu.control.system.units", arg("n", unitCount))), arg("vents", Lang.text((thermostat.pool()
+                ? "menu.control.system.water-vent" : "menu.control.system.vent") + (ventCount == 1 ? "" : "s"),
+                arg("n", ventCount)))));
         if (plugin.controller() == null || !plugin.controller().sizing().enabled())
-            lore.add(gray("Building size is off: any size heats and cools"));
+            lore.add(lore("menu.control.system.size-off"));
         else if (cooling == null)
-            lore.add(gray("Size: not mapped yet"));
+            lore.add(lore("menu.control.system.unmapped"));
         else {
-            lore.add(gray(String.format(Locale.US, "Size: %,d blocks of %s", cooling.size(),
-                    cooling.water() ? "water" : "air")));
-            if (!cooling.water()) lore.add(gray("Openings: " + cooling.openings()
-                    + (cooling.openings() == 0 ? "" : String.format(Locale.US, " (leaks x%.1f)", cooling.openness()))));
+            lore.add(lore(cooling.water() ? "menu.control.system.size-water" : "menu.control.system.size-air",
+                    arg("size", String.format(Locale.US, "%,d", cooling.size()))));
+            if (!cooling.water()) lore.add(cooling.openings() == 0
+                    ? lore("menu.control.system.openings", arg("openings", cooling.openings()))
+                    : lore("menu.control.system.openings-leaks", arg("openings", cooling.openings()),
+                    arg("leaks", String.format(Locale.US, "%.1f", cooling.openness()))));
             for (SizingModel.Assessment sized : java.util.Arrays.asList(cooling, heating))
                 if (sized != null && sized.installed() > 0.0)
-                    lore.add(Component.text((sized == cooling ? "Cooling: has " : "Heating: has ")
-                            + sized.ratio().replace("/", " of ") + " ★★★", sized.undersized()
-                            ? NamedTextColor.GOLD : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+                    lore.add(Lang.message(sized == cooling ? "menu.control.system.cooling-has"
+                            : "menu.control.system.heating-has", arg("has", ratio(sized)))
+                            .color(sized.undersized() ? NamedTextColor.GOLD : NamedTextColor.GRAY)
+                            .decoration(TextDecoration.ITALIC, false));
         }
         return item(thermostat.pool() ? Material.PRISMARINE_BRICKS : Material.BRICKS,
-                Component.text(thermostat.pool() ? "Pool" : "System", NamedTextColor.AQUA), lore);
+                Lang.message(thermostat.pool() ? "menu.control.system.pool" : "menu.control.system.title"), lore);
     }
 
-    private static String count(int n, String what) {
-        return n + " " + what + (n == 1 ? "" : "s");
+    /** "2.0 of 3.0": what a system has of what it needs. */
+    private static String ratio(SizingModel.Assessment sized) {
+        String[] parts = sized.ratio().split("/", 2);
+        return Lang.text("command.size.of", arg("has", parts[0]), arg("needs", parts.length > 1 ? parts[1] : ""));
+    }
+
+    /** A line of lore in its template's colours, upright as menus show it. */
+    static Component lore(String key, net.kyori.adventure.text.minimessage.tag.resolver.TagResolver... args) {
+        return Lang.message(key, args).decoration(TextDecoration.ITALIC, false);
     }
 
     /**
@@ -280,16 +293,14 @@ public final class ControlMenus implements Listener {
         NamedTextColor color = profileColor(profile);
         List<Component> lore = new ArrayList<>();
         for (OperatingProfile each : OperatingProfile.values())
-            lore.add(Component.text((each == profile ? "● " : "  ") + each.name() + ": " + switch (each) {
-                case ECO -> "gentler, quieter, slower";
-                case NORMAL -> "the usual speed";
-                case TURBO -> "faster, past the usual top speed";
-            }, each == profile ? profileColor(each) : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-        lore.add(gray("Heat pumps, ACs and pool heat pumps;"));
-        lore.add(gray("furnaces and boilers run as always"));
-        lore.add(gray("Click: next · Right-click: previous"));
-        return item(Material.COMPARATOR, Component.text("Profile: " + profile.name(), color)
-                .decorate(TextDecoration.BOLD), lore);
+            lore.add(Component.text((each == profile ? "● " : "  ") + Lang.text("menu.control.profile.line",
+                    arg("profile", each.name()), arg("what", Lang.text(Lang.key("menu.control.profile.what", each.name())))),
+                    each == profile ? profileColor(each) : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
+        lore.add(lore("menu.control.profile.which-1"));
+        lore.add(lore("menu.control.profile.which-2"));
+        lore.add(lore("menu.control.profile.click"));
+        return item(Material.COMPARATOR, Lang.message("menu.control.profile.title", arg("profile", profile.name()))
+                .color(color).decorate(TextDecoration.BOLD), lore);
     }
 
     static NamedTextColor profileColor(OperatingProfile profile) {
@@ -314,9 +325,9 @@ public final class ControlMenus implements Listener {
         int[] range = range(unit);
         double humidity = unit.lastHumidity();
         inventory.setItem(INFO, item(Material.DAYLIGHT_DETECTOR,
-                Component.text("Set " + unit.setpoint() + "%", NamedTextColor.AQUA),
-                List.of(gray("Now " + (Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")),
-                        gray("Range " + range[0] + "% to " + range[1] + "%"))));
+                Lang.message("menu.control.set", arg("target", unit.setpoint() + "%")),
+                List.of(lore("menu.control.now", arg("now", Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")),
+                        lore("menu.control.range", arg("low", range[0] + "%"), arg("high", range[1] + "%")))));
         inventory.setItem(POWER, power(unit.powered(), unit.kind().displayName()));
     }
 
@@ -330,19 +341,14 @@ public final class ControlMenus implements Listener {
             boolean on = purifier.mode() == mode;
             ItemStack button = item(PURIFIER_PANES[i], Component.text((on ? "● " : "") + mode.displayName(),
                     on ? NamedTextColor.GREEN : NamedTextColor.WHITE).decorate(TextDecoration.BOLD),
-                    List.of(gray(switch (mode) {
-                        case LOW -> "Quiet, gentle cleaning";
-                        case MEDIUM -> "Steady cleaning";
-                        case HIGH -> "Full power";
-                        case AUTO -> "Speeds up when the air gets worse";
-                    })));
+                    List.of(lore(Lang.key("menu.control.purifier", mode.name()))));
             if (on) button.editMeta(meta -> meta.setEnchantmentGlintOverride(true));
             inventory.setItem(PURIFIER_SLOTS[i], button);
         }
         List<Component> lore = new ArrayList<>();
-        lore.add(gray("Now " + AirText.aqi(purifier.lastAir())));
-        lore.add(gray("Running " + purifier.modeText()));
-        lore.add(gray("Filter " + Math.round(purifier.filter() * 100) + "%"));
+        lore.add(lore("menu.control.now", arg("now", AirText.aqi(purifier.lastAir()))));
+        lore.add(lore("menu.control.running", arg("mode", purifier.modeText())));
+        lore.add(lore("menu.control.filter", arg("percent", Math.round(purifier.filter() * 100))));
         inventory.setItem(INFO, item(Material.TUBE_CORAL_BLOCK,
                 Component.text(purifier.mode().displayName(), NamedTextColor.AQUA), lore));
         inventory.setItem(POWER, power(purifier.powered(), purifier.kind().displayName()));
@@ -357,46 +363,47 @@ public final class ControlMenus implements Listener {
         inventory.setItem(HUMIDITY_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE, "+1°", NamedTextColor.WHITE));
         inventory.setItem(HUMIDITY_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE, "-1°", NamedTextColor.WHITE));
         double inside = refrigerator.insideF();
-        String compartment = refrigerator instanceof FridgeFreezer ? "Freezer: " : "";
+        String insideText = Double.isFinite(inside) ? units.format(inside, 1) : "--";
         inventory.setItem(INFO, item(refrigerator instanceof Freezer ? Material.PACKED_ICE : Material.BARREL,
-                Component.text(compartment + "Set " + units.format(refrigerator.setpoint(), 0), NamedTextColor.AQUA),
-                List.of(gray("Inside " + (Double.isFinite(inside) ? units.format(inside, 1) : "--")
-                                + (refrigerator instanceof com.github.blade.hvac.model.MiniFridge mini
-                                && Double.isFinite(mini.chillerF()) ? " · Chiller " + units.format(mini.chillerF(), 1) : "")),
+                Lang.message(refrigerator instanceof FridgeFreezer ? "menu.control.freezer-set" : "menu.control.set",
+                        arg("target", units.format(refrigerator.setpoint(), 0))),
+                List.of(refrigerator instanceof com.github.blade.hvac.model.MiniFridge mini && Double.isFinite(mini.chillerF())
+                                ? lore("menu.control.inside-chiller", arg("inside", insideText),
+                                arg("chiller", units.format(mini.chillerF(), 1)))
+                                : lore("menu.control.inside", arg("inside", insideText)),
                         gray(refrigerator.activity()),
-                        gray("Range " + units.format(refrigerator.minimumF(), 0) + " to "
-                                + units.format(refrigerator.maximumF(), 0)))));
+                        lore("menu.control.range", arg("low", units.format(refrigerator.minimumF(), 0)),
+                                arg("high", units.format(refrigerator.maximumF(), 0))))));
         inventory.setItem(POWER, power(refrigerator.powered(), refrigerator.kind().displayName()));
         if (refrigerator instanceof FridgeFreezer both) {
-            inventory.setItem(FRIDGE_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE, "Fridge +1°", NamedTextColor.WHITE));
-            inventory.setItem(FRIDGE_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE, "Fridge -1°",
-                    NamedTextColor.WHITE));
+            inventory.setItem(FRIDGE_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE,
+                    Lang.text("menu.control.fridge-step", arg("step", "+1°")), NamedTextColor.WHITE));
+            inventory.setItem(FRIDGE_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE,
+                    Lang.text("menu.control.fridge-step", arg("step", "-1°")), NamedTextColor.WHITE));
             double fridge = both.fridgeInsideF();
             inventory.setItem(FRIDGE_INFO, item(Material.BARREL,
-                    Component.text("Fridge: Set " + units.format(both.fridgeSetpoint(), 0), NamedTextColor.AQUA),
-                    List.of(gray("Inside " + (Double.isFinite(fridge) ? units.format(fridge, 1) : "--")),
-                            gray(both.fridgeDoorOpen() ? "Door open" : "The barrel on top"),
-                            gray("Range " + units.format(RefrigerationSettings.FRIDGE_MINIMUM_F, 0) + " to "
-                                    + units.format(RefrigerationSettings.FRIDGE_MAXIMUM_F, 0)))));
-            inventory.setItem(HUMIDITY_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE, "Freezer +1°",
-                    NamedTextColor.WHITE));
-            inventory.setItem(HUMIDITY_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE, "Freezer -1°",
-                    NamedTextColor.WHITE));
+                    Lang.message("menu.control.fridge-set", arg("target", units.format(both.fridgeSetpoint(), 0))),
+                    List.of(lore("menu.control.inside", arg("inside", Double.isFinite(fridge) ? units.format(fridge, 1) : "--")),
+                            lore(both.fridgeDoorOpen() ? "menu.control.door-open" : "menu.control.top-barrel"),
+                            lore("menu.control.range", arg("low", units.format(RefrigerationSettings.FRIDGE_MINIMUM_F, 0)),
+                                    arg("high", units.format(RefrigerationSettings.FRIDGE_MAXIMUM_F, 0))))));
+            inventory.setItem(HUMIDITY_RAISE, step(Material.ORANGE_STAINED_GLASS_PANE,
+                    Lang.text("menu.control.freezer-step", arg("step", "+1°")), NamedTextColor.WHITE));
+            inventory.setItem(HUMIDITY_LOWER, step(Material.LIGHT_BLUE_STAINED_GLASS_PANE,
+                    Lang.text("menu.control.freezer-step", arg("step", "-1°")), NamedTextColor.WHITE));
         }
         if (refrigerator instanceof Freezer freezer) {
             int frost = (int) Math.round(freezer.frost() * 100);
-            inventory.setItem(DEFROST, item(Material.BLUE_ICE, Component.text(freezer.defrosting() ? "Defrosting..."
-                            : "Defrost now", NamedTextColor.AQUA),
-                    List.of(gray("Frost " + frost + "%"),
-                            gray("Melts the frost and frees frosted food;"),
-                            gray("food stays frozen. Works even when off."),
-                            gray(freezer.hasAutoDefrost() ? "" : "A deep freezer never defrosts itself."))));
+            inventory.setItem(DEFROST, item(Material.BLUE_ICE, Lang.message(freezer.defrosting()
+                            ? "menu.control.defrosting" : "menu.control.defrost-now"),
+                    List.of(lore("menu.control.frost", arg("frost", frost)),
+                            lore("menu.control.defrost-1"),
+                            lore("menu.control.defrost-2"),
+                            freezer.hasAutoDefrost() ? gray("") : lore("menu.control.never-defrosts"))));
             if (freezer.hasAutoDefrost()) inventory.setItem(AUTO_DEFROST, item(freezer.autoDefrost() ? Material.LIME_DYE : Material.RED_DYE,
-                    Component.text("Auto defrost: " + (freezer.autoDefrost() ? "On" : "Off"),
-                            freezer.autoDefrost() ? NamedTextColor.GREEN : NamedTextColor.RED),
-                    List.of(gray(freezer.autoDefrost() ? "It defrosts itself once the frost is heavy"
-                            : "Frost keeps growing until you defrost it"),
-                            gray("Click to switch " + (freezer.autoDefrost() ? "off" : "on")))));
+                    Lang.message(freezer.autoDefrost() ? "menu.control.auto-defrost-on" : "menu.control.auto-defrost-off"),
+                    List.of(lore(freezer.autoDefrost() ? "menu.control.auto-defrost-on-lore" : "menu.control.auto-defrost-off-lore"),
+                            lore(freezer.autoDefrost() ? "menu.control.click-off" : "menu.control.click-on"))));
         }
     }
 
@@ -574,9 +581,8 @@ public final class ControlMenus implements Listener {
     }
 
     private static ItemStack power(boolean on, String what) {
-        return item(Material.LEVER, Component.text(what + (on ? " on" : " off"),
-                        on ? NamedTextColor.GREEN : NamedTextColor.RED),
-                List.of(gray(on ? "Click to switch it off" : "Click to switch it on")));
+        return item(Material.LEVER, Lang.message(on ? "menu.control.power-on" : "menu.control.power-off", arg("what", what)),
+                List.of(lore(on ? "menu.control.power-click-off" : "menu.control.power-click-on")));
     }
 
     static Component gray(String text) {
