@@ -8,6 +8,7 @@ import com.github.blade.hvac.service.ClimateUnitService;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.service.SystemNames;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -28,6 +29,8 @@ import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.event.world.WorldUnloadEvent;
 import org.bukkit.inventory.EquipmentSlot;
+
+import static com.github.blade.hvac.lang.Lang.arg;
 
 
 /** World-event integration and invalidation boundary. */
@@ -59,9 +62,7 @@ public final class HvacListener implements Listener {
                 || registry.settingsPanelAt(key) != null || registry.climateUnitAt(key) != null
                 || registry.sensorHubAt(key) != null || registry.weatherStationAt(key) != null) {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Component.text(thermostat
-                    ? "Right-click the sign to open its controls." : "That HVAC display is read-only.",
-                    NamedTextColor.YELLOW));
+            event.getPlayer().sendMessage(Lang.message(thermostat ? "block.sign.open-controls" : "block.sign.read-only"));
             refreshLater(key);
         }
     }
@@ -83,15 +84,15 @@ public final class HvacListener implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
         if (!player.hasPermission("ezvac.use")) {
-            player.sendMessage(Component.text("You may not switch this HVAC system.", NamedTextColor.RED));
+            player.sendMessage(Lang.message("block.not-allowed.switch"));
             return;
         }
         thermostat.setEnabled(!thermostat.enabled());
         registry.markDirty();
         displays.refreshThermostat(thermostat, true);
         plugin.requestImmediateSync();
-        player.sendMessage(Component.text(thermostat.id() + " switched "
-                + (thermostat.enabled() ? "on." : "off."), thermostat.enabled() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+        player.sendMessage(Lang.message(thermostat.enabled() ? "block.switched-on" : "block.switched-off",
+                arg("name", thermostat.id())));
     }
 
     /** A plain click on a thermostat sign opens its control menu; the sign editor never opens. */
@@ -104,7 +105,7 @@ public final class HvacListener implements Listener {
         if (thermostat == null) return;
         event.setCancelled(true);
         if (!event.getPlayer().hasPermission("ezvac.use")) {
-            event.getPlayer().sendMessage(Component.text("You may not control this HVAC system.", NamedTextColor.RED));
+            event.getPlayer().sendMessage(Lang.message("block.not-allowed.control"));
             return;
         }
         plugin.menus().open(event.getPlayer(), thermostat);
@@ -119,13 +120,11 @@ public final class HvacListener implements Listener {
         if (panel == null) return;
         event.setCancelled(true);
         if (!event.getPlayer().hasPermission("ezvac.use")) {
-            event.getPlayer().sendMessage(Component.text(
-                    "You may not control this HVAC system.", NamedTextColor.RED));
+            event.getPlayer().sendMessage(Lang.message("block.not-allowed.control"));
             return;
         }
         if (panel.system() == null) {
-            event.getPlayer().sendMessage(Component.text("This settings panel isn't linked to a system yet.",
-                    NamedTextColor.YELLOW));
+            event.getPlayer().sendMessage(Lang.message("block.panel-not-linked"));
             return;
         }
         OperatingProfile profile = event.getPlayer().isSneaking()
@@ -133,9 +132,9 @@ public final class HvacListener implements Listener {
         registry.setProfile(panel.system(), profile);
         displays.refreshSettingsPanel(panel, true);
         plugin.requestImmediateSync();
-        event.getPlayer().sendMessage(Component.text("HVAC profile set to "
-                + profile.name() + ".", profile == OperatingProfile.ECO ? NamedTextColor.GREEN
-                : profile == OperatingProfile.TURBO ? NamedTextColor.GOLD : NamedTextColor.AQUA));
+        event.getPlayer().sendMessage(Lang.message("block.profile-set", arg("profile", Component.text(profile.name(),
+                profile == OperatingProfile.ECO ? NamedTextColor.GREEN
+                : profile == OperatingProfile.TURBO ? NamedTextColor.GOLD : NamedTextColor.AQUA))));
     }
 
     /**
@@ -154,14 +153,12 @@ public final class HvacListener implements Listener {
         Player player = event.getPlayer();
         String name = unit.kind().displayName();
         if (!player.hasPermission("ezvac.use")) {
-            player.sendMessage(Component.text("You may not control this " + name.toLowerCase(java.util.Locale.ROOT)
-                    + ".", NamedTextColor.RED));
+            player.sendMessage(Lang.message("block.not-allowed.device", arg("device", name.toLowerCase(java.util.Locale.ROOT))));
             return;
         }
         if (player.isSneaking()) {
             unit.setPowered(!unit.powered());
-            player.sendMessage(Component.text(name + " switched " + (unit.powered() ? "on." : "off."),
-                    unit.powered() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+            player.sendMessage(Lang.message(unit.powered() ? "block.switched-on" : "block.switched-off", arg("name", name)));
         } else {
             plugin.menus().open(player, unit);
             return;
@@ -241,7 +238,7 @@ public final class HvacListener implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
         if (!player.hasPermission("ezvac.use")) {
-            player.sendMessage(Component.text("You may not use this sign.", NamedTextColor.RED));
+            player.sendMessage(Lang.message("block.not-allowed.sign"));
             return;
         }
         if (player.isSneaking()) {
@@ -249,8 +246,7 @@ public final class HvacListener implements Listener {
             if (hub != null) hub.setAutoFlip(autoFlip);
             else monitor.setAutoFlip(autoFlip);
             registry.markDirty();
-            player.sendMessage(Component.text("Auto-flip " + (autoFlip ? "on." : "off."),
-                    autoFlip ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+            player.sendMessage(Lang.message(autoFlip ? "block.auto-flip-on" : "block.auto-flip-off"));
         } else if (hub != null) {
             hub.nextPage();
         } else if (monitor.system() != null) {
@@ -498,40 +494,40 @@ public final class HvacListener implements Listener {
         if (thermostat != null) {
             removed = registry.removeThermostat(key);
             if (removed) {
-                notice = "thermostat '" + thermostat.id() + "'";
+                notice = Lang.text("block.removed.thermostat", arg("name", thermostat.id()));
                 HvacRegistry.Members left = registry.members(thermostat.system());
                 if (!left.empty())
-                    warning = "Its system (" + SystemNames.contents(left) + ") is headless now. Link a new"
-                            + " thermostat to any part of it to bring it back.";
+                    warning = Lang.text("block.removed.headless", arg("linked", SystemNames.contents(left)));
             }
         } else if (registry.equipmentAt(key) != null) {
             EquipmentUnit unit = registry.removeEquipment(key);
             removed = unit != null;
             if (removed) {
-                notice = unit.type().displayName() + " from " + SystemNames.of(registry, unit.system());
+                notice = Lang.text("block.removed.from", arg("device", unit.type().displayName()),
+                        arg("system", SystemNames.of(registry, unit.system())));
                 // Losing the last source leaves a system that still reads its
                 // temperature but can never act on it, which is otherwise
                 // invisible until someone notices the thermostat stuck on IDLE.
                 Thermostat head = registry.thermostatFor(unit.system());
                 if (head != null && registry.equipmentFor(unit.system()).isEmpty())
-                    warning = head.id() + " has no equipment left. It will stay idle until you link some.";
+                    warning = Lang.text("block.removed.no-equipment", arg("name", head.id()));
             }
         } else {
             ClimateVent vent = registry.removeVent(key);
             if (vent != null) {
                 airflow.invalidate(vent.system());
                 removed = true;
-                notice = (ClimateVent.isWaterVent(block.getType()) ? "water vent" : "vent")
-                        + " from " + SystemNames.of(registry, vent.system());
+                notice = Lang.text("block.removed.from", arg("device", Lang.text(ClimateVent.isWaterVent(block.getType())
+                        ? "block.removed.water-vent" : "link.device.vent")), arg("system", SystemNames.of(registry, vent.system())));
             } else {
                 RpmMonitor monitor = registry.rpmMonitorAt(key);
                 SettingsPanel panel = registry.settingsPanelAt(key);
                 if (monitor != null && registry.removeRpmMonitor(key)) {
                     removed = true;
-                    notice = "RPM monitor '" + monitor.label() + "'";
+                    notice = Lang.text("block.removed.rpm-monitor", arg("name", monitor.label()));
                 } else if (panel != null && registry.removeSettingsPanel(key)) {
                     removed = true;
-                    notice = "settings panel '" + panel.label() + "'";
+                    notice = Lang.text("block.removed.settings-panel", arg("name", panel.label()));
                 } else if (registry.climateUnitAt(key) instanceof AirPurifier purifier
                         && purifier.filterBlock().equals(key)) {
                     // Taking out the filter leaves the purifier waiting for a new one.
@@ -539,28 +535,28 @@ public final class HvacListener implements Listener {
                     registry.markDirty();
                     displays.refreshClimateUnit(purifier, true);
                     if (breaker != null && purifier.filter() <= 0.0)
-                        breaker.sendMessage(Component.text("Filter removed. Place a fresh tube coral block to give "
-                                + purifier.label() + " a new one.", NamedTextColor.YELLOW));
+                        breaker.sendMessage(Lang.message("block.filter-removed", arg("name", purifier.label())));
                     return;
                 } else if (registry.climateUnitAt(key) != null) {
                     ClimateUnit unit = registry.removeClimateUnit(key);
                     units.release(unit);
                     displays.invalidate(unit.position());
                     removed = true;
-                    notice = unit.kind().displayName().toLowerCase(java.util.Locale.ROOT) + " '" + unit.label() + "'";
+                    notice = Lang.text("block.removed.named", arg("device",
+                            unit.kind().displayName().toLowerCase(java.util.Locale.ROOT)), arg("name", unit.label()));
                 } else if (registry.sensorAt(key) != null) {
                     Sensor sensor = registry.removeSensor(key);
                     removed = true;
-                    notice = "sensor '" + sensor.label() + "'";
+                    notice = Lang.text("block.removed.sensor", arg("name", sensor.label()));
                 } else if (registry.sensorHubAt(key) != null) {
                     SensorHub hub = registry.removeSensorHub(key);
                     removed = true;
-                    notice = "sensor hub '" + hub.label() + "'";
+                    notice = Lang.text("block.removed.sensor-hub", arg("name", hub.label()));
                 } else if (registry.weatherStationAt(key) != null) {
                     WeatherStation station = registry.removeWeatherStation(key);
                     plugin.weatherStations().forget(key);
                     removed = true;
-                    notice = "weather station '" + station.label() + "'";
+                    notice = Lang.text("block.removed.station", arg("name", station.label()));
                 } else {
                     removed = registry.removeThermometer(key); // deliberately silent
                 }
@@ -571,7 +567,7 @@ public final class HvacListener implements Listener {
         plugin.requestImmediateSync();
         if (breaker == null) return;
         if (notice != null)
-            breaker.sendMessage(Component.text("Removed " + notice + ".", NamedTextColor.YELLOW));
+            breaker.sendMessage(Lang.message("block.removed.notice", arg("what", notice)));
         if (warning != null)
             breaker.sendMessage(Component.text(warning, NamedTextColor.RED));
         plugin.getLogger().fine(breaker.getName() + " removed HVAC device at " + key);

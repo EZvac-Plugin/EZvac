@@ -1,5 +1,6 @@
 package com.github.blade.hvac.update;
 
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -22,6 +23,8 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.github.blade.hvac.lang.Lang.arg;
 
 /**
  * Tells the console, and admins as they join, when a newer EZvac is on
@@ -123,8 +126,7 @@ public final class UpdateNotifier implements Listener {
     /** /hvac update: checks GitHub now and tells the sender what it found. */
     public void checkNow(CommandSender sender) {
         if (running == null) {
-            sender.sendMessage(prefixed(Component.text("This EZvac (" + runningName + ") is a development build,"
-                    + " not a release, so there is nothing to check it against.", NamedTextColor.YELLOW)));
+            sender.sendMessage(prefixed(Lang.message("update.development", arg("running", runningName))));
             return;
         }
         Fetched cached = recent;
@@ -132,15 +134,15 @@ public final class UpdateNotifier implements Listener {
             reply(sender, cached.releases());
             return;
         }
-        sender.sendMessage(prefixed(Component.text("Checking GitHub for a newer EZvac...", NamedTextColor.GRAY)));
+        sender.sendMessage(prefixed(Lang.message("update.checking")));
         plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
             try {
                 List<UpdateCheck.Release> releases = fetch();
                 onMainThread(() -> reply(sender, releases));
             } catch (IOException | RuntimeException failure) {
                 onMainThread(() -> {
-                    if (stillThere(sender)) sender.sendMessage(prefixed(Component.text("Could not reach GitHub ("
-                            + failure.getMessage() + "). Try again later.", NamedTextColor.RED)));
+                    if (stillThere(sender)) sender.sendMessage(prefixed(Lang.message("update.unreachable",
+                            arg("reason", String.valueOf(failure.getMessage())))));
                 });
             } catch (InterruptedException interrupted) {
                 Thread.currentThread().interrupt();
@@ -247,43 +249,37 @@ public final class UpdateNotifier implements Listener {
         List<Component> lines = new ArrayList<>();
         if (outcome.upToDate()) {
             ReleaseVersion running = ReleaseVersion.parse(runningName);
-            lines.add(prefixed(Component.text(channel == UpdateCheck.Channel.PILOT
-                    ? "You're on the latest EZvac, " + runningName + ", on the Pilot channel."
-                    : running != null && running.isPilot()
-                    ? "This server runs " + runningName + ", a pilot, on the Stable channel: you'll hear when the"
-                    + " next full release is out."
-                    : "You're on the latest stable release, " + runningName + ".", NamedTextColor.GREEN)));
+            lines.add(prefixed(Lang.message(channel == UpdateCheck.Channel.PILOT ? "update.latest-pilot"
+                    : running != null && running.isPilot() ? "update.pilot-on-stable" : "update.latest-stable",
+                    arg("running", runningName))));
             return lines;
         }
         UpdateCheck.Release newest = outcome.newest();
         if (!outcome.blocked()) {
-            lines.add(prefixed(Component.text("EZvac " + named(newest) + " is out (this server runs " + runningName
-                            + "), and it works on this server's Minecraft " + minecraft + ". ", NamedTextColor.YELLOW)
-                    .append(link("Open the release", newest.url(), clickable))));
+            lines.add(prefixed(Lang.message("update.out", arg("newest", named(newest)), arg("running", runningName),
+                            arg("minecraft", minecraft))
+                    .append(link(Lang.text("update.open-release"), newest.url(), clickable))));
             return lines;
         }
         UpdateCheck.Requirement needs = UpdateCheck.requirement(newest.version());
-        lines.add(prefixed(Component.text("EZvac " + named(newest) + " is out, but it needs Minecraft "
-                        + needs.minecraft() + " or newer, and this server runs " + minecraft
-                        + ". Update the server first: ", NamedTextColor.YELLOW)
-                .append(link("How to move", needs.guide(), clickable))));
+        lines.add(prefixed(Lang.message("update.needs-minecraft", arg("newest", named(newest)),
+                        arg("needs", needs.minecraft()), arg("minecraft", minecraft))
+                .append(link(Lang.text("update.how-to-move"), needs.guide(), clickable))));
         UpdateCheck.Release here = outcome.runsHere();
         if (here == null)
-            lines.add(prefixed(Component.text("Until then, " + runningName
-                    + " is the newest EZvac this server can run.", NamedTextColor.GRAY)));
+            lines.add(prefixed(Lang.message("update.until-then-this", arg("running", runningName))));
         else
-            lines.add(prefixed(Component.text("Until then, " + named(here) + " is the newest that runs here;"
-                            + " this server runs " + runningName + ". ", NamedTextColor.GRAY)
-                    .append(link("Open the release", here.url(), clickable))));
+            lines.add(prefixed(Lang.message("update.until-then", arg("here", named(here)), arg("running", runningName))
+                    .append(link(Lang.text("update.open-release"), here.url(), clickable))));
         return lines;
     }
 
     private static String named(UpdateCheck.Release release) {
-        return release.tag() + (release.pilot() ? " (a pilot)" : "");
+        return release.pilot() ? Lang.text("update.a-pilot", arg("tag", release.tag())) : release.tag();
     }
 
     private static Component prefixed(Component message) {
-        return Component.text("[EZvac] ", NamedTextColor.GOLD).append(message);
+        return Lang.message("update.prefix").append(message);
     }
 
     private static Component link(String label, String url, boolean clickable) {

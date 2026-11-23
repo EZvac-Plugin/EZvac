@@ -12,6 +12,8 @@ import com.github.blade.hvac.config.TemperatureUnit;
 import com.github.blade.hvac.hud.ClimateHudService;
 import com.github.blade.hvac.hud.HudFormatter;
 import com.github.blade.hvac.integration.api.ApiEvents;
+import com.github.blade.hvac.lang.Lang;
+import com.github.blade.hvac.lang.UserError;
 import com.github.blade.hvac.model.*;
 import com.github.blade.hvac.service.*;
 import com.github.blade.hvac.simulation.AirQualityModel;
@@ -35,6 +37,8 @@ import org.bukkit.inventory.ItemStack;
 
 import java.util.*;
 
+import static com.github.blade.hvac.lang.Lang.arg;
+
 /** Compact command surface for the standalone plugin. */
 public final class HvacCommand implements CommandExecutor, TabCompleter {
     private static final String ADMIN_PERMISSION = "ezvac.admin";
@@ -57,9 +61,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private record PendingRemoval(SystemId system, long expiresAt) {}
 
     /** Said when a pre-3.0 command names a group. */
-    private static final String GROUPS_GONE = "Groups are gone since EZvac 3.0, so the group name was ignored."
-            + " Link devices to a thermostat with /hvac link-tool.";
-    private static final String LINK_HINT = "Link it with /hvac link-tool: right-click the thermostat, then it.";
+    private static final String GROUPS_GONE = "command.groups-gone";
+    private static final String LINK_HINT = "command.link-hint";
 
     public HvacCommand(HvacPlugin plugin, HvacRegistry registry, HvacController controller,
                        OutdoorTemperatureService outdoor, AirflowService airflow,
@@ -93,17 +96,17 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 sizes(sender);
                 return true;
             }
-            sender.sendMessage(join(gold("EZvac: "), gray(registry.thermostats().size()
-                    + " thermostat(s), " + registry.equipment().size() + " equipment unit(s), "
-                    + registry.settingsPanels().size() + " settings panel(s), " + airflow.stats())));
+            sender.sendMessage(Lang.message("command.stats.summary", arg("thermostats", registry.thermostats().size()),
+                    arg("equipment", registry.equipment().size()), arg("panels", registry.settingsPanels().size()),
+                    arg("airflow", airflow.stats())));
             // What each part costs the tick, over the last minute (BETA 1.0 Pilot 4).
             List<com.github.blade.hvac.service.TickCost.Part> cost = plugin.tickCost().lastMinute();
             if (!cost.isEmpty()) {
                 List<String> parts = new ArrayList<>();
                 for (com.github.blade.hvac.service.TickCost.Part part : cost)
                     parts.add(part.name().toLowerCase(Locale.ROOT) + String.format(Locale.US, " %.3f", part.msPerTick()));
-                sender.sendMessage(join(gold("Tick cost: "), gray(String.format(Locale.US, "%.3f ms a tick (",
-                        com.github.blade.hvac.service.TickCost.total(cost)) + String.join(", ", parts) + ")")));
+                sender.sendMessage(Lang.message("command.stats.tick-cost", arg("ms", String.format(Locale.US, "%.3f",
+                        com.github.blade.hvac.service.TickCost.total(cost))), arg("parts", String.join(", ", parts))));
             }
             return true;
         }
@@ -113,7 +116,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             plugin.airflow().invalidateAllSystems();
             plugin.weatherStations().recheckAll();
             plugin.requestImmediateSync();
-            sender.sendMessage(green("HVAC reconciliation queued; every system's air is mapped again."));
+            sender.sendMessage(Lang.message("command.sync.queued"));
             return true;
         }
         if (subcommand.equals("registry")) {
@@ -123,7 +126,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         if (subcommand.equals("update")) {
             if (!requireAdmin(sender)) return true;
-            if (plugin.updates() == null) sender.sendMessage(red("EZvac is still starting; try again in a moment."));
+            if (plugin.updates() == null) sender.sendMessage(Lang.message("command.still-starting"));
             else plugin.updates().checkNow(sender);
             return true;
         }
@@ -131,7 +134,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             try {
                 season(sender, args);
             } catch (IllegalArgumentException exception) {
-                sender.sendMessage(red(exception.getMessage()));
+                sender.sendMessage(UserError.describe(exception));
             }
             return true;
         }
@@ -139,12 +142,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             try {
                 wind(sender, args);
             } catch (IllegalArgumentException exception) {
-                sender.sendMessage(red(exception.getMessage()));
+                sender.sendMessage(UserError.describe(exception));
             }
             return true;
         }
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(red("This command requires a player."));
+            sender.sendMessage(Lang.message("command.needs-player"));
             return true;
         }
 
@@ -159,9 +162,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "equipment" -> { if (requireAdmin(player)) equipment(player, args); }
                 case "rename" -> { if (requireAdmin(player)) rename(player, args); }
                 case "frost" -> { if (requireAdmin(player)) frost(player, args); }
-                case "group" -> { if (requireAdmin(player)) player.sendMessage(yellow("Groups are gone since EZvac"
-                        + " 3.0. Link devices to a thermostat with /hvac link-tool; switch a system on or off by"
-                        + " sneak-clicking its thermostat, and /hvac info on any part of it shows the system.")); }
+                case "group" -> { if (requireAdmin(player)) player.sendMessage(Lang.message("command.group.gone")); }
                 // The duct and sensor tools became the link tool in 3.0; their names still give it.
                 case "link-tool", "linktool", "duct-tool", "ducttool", "tool", "sensor-tool", "sensortool" ->
                         { if (requireAdmin(player)) linkTool.give(player); }
@@ -177,29 +178,29 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 case "tutorial" -> {
                     if (!requireAdmin(player)) return true;
                     var tutorial = plugin.tutorial();
-                    if (tutorial == null) player.sendMessage(red("The tutorial is unavailable here: see the console."));
+                    if (tutorial == null) player.sendMessage(Lang.message("command.tutorial.unavailable"));
                     else if (args.length > 1 && args[1].equalsIgnoreCase("leave")) {
                         if (tutorial.inTutorial(player)) tutorial.leave(player, true);
-                        else player.sendMessage(yellow("You're not in the tutorial. /hvac tutorial starts it."));
+                        else player.sendMessage(Lang.message("command.tutorial.not-in"));
                     } else tutorial.begin(player);
                 }
                 case "addons", "addon" -> { if (requireAdmin(player)) plugin.quickSettings().openAddons(player); }
                 case "forecast", "weatherfc" -> plugin.forecastMenu().openForecast(player, null);
-                default -> player.sendMessage(red("Unknown subcommand. Use /hvac help."));
+                default -> player.sendMessage(Lang.message("command.unknown"));
             }
         } catch (IllegalArgumentException exception) {
-            player.sendMessage(red(exception.getMessage()));
+            player.sendMessage(UserError.describe(exception));
         }
         return true;
     }
 
     private void hud(Player player, String[] args) {
         if (!player.hasPermission(HUD_PERMISSION)) {
-            player.sendMessage(red("You may not use the climate HUD."));
+            player.sendMessage(Lang.message("command.hud.not-allowed"));
             return;
         }
         if (!hud.enabled()) {
-            player.sendMessage(yellow("The climate HUD is turned off on this server."));
+            player.sendMessage(Lang.message("command.hud.off-on-server"));
             return;
         }
         if (args.length >= 2 && args[1].equalsIgnoreCase("sections")) {
@@ -210,35 +211,35 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (args.length < 2) show = !hud.isShowing(player);
         else if (args[1].equalsIgnoreCase("on")) show = true;
         else if (args[1].equalsIgnoreCase("off")) show = false;
-        else throw new IllegalArgumentException("Usage: /hvac hud [on|off|sections]");
+        else throw usage("/hvac hud [on|off|sections]");
         hud.setShowing(player, show);
-        player.sendMessage(show ? green("Climate HUD on. Use /hvac hud again to hide it.")
-                : gray("Climate HUD off."));
+        player.sendMessage(Lang.message(show ? "command.hud.on" : "command.hud.off"));
     }
 
     /** The addon sections on the HUD (API 1.1), for admins placing them in config.yml. */
     private void hudSections(Player player) {
         if (!player.hasPermission(ADMIN_PERMISSION)) {
-            player.sendMessage(red("You need ezvac.admin to list the HUD's addon sections."));
+            player.sendMessage(Lang.message("command.hud.sections.not-admin"));
             return;
         }
         List<String> ids = hud.sectionIds();
         if (ids.isEmpty()) {
-            player.sendMessage(gray("No addon has added a section to the HUD."));
+            player.sendMessage(Lang.message("command.hud.sections.none"));
             return;
         }
         List<String> hidden = hud.format().settings().hiddenSections();
-        player.sendMessage(aqua("HUD sections from addons:"));
+        player.sendMessage(Lang.message("command.hud.sections.title"));
         for (String id : ids)
-            player.sendMessage(join(gray(" - "), aqua(id), gray(hidden.contains(id) ? " (hidden in hud.sections.hidden)"
-                    : "  {section:" + id + "}")));
+            player.sendMessage(Lang.message(hidden.contains(id) ? "command.hud.sections.hidden"
+                    : "command.hud.sections.shown", arg("id", id), arg("token", "{section:" + id + "}")));
     }
 
     private void create(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(red("Usage: /hvac create <thermostat|poolthermostat|heatpump|ac"
+            player.sendMessage(usage("/hvac create <thermostat|poolthermostat|heatpump|ac"
                     + "|furnace|boiler|poolheatpump|thermometer|hygrometer|thermohygrometer|rpmmonitor"
-                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|deepfreezer|refrigerator|minifridge|airmonitor> ..."));
+                    + "|settingspanel|dehumidifier|humidifier|purifier|fridge|deepfreezer|refrigerator|minifridge|airmonitor> ...")
+                    .component());
             return;
         }
         Block block = target(player);
@@ -247,8 +248,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         switch (args[1].toLowerCase(Locale.ROOT)) {
             case "thermostat", "poolthermostat", "pool" -> {
                 boolean pool = !args[1].equalsIgnoreCase("thermostat");
-                if (args.length < 3) throw new IllegalArgumentException(
-                        "Usage: /hvac create " + args[1] + " <label> [target]");
+                if (args.length < 3) throw usage("/hvac create " + args[1] + " <label> [target]");
                 // At a button on a wall, a mini thermostat (BETA 1.0 Pilot 2): the same, with a small display.
                 boolean mini = Tag.BUTTONS.isTagged(block.getType());
                 if (mini) requireWallButton(block);
@@ -257,7 +257,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 int targetArg = 3;
                 if (args.length >= 4 && !isTemperature(args[3])) {
                     targetArg = 4;
-                    player.sendMessage(yellow(GROUPS_GONE));
+                    player.sendMessage(Lang.message(GROUPS_GONE));
                 }
                 double target = args.length > targetArg ? settings.units().parse(args[targetArg])
                         : (pool ? Thermostat.POOL_DEFAULT_F : Thermostat.ROOM_DEFAULT_F);
@@ -266,9 +266,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 thermostat.setMini(mini);
                 registry.addThermostat(thermostat);
                 displays.refreshThermostat(thermostat, true);
-                player.sendMessage(green("Created " + (mini ? "mini " : "") + (pool ? "pool thermostat" : "thermostat")
-                        + " '" + thermostat.id() + "'. Link equipment, vents and signs to it with /hvac link-tool."
-                        + (mini ? " Press the button for its menu." : "")));
+                player.sendMessage(Lang.message(Lang.key("command.create.thermostat",
+                        (mini ? "mini-" : "") + (pool ? "pool" : "room")), arg("name", thermostat.id())));
             }
             case "heatpump", "heat_pump" -> createEquipment(player, block, args, EquipmentType.HEAT_PUMP);
             case "ac", "airconditioner", "air_conditioner" ->
@@ -291,7 +290,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         : reads.displayName().replace("-", "").replace(" ", "");
                 registry.addThermometer(new Thermometer(position, displayLabel, reads));
                 displays.refreshAll(true);
-                player.sendMessage(green("Created independent point " + reads.displayName().toLowerCase(Locale.ROOT) + "."));
+                player.sendMessage(Lang.message("command.create.instrument", arg("kind",
+                        reads.displayName().toLowerCase(Locale.ROOT))));
             }
             case "rpmmonitor", "rpm" -> {
                 requireSign(block);
@@ -299,23 +299,23 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 String displayLabel = args.length >= 3 ? args[2] : "RPM";
                 if (args.length >= 4 && isEquipmentType(args[3])) {
                     displayLabel = args.length >= 5 ? args[4] : args[2];
-                    player.sendMessage(yellow(GROUPS_GONE));
+                    player.sendMessage(Lang.message(GROUPS_GONE));
                 }
                 RpmMonitor monitor = new RpmMonitor(position, displayLabel);
                 registry.addRpmMonitor(monitor);
-                player.sendMessage(green("Created RPM monitor '" + monitor.label() + "'."));
-                if (!linkTool.linkCreated(player, block)) player.sendMessage(gray(LINK_HINT));
+                player.sendMessage(Lang.message("command.create.rpm-monitor", arg("name", monitor.label())));
+                if (!linkTool.linkCreated(player, block)) player.sendMessage(Lang.message(LINK_HINT));
                 displays.refreshRpmMonitor(monitor, true);
             }
             case "settingspanel", "settings", "panel" -> {
                 requireSign(block);
                 // Before 3.0: create settingspanel <group> [label]. The label is the last word.
                 String displayLabel = args.length >= 3 ? args[args.length - 1] : "Settings";
-                if (args.length >= 4) player.sendMessage(yellow(GROUPS_GONE));
+                if (args.length >= 4) player.sendMessage(Lang.message(GROUPS_GONE));
                 SettingsPanel panel = new SettingsPanel(position, displayLabel);
                 registry.addSettingsPanel(panel);
-                player.sendMessage(green("Created settings panel '" + panel.label() + "' in NORMAL mode."));
-                if (!linkTool.linkCreated(player, block)) player.sendMessage(gray(LINK_HINT));
+                player.sendMessage(Lang.message("command.create.settings-panel", arg("name", panel.label())));
+                if (!linkTool.linkCreated(player, block)) player.sendMessage(Lang.message(LINK_HINT));
                 displays.refreshSettingsPanel(panel, true);
             }
             case "dehumidifier", "dehum" -> createDehumidifier(player, block, position, args);
@@ -329,16 +329,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "sensor" -> {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
-                    throw new IllegalArgumentException("Look at a stone button (temperature), a polished blackstone"
-                            + " button (humidity), a mangrove button (both), a birch button (weather), a cherry"
-                            + " button (air quality) or a bamboo button (wind).");
+                    throw new UserError("command.create.sensor.not-a-button");
                 Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : "Sensor", reads);
                 registry.addSensor(sensor);
-                player.sendMessage(green("Created " + reads.description() + " sensor '" + sensor.label()
-                        + "'. Link it to a sensor hub with /hvac link-tool."
-                        + (reads == Sensor.Kind.WEATHER ? " It needs open sky above it, like a rain gauge." : "")
-                        + (reads == Sensor.Kind.WIND ? " Put it up high in the open: walls and roofs shelter it."
-                        : "")));
+                player.sendMessage(Lang.message(reads == Sensor.Kind.WEATHER ? "command.create.sensor.made-weather"
+                        : reads == Sensor.Kind.WIND ? "command.create.sensor.made-wind" : "command.create.sensor.made",
+                        arg("kind", reads.description()), arg("name", sensor.label())));
             }
             case "weatherstation", "weather-station", "station" -> createWeatherStation(player, block, position, args);
             case "sensor-hub", "sensorhub" -> {
@@ -346,10 +342,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 SensorHub hub = new SensorHub(position, args.length >= 3 ? args[2] : "Sensors");
                 registry.addSensorHub(hub);
                 displays.refreshSensorHub(hub, true);
-                player.sendMessage(green("Created sensor hub '" + hub.label() + "'. Link up to "
-                        + SensorHub.MAX_SENSORS + " sensors to it with /hvac link-tool."));
+                player.sendMessage(Lang.message("command.create.sensor-hub", arg("name", hub.label()),
+                        arg("max", SensorHub.MAX_SENSORS)));
             }
-            default -> throw new IllegalArgumentException("Unknown device type '" + args[1] + "'.");
+            default -> throw new UserError("command.create.unknown-kind", arg("kind", args[1]));
         }
         plugin.requestImmediateSync();
     }
@@ -361,15 +357,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void createWeatherStation(Player player, Block sign, BlockKey position, String[] args) {
         requireSwitchedOn(DeviceKind.WEATHER_STATION);
         if (sign.getWorld().getEnvironment() != World.Environment.NORMAL)
-            throw new IllegalArgumentException("Weather stations only work where there's weather: in the Overworld.");
+            throw new UserError("command.create.station.overworld");
         WeatherStationService.Check check = WeatherStationService.check(sign);
-        if (!check.whole()) throw new IllegalArgumentException(check.missing() + " See the docs for the tower.");
+        if (!check.whole()) throw new UserError("command.create.station.not-whole", arg("missing", check.missing()));
         WeatherStation station = new WeatherStation(position, args.length >= 3 ? args[2] : "Station");
         registry.addWeatherStation(station);
         plugin.weatherStations().measure(station);
         displays.refreshWeatherStation(station, true);
-        player.sendMessage(green("Created weather station '" + station.label() + "'. Players within "
-                + plugin.weatherStations().settings().range() + " blocks can see its forecast with /hvac forecast."));
+        player.sendMessage(Lang.message("command.create.station.made", arg("name", station.label()),
+                arg("range", plugin.weatherStations().settings().range())));
     }
 
     /**
@@ -383,14 +379,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Block iron = sign.getBlockData() instanceof WallSign wall
                 ? sign.getRelative(wall.getFacing().getOppositeFace()) : sign.getRelative(BlockFace.DOWN);
         if (iron.getType() != Material.IRON_BLOCK)
-            throw new IllegalArgumentException("Put the sign on an iron block: on its side, or standing on top.");
+            throw new UserError("command.create.iron-sign");
         Block grate = iron.getRelative(BlockFace.DOWN);
         if (grate.getType() != ClimateVent.WATER_VENT)
-            throw new IllegalArgumentException("The iron block must sit on a waxed copper grate.");
+            throw new UserError("command.create.dehumidifier.grate");
         BlockKey grateKey = BlockKey.of(grate.getLocation());
         if (registry.ventAt(grateKey) != null)
-            throw new IllegalArgumentException("That grate is linked as a water vent. Unlink it first"
-                    + " (sneak-click it with /hvac link-tool).");
+            throw new UserError("command.create.dehumidifier.grate-is-vent");
         String label = args.length >= 3 ? args[2] : "Dehumidifier";
         registerUnit(player, new Dehumidifier(position, BlockKey.of(iron.getLocation()), grateKey, label,
                 units.climate().dehumidifier().defaultSetpoint()));
@@ -404,14 +399,14 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         requireSwitchedOn(DeviceKind.HUMIDIFIER);
         requireSign(sign);
         if (!(sign.getBlockData() instanceof WallSign wall))
-            throw new IllegalArgumentException("Put the sign on the side of the iron block.");
+            throw new UserError("command.create.humidifier.wall-sign");
         Block iron = sign.getRelative(wall.getFacing().getOppositeFace());
         if (iron.getType() != Material.IRON_BLOCK)
-            throw new IllegalArgumentException("Put the sign on the side of an iron block.");
+            throw new UserError("command.create.humidifier.iron");
         Block slab = iron.getRelative(BlockFace.UP);
         if (slab.getType() != Humidifier.TOP || !(slab.getBlockData() instanceof Slab half)
                 || half.getType() != Slab.Type.BOTTOM)
-            throw new IllegalArgumentException("Put a waxed cut copper slab (bottom half) on top of the iron block.");
+            throw new UserError("command.create.humidifier.slab");
         String label = args.length >= 3 ? args[2] : "Humidifier";
         registerUnit(player, new Humidifier(position, BlockKey.of(iron.getLocation()), BlockKey.of(slab.getLocation()),
                 label, units.climate().humidifier().defaultSetpoint()));
@@ -427,26 +422,23 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Block iron = sign.getBlockData() instanceof WallSign wall
                 ? sign.getRelative(wall.getFacing().getOppositeFace()) : sign.getRelative(BlockFace.DOWN);
         if (iron.getType() != Material.IRON_BLOCK)
-            throw new IllegalArgumentException("Put the sign on an iron block: on its side, or standing on top.");
+            throw new UserError("command.create.iron-sign");
         // The filter can go in afterwards (3.2 HOTFIX 1): tube coral dies away from water within seconds,
         // so a purifier can be made over an empty block, or over dead coral, and wait for a fresh one.
         Block filter = iron.getRelative(BlockFace.DOWN);
         Material below = filter.getType();
         if (below != AirPurifier.FILTER && below != AirPurifier.SPENT_FILTER && !below.isAir())
-            throw new IllegalArgumentException("Under the iron block goes its filter: a tube coral block, or"
-                    + " nothing yet, to place the coral afterwards.");
+            throw new UserError("command.create.purifier.filter");
         String label = args.length >= 3 ? args[2] : "Purifier";
         AirPurifier purifier = new AirPurifier(position, BlockKey.of(iron.getLocation()),
                 BlockKey.of(filter.getLocation()), label, AirPurifier.Mode.AUTO);
         purifier.readFilter(below);
         registerUnit(player, purifier);
         if (purifier.installed() != AirPurifier.Filter.FRESH)
-            player.sendMessage(yellow("It waits for its filter: " + (below.isAir() ? "place" : "break the dead"
-                    + " coral and place") + " a tube coral block under the iron block. Placed there, the coral"
-                    + " stays alive."));
+            player.sendMessage(Lang.message(below.isAir() ? "command.create.purifier.waits-empty"
+                    : "command.create.purifier.waits-dead"));
         if (!units.air().enabled())
-            player.sendMessage(yellow("Air quality is switched off on this server (air-quality.enabled), so it"
-                    + " will stay idle."));
+            player.sendMessage(Lang.message("command.create.purifier.air-off"));
     }
 
     private void registerUnit(Player player, ClimateUnit unit) {
@@ -455,41 +447,34 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         displays.refreshClimateUnit(unit, true);
         if (unit instanceof MiniFridge mini) {
             plugin.frost().showWalls(mini);
-            player.sendMessage(green("Created mini fridge '" + unit.label() + "' at "
-                    + settings.units().format(mini.setpoint(), 0) + ". Food goes along the middle row; the last slot"
-                    + " is the chiller box, about 10° colder. Click the sign to change it, sneak-click to switch it"
-                    + " on or off."));
+            player.sendMessage(Lang.message("command.create.mini-fridge", arg("name", unit.label()),
+                    arg("setpoint", settings.units().format(mini.setpoint(), 0))));
             return;
         }
         if (unit instanceof FridgeFreezer both) {
-            player.sendMessage(green("Created refrigerator '" + unit.label() + "': the fridge on top at "
-                    + settings.units().format(both.fridgeSetpoint(), 0) + ", the freezer below at "
-                    + settings.units().format(both.setpoint(), 0) + ". Click the sign to change them,"
-                    + " sneak-click to switch it on or off."));
+            player.sendMessage(Lang.message("command.create.refrigerator", arg("name", unit.label()),
+                    arg("fridge", settings.units().format(both.fridgeSetpoint(), 0)),
+                    arg("freezer", settings.units().format(both.setpoint(), 0))));
             return;
         }
         if (unit instanceof Freezer freezer) {
-            player.sendMessage(green("Created deep freezer '" + unit.label() + "' at "
-                    + settings.units().format(freezer.setpoint(), 0) + ". Its barrel opens like a chest freezer's lid,"
-                    + " so the cold stays in. It never defrosts itself: use Defrost now in its menu when frost builds"
-                    + " up. Click the sign to change it, sneak-click to switch it on or off."));
+            player.sendMessage(Lang.message("command.create.deep-freezer", arg("name", unit.label()),
+                    arg("setpoint", settings.units().format(freezer.setpoint(), 0))));
             return;
         }
         if (unit instanceof Fridge fridge) {
-            player.sendMessage(green("Created fridge '" + unit.label() + "' at "
-                    + settings.units().format(fridge.setpoint(), 0) + ". It cools the "
-                    + (fridge.barrels() == 1 ? "barrel" : fridge.barrels() + " barrels") + " on top; click the sign"
-                    + " to change the setpoint, sneak-click to switch it on or off."));
+            player.sendMessage(Lang.message(fridge.barrels() == 1 ? "command.create.fridge.one" : "command.create.fridge.many",
+                    arg("name", unit.label()), arg("setpoint", settings.units().format(fridge.setpoint(), 0)),
+                    arg("barrels", fridge.barrels())));
             return;
         }
         if (unit instanceof AirPurifier) {
-            player.sendMessage(green("Created air purifier '" + unit.label() + "' in Auto. Click the sign to pick"
-                    + " a fan speed, sneak-click to switch it on or off."));
+            player.sendMessage(Lang.message("command.create.purifier.made", arg("name", unit.label())));
             return;
         }
-        player.sendMessage(green("Created " + unit.kind().displayName().toLowerCase(Locale.ROOT) + " '"
-                + unit.label() + "' at " + unit.setpoint() + "%. Click the sign to change the setpoint,"
-                + " sneak-click to switch it on or off."));
+        player.sendMessage(Lang.message("command.create.climate-unit", arg("kind",
+                unit.kind().displayName().toLowerCase(Locale.ROOT)), arg("name", unit.label()),
+                arg("setpoint", unit.setpoint())));
     }
 
     /**
@@ -501,13 +486,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         requireSwitchedOn(freezer ? DeviceKind.FREEZER : DeviceKind.FRIDGE);
         requireSign(sign);
         if (!(sign.getBlockData() instanceof WallSign wall))
-            throw new IllegalArgumentException("Put the sign on the side of the iron block.");
+            throw new UserError("command.create.humidifier.wall-sign");
         Block iron = sign.getRelative(wall.getFacing().getOppositeFace());
         if (iron.getType() != Material.IRON_BLOCK)
-            throw new IllegalArgumentException("Put the sign on the side of an iron block.");
+            throw new UserError("command.create.humidifier.iron");
         Block barrel = iron.getRelative(BlockFace.UP);
         if (barrel.getType() != Refrigerator.BARREL)
-            throw new IllegalArgumentException("Put a barrel on top of the iron block: that's what it keeps cold.");
+            throw new UserError("command.create.fridge-barrel");
         String label = args.length >= 3 ? args[2] : freezer ? "Deep-freezer" : "Fridge";
         RefrigerationSettings cold = units.climate().refrigeration();
         BlockKey unit = BlockKey.of(iron.getLocation()), box = BlockKey.of(barrel.getLocation());
@@ -535,14 +520,13 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         requireSwitchedOn(DeviceKind.FRIDGE_FREEZER);
         requireSign(sign);
         if (!(sign.getBlockData() instanceof WallSign wall))
-            throw new IllegalArgumentException("Put the sign on the side of the iron block.");
+            throw new UserError("command.create.humidifier.wall-sign");
         Block iron = sign.getRelative(wall.getFacing().getOppositeFace());
         if (iron.getType() != Material.IRON_BLOCK)
-            throw new IllegalArgumentException("Put the sign on the side of an iron block.");
+            throw new UserError("command.create.humidifier.iron");
         Block freezer = iron.getRelative(BlockFace.UP), fridge = freezer.getRelative(BlockFace.UP);
         if (freezer.getType() != Refrigerator.BARREL || fridge.getType() != Refrigerator.BARREL)
-            throw new IllegalArgumentException("Stack two barrels on the iron block: the freezer below, the fridge"
-                    + " on top.");
+            throw new UserError("command.create.refrigerator-barrels");
         String label = args.length >= 3 ? args[2] : "Refrigerator";
         RefrigerationSettings cold = units.climate().refrigeration();
         registerUnit(player, new FridgeFreezer(position, BlockKey.of(iron.getLocation()),
@@ -558,10 +542,10 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         requireSwitchedOn(DeviceKind.MINI_FRIDGE);
         requireSign(sign);
         if (!(sign.getBlockData() instanceof WallSign wall))
-            throw new IllegalArgumentException("Put the sign on the side of the barrel.");
+            throw new UserError("command.create.mini-fridge-wall-sign");
         Block barrel = sign.getRelative(wall.getFacing().getOppositeFace());
         if (barrel.getType() != Refrigerator.BARREL)
-            throw new IllegalArgumentException("Put the sign on the side of a barrel: a mini fridge is just that.");
+            throw new UserError("command.create.mini-fridge-barrel");
         String label = args.length >= 3 ? args[2] : "Mini-fridge";
         registerUnit(player, new MiniFridge(position, BlockKey.of(barrel.getLocation()), label,
                 units.climate().refrigeration().fridgeDefaultF()));
@@ -575,12 +559,12 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void createEquipment(Player player, Block block, String[] args, EquipmentType type) {
         requireSwitchedOn(DeviceKind.of(type));
         if (block.getType() != Material.DISPENSER)
-            throw new IllegalArgumentException("Look directly at a dispenser.");
+            throw new UserError("command.create.equipment.dispenser");
         // The word after the kind is a tier (3.1); before 3.0 it was a group, now ignored.
         // New units are two-stage unless told (3.1); every unit from before then kept what it was.
         Tier tier = args.length >= 3 ? Tier.parse(args[2]) : Tier.TWO_STAGE;
         if (tier == null) {
-            player.sendMessage(yellow(GROUPS_GONE));
+            player.sendMessage(Lang.message(GROUPS_GONE));
             tier = Tier.TWO_STAGE;
         }
         BlockKey position = BlockKey.of(block.getLocation());
@@ -588,38 +572,39 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         EquipmentUnit unit = new EquipmentUnit(position, registry.newSystem(position.worldId()), type);
         unit.setTier(tier);
         registry.addEquipment(unit);
-        player.sendMessage(green("Registered " + type.displayName() + " " + tierName(tier, type) + "."));
-        if (!linkTool.linkCreated(player, block)) player.sendMessage(gray(LINK_HINT));
+        player.sendMessage(Lang.message("command.create.equipment.made", arg("kind", type.displayName()),
+                arg("tier", tierName(tier, type))));
+        if (!linkTool.linkCreated(player, block)) player.sendMessage(Lang.message(LINK_HINT));
     }
 
     private static final List<String> THERMOSTAT_ACTIONS = List.of("set", "settemp", "enable", "disable", "info");
 
     /** {@code /hvac thermostat <set|enable|disable|info>}, looking at the thermostat. Labels may repeat. */
     private void thermostat(Player player, String[] args) {
-        if (args.length < 2) throw new IllegalArgumentException(
-                "Usage: look at a thermostat, then /hvac thermostat <set <temperature>|enable|disable|info>");
+        if (args.length < 2) throw new UserError("command.thermostat.usage",
+                arg("usage", "/hvac thermostat <set <temperature>|enable|disable|info>"));
         String action = args[1].toLowerCase(Locale.ROOT);
         if (!THERMOSTAT_ACTIONS.contains(action)) {
             // Before 3.0: /hvac thermostat <id> <action>. Labels may repeat now, so a name finds nothing.
             String rest = String.join(" ", Arrays.asList(args).subList(Math.min(2, args.length), args.length));
-            throw new IllegalArgumentException("Thermostats aren't found by name any more, since two can share"
-                    + " one. Look at the thermostat and run /hvac thermostat " + (rest.isEmpty() ? "info" : rest) + ".");
+            throw new UserError("command.thermostat.by-name", arg("command",
+                    "/hvac thermostat " + (rest.isEmpty() ? "info" : rest)));
         }
         Block block = target(player);
         if (block == null) return;
         Thermostat thermostat = registry.thermostatAt(BlockKey.of(block.getLocation()));
-        if (thermostat == null) throw new IllegalArgumentException("Look directly at a thermostat sign.");
+        if (thermostat == null) throw new UserError("command.thermostat.look");
         switch (action) {
             case "set", "settemp" -> {
-                if (args.length < 3) throw new IllegalArgumentException("Usage: /hvac thermostat set <temperature>");
+                if (args.length < 3) throw usage("/hvac thermostat set <temperature>");
                 double previous = thermostat.targetF();
                 thermostat.setTargetF(settings.units().parse(args[2]), settings);
                 registry.markDirty();
                 ApiEvents.targetChanged(thermostat, previous, ThermostatTargetChangeEvent.Cause.COMMAND, controller);
-                player.sendMessage(green("Target set to " + temp(thermostat.targetF()) + "."));
+                player.sendMessage(Lang.message("command.thermostat.target-set", arg("target", temp(thermostat.targetF()))));
             }
-            case "enable" -> { thermostat.setEnabled(true); registry.markDirty(); player.sendMessage(green("Thermostat enabled.")); }
-            case "disable" -> { thermostat.setEnabled(false); registry.markDirty(); player.sendMessage(yellow("Thermostat disabled.")); }
+            case "enable" -> { thermostat.setEnabled(true); registry.markDirty(); player.sendMessage(Lang.message("command.thermostat.enabled")); }
+            case "disable" -> { thermostat.setEnabled(false); registry.markDirty(); player.sendMessage(Lang.message("command.thermostat.disabled")); }
             default -> showThermostat(player, thermostat);
         }
         displays.refreshThermostat(thermostat, true);
@@ -627,28 +612,27 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private void equipment(Player player, String[] args) {
-        if (args.length < 2) throw new IllegalArgumentException(
-                "Usage: /hvac equipment <enable|disable|tier <t1|t2|t3>|info>");
+        if (args.length < 2) throw usage("/hvac equipment <enable|disable|tier <t1|t2|t3>|info>");
         Block block = target(player);
         if (block == null) return;
         EquipmentUnit unit = registry.equipmentAt(BlockKey.of(block.getLocation()));
-        if (unit == null) throw new IllegalArgumentException("That block is not registered HVAC equipment.");
+        if (unit == null) throw new UserError("command.equipment.not-equipment");
         switch (args[1].toLowerCase(Locale.ROOT)) {
-            case "enable" -> { unit.setEnabled(true); player.sendMessage(green("Equipment enabled.")); }
-            case "disable" -> { unit.setEnabled(false); unit.stop(); player.sendMessage(yellow("Equipment disabled.")); }
+            case "enable" -> { unit.setEnabled(true); player.sendMessage(Lang.message("command.equipment.enabled")); }
+            case "disable" -> { unit.setEnabled(false); unit.stop(); player.sendMessage(Lang.message("command.equipment.disabled")); }
             case "tier" -> {
                 Tier tier = args.length >= 3 ? Tier.parse(args[2]) : null;
-                if (tier == null) throw new IllegalArgumentException("Usage: /hvac equipment tier <t1|t2|t3>"
-                        + " (single-stage, two-stage or variable)");
+                if (tier == null) throw new UserError("command.equipment.tier-usage",
+                        arg("usage", "/hvac equipment tier <t1|t2|t3>"));
                 // Stopped first, so it starts again on its new tier's curve.
                 unit.stop();
                 unit.setTier(tier);
-                player.sendMessage(green(unit.type().displayName() + " is now " + tierName(tier, unit.type()) + "."));
+                player.sendMessage(Lang.message("command.equipment.tier-set", arg("kind", unit.type().displayName()),
+                        arg("tier", tierName(tier, unit.type()))));
             }
-            case "group" -> throw new IllegalArgumentException("Groups are gone since EZvac 3.0. Sneak-click the"
-                    + " unit with /hvac link-tool to unlink it, then link it to another thermostat.");
+            case "group" -> throw new UserError("command.equipment.groups-gone");
             case "info" -> showEquipment(player, unit);
-            default -> throw new IllegalArgumentException("Unknown equipment action '" + args[1] + "'.");
+            default -> throw new UserError("command.equipment.unknown-action", arg("action", args[1]));
         }
         registry.markDirty();
         plugin.requestImmediateSync();
@@ -656,7 +640,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     /** {@code /hvac rename <label>}: the sign looked at. Labels are only names, so they may repeat. */
     private void rename(Player player, String[] args) {
-        if (args.length < 2) throw new IllegalArgumentException("Usage: look at a sign, then /hvac rename <label>");
+        if (args.length < 2) throw new UserError("command.rename.usage", arg("usage", "/hvac rename <label>"));
         Block block = target(player);
         if (block == null) return;
         BlockKey key = BlockKey.of(block.getLocation());
@@ -672,12 +656,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         else if (hub != null) hub.setLabel(label);
         else if (unit != null && unit.position().equals(key)) unit.setLabel(label);
         else if (!registry.relabel(key, label))
-            throw new IllegalArgumentException("Look at a thermostat, an RPM monitor, a settings panel, a sensor"
-                    + " hub, a thermometer, a sensor, a weather station, or a dehumidifier or humidifier sign.");
+            throw new UserError("command.rename.look");
         registry.markDirty();
         displays.invalidate(key);
         displays.refreshAll(true);
-        player.sendMessage(green("Renamed to '" + label + "'."));
+        player.sendMessage(Lang.message("command.rename.done", arg("name", label)));
     }
 
     /**
@@ -690,103 +673,101 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         boolean repair = args.length >= 2 && args[1].equalsIgnoreCase("repair");
         boolean force = repair && args.length >= 3 && args[2].equalsIgnoreCase("--force");
         if (!repair) {
-            sender.sendMessage(join(gold("hvac.yml: "), white(registry.recoveredFrom() == null ? "read fine at this start"
-                    : "recovered from " + registry.recoveredFrom() + " at this start; the unreadable file is kept as "
-                    + registry.setAside())));
+            sender.sendMessage(registry.recoveredFrom() == null ? Lang.message("command.registry.read-fine")
+                    : Lang.message("command.registry.recovered", arg("from", registry.recoveredFrom()),
+                    arg("aside", registry.setAside())));
             if (aside.isEmpty()) {
-                sender.sendMessage(gray("Nothing is kept aside."));
+                sender.sendMessage(Lang.message("command.registry.nothing-aside"));
                 return;
             }
-            sender.sendMessage(yellow(aside.size() + (aside.size() == 1 ? " entry is" : " entries are")
-                    + " kept aside, not running:"));
+            sender.sendMessage(Lang.message(aside.size() == 1 ? "command.registry.aside.one" : "command.registry.aside.many",
+                    arg("count", aside.size())));
             for (HvacRegistry.KeptAside entry : aside.subList(0, Math.min(10, aside.size())))
-                sender.sendMessage(gray(" " + entry.section() + " " + entry.entry() + ": " + entry.reason()));
-            if (aside.size() > 10) sender.sendMessage(gray(" and " + (aside.size() - 10) + " more, in the server log"));
-            sender.sendMessage(gray("Fix them in hvac.yml and restart, or if this is intentional, run "
-                    + StartupNotices.REPAIR + " to discard them for good."));
+                sender.sendMessage(Lang.message("command.registry.aside.entry", arg("section", entry.section()),
+                        arg("entry", entry.entry()), arg("reason", entry.reason())));
+            if (aside.size() > 10) sender.sendMessage(Lang.message("command.registry.aside.more",
+                    arg("count", aside.size() - 10)));
+            sender.sendMessage(Lang.message("command.registry.aside.fix", arg("command", StartupNotices.REPAIR)));
             return;
         }
         if (aside.isEmpty()) {
-            sender.sendMessage(green("Nothing is kept aside: there's nothing to repair."));
+            sender.sendMessage(Lang.message("command.registry.nothing-to-repair"));
             return;
         }
         if (!force) {
-            sender.sendMessage(yellow("This discards the " + aside.size() + " entr" + (aside.size() == 1 ? "y" : "ies")
-                    + " kept aside for good (see /hvac registry). hvac.yml as it is now is copied aside first. If"
-                    + " this is intentional, run " + StartupNotices.REPAIR + "."));
+            sender.sendMessage(Lang.message(aside.size() == 1 ? "command.registry.confirm.one"
+                    : "command.registry.confirm.many", arg("count", aside.size()), arg("command", StartupNotices.REPAIR)));
             return;
         }
         HvacRegistry.Repair repaired;
         try {
             repaired = registry.repairKeptAside();
         } catch (java.io.IOException failure) {
-            sender.sendMessage(red("Couldn't copy hvac.yml aside, so nothing was discarded: " + failure.getMessage()));
+            sender.sendMessage(Lang.message("command.registry.copy-failed", arg("reason", String.valueOf(failure.getMessage()))));
             return;
         }
         int discarded = repaired.discarded();
         plugin.getLogger().warning(sender.getName() + " discarded " + discarded + " kept-aside entr"
                 + (discarded == 1 ? "y" : "ies") + " from hvac.yml with " + StartupNotices.REPAIR
                 + "; the file before is " + repaired.copy());
-        sender.sendMessage(green("Discarded " + discarded + " entr" + (discarded == 1 ? "y" : "ies")
-                + ". hvac.yml as it was is kept as " + repaired.copy() + "."));
+        sender.sendMessage(Lang.message(discarded == 1 ? "command.registry.discarded.one"
+                : "command.registry.discarded.many", arg("count", discarded), arg("copy", repaired.copy())));
     }
 
     /** /hvac info on a weather station (BETA 1.0). */
     private void showWeatherStation(Player player, WeatherStation station) {
         WeatherStationService stations = plugin.weatherStations();
-        String state = !WeatherStationService.switchedOn() ? "off server-wide" : !station.enabled() ? "off"
-                : !station.intact() ? "damaged: rebuild its tower" : "on";
-        player.sendMessage(join(gold("Weather station "), white(station.label()), gray(" | " + state)));
-        if (station.area() == null) player.sendMessage(gray("It hasn't measured its area yet."));
-        else player.sendMessage(join(gray("Outdoors around it: "),
-                white(StationText.temperature(stations.nowF(station), settings.units())),
-                gray(" | measures " + stations.settings().areaRadius() + " blocks around and "
-                        + stations.settings().areaHeight() + " up")));
+        String state = Lang.text(!WeatherStationService.switchedOn() ? "command.station.state.off-server"
+                : !station.enabled() ? "command.station.state.off"
+                : !station.intact() ? "command.station.state.damaged" : "command.station.state.on");
+        player.sendMessage(Lang.message("command.station.title", arg("name", station.label()), arg("state", state)));
+        if (station.area() == null) player.sendMessage(Lang.message("command.station.unmeasured"));
+        else player.sendMessage(Lang.message("command.station.outdoors",
+                arg("temperature", StationText.temperature(stations.nowF(station), settings.units())),
+                arg("radius", stations.settings().areaRadius()), arg("height", stations.settings().areaHeight())));
         List<Forecast.Day> days = WeatherStationService.working(station) ? stations.forecast(station) : List.of();
         if (!days.isEmpty()) {
             Forecast.Day today = days.get(0);
             boolean snow = stations.snowDay(station, today);
-            player.sendMessage(join(gray("Today: "), white(StationText.sky(today, snow) + ", "
-                    + StationText.highLow(today, settings.units())), gray(today.note().isEmpty() ? "" : " | " + today.note())));
+            player.sendMessage(Lang.message(today.note().isEmpty() ? "command.station.today" : "command.station.today-note",
+                    arg("sky", StationText.sky(today, snow)), arg("high-low", StationText.highLow(today, settings.units())),
+                    arg("note", today.note())));
         }
-        player.sendMessage(gray("Struck by lightning " + station.strikes() + (station.strikes() == 1 ? " time." : " times.")));
+        player.sendMessage(Lang.message(station.strikes() == 1 ? "command.station.strikes.one"
+                : "command.station.strikes.many", arg("count", station.strikes())));
     }
 
     private void temperature(Player player) {
         AirflowService.TemperatureReading reading =
                 airflow.temperatureForBody(player.getLocation(), player.getEyeLocation());
         boolean water = reading.water();
-        player.sendMessage(join(gold("Temperature"), gray(water ? " | Water: " : " | Here: "),
-                white(temp(reading.localF())),
-                gray(water ? " | Air: " : " | Outside: "),
-                white(temp(reading.outdoorF())
-                        + (reading.weather().isEmpty() ? "" : " " + reading.weather()))));
+        String outside = temp(reading.outdoorF()) + (reading.weather().isEmpty() ? "" : " " + reading.weather());
+        player.sendMessage(Lang.message(water ? "command.temperature.water" : "command.temperature.air",
+                arg("here", temp(reading.localF())), arg("outside", outside)));
         if (!water) {
-            Component feels = join(gray("Feels like: "),
-                    white(temp(reading.feelsLikeF())),
-                    gray(" | Humidity: "), white(Math.round(reading.humidity()) + "%"));
+            Component feels = Lang.message("command.temperature.feels", arg("feels", temp(reading.feelsLikeF())),
+                    arg("humidity", Math.round(reading.humidity())));
             if (windShown(player.getWorld()))
-                feels = feels.append(join(gray(" | Wind: "),
-                        white(WindText.describe(reading.windMs(), reading.windFromDegrees(), outdoor.climate().wind(),
+                feels = feels.append(Lang.message("command.temperature.wind",
+                        arg("wind", WindText.describe(reading.windMs(), reading.windFromDegrees(), outdoor.climate().wind(),
                                 settings.units()))));
             player.sendMessage(feels);
         }
         if (!water && units.air().enabled() && reading.air().known())
-            player.sendMessage(join(gray("Air: "), airLine(reading.air())));
+            player.sendMessage(Lang.message("command.temperature.air-quality", arg("air", airLine(reading.air()))));
         UUID world = player.getWorld().getUID();
         if (plugin.seasons().settings().enabled() && plugin.seasons().tracks(world))
-            player.sendMessage(join(gray("Season: "), white(seasonText(world)),
-                    gray(" | Outside "), white(shift(outdoor.seasonShiftAt(player.getLocation())))));
+            player.sendMessage(Lang.message("command.temperature.season", arg("season", seasonText(world)),
+                    arg("shift", shift(outdoor.seasonShiftAt(player.getLocation())))));
         if (!reading.conditioned()) {
-            player.sendMessage(gray(water ? "Natural water: no pool system reaches this block."
-                    : "No completed linked-vent path reaches this block."));
+            player.sendMessage(Lang.message(water ? "command.temperature.natural-water" : "command.temperature.no-path"));
         } else {
             int strength = HudFormatter.strength(reading.airflowDistance() <= settings.airflowCoreRange(),
                     reading.influence());
             String text = strength + "%";
-            player.sendMessage(join(gray("System: "), white(SystemNames.label(registry, reading.system())),
-                    gray(" | Path: "), white(reading.airflowDistance() + " blocks"), gray(" | Strength: "),
-                    strength == 100 ? green(text) : strength < 50 ? gold(text) : white(text)));
+            player.sendMessage(Lang.message("command.temperature.system", arg("system",
+                    SystemNames.label(registry, reading.system())), arg("distance", reading.airflowDistance()),
+                    arg("strength", strength == 100 ? green(text) : strength < 50 ? gold(text) : white(text))));
         }
     }
 
@@ -807,12 +788,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
         }
         if (!seasons.settings().enabled()) {
-            sender.sendMessage(yellow("Seasons are switched off on this server (/hvac quicksettings, or seasons.enabled in"
-                    + " config.yml)."));
+            sender.sendMessage(Lang.message("command.season.off"));
             return;
         }
         if (world.getEnvironment() != World.Environment.NORMAL || !seasons.tracks(world.getUID())) {
-            sender.sendMessage(yellow("'" + world.getName() + "' has no seasons: only worlds with a sun do."));
+            sender.sendMessage(Lang.message("command.season.no-seasons", arg("world", world.getName())));
             return;
         }
         UUID id = world.getUID();
@@ -822,17 +802,17 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "info" -> { }
             case "set" -> {
                 if (!requireAdmin(sender)) return;
-                if (rest.size() < 2) throw new IllegalArgumentException("Usage: /hvac season set <spring|summer|autumn|winter> [day]");
+                if (rest.size() < 2) throw usage("/hvac season set <spring|summer|autumn|winter> [day]");
                 Seasons.Season season = Seasons.Season.parse(rest.get(1));
-                if (season == null) throw new IllegalArgumentException("'" + rest.get(1) + "' is not a season: spring, summer, autumn or winter.");
+                if (season == null) throw new UserError("command.season.not-a-season", arg("word", rest.get(1)));
                 int day = 1;
                 if (rest.size() >= 3) {
                     try {
                         day = Integer.parseInt(rest.get(2));
                     } catch (NumberFormatException notNumber) {
-                        throw new IllegalArgumentException("The day must be a number from 1 to " + days + ".");
+                        throw new UserError("command.season.day-number", arg("days", days));
                     }
-                    if (day < 1 || day > days) throw new IllegalArgumentException("The day must be 1 to " + days + ".");
+                    if (day < 1 || day > days) throw new UserError("command.season.day-range", arg("days", days));
                 }
                 seasons.set(id, season, day);
             }
@@ -844,23 +824,23 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 if (!requireAdmin(sender)) return;
                 seasons.setPaused(id, action.equals("pause"));
                 seasons.save();
-                sender.sendMessage(action.equals("pause")
-                        ? yellow("The calendar in '" + world.getName() + "' is paused: the days pass, the season stays.")
-                        : green("The calendar in '" + world.getName() + "' runs again."));
+                sender.sendMessage(Lang.message(action.equals("pause") ? "command.season.paused" : "command.season.resumed",
+                        arg("world", world.getName())));
                 return;
             }
-            default -> throw new IllegalArgumentException("Usage: /hvac season [set <season> [day] | next | pause | resume]");
+            default -> throw usage("/hvac season [set <season> [day] | next | pause | resume]");
         }
         if (!action.equals("info")) {
             seasons.save();
-            sender.sendMessage(green("It is now " + seasonText(id) + " in '" + world.getName()
-                    + "'. Outdoor temperatures follow at once; rooms drift there over time."));
+            sender.sendMessage(Lang.message("command.season.set", arg("season", seasonText(id)),
+                    arg("world", world.getName())));
             return;
         }
-        Component line = join(gold("Season"), gray(" | "), white(seasonText(id)));
+        Component line = Lang.message("command.season.info", arg("season", seasonText(id)));
         if (sender instanceof Player player && player.getWorld().equals(world))
-            line = line.append(join(gray(" | Here: "), white(shift(outdoor.seasonShiftAt(player.getLocation())))));
-        if (seasons.paused(id)) line = line.append(yellow(" (paused)"));
+            line = line.append(Lang.message("command.season.info-here", arg("shift",
+                    shift(outdoor.seasonShiftAt(player.getLocation())))));
+        if (seasons.paused(id)) line = line.append(Lang.message("command.season.info-paused"));
         sender.sendMessage(line);
     }
 
@@ -891,12 +871,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
         }
         if (wind == null || !wind.enabled()) {
-            sender.sendMessage(yellow("Wind is switched off on this server (/hvac quicksettings, or wind.enabled in"
-                    + " config.yml)."));
+            sender.sendMessage(Lang.message("command.wind.off"));
             return;
         }
         if (!WindService.hasWind(world)) {
-            sender.sendMessage(yellow("'" + world.getName() + "' has no wind: only worlds with a sky do."));
+            sender.sendMessage(Lang.message("command.wind.no-wind", arg("world", world.getName())));
             return;
         }
         String action = rest.isEmpty() ? "info" : rest.get(0).toLowerCase(Locale.ROOT);
@@ -905,71 +884,70 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "info" -> { }
             case "set" -> {
                 if (!requireAdmin(sender)) return;
-                if (rest.size() < 2) throw new IllegalArgumentException(
-                        "Usage: /hvac wind set <calm|breezy|windy|gale|auto> [direction, such as nw or 270]");
+                if (rest.size() < 2) throw usage(
+                        "/hvac wind set <calm|breezy|windy|gale|auto> [direction, such as nw or 270]");
                 if (rest.get(1).equalsIgnoreCase("auto")) {
                     wind.hold(world, null);
-                    sender.sendMessage(green("The wind in '" + world.getName() + "' blows as it would again: "
-                            + day(wind.day(world), units) + " today."));
+                    sender.sendMessage(Lang.message("command.wind.auto", arg("world", world.getName()),
+                            arg("day", day(wind.day(world), units))));
                     return;
                 }
                 WindModel.Level level = WindModel.Level.parse(rest.get(1));
-                if (level == null) throw new IllegalArgumentException("'" + rest.get(1)
-                        + "' is not a wind: calm, breezy, windy, gale, or auto.");
+                if (level == null) throw new UserError("command.wind.not-a-wind", arg("word", rest.get(1)));
                 double from = Double.NaN;
                 if (rest.size() > 2) {
                     from = WindText.parseDirection(rest.get(2));
-                    if (Double.isNaN(from)) throw new IllegalArgumentException("'" + rest.get(2)
-                            + "' is not a direction: a compass point such as nw, or degrees from 0 to 360.");
+                    if (Double.isNaN(from)) throw new UserError("command.wind.not-a-direction", arg("word", rest.get(2)));
                 }
                 wind.hold(world, level, from);
-                sender.sendMessage(green("It is " + day(wind.day(world), units) + " in '" + world.getName()
-                        + "' until the day ends. /hvac wind set auto lets it blow as it would."));
+                sender.sendMessage(Lang.message("command.wind.set", arg("day", day(wind.day(world), units)),
+                        arg("world", world.getName())));
                 return;
             }
-            default -> throw new IllegalArgumentException(
-                    "Usage: /hvac wind [set <calm|breezy|windy|gale|auto> [direction]]");
+            default -> throw usage("/hvac wind [set <calm|breezy|windy|gale|auto> [direction]]");
         }
         Player here = sender instanceof Player player && player.getWorld().equals(world) ? player : null;
         List<WindModel.Day> forecast = here == null ? wind.forecast(world, FORECAST_DAYS)
                 : wind.forecastAt(world, here.getLocation().getX(), here.getLocation().getZ(), FORECAST_DAYS);
-        Component line = join(gold("Wind"), gray(here == null ? " | Today: " : " | Today around here: "),
-                white(day(forecast.get(0), units)));
-        if (wind.held(world)) line = line.append(yellow(" (set by an admin)"));
+        Component line = Lang.message(here == null ? "command.wind.today" : "command.wind.today-here",
+                arg("day", day(forecast.get(0), units)));
+        if (wind.held(world)) line = line.append(Lang.message("command.wind.held"));
         else if (here != null && forecast.get(0).level() != wind.day(world).level())
-            line = line.append(gray(" (" + wind.day(world).level().displayName() + " across the world)"));
+            line = line.append(Lang.message("command.wind.across-world", arg("level",
+                    wind.day(world).level().displayName())));
         sender.sendMessage(line);
         if (here != null) {
             AirflowService.TemperatureReading reading =
                     airflow.temperatureForBody(here.getLocation(), here.getEyeLocation());
             OutdoorTemperatureService.Outdoor open = outdoor.climateAt(here.getLocation());
-            sender.sendMessage(join(gray("Here: "),
-                    white(reading.water() ? "in water" : WindText.describe(reading.windMs(),
+            sender.sendMessage(Lang.message("command.wind.here", arg("here", reading.water()
+                            ? Lang.text("command.wind.in-water") : WindText.describe(reading.windMs(),
                             reading.windFromDegrees(), wind.settings(), settings.units())),
-                    gray(" | Out in the open: "),
-                    white(WindText.describe(open.windMs(), open.windFromDegrees(), wind.settings(),
+                    arg("open", WindText.describe(open.windMs(), open.windFromDegrees(), wind.settings(),
                             settings.units()))));
         }
-        Component ahead = gray("Next days: ");
+        List<String> days = new ArrayList<>();
         for (int index = 1; index < forecast.size(); index++) {
             WindModel.Day next = forecast.get(index);
-            ahead = ahead.append(white((index > 1 ? ", " : "") + next.level().displayName()
-                    + (next.level() == WindModel.Level.CALM ? "" : " from the " + WindText.compass(next.fromDegrees()))));
+            days.add(next.level() == WindModel.Level.CALM ? next.level().displayName()
+                    : Lang.text("command.wind.next-from", arg("level", next.level().displayName()),
+                    arg("from", WindText.compass(next.fromDegrees()))));
         }
-        sender.sendMessage(ahead);
+        sender.sendMessage(Lang.message("command.wind.next", arg("days", String.join(Lang.text("list.separator"), days))));
     }
 
     /** "Windy, about 22 km/h from the W"; a calm day has no direction. */
     private static String day(WindModel.Day day, WindSettings.Units units) {
-        String text = day.level().displayName() + ", about " + WindText.speed(day.meanMs(), units);
-        return day.level() == WindModel.Level.CALM ? text : text + " from the " + WindText.compass(day.fromDegrees());
+        return Lang.text(day.level() == WindModel.Level.CALM ? "command.wind.day-calm" : "command.wind.day",
+                arg("level", day.level().displayName()), arg("speed", WindText.speed(day.meanMs(), units)),
+                arg("from", WindText.compass(day.fromDegrees())));
     }
 
     /** "Summer, day 3 of 15". */
     private String seasonText(UUID world) {
         SeasonService seasons = plugin.seasons();
-        return seasons.season(world).displayName() + ", day " + seasons.dayOfSeason(world) + " of "
-                + seasons.settings().daysPerSeason();
+        return Lang.text("command.season.day", arg("season", seasons.season(world).displayName()),
+                arg("day", seasons.dayOfSeason(world)), arg("days", seasons.settings().daysPerSeason()));
     }
 
     /** A temperature change in the server's unit: "+12.4 F", "-3.1 C". */
@@ -982,25 +960,26 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         UUID world = player.getWorld().getUID();
         List<SystemId> systems = registry.allSystems().stream()
                 .filter(system -> system.worldId().equals(world)).toList();
-        if (systems.isEmpty()) { player.sendMessage(gray("No HVAC systems exist in this world.")); return; }
-        player.sendMessage(gold("EZvac systems:"));
+        if (systems.isEmpty()) { player.sendMessage(Lang.message("command.list.none")); return; }
+        player.sendMessage(Lang.message("command.list.title"));
         for (SystemId system : systems) {
             HvacRegistry.Members members = registry.members(system);
             if (members.thermostat() == null) {
                 BlockKey anchor = anchor(system);
-                player.sendMessage(join(gray("Headless"), gray(anchor == null ? "" : " (" + SystemNames.at(anchor) + ")"),
-                        gray(" | "), white(SystemNames.contents(members))));
+                player.sendMessage(Lang.message(anchor == null ? "command.list.headless" : "command.list.headless-at",
+                        arg("at", anchor == null ? "" : SystemNames.at(anchor)), arg("contents", SystemNames.contents(members))));
                 continue;
             }
             HvacController.SystemStatus status = controller.status(system);
             player.sendMessage(join(white(SystemNames.of(members.thermostat())), gray(" | "),
                     white(status.mode().name()), gray(" | "), white(status.profile().name()), gray(" | "),
                     white(temp(status.roomF()) + " / " + temp(status.targetF())),
-                    gray(" | equipment "), white(status.running() + "/" + status.equipment()),
+                    Lang.message("command.list.equipment", arg("running", status.running()), arg("total", status.equipment())),
                     gray(" | "), white(SystemNames.count(members.vents(), "vent")),
                     // BETA 1.0 Pilot 8: running from what EZvac last saw there.
                     members.thermostat().position().isChunkLoaded() ? Component.empty()
-                            : gray(plugin.settings().unloadedDevices() ? " | running unloaded" : " | unloaded")));
+                            : Lang.message(plugin.settings().unloadedDevices() ? "command.list.running-unloaded"
+                            : "command.list.unloaded")));
         }
     }
 
@@ -1017,14 +996,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     /** "System: Home (120, 64, -30)", or "Not linked" for a sign without a system. */
     private Component systemOf(SystemId system) {
-        return system == null ? gray(" | Not linked") : join(gray(" | System: "), white(SystemNames.of(registry, system)));
+        return system == null ? Lang.message("command.info.not-linked")
+                : Lang.message("command.info.system", arg("system", SystemNames.of(registry, system)));
     }
 
     /** Who last changed it from a plugin (a web panel, say) or its screen (BETA 1.0 Pilot 7), when anyone has. */
     private void lastChange(Player player, BlockKey position) {
         if (plugin.controls() == null) return;
         plugin.controls().lastChange(position).ifPresent(change ->
-                player.sendMessage(join(gray("Last changed by "), white(change))));
+                player.sendMessage(Lang.message("command.info.last-changed", arg("by", change))));
     }
 
     private void info(Player player) {
@@ -1036,28 +1016,31 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         EquipmentUnit unit = registry.equipmentAt(key);
         if (unit != null) { showEquipment(player, unit); lastChange(player, unit.position()); return; }
         ClimateVent vent = registry.ventAt(key);
-        if (vent != null) { player.sendMessage(join(gold("Vent"), systemOf(vent.system()))); return; }
+        if (vent != null) { player.sendMessage(Lang.message("command.info.vent", arg("system", systemOf(vent.system())))); return; }
         Thermometer thermometer = registry.thermometerAt(key);
         if (thermometer != null) {
             AirflowService.TemperatureReading reading = airflow.temperatureAt(block.getLocation());
-            String source = reading.conditioned() ? SystemNames.label(registry, reading.system()) : "outdoor";
+            String source = reading.conditioned() ? SystemNames.label(registry, reading.system())
+                    : Lang.text("command.info.outdoor");
             String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
             String local = switch (thermometer.reads()) {
                 case TEMPERATURE -> temp(reading.localF());
                 case HUMIDITY -> humidity;
-                case BOTH -> temp(reading.localF()) + ", " + humidity + ", feels " + temp(reading.feelsLikeF());
+                case BOTH -> Lang.text("command.info.instrument-both", arg("temperature", temp(reading.localF())),
+                        arg("humidity", humidity), arg("feels", temp(reading.feelsLikeF())));
                 case AIR -> AirText.summary(reading.air(), units.air().settings());
             };
-            player.sendMessage(join(gold(thermometer.reads().displayName()), gray(" | Local: "), white(local),
-                    gray(" | Source: "), white(source)));
+            player.sendMessage(Lang.message("command.info.instrument", arg("kind", thermometer.reads().displayName()),
+                    arg("local", local), arg("source", source)));
             return;
         }
         RpmMonitor monitor = registry.rpmMonitorAt(key);
-        if (monitor != null) { player.sendMessage(join(gold("RPM monitor "), white(monitor.label()),
-                systemOf(monitor.system()), gray(" | auto-flip " + (monitor.autoFlip() ? "on" : "off")))); return; }
+        if (monitor != null) { player.sendMessage(Lang.message(monitor.autoFlip() ? "command.info.rpm-monitor.flip-on"
+                : "command.info.rpm-monitor.flip-off", arg("name", monitor.label()), arg("system", systemOf(monitor.system()))));
+            return; }
         SettingsPanel panel = registry.settingsPanelAt(key);
-        if (panel != null) { player.sendMessage(join(gold("Settings panel "), white(panel.label()),
-                systemOf(panel.system()), gray(" | Profile: "), white(panel.profile().name()))); return; }
+        if (panel != null) { player.sendMessage(Lang.message("command.info.settings-panel", arg("name", panel.label()),
+                arg("system", systemOf(panel.system())), arg("profile", panel.profile().name()))); return; }
         ClimateUnit climateUnit = registry.climateUnitAt(key);
         if (climateUnit != null) {
             showClimateUnit(player, climateUnit);
@@ -1068,7 +1051,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (sensor != null) {
             player.sendMessage(describeSensor(sensor));
             int hubs = registry.hubsShowing(key).size();
-            player.sendMessage(gray("Shown on " + hubs + " sensor hub" + (hubs == 1 ? "" : "s") + "."));
+            player.sendMessage(Lang.message(hubs == 1 ? "command.info.sensor-hubs.one" : "command.info.sensor-hubs.many",
+                    arg("count", hubs)));
             return;
         }
         WeatherStation station = registry.weatherStationAt(key);
@@ -1078,15 +1062,16 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         }
         SensorHub hub = registry.sensorHubAt(key);
         if (hub != null) {
-            player.sendMessage(join(gold("Sensor hub "), white(hub.label()), gray(" | " + hub.sensors().size() + "/"
-                    + SensorHub.MAX_SENSORS + " sensors | auto-flip " + (hub.autoFlip() ? "on" : "off"))));
+            player.sendMessage(Lang.message(hub.autoFlip() ? "command.info.sensor-hub.flip-on"
+                    : "command.info.sensor-hub.flip-off", arg("name", hub.label()), arg("count", hub.sensors().size()),
+                    arg("max", SensorHub.MAX_SENSORS)));
             for (BlockKey linked : hub.sensors()) {
                 Sensor shown = registry.sensorAt(linked);
                 if (shown != null) player.sendMessage(describeSensor(shown));
             }
             return;
         }
-        player.sendMessage(red("No EZvac device is registered at that block."));
+        player.sendMessage(Lang.message("command.info.no-device"));
     }
 
     private void remove(Player player, String[] args) {
@@ -1106,39 +1091,38 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
      */
     private void removeSystem(Player player, boolean confirm) {
         if (!linkTool.isTool(player.getInventory().getItemInMainHand()))
-            throw new IllegalArgumentException("Hold the link tool to remove a whole system, and look at any part of it.");
+            throw new UserError("command.remove.system.hold-tool");
         if (confirm) {
             PendingRemoval pending = pendingRemovals.remove(player.getUniqueId());
             if (pending == null || System.currentTimeMillis() > pending.expiresAt())
-                throw new IllegalArgumentException("Nothing to confirm. Run /hvac remove system while looking at"
-                        + " the system first.");
+                throw new UserError("command.remove.system.nothing-to-confirm");
             HvacRegistry.Members members = registry.members(pending.system());
-            if (members.empty()) throw new IllegalArgumentException("That system is already gone.");
+            if (members.empty()) throw new UserError("command.remove.system.gone");
             String name = SystemNames.of(registry, pending.system());
             registry.removingByCommand(() -> registry.removeSystem(pending.system()));
             airflow.invalidate(pending.system());
             displays.refreshAll(true);
             plugin.requestImmediateSync();
-            player.sendMessage(green("Removed " + name + ": " + everything(members) + ". The blocks are still there."));
+            player.sendMessage(Lang.message("command.remove.system.done", arg("system", name),
+                    arg("devices", everything(members))));
             return;
         }
         Block block = target(player);
         if (block == null) return;
         SystemId system = registry.systemAt(BlockKey.of(block.getLocation()));
-        if (system == null) throw new IllegalArgumentException("Look at a thermostat, equipment, a vent, a settings"
-                + " panel or an RPM monitor that belongs to a system.");
+        if (system == null) throw new UserError("command.remove.system.look");
         pendingRemovals.put(player.getUniqueId(),
                 new PendingRemoval(system, System.currentTimeMillis() + CONFIRM_MILLIS));
-        player.sendMessage(yellow("This removes " + SystemNames.of(registry, system) + ": "
-                + everything(registry.members(system)) + ". Run /hvac remove system confirm within "
-                + CONFIRM_MILLIS / 1000 + " seconds to go ahead."));
+        player.sendMessage(Lang.message("command.remove.system.confirm", arg("system", SystemNames.of(registry, system)),
+                arg("devices", everything(registry.members(system))), arg("seconds", CONFIRM_MILLIS / 1000)));
     }
 
     /** "the thermostat, 4 units and 32 vents". */
     private static String everything(HvacRegistry.Members members) {
         String rest = SystemNames.contents(members);
         if (members.thermostat() == null) return rest;
-        return rest.equals("nothing") ? "the thermostat" : "the thermostat, " + rest;
+        return rest.equals(SystemNames.nothing()) ? Lang.text("command.remove.system.just-thermostat")
+                : Lang.text("command.remove.system.thermostat-and", arg("rest", rest));
     }
 
     private void remove(Player player, BlockKey key) {
@@ -1147,36 +1131,35 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             HvacRegistry.Members members = registry.members(thermostat.system());
             registry.removeThermostat(key);
             boolean headless = members.units() + members.vents() + members.panels() + members.monitors() > 0;
-            player.sendMessage(green("Thermostat removed." + (headless ? " Its system is headless now: link a"
-                    + " thermostat to any part of it to take it over." : "")));
+            player.sendMessage(Lang.message(headless ? "command.remove.thermostat-headless" : "command.remove.thermostat"));
         } else if (registry.equipmentAt(key) != null) {
             registry.removeEquipment(key);
-            player.sendMessage(green("Equipment removed; owned output cleanup was queued if needed."));
+            player.sendMessage(Lang.message("command.remove.equipment"));
         } else {
             ClimateVent vent = registry.removeVent(key);
-            if (vent != null) { airflow.invalidate(vent.system()); player.sendMessage(green("Vent unlinked.")); }
+            if (vent != null) { airflow.invalidate(vent.system()); player.sendMessage(Lang.message("command.remove.vent")); }
             else if (registry.thermometerAt(key) != null) {
                 String name = registry.thermometerAt(key).reads().displayName();
                 registry.removeThermometer(key);
-                player.sendMessage(green(name + " removed."));
+                player.sendMessage(Lang.message("command.remove.named", arg("kind", name)));
             }
-            else if (registry.removeRpmMonitor(key)) player.sendMessage(green("RPM monitor removed."));
+            else if (registry.removeRpmMonitor(key)) player.sendMessage(Lang.message("command.remove.rpm-monitor"));
             else if (registry.removeSettingsPanel(key))
-                player.sendMessage(green("Settings panel removed; its system runs on Normal now."));
+                player.sendMessage(Lang.message("command.remove.settings-panel"));
             else if (registry.climateUnitAt(key) != null) {
                 ClimateUnit removed = registry.removeClimateUnit(key);
                 units.release(removed);
                 displays.invalidate(removed.position());
-                player.sendMessage(green(removed.kind().displayName() + " removed."));
+                player.sendMessage(Lang.message("command.remove.named", arg("kind", removed.kind().displayName())));
             }
             else if (registry.removeSensor(key) != null)
-                player.sendMessage(green("Sensor removed, and taken off every sensor hub that showed it."));
-            else if (registry.removeSensorHub(key) != null) player.sendMessage(green("Sensor hub removed."));
+                player.sendMessage(Lang.message("command.remove.sensor"));
+            else if (registry.removeSensorHub(key) != null) player.sendMessage(Lang.message("command.remove.sensor-hub"));
             else if (registry.removeWeatherStation(key) != null) {
                 plugin.weatherStations().forget(key);
-                player.sendMessage(green("Weather station removed. Its tower stays."));
+                player.sendMessage(Lang.message("command.remove.station"));
             }
-            else { player.sendMessage(red("No EZvac device is registered at that block.")); return; }
+            else { player.sendMessage(Lang.message("command.info.no-device")); return; }
         }
         displays.invalidate(key);
         plugin.requestImmediateSync();
@@ -1190,25 +1173,28 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         BlockKey position = sensor.position();
         var location = position.isChunkLoaded() ? position.location() : null;
         if (location == null)
-            return join(gold(sensor.label()), gray(" | not loaded right now"));
+            return Lang.message("command.sensor.not-loaded", arg("name", sensor.label()));
         if (sensor.reads() == Sensor.Kind.WEATHER) {
             String weather = displays.weatherAt(location);
-            return join(gold(sensor.label()), gray(" | "), white(weather), gray(weather.equals(DisplayService.COVERED)
-                    ? " | it needs open sky above it" : " | outside"));
+            return Lang.message(weather.equals(DisplayService.COVERED) ? "command.sensor.weather-covered"
+                    : "command.sensor.weather", arg("name", sensor.label()), arg("weather", weather));
         }
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
         String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";
         String values = switch (sensor.reads()) {
             case TEMPERATURE -> temp(reading.localF());
             case HUMIDITY -> humidity;
-            case BOTH -> temp(reading.localF()) + " | " + humidity + " | feels " + temp(reading.feelsLikeF());
+            case BOTH -> Lang.text("command.sensor.both", arg("temperature", temp(reading.localF())),
+                    arg("humidity", humidity), arg("feels", temp(reading.feelsLikeF())));
             case AIR -> AirText.summary(reading.air(), units.air().settings());
             case WIND -> WindText.describe(reading.windMs(), reading.windFromDegrees(), outdoor.climate().wind(),
                     settings.units());
             case WEATHER -> throw new AssertionError("handled above");
         };
-        String where = reading.conditioned() ? "system " + SystemNames.label(registry, reading.system()) : "no system";
-        return join(gold(sensor.label()), gray(" | "), white(values), gray(" | " + where));
+        String where = reading.conditioned() ? Lang.text("command.sensor.in-system", arg("system",
+                SystemNames.label(registry, reading.system()))) : Lang.text("command.sensor.no-system");
+        return Lang.message("command.sensor.reading", arg("name", sensor.label()), arg("values", values),
+                arg("where", where));
     }
 
     /** Clicks with the link tool belong to the tool, not to the block clicked. */
@@ -1219,15 +1205,15 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     /** /hvac stats sizes (BETA 1.0): every system's size and what it has of what it needs, the worst sized first. */
     private void sizes(CommandSender sender) {
         if (!plugin.controller().sizing().enabled()) {
-            sender.sendMessage(gray("Building size is off (/hvac quicksettings): any size heats and cools as before."));
+            sender.sendMessage(Lang.message("command.size.off"));
             return;
         }
         List<HvacController.SizeLine> lines = plugin.controller().sizeLines();
         if (lines.isEmpty()) {
-            sender.sendMessage(gray("No systems yet."));
+            sender.sendMessage(Lang.message("command.size.no-systems"));
             return;
         }
-        sender.sendMessage(join(gold("System sizes: "), gray("what each has of what it needs, in three-star units")));
+        sender.sendMessage(Lang.message("command.size.title"));
         for (HvacController.SizeLine line : lines)
             sender.sendMessage(Component.text(" " + com.github.blade.hvac.gui.QuickSettingsMenu.sizeText(line),
                     line.worst() < 1.0 ? NamedTextColor.GOLD : NamedTextColor.GRAY));
@@ -1236,66 +1222,67 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     /** How the system measures up (BETA 1.0): its size, what it needs and has, its openings and neighbours. */
     private void showSize(Player player, Thermostat thermostat) {
         if (!plugin.controller().sizing().enabled()) {
-            player.sendMessage(gray("Building size is off (/hvac quicksettings): any size heats and cools as before."));
+            player.sendMessage(Lang.message("command.size.off"));
             return;
         }
         SizingModel.Assessment cooling = plugin.controller().assess(thermostat.system(), OperatingMode.COOLING);
         SizingModel.Assessment heating = plugin.controller().assess(thermostat.system(), OperatingMode.HEATING);
         if (cooling == null) {
-            player.sendMessage(gray("Size: not mapped yet. It's worked out from the air its vents reach."));
+            player.sendMessage(Lang.message("command.size.unmapped"));
             return;
         }
         String size = String.format(Locale.US, "%,d", cooling.size());
-        player.sendMessage(join(gray("Size: "), white(cooling.water() ? size + " blocks of water"
-                : size + " blocks of air"),
-                gray(cooling.water() ? "" : " | Openings: "), white(cooling.water() ? ""
-                        : cooling.openings() + (cooling.openings() == 0 ? "" : String.format(Locale.US,
-                        " (leaks x%.1f)", cooling.openness())))));
+        player.sendMessage(cooling.water() ? Lang.message("command.size.water", arg("size", size))
+                : Lang.message(cooling.openings() == 0 ? "command.size.air-sealed" : "command.size.air",
+                arg("size", size), arg("openings", cooling.openings()),
+                arg("leaks", String.format(Locale.US, "%.1f", cooling.openness()))));
         List<Component> parts = new ArrayList<>();
         for (SizingModel.Assessment sized : List.of(cooling, heating)) {
             if (sized.installed() <= 0.0) continue;
-            if (!parts.isEmpty()) parts.add(gray(" | "));
-            parts.add(gray(sized == cooling ? "Cooling: has " : "Heating: has "));
-            parts.add(Component.text(sized.ratio().replace("/", " of "), sized.undersized()
-                    ? NamedTextColor.GOLD : NamedTextColor.WHITE));
+            if (!parts.isEmpty()) parts.add(Lang.message("command.size.separator"));
+            String[] ratio = sized.ratio().split("/", 2);
+            parts.add(Lang.message(sized == cooling ? "command.size.cooling" : "command.size.heating",
+                    arg("has", Component.text(Lang.text("command.size.of", arg("has", ratio[0]),
+                            arg("needs", ratio.length > 1 ? ratio[1] : "")),
+                            sized.undersized() ? NamedTextColor.GOLD : NamedTextColor.WHITE))));
         }
         if (!parts.isEmpty()) {
-            parts.add(gray(" three-star units' worth it needs"));
+            parts.add(Lang.message("command.size.units-worth"));
             player.sendMessage(join(parts.toArray(Component[]::new)));
         }
         AirflowService.Shape shape = airflow.shape(thermostat.system());
         if (shape != null && !shape.contacts().isEmpty()) {
             List<String> touching = new ArrayList<>();
             shape.contacts().entrySet().stream().sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
-                    .forEach(contact -> touching.add(SystemNames.label(registry, contact.getKey()) + " ("
-                            + contact.getValue() + (contact.getValue() == 1 ? " face)" : " faces)")));
-            player.sendMessage(join(gray("Its air touches: "), white(String.join(", ", touching)),
-                    gray(" and evens out with it")));
+                    .forEach(contact -> touching.add(Lang.text(contact.getValue() == 1 ? "command.size.contact.one"
+                            : "command.size.contact.many", arg("system", SystemNames.label(registry, contact.getKey())),
+                            arg("faces", contact.getValue()))));
+            player.sendMessage(Lang.message("command.size.touches", arg("systems",
+                    String.join(Lang.text("list.separator"), touching))));
         }
     }
 
     private void showThermostat(Player player, Thermostat thermostat) {
-        player.sendMessage(join(gold(thermostat.pool() ? "Pool thermostat " : "Thermostat "), white(thermostat.id()),
-                gray(" | Linked: "), white(SystemNames.contents(registry.members(thermostat.system())))));
-        player.sendMessage(join(gray("Room/target: "), white(temp(thermostat.roomF()) + " / "
-                + temp(thermostat.targetF())), gray(" | Mode: "), white(thermostat.mode().name()),
-                gray(" | Profile: "), white(registry.profileFor(thermostat.system()).name()),
-                gray(" | "), white(thermostat.enabled() ? "enabled" : "disabled")));
+        player.sendMessage(Lang.message(thermostat.pool() ? "command.thermostat.info.pool" : "command.thermostat.info.room",
+                arg("name", thermostat.id()), arg("linked", SystemNames.contents(registry.members(thermostat.system())))));
+        player.sendMessage(Lang.message("command.thermostat.info.state", arg("room", temp(thermostat.roomF())),
+                arg("target", temp(thermostat.targetF())), arg("mode", thermostat.mode().name()),
+                arg("profile", registry.profileFor(thermostat.system()).name()),
+                arg("enabled", Lang.text(thermostat.enabled() ? "command.thermostat.info.enabled"
+                        : "command.thermostat.info.disabled"))));
         String times = ModeTimes.line(thermostat, System.currentTimeMillis());
         if (!times.isEmpty()) player.sendMessage(gray(times));
         showSize(player, thermostat);
         if (thermostat.enabled() && thermostat.waitingOnUnits() != null)
-            player.sendMessage(yellow("It needs " + (thermostat.waitingOnUnits() == OperatingMode.HEATING ? "heat"
-                    : "cooling") + ", but its units that could give it are switched off server-wide"
-                    + " (/hvac quicksettings)."));
+            player.sendMessage(Lang.message(thermostat.waitingOnUnits() == OperatingMode.HEATING
+                    ? "command.thermostat.info.needs-heat" : "command.thermostat.info.needs-cooling"));
         if (!thermostat.pool() && thermostat.hasRoomDewPoint()) {
             double humidity = Psychrometrics.relativeHumidity(thermostat.roomF(), thermostat.roomDewPointF());
-            player.sendMessage(join(gray("Humidity: "), white(Math.round(humidity) + "%"),
-                    gray(" | Feels like: "), white(temp(
-                            Psychrometrics.apparentTemperatureF(thermostat.roomF(), humidity, 0.0)))));
+            player.sendMessage(Lang.message("command.thermostat.info.humidity", arg("humidity", Math.round(humidity)),
+                    arg("feels", temp(Psychrometrics.apparentTemperatureF(thermostat.roomF(), humidity, 0.0)))));
         }
         if (!thermostat.pool() && units.air().enabled() && thermostat.roomAir().known()) {
-            player.sendMessage(join(gray("Air: "), airLine(thermostat.roomAir())));
+            player.sendMessage(Lang.message("command.temperature.air-quality", arg("air", airLine(thermostat.roomAir()))));
             player.sendMessage(gray(AirText.details(thermostat.roomAir())));
         }
     }
@@ -1307,33 +1294,38 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     /** An air purifier for /hvac info (3.2): what it reads, its filter, and the particles in detail. */
     private void showPurifier(Player player, AirPurifier purifier) {
-        String space = purifier.servedSystem() == null ? "its own zone"
-                : "system " + SystemNames.label(registry, purifier.servedSystem());
-        player.sendMessage(join(gold("Air purifier "), white(purifier.label()), gray(" | Cleaning: "), white(space)));
+        String space = servedSpace(purifier.servedSystem());
+        player.sendMessage(Lang.message("command.purifier.title", arg("name", purifier.label()), arg("space", space)));
         String filter = switch (purifier.installed()) {
-            case MISSING -> "none: place a tube coral block under it";
-            case SPENT -> "full: break the dead coral and place fresh tube coral";
-            case FRESH -> Math.round(purifier.filter() * 100) + "% left";
+            case MISSING -> Lang.text("command.purifier.filter.missing");
+            case SPENT -> Lang.text("command.purifier.filter.spent");
+            case FRESH -> Lang.text("command.purifier.filter.left", arg("percent", Math.round(purifier.filter() * 100)));
         };
         String fan = purifier.mode() == AirPurifier.Mode.AUTO
-                ? "Auto" + (purifier.running() ? ", running " + purifier.speed().displayName() : "")
+                ? purifier.running() ? Lang.text("command.purifier.auto-running", arg("speed",
+                purifier.speed().displayName())) : Lang.text("command.purifier.auto")
                 : purifier.mode().displayName();
-        player.sendMessage(join(gray("Fan: "), white(fan),
-                gray(" | State: "), white(purifier.state().name()), gray(" | Filter: "), white(filter)));
+        player.sendMessage(Lang.message("command.purifier.state", arg("fan", fan), arg("state", purifier.state().name()),
+                arg("filter", filter)));
         AirQualityModel.Air air = purifier.lastAir();
         if (air.known()) {
-            player.sendMessage(join(gray("Air: "), airLine(air)));
-            player.sendMessage(gray(AirText.details(air)));
+            player.sendMessage(Lang.message("command.temperature.air-quality", arg("air", airLine(air))));
+            player.sendMessage(Component.text(AirText.details(air), NamedTextColor.GRAY));
         } else {
-            player.sendMessage(gray(units.air().enabled() ? "Air: not measured yet."
-                    : "Air quality is switched off on this server (air-quality.enabled)."));
+            player.sendMessage(Lang.message(units.air().enabled() ? "command.purifier.unmeasured"
+                    : "command.purifier.air-off"));
         }
+    }
+
+    /** "its own zone", or the system a unit works on. */
+    private String servedSpace(SystemId system) {
+        return system == null ? Lang.text("command.climate-unit.own-zone")
+                : Lang.text("command.sensor.in-system", arg("system", SystemNames.label(registry, system)));
     }
 
     private void showClimateUnit(Player player, ClimateUnit unit) {
         if (unit.offServerWide())
-            player.sendMessage(yellow(DeviceKind.of(unit.kind()).plural() + " are switched off server-wide"
-                    + " (/hvac quicksettings); this one runs again when they're switched back on."));
+            player.sendMessage(Lang.message("command.info.kind-off", arg("kinds", DeviceKind.of(unit.kind()).plural())));
         if (unit instanceof AirPurifier purifier) {
             showPurifier(player, purifier);
             return;
@@ -1342,24 +1334,22 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             showRefrigerator(player, refrigerator);
             return;
         }
-        String space = unit.servedSystem() == null ? "its own zone"
-                : "system " + SystemNames.label(registry, unit.servedSystem());
+        String space = servedSpace(unit.servedSystem());
         double humidity = unit.lastHumidity();
-        player.sendMessage(join(gold(unit.kind().displayName() + " "), white(unit.label()),
-                gray(unit instanceof Dehumidifier ? " | Drying: " : " | Humidifying: "), white(space)));
-        player.sendMessage(join(gray("Humidity: "), white(Double.isFinite(humidity) ? Math.round(humidity) + "%" : "unknown"),
-                gray(" | Setpoint: "), white(unit.setpoint() + "%"),
-                gray(" | State: "), white(unit.state().name()),
-                unit instanceof Dehumidifier dehumidifier
-                        ? join(gray(" | Tank: "), white(Math.round(dehumidifier.tank() * 100) + "%"))
-                        : gray(" | Plumbed")));
+        player.sendMessage(Lang.message(unit instanceof Dehumidifier ? "command.climate-unit.drying"
+                : "command.climate-unit.humidifying", arg("kind", unit.kind().displayName()), arg("name", unit.label()),
+                arg("space", space)));
+        player.sendMessage(Lang.message("command.climate-unit.state", arg("humidity", Double.isFinite(humidity)
+                        ? Math.round(humidity) + "%" : Lang.text("command.climate-unit.unknown")),
+                arg("setpoint", unit.setpoint()), arg("state", unit.state().name()),
+                arg("water", unit instanceof Dehumidifier dehumidifier
+                        ? Lang.message("command.climate-unit.tank", arg("tank", Math.round(dehumidifier.tank() * 100)))
+                        : Lang.message("command.climate-unit.plumbed"))));
         if (unit instanceof Dehumidifier dehumidifier && dehumidifier.tooCold()) {
             Thermostat thermostat = unit.servedSystem() == null ? null : registry.thermostatFor(unit.servedSystem());
             double dewPointF = thermostat == null ? unit.zoneDewPointF() : thermostat.roomDewPointF();
-            player.sendMessage(gold("Air too cold: its dew point (" + settings.units().format(dewPointF, 0)
-                    + ") is at or below what the coil can remove ("
-                    + settings.units().format(units.climate().dehumidifier().dryDewPointF(), 0)
-                    + "), so it can't dry this air."));
+            player.sendMessage(Lang.message("command.climate-unit.too-cold", arg("dew", settings.units().format(dewPointF, 0)),
+                    arg("coil", settings.units().format(units.climate().dehumidifier().dryDewPointF(), 0))));
         }
     }
 
@@ -1368,74 +1358,75 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
      * freezer being looked at, to see it, or to test a server's settings.
      */
     private void frost(Player player, String[] args) {
-        if (args.length < 2) throw new IllegalArgumentException("Usage: /hvac frost <0-100>, looking at a deep freezer or refrigerator.");
+        if (args.length < 2) throw new UserError("command.frost.usage", arg("usage", "/hvac frost <0-100>"));
         int percent;
         try {
             percent = Integer.parseInt(args[1].replace("%", ""));
         } catch (NumberFormatException notANumber) {
-            throw new IllegalArgumentException("Usage: /hvac frost <0-100>, looking at a freezer.");
+            throw new UserError("command.frost.usage-number", arg("usage", "/hvac frost <0-100>"));
         }
         Block block = target(player);
         if (block == null) return;
         if (!(registry.refrigeratorAt(BlockKey.of(block.getLocation())) instanceof Freezer freezer))
-            throw new IllegalArgumentException("Look at a deep freezer or a refrigerator: its sign, iron block or barrel.");
+            throw new UserError("command.frost.look");
         freezer.setFrost(Math.max(0, Math.min(100, percent)) / 100.0);
         registry.markDirty();
         plugin.frost().show(freezer);
         displays.refreshClimateUnit(freezer, true);
-        player.sendMessage(green(freezer.label() + "'s frost is now " + Math.round(freezer.frost() * 100) + "%."
-                + (freezer.autoDefrost() && freezer.frost() >= units.climate().refrigeration().autoDefrostAt()
-                ? " That's past where it defrosts itself, so it will start shortly." : "")));
+        player.sendMessage(Lang.message(freezer.autoDefrost() && freezer.frost() >= units.climate().refrigeration().autoDefrostAt()
+                ? "command.frost.set-defrosts" : "command.frost.set", arg("name", freezer.label()),
+                arg("frost", Math.round(freezer.frost() * 100))));
     }
 
     /** A fridge or freezer (BETA 1.0 Pilot 7): its inside, setpoint, what it's doing, and the room it warms. */
     private void showRefrigerator(Player player, Refrigerator refrigerator) {
-        String room = refrigerator.servedSystem() == null ? "the air outside where it stands (no system's room)"
-                : "system " + SystemNames.label(registry, refrigerator.servedSystem()) + "'s room";
+        String room = refrigerator.servedSystem() == null ? Lang.text("command.fridge.room-outside")
+                : Lang.text("command.fridge.room-system", arg("system",
+                SystemNames.label(registry, refrigerator.servedSystem())));
         double inside = refrigerator.insideF();
-        player.sendMessage(join(gold(refrigerator.kind().displayName() + " "), white(refrigerator.label()),
-                gray(" | Stands in: "), white(room)));
-        player.sendMessage(join(gray(refrigerator instanceof FridgeFreezer ? "Freezer (below): " : "Inside: "),
-                white(Double.isFinite(inside) ? settings.units().format(inside, 1)
-                        : "not measured yet"),
-                gray(" | Setpoint: "), white(settings.units().format(refrigerator.setpoint(), 0)),
-                gray(" | "), white(refrigerator.activity())));
+        String unmeasured = Lang.text("command.fridge.unmeasured");
+        player.sendMessage(Lang.message("command.fridge.title", arg("kind", refrigerator.kind().displayName()),
+                arg("name", refrigerator.label()), arg("room", room)));
+        player.sendMessage(Lang.message(refrigerator instanceof FridgeFreezer ? "command.fridge.freezer-below"
+                        : "command.fridge.inside",
+                arg("inside", Double.isFinite(inside) ? settings.units().format(inside, 1) : unmeasured),
+                arg("setpoint", settings.units().format(refrigerator.setpoint(), 0)),
+                arg("activity", refrigerator.activity())));
         if (refrigerator instanceof MiniFridge mini) {
             double chiller = mini.chillerF();
-            player.sendMessage(join(gray("Chiller box: "), white(Double.isFinite(chiller)
-                    ? settings.units().format(chiller, 1) : "not measured yet"), gray(" (about 10° below the rest)")));
+            player.sendMessage(Lang.message("command.fridge.chiller", arg("chiller", Double.isFinite(chiller)
+                    ? settings.units().format(chiller, 1) : unmeasured)));
         }
         if (refrigerator instanceof FridgeFreezer both) {
             double fridge = both.fridgeInsideF();
-            player.sendMessage(join(gray("Fridge (top): "), white(Double.isFinite(fridge)
-                            ? settings.units().format(fridge, 1) : "not measured yet"),
-                    gray(" | Setpoint: "), white(settings.units().format(both.fridgeSetpoint(), 0)),
-                    both.fridgeDoorOpen() ? gray(" | door open") : gray("")));
+            player.sendMessage(Lang.message(both.fridgeDoorOpen() ? "command.fridge.top-open" : "command.fridge.top",
+                    arg("inside", Double.isFinite(fridge) ? settings.units().format(fridge, 1) : unmeasured),
+                    arg("setpoint", settings.units().format(both.fridgeSetpoint(), 0))));
         }
         if (refrigerator instanceof Freezer freezer)
-            player.sendMessage(join(gray("Frost: "), white(Math.round(freezer.frost() * 100) + "%"),
-                    gray(freezer.hasAutoDefrost() ? " | Auto defrost: " : " | Defrost: "),
-                    white(!freezer.hasAutoDefrost() ? "by hand (Defrost now)" : freezer.autoDefrost() ? "on" : "off"),
-                    freezer.defrosting() ? gray(" | defrosting now") : gray("")));
+            player.sendMessage(Lang.message(freezer.defrosting() ? "command.fridge.frost-defrosting" : "command.fridge.frost",
+                    arg("frost", Math.round(freezer.frost() * 100)),
+                    arg("defrost", Lang.message(!freezer.hasAutoDefrost() ? "command.fridge.defrost.by-hand"
+                            : freezer.autoDefrost() ? "command.fridge.defrost.auto-on" : "command.fridge.defrost.auto-off"))));
     }
 
     private void showEquipment(Player player, EquipmentUnit unit) {
-        player.sendMessage(join(gold(unit.type().displayName() + " "), aqua(tierName(unit.tier(), unit.type())),
-                systemOf(unit.system())));
-        player.sendMessage(join(gray("State: "), white(unit.running() ? unit.operatingMode().name() : "IDLE"),
-                gray(" | RPM: "), white(String.format(Locale.US, "%.0f", unit.motorRpm())),
-                gray(" | Profile: "), white(unit.type().fixedSpeed()
-                        ? "FIXED" : registry.profileFor(unit.system()).name()),
-                gray(" | Output: "), white(unit.hasOwnedOutput() ? "owned" : "none"),
-                gray(" | "), white(unit.enabled() ? "enabled" : "disabled")));
+        player.sendMessage(Lang.message("command.equipment.info.title", arg("kind", unit.type().displayName()),
+                arg("tier", tierName(unit.tier(), unit.type())), arg("system", systemOf(unit.system()))));
+        player.sendMessage(Lang.message("command.equipment.info.state",
+                arg("state", unit.running() ? unit.operatingMode().name() : "IDLE"),
+                arg("rpm", String.format(Locale.US, "%.0f", unit.motorRpm())),
+                arg("profile", unit.type().fixedSpeed() ? "FIXED" : registry.profileFor(unit.system()).name()),
+                arg("output", Lang.text(unit.hasOwnedOutput() ? "command.equipment.info.owned" : "command.equipment.info.none")),
+                arg("enabled", Lang.text(unit.enabled() ? "command.thermostat.info.enabled"
+                        : "command.thermostat.info.disabled"))));
         if (ServerSwitches.deviceOff(DeviceKind.of(unit.type())))
-            player.sendMessage(yellow(DeviceKind.of(unit.type()).plural() + " are switched off server-wide"
-                    + " (/hvac quicksettings); this one runs again when they're switched back on."));
+            player.sendMessage(Lang.message("command.info.kind-off", arg("kinds", DeviceKind.of(unit.type()).plural())));
     }
 
     private Block target(Player player) {
         Block block = player.getTargetBlockExact(6);
-        if (block == null) player.sendMessage(red("Look directly at a block within 6 blocks."));
+        if (block == null) player.sendMessage(Lang.message("command.look-at-block"));
         return block;
     }
 
@@ -1443,12 +1434,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     private void requireWallButton(Block block) {
         if (!(block.getBlockData() instanceof org.bukkit.block.data.FaceAttachable attached)
                 || attached.getAttachedFace() != org.bukkit.block.data.FaceAttachable.AttachedFace.WALL)
-            throw new IllegalArgumentException("A mini thermostat goes on a button on a wall, not on a floor or"
-                    + " ceiling.");
+            throw new UserError("command.create.mini-on-wall");
     }
 
     private static void requireSign(Block block) {
-        if (!(block.getState() instanceof Sign)) throw new IllegalArgumentException("Look directly at a sign.");
+        if (!(block.getState() instanceof Sign)) throw new UserError("command.look-at-sign");
     }
 
 
@@ -1501,7 +1491,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
 
     private static boolean requireAdmin(CommandSender sender) {
         if (sender.hasPermission(ADMIN_PERMISSION)) return true;
-        sender.sendMessage(red("You need " + ADMIN_PERMISSION + "."));
+        sender.sendMessage(Lang.message("command.needs-permission", arg("permission", ADMIN_PERMISSION)));
         return false;
     }
 
@@ -1515,48 +1505,48 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         String which = admin ? page.toLowerCase(Locale.ROOT) : "";
         switch (which) {
             case "build" -> {
-                lines.add(gold("EZvac commands: building"));
-                lines.add(help("/hvac create thermostat|poolthermostat <label> [target]", "a sign"));
+                lines.add(Lang.message("command.help.build.title"));
+                lines.add(help("/hvac create thermostat|poolthermostat <label> [target]", "command.help.build.create-thermostat"));
                 lines.add(help("/hvac create heatpump|ac|furnace|boiler|poolheatpump [t1|t2|t3]",
-                        "a dispenser, two-stage (t2) unless told"));
+                        "command.help.build.create-equipment"));
                 lines.add(help("/hvac create thermometer|hygrometer|thermohygrometer|airmonitor|rpmmonitor"
-                        + "|settingspanel|sensor-hub [label]", "a sign"));
+                        + "|settingspanel|sensor-hub [label]", "command.help.build.create-sign"));
                 lines.add(help("/hvac create dehumidifier|humidifier|purifier|fridge|freezer [label]",
-                        "the sign on its iron block"));
-                lines.add(help("/hvac create sensor|weatherstation [label]", "a button, or the sign on its tower"));
-                lines.add(help("/hvac link-tool", "link devices to a thermostat, or sensors to a hub"));
-                lines.add(help("/hvac tutorial [leave]", "build a first system, guided, in a world of its own"));
-                lines.add(help("/hvac thermostat set|enable|disable", "the thermostat you look at"));
-                lines.add(help("/hvac equipment enable|disable|tier", "the unit you look at"));
-                lines.add(help("/hvac rename <label>", "the sign you look at"));
-                lines.add(help("/hvac remove [system]", "the device you look at, or its whole system"));
+                        "command.help.build.create-unit"));
+                lines.add(help("/hvac create sensor|weatherstation [label]", "command.help.build.create-sensor"));
+                lines.add(help("/hvac link-tool", "command.help.build.link-tool"));
+                lines.add(help("/hvac tutorial [leave]", "command.help.build.tutorial"));
+                lines.add(help("/hvac thermostat set|enable|disable", "command.help.build.thermostat"));
+                lines.add(help("/hvac equipment enable|disable|tier", "command.help.build.equipment"));
+                lines.add(help("/hvac rename <label>", "command.help.build.rename"));
+                lines.add(help("/hvac remove [system]", "command.help.build.remove"));
             }
             case "server" -> {
-                lines.add(gold("EZvac commands: running the server"));
-                lines.add(help("/hvac quicksettings", "devices, climate systems, backups, statistics, updates"));
-                lines.add(help("/hvac setup", "the first-start setup, again; skip marks it done"));
-                lines.add(help("/hvac addons", "official addons: switch them, find more, see updates"));
-                lines.add(help("/hvac stats [sizes]", "device totals, or every system's size"));
-                lines.add(help("/hvac sync", "map every system's air again, after /fill or WorldEdit"));
-                lines.add(help("/hvac update", "check GitHub for a newer EZvac that runs here"));
-                lines.add(help("/hvac season set <season> [day] | next | pause | resume", "change the season"));
-                lines.add(help("/hvac wind set <calm|breezy|windy|gale|auto>", "set today's wind, until the day ends"));
-                lines.add(help("/hvac hud sections", "the HUD sections addons have added"));
-                lines.add(help("/hvac registry [repair --force]", "hvac.yml's health; discard broken entries"));
-                lines.add(help("/hvac frost <0-100>", "set the frost of the freezer you look at"));
+                lines.add(Lang.message("command.help.server.title"));
+                lines.add(help("/hvac quicksettings", "command.help.server.quicksettings"));
+                lines.add(help("/hvac setup", "command.help.server.setup"));
+                lines.add(help("/hvac addons", "command.help.server.addons"));
+                lines.add(help("/hvac stats [sizes]", "command.help.server.stats"));
+                lines.add(help("/hvac sync", "command.help.server.sync"));
+                lines.add(help("/hvac update", "command.help.server.update"));
+                lines.add(help("/hvac season set <season> [day] | next | pause | resume", "command.help.server.season"));
+                lines.add(help("/hvac wind set <calm|breezy|windy|gale|auto>", "command.help.server.wind"));
+                lines.add(help("/hvac hud sections", "command.help.server.hud-sections"));
+                lines.add(help("/hvac registry [repair --force]", "command.help.server.registry"));
+                lines.add(help("/hvac frost <0-100>", "command.help.server.frost"));
             }
             default -> {
-                lines.add(gold("EZvac commands"));
-                lines.add(help("/hvac temperature", "the temperature here, and which system reaches you"));
-                if (hud) lines.add(help("/hvac hud [on|off]", "show or hide the on-screen climate HUD"));
-                lines.add(help("/hvac info", "the device you look at"));
-                lines.add(help("/hvac list", "the systems in this world"));
-                lines.add(help("/hvac season", "the season and how much it warms or cools outside"));
-                lines.add(help("/hvac wind", "today's wind, the wind here, and the next days'"));
-                lines.add(help("/hvac forecast", "the next seven days, from a weather station near you"));
+                lines.add(Lang.message("command.help.index.title"));
+                lines.add(help("/hvac temperature", "command.help.index.temperature"));
+                if (hud) lines.add(help("/hvac hud [on|off]", "command.help.index.hud"));
+                lines.add(help("/hvac info", "command.help.index.info"));
+                lines.add(help("/hvac list", "command.help.index.list"));
+                lines.add(help("/hvac season", "command.help.index.season"));
+                lines.add(help("/hvac wind", "command.help.index.wind"));
+                lines.add(help("/hvac forecast", "command.help.index.forecast"));
                 if (admin) {
-                    lines.add(help("/hvac help build", "creating, linking and changing devices"));
-                    lines.add(help("/hvac help server", "quick settings, statistics, seasons, wind, updates"));
+                    lines.add(help("/hvac help build", "command.help.index.build"));
+                    lines.add(help("/hvac help server", "command.help.index.server"));
                 }
             }
         }
@@ -1564,7 +1554,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
     }
 
     private static Component help(String command, String what) {
-        return join(aqua(command), gray(" - " + what));
+        return Lang.message("command.help.line", arg("command", command), arg("what", Lang.text(what)));
     }
 
     /** The first word's completions: only what the sender can run. */
@@ -1647,6 +1637,11 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Component message = Component.empty();
         for (Component part : parts) message = message.append(part);
         return message;
+    }
+
+    /** A command typed wrong: its syntax, which stays English on every server. */
+    private static UserError usage(String syntax) {
+        return new UserError("command.usage", arg("usage", syntax));
     }
 
     private static Component green(String value) { return Component.text(value, NamedTextColor.GREEN); }
