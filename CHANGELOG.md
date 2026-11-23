@@ -131,8 +131,8 @@ whether a device's chunk is loaded, and **controlling devices** through
   26.1.2, and start-up and screens on 26.2 and 26.3; 746 unit tests.
 - **Upgrades** from ALPHA 3.2 HOTFIX 1 and Pilots 5, 9 and 10, each with every
   device it has: the same devices after, nothing kept aside or lost. And
-  **back to 3.2** and forward again (see above).
-- **Robustness:** six hard kills mid-save with 200,000 devices, each reloading
+  **back to 3.2** and forward again, which loses only mini thermostats.
+- **Robustness:** six hard kills at random moments with 200,000 devices, each reloading
   intact; a broken `hvac.yml` recovered from its backup, and left untouched
   when there is none.
 - **An hour's soak** on 1,000 rooms, a day every two minutes, visitors running
