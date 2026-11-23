@@ -16,6 +16,7 @@ import com.github.blade.hvac.service.RegistryBackups;
 import com.github.blade.hvac.simulation.SizingModel;
 import com.github.blade.hvac.update.UpdateCheck;
 import com.github.blade.hvac.update.UpdateNotifier;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -40,6 +41,8 @@ import java.util.Objects;
 import static com.github.blade.hvac.gui.ControlMenus.click;
 import static com.github.blade.hvac.gui.ControlMenus.gray;
 import static com.github.blade.hvac.gui.ControlMenus.item;
+import static com.github.blade.hvac.gui.ControlMenus.lore;
+import static com.github.blade.hvac.lang.Lang.arg;
 
 /**
  * /hvac quicksettings (BETA 1.0): one menu for the server-wide settings an
@@ -168,7 +171,7 @@ public final class QuickSettingsMenu implements Listener {
         Menu menu = new Menu(page);
         menu.addon = addon;
         menu.world = seasonalWorld(player);
-        menu.inventory = Bukkit.createInventory(menu, page.size, Component.text(page.title));
+        menu.inventory = Bukkit.createInventory(menu, page.size, Lang.message(Lang.key("menu.qs.title", page.name())));
         draw(menu);
         player.openInventory(menu.inventory);
     }
@@ -177,11 +180,10 @@ public final class QuickSettingsMenu implements Listener {
         Inventory inventory = menu.inventory;
         ItemStack filler = item(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "), List.of());
         for (int slot = 0; slot < inventory.getSize(); slot++) inventory.setItem(slot, filler);
-        inventory.setItem(menu.page.close(), item(Material.BARRIER, Component.text("Close", NamedTextColor.RED),
-                List.of()));
+        inventory.setItem(menu.page.close(), item(Material.BARRIER, Lang.message("menu.close"), List.of()));
         if (menu.page != Page.MAIN)
-            inventory.setItem(menu.page.back(), item(Material.ARROW, Component.text("Back", NamedTextColor.YELLOW),
-                    List.of(gray(menu.page == Page.ADDON_PARTS ? "To the addons" : "To the quick settings"))));
+            inventory.setItem(menu.page.back(), item(Material.ARROW, Lang.message("menu.back"),
+                    List.of(lore(menu.page == Page.ADDON_PARTS ? "menu.qs.back-addons" : "menu.qs.back-main"))));
         switch (menu.page) {
             case MAIN -> drawMain(inventory);
             case DEVICES -> drawDevices(inventory);
@@ -221,52 +223,55 @@ public final class QuickSettingsMenu implements Listener {
     private void drawSeasons(Inventory inventory, java.util.UUID worldId) {
         org.bukkit.World world = worldId == null ? null : plugin.getServer().getWorld(worldId);
         if (world == null) {
-            inventory.setItem(WORLD_INFO, item(Material.BARRIER, Component.text("No world with a sky",
-                    NamedTextColor.RED), List.of(gray("Seasons and wind need one"))));
+            inventory.setItem(WORLD_INFO, item(Material.BARRIER, Lang.message("menu.qs.seasons.no-world"),
+                    List.of(lore("menu.qs.seasons.no-world-lore"))));
             return;
         }
         inventory.setItem(WORLD_INFO, item(Material.GRASS_BLOCK,
-                Component.text("World: " + world.getName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
-                List.of(gray("The world you stand in, when it has"), gray("a sky; open this from another"),
-                        gray("world to change that one"))));
+                Lang.message("menu.qs.seasons.world", arg("world", world.getName())),
+                List.of(lore("menu.qs.seasons.world-1"), lore("menu.qs.seasons.world-2"),
+                        lore("menu.qs.seasons.world-3"))));
         com.github.blade.hvac.service.SeasonService seasons = plugin.seasons();
         if (!switches.seasons() || seasons == null || !seasons.tracks(worldId)) {
-            inventory.setItem(SEASON_NOW, item(Material.OAK_SAPLING, Component.text("Seasons: Off", NamedTextColor.RED),
-                    List.of(gray(switches.seasons() ? "This world's calendar hasn't started yet"
-                            : "Switch them on under Climate systems"))));
+            inventory.setItem(SEASON_NOW, item(Material.OAK_SAPLING, Lang.message("menu.qs.seasons.off"),
+                    List.of(lore(switches.seasons() ? "menu.qs.seasons.not-started" : "menu.qs.seasons.switch-on"))));
         } else {
             int days = seasons.settings().daysPerSeason(), day = seasons.dayOfSeason(worldId);
             com.github.blade.hvac.simulation.Seasons.Season season = seasons.season(worldId);
             boolean paused = seasons.paused(worldId);
-            inventory.setItem(SEASON_NOW, item(seasonIcon(season), Component.text(season.displayName() + ", day " + day
-                            + " of " + days, NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
-                    List.of(gray(paused ? "Paused: the days pass, the season stays" : "The calendar is running"),
-                            gray("A year is " + days * 4 + " days"))));
-            inventory.setItem(DAY_BACK, item(Material.RED_CANDLE, Component.text("A day back", NamedTextColor.YELLOW),
-                    List.of(gray(day > 1 ? "To day " + (day - 1) : "This is the season's first day"))));
-            inventory.setItem(DAY_ON, item(Material.LIME_CANDLE, Component.text("A day on", NamedTextColor.YELLOW),
-                    List.of(gray(day < days ? "To day " + (day + 1) : "To " + season.next().displayName() + ", day 1"))));
-            inventory.setItem(NEXT_SEASON, item(seasonIcon(season.next()), Component.text("Next season",
-                    NamedTextColor.YELLOW), List.of(gray("To " + season.next().displayName() + ", day 1"))));
+            inventory.setItem(SEASON_NOW, item(seasonIcon(season), Lang.message("menu.qs.seasons.now",
+                            arg("season", Lang.text("command.season.day", arg("season", season.displayName()),
+                                    arg("day", day), arg("days", days)))),
+                    List.of(lore(paused ? "menu.qs.seasons.paused" : "menu.qs.seasons.running"),
+                            lore("menu.qs.seasons.year", arg("days", days * 4)))));
+            inventory.setItem(DAY_BACK, item(Material.RED_CANDLE, Lang.message("menu.qs.seasons.day-back"),
+                    List.of(day > 1 ? lore("menu.qs.seasons.to-day", arg("day", day - 1))
+                            : lore("menu.qs.seasons.first-day"))));
+            inventory.setItem(DAY_ON, item(Material.LIME_CANDLE, Lang.message("menu.qs.seasons.day-on"),
+                    List.of(day < days ? lore("menu.qs.seasons.to-day", arg("day", day + 1))
+                            : lore("menu.qs.seasons.to-season", arg("season", season.next().displayName())))));
+            inventory.setItem(NEXT_SEASON, item(seasonIcon(season.next()), Lang.message("menu.qs.seasons.next"),
+                    List.of(lore("menu.qs.seasons.to-season", arg("season", season.next().displayName())))));
             inventory.setItem(PAUSE, item(paused ? Material.LIME_DYE : Material.GRAY_DYE,
-                    Component.text(paused ? "Resume the calendar" : "Pause the calendar", NamedTextColor.YELLOW),
-                    List.of(gray(paused ? "The seasons move on again" : "The season stays as it is"))));
+                    Lang.message(paused ? "menu.qs.seasons.resume" : "menu.qs.seasons.pause"),
+                    List.of(lore(paused ? "menu.qs.seasons.resume-lore" : "menu.qs.seasons.pause-lore"))));
         }
         com.github.blade.hvac.service.WindService wind = plugin.outdoor().wind();
         if (!switches.wind() || wind == null || !com.github.blade.hvac.service.WindService.hasWind(world)) {
-            inventory.setItem(WIND_NOW, item(Material.FEATHER, Component.text("Wind: Off", NamedTextColor.RED),
-                    List.of(gray("Switch it on under Climate systems"))));
+            inventory.setItem(WIND_NOW, item(Material.FEATHER, Lang.message("menu.qs.wind.off"),
+                    List.of(lore("menu.qs.wind.switch-on"))));
             return;
         }
         com.github.blade.hvac.simulation.WindModel.Day today = wind.day(world);
         boolean held = wind.held(world);
         com.github.blade.hvac.simulation.WindModel.Level next = nextWind(held ? today.level() : null);
-        inventory.setItem(WIND_NOW, item(Material.FEATHER, Component.text("Wind today: " + today.level().displayName(),
-                        NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
-                List.of(gray("About " + com.github.blade.hvac.service.WindText.speed(today.meanMs(),
-                                com.github.blade.hvac.service.WindText.units(wind.settings(), plugin.settings().units()))),
-                        gray(held ? "Set by an admin, until the day ends" : "Blowing as it would"),
-                        yellow("Click for: " + (next == null ? "as it would blow" : next.displayName())))));
+        inventory.setItem(WIND_NOW, item(Material.FEATHER, Lang.message("menu.qs.wind.today",
+                        arg("level", today.level().displayName())),
+                List.of(lore("menu.qs.wind.about", arg("speed", com.github.blade.hvac.service.WindText.speed(today.meanMs(),
+                                com.github.blade.hvac.service.WindText.units(wind.settings(), plugin.settings().units())))),
+                        lore(held ? "menu.qs.wind.held" : "menu.qs.wind.as-it-would"),
+                        lore("menu.qs.click-for", arg("next", next == null ? Lang.text("menu.qs.wind.as-it-would-blow")
+                                : next.displayName())))));
     }
 
     /** What a click on the wind sets: calm, breezy, windy, gale, then back to as it would blow (null). */
@@ -332,19 +337,19 @@ public final class QuickSettingsMenu implements Listener {
         com.github.blade.hvac.config.TemperatureUnit unit = plugin.settings().units();
         boolean fahrenheit = unit == com.github.blade.hvac.config.TemperatureUnit.F;
         inventory.setItem(UNITS, item(fahrenheit ? Material.MAGMA_CREAM : Material.SNOWBALL,
-                Component.text("Temperatures: °" + unit.name(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
-                List.of(gray("On screens, the HUD, menus and chat"), gray("Setpoints keep their temperature"),
-                        yellow("Click for: °" + (fahrenheit ? "C" : "F")))));
+                Lang.message("menu.qs.display.units", arg("unit", unit.name())),
+                List.of(lore("menu.qs.display.units-1"), lore("menu.qs.display.units-2"),
+                        lore("menu.qs.click-for", arg("next", "°" + (fahrenheit ? "C" : "F"))))));
         com.github.blade.hvac.service.WindService wind = plugin.outdoor().wind();
         com.github.blade.hvac.config.WindSettings.Units speeds = wind == null
                 ? com.github.blade.hvac.config.WindSettings.Units.AUTO : wind.settings().units();
         inventory.setItem(WIND_UNITS, item(Material.FEATHER,
-                Component.text("Wind speeds: " + speeds.displayName(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
-                List.of(gray("Auto: mph with °F, km/h with °C"),
-                        yellow("Click for: " + nextWindUnits(speeds).displayName()))));
+                Lang.message("menu.qs.display.wind-units", arg("units", speeds.displayName())),
+                List.of(lore("menu.qs.display.wind-units-auto"),
+                        lore("menu.qs.click-for", arg("next", nextWindUnits(speeds).displayName())))));
         boolean sounds = plugin.settings().audioEnabled();
-        placeSwitch(inventory, SOUNDS, Material.NOTE_BLOCK, "Device sounds", sounds, List.of(
-                gray("Units starting and stopping, their hum,"), gray("and air at the vents"), clickTo(sounds)));
+        placeSwitch(inventory, SOUNDS, Material.NOTE_BLOCK, Lang.text("menu.qs.display.sounds"), sounds, List.of(
+                lore("menu.qs.display.sounds-1"), lore("menu.qs.display.sounds-2"), clickTo(sounds)));
 
     }
 
@@ -407,69 +412,67 @@ public final class QuickSettingsMenu implements Listener {
         List<AddonService.Installed> installed = addons.installed();
         List<AddonCatalogue.Entry> store = addons.store();
         inventory.setItem(ADDONS_INFO, item(Material.BOOKSHELF,
-                Component.text("Official addons", NamedTextColor.AQUA).decorate(TextDecoration.BOLD), List.of(
-                        gray(installed.size() + " installed, " + store.size() + " more in the store"),
-                        gray("Top row: installed. Click the dye"), gray("beneath one to switch it."),
-                        gray("Bottom row: the store. Click one"), gray("for its link; EZvac never"),
-                        gray("downloads or installs anything."))));
+                Lang.message("menu.qs.addons.title"), List.of(
+                        lore("menu.qs.addons.counts", arg("installed", installed.size()), arg("store", store.size())),
+                        lore("menu.qs.addons.help-1"), lore("menu.qs.addons.help-2"),
+                        lore("menu.qs.addons.help-3"), lore("menu.qs.addons.help-4"),
+                        lore("menu.qs.addons.help-5"))));
         builtIn(inventory);
         for (int i = 0; i < Math.min(ADDON_SLOTS, installed.size()); i++) {
             AddonService.Installed addon = installed.get(i);
             AddonCatalogue.Entry entry = addon.entry();
             List<Component> lore = new ArrayList<>();
-            lore.add(gray("Version " + addon.version()));
-            if (addon.update() != null) lore.add(colored("Update available: " + addon.update(), NamedTextColor.GOLD));
+            lore.add(lore("menu.qs.addons.version", arg("version", addon.version())));
+            if (addon.update() != null) lore.add(lore("menu.qs.addons.update", arg("version", addon.update())));
             describe(lore, entry);
             if (entry.folded()) {
                 AddonCatalogue.Entry into = addons.entry(entry.foldedInto());
-                lore.add(colored("Legacy: no longer supported", NamedTextColor.RED));
-                lore.add(colored("Now part of " + (into == null ? entry.foldedInto() : into.name()),
-                        NamedTextColor.GOLD));
+                lore.add(lore("menu.qs.addons.legacy"));
+                lore.add(lore("menu.qs.addons.part-of", arg("addon", into == null ? entry.foldedInto() : into.name())));
             }
             boolean on = addon.running() && addon.active();
-            if (!addon.running()) lore.add(colored("Its plugin isn't running: see the console", NamedTextColor.RED));
+            if (!addon.running()) lore.add(lore("menu.qs.addons.not-running"));
             else if (!addon.switchable()) {
-                lore.add(gray("Runs, but can't be switched here:"));
-                lore.add(gray("update it for that"));
+                lore.add(lore("menu.qs.addons.not-switchable-1"));
+                lore.add(lore("menu.qs.addons.not-switchable-2"));
             } else {
                 if (!addon.parts().isEmpty()) {
                     long partsOn = addon.parts().stream().filter(AddonService.PartView::on).count();
-                    lore.add(gray(partsOn + " of " + addon.parts().size() + " parts on"));
-                    lore.add(yellow("Click for its parts"));
-                    lore.add(yellow("Click the dye to switch it " + (addon.active() ? "off" : "on")));
+                    lore.add(lore("menu.qs.addons.parts-on", arg("on", partsOn), arg("parts", addon.parts().size())));
+                    lore.add(lore("menu.qs.addons.click-parts"));
+                    lore.add(lore(addon.active() ? "menu.qs.addons.dye-off" : "menu.qs.addons.dye-on"));
                 } else lore.add(clickTo(addon.active()));
             }
-            if (addon.update() != null) lore.add(yellow("Shift-click for its link"));
+            if (addon.update() != null) lore.add(lore("menu.qs.addons.shift-link"));
             placeSwitch(inventory, ADDONS_FROM + i, icon(entry), entry.name(), on, lore);
         }
         if (installed.isEmpty())
-            inventory.setItem(ADDONS_FROM + 2, item(Material.GLASS_BOTTLE, Component.text("No official addons yet",
-                    NamedTextColor.GRAY), List.of(gray("The store is in the row below"))));
+            inventory.setItem(ADDONS_FROM + 2, item(Material.GLASS_BOTTLE, Lang.message("menu.qs.addons.none"),
+                    List.of(lore("menu.qs.addons.store-below"))));
         for (int i = 0; i < Math.min(ADDONS_ROW, store.size()); i++) {
             AddonCatalogue.Entry entry = store.get(i);
             List<Component> lore = new ArrayList<>();
             describe(lore, entry);
-            if (!entry.needs().isEmpty()) lore.add(gray("Needs " + entry.needs()));
+            if (!entry.needs().isEmpty()) lore.add(lore("menu.qs.addons.needs", arg("needs", entry.needs())));
             if (!addons.runsHere(entry))
-                lore.add(colored("Needs Minecraft " + entry.minecraft() + " or newer", NamedTextColor.RED));
+                lore.add(lore("menu.qs.addons.needs-minecraft", arg("minecraft", entry.minecraft())));
             if (entry.folded()) {
                 AddonCatalogue.Entry into = addons.entry(entry.foldedInto());
-                lore.add(colored("Now part of " + (into == null ? entry.foldedInto() : into.name()),
-                        NamedTextColor.GOLD));
+                lore.add(lore("menu.qs.addons.part-of", arg("addon", into == null ? entry.foldedInto() : into.name())));
             }
-            lore.add(yellow("Click for its link"));
+            lore.add(lore("menu.qs.addons.click-link"));
             inventory.setItem(STORE_FROM + i, item(icon(entry),
                     Component.text(entry.name(), NamedTextColor.GREEN).decorate(TextDecoration.BOLD), lore));
         }
         if (store.isEmpty())
-            inventory.setItem(STORE_FROM + 3, item(Material.EMERALD, Component.text("Every official addon is installed",
-                    NamedTextColor.GREEN), List.of()));
+            inventory.setItem(STORE_FROM + 3, item(Material.EMERALD, Lang.message("menu.qs.addons.all-installed"), List.of()));
         List<String> news = addons.updates();
         inventory.setItem(CHECK_ADDONS, item(Material.SPYGLASS,
-                Component.text("Check now", NamedTextColor.GREEN).decorate(TextDecoration.BOLD), List.of(
-                        gray("Asks GitHub for new addons and"), gray("newer releases of these."),
-                        gray(news.isEmpty() ? "No updates known" : "Updates: " + String.join(", ", news)),
-                        gray(updates.checking() ? "Also checked every 6 hours" : "Background checks are off"))));
+                Lang.message("menu.qs.check-now"), List.of(
+                        lore("menu.qs.addons.check-1"), lore("menu.qs.addons.check-2"),
+                        news.isEmpty() ? lore("menu.qs.addons.no-updates")
+                                : lore("menu.qs.addons.updates", arg("updates", String.join(", ", news))),
+                        lore(updates.checking() ? "menu.qs.addons.also-6h" : "menu.qs.addons.background-off"))));
     }
 
     /**
@@ -480,17 +483,16 @@ public final class QuickSettingsMenu implements Listener {
         boolean on = switches.ezdebug();
         boolean replaced = plugin.ezdebug() != null && on && !plugin.ezdebug().active();
         List<Component> lore = new ArrayList<>();
-        lore.add(gray("Built into EZvac"));
-        lore.add(gray("Hold the link tool with a system"));
-        lore.add(gray("selected: its devices, the edge of"));
-        lore.add(gray("its room and its leaks show"));
+        lore.add(lore("menu.qs.ezdebug.1"));
+        lore.add(lore("menu.qs.ezdebug.2"));
+        lore.add(lore("menu.qs.ezdebug.3"));
+        lore.add(lore("menu.qs.ezdebug.4"));
         if (replaced) {
-            lore.add(colored("Replaced by EZdebug+, which shows", NamedTextColor.GOLD));
-            lore.add(colored("all of this and more", NamedTextColor.GOLD));
+            lore.add(lore("menu.qs.ezdebug.replaced-1"));
+            lore.add(lore("menu.qs.ezdebug.replaced-2"));
         } else lore.add(clickTo(on));
-        Component title = Component.text("EZdebug (built in): ", NamedTextColor.WHITE).append(replaced
-                ? Component.text("Replaced", NamedTextColor.GOLD)
-                : Component.text(on ? "On" : "Off", on ? NamedTextColor.GREEN : NamedTextColor.RED));
+        Component title = Lang.message(replaced ? "menu.qs.ezdebug.title-replaced"
+                : on ? "menu.qs.ezdebug.title-on" : "menu.qs.ezdebug.title-off");
         inventory.setItem(BUILT_IN, item(Material.SPYGLASS, title, lore));
         inventory.setItem(BUILT_IN + 9, item(replaced ? Material.ORANGE_DYE : on ? Material.LIME_DYE : Material.RED_DYE,
                 title, lore));
@@ -500,15 +502,13 @@ public final class QuickSettingsMenu implements Listener {
     private void drawAddonParts(Inventory inventory, String pluginName) {
         AddonService.Installed addon = installed(pluginName);
         if (addon == null) {
-            inventory.setItem(ADDON_INFO, item(Material.BARRIER, Component.text("No longer installed",
-                    NamedTextColor.RED), List.of()));
+            inventory.setItem(ADDON_INFO, item(Material.BARRIER, Lang.message("menu.qs.addons.gone"), List.of()));
             return;
         }
         List<Component> lore = new ArrayList<>();
-        lore.add(gray("Version " + addon.version()));
+        lore.add(lore("menu.qs.addons.version", arg("version", addon.version())));
         describe(lore, addon.entry());
-        lore.add(colored(addon.active() ? "On" : "Off: its parts wait until it is on",
-                addon.active() ? NamedTextColor.GREEN : NamedTextColor.RED));
+        lore.add(lore(addon.active() ? "menu.qs.addons.on" : "menu.qs.addons.off-waiting"));
         inventory.setItem(ADDON_INFO, item(icon(addon.entry()),
                 Component.text(addon.entry().name(), NamedTextColor.AQUA).decorate(TextDecoration.BOLD), lore));
         for (int i = 0; i < Math.min(PARTS_ROW, addon.parts().size()); i++) {
@@ -529,39 +529,46 @@ public final class QuickSettingsMenu implements Listener {
 
     private void drawMain(Inventory inventory) {
         long off = java.util.Arrays.stream(DeviceKind.values()).filter(switches::isOff).count();
-        inventory.setItem(DEVICES, section(Material.DISPENSER, "Devices",
-                off == 0 ? "Every kind is on" : off + " kind(s) switched off", "Switch device kinds on or off"));
+        inventory.setItem(DEVICES, section(Material.DISPENSER, Lang.text("menu.qs.main.devices"),
+                off == 0 ? Lang.text("menu.qs.main.devices-all-on") : Lang.text("menu.qs.main.devices-off", arg("count", off)),
+                Lang.text("menu.qs.main.devices-what")));
         int systemsOff = (switches.airQuality() ? 0 : 1) + (switches.pollen() ? 0 : 1) + (switches.wind() ? 0 : 1)
                 + (switches.seasons() ? 0 : 1) + (switches.sizing() ? 0 : 1);
-        inventory.setItem(CLIMATE, section(Material.SUNFLOWER, "Climate systems",
-                systemsOff == 0 ? "All on" : systemsOff + " switched off",
-                "Air quality, pollen, wind, seasons, size"));
-        inventory.setItem(BACKUPS, section(Material.CHEST, "Backups & registry",
-                "Automatic: " + RegistryBackups.describe(backups.intervalHours()), "Back up hvac.yml; its health"));
+        inventory.setItem(CLIMATE, section(Material.SUNFLOWER, Lang.text("menu.qs.main.climate"),
+                systemsOff == 0 ? Lang.text("menu.qs.main.all-on") : Lang.text("menu.qs.main.switched-off", arg("count", systemsOff)),
+                Lang.text("menu.qs.main.climate-what")));
+        inventory.setItem(BACKUPS, section(Material.CHEST, Lang.text("menu.qs.main.backups"),
+                Lang.text("menu.qs.main.automatic", arg("interval", RegistryBackups.describe(backups.intervalHours()))),
+                Lang.text("menu.qs.main.backups-what")));
         List<com.github.blade.hvac.service.TickCost.Part> cost = plugin.tickCost().lastMinute();
-        inventory.setItem(STATISTICS, section(Material.BOOK, "Health",
-                cost.isEmpty() ? registry.thermostats().size() + " thermostat(s), " + registry.equipment().size()
-                        + " unit(s)" : String.format(Locale.US, "EZvac takes %.2f ms a tick",
-                        com.github.blade.hvac.service.TickCost.total(cost)),
-                "What EZvac costs, and its figures"));
+        inventory.setItem(STATISTICS, section(Material.BOOK, Lang.text("menu.qs.main.health"),
+                cost.isEmpty() ? Lang.text("menu.qs.main.health-counts", arg("thermostats", registry.thermostats().size()),
+                        arg("units", registry.equipment().size()))
+                        : Lang.text("menu.qs.main.health-cost", arg("ms", String.format(Locale.US, "%.2f",
+                        com.github.blade.hvac.service.TickCost.total(cost)))),
+                Lang.text("menu.qs.main.health-what")));
         org.bukkit.World here = plugin.getServer().getWorlds().isEmpty() ? null : plugin.getServer().getWorlds().get(0);
-        inventory.setItem(SEASONS_AND_WIND, section(Material.OAK_SAPLING, "Seasons & wind",
+        inventory.setItem(SEASONS_AND_WIND, section(Material.OAK_SAPLING, Lang.text("menu.qs.main.seasons"),
                 plugin.seasons() != null && switches.seasons() && here != null && plugin.seasons().tracks(here.getUID())
-                        ? plugin.seasons().season(here.getUID()).displayName() + ", day "
-                        + plugin.seasons().dayOfSeason(here.getUID()) + " in " + here.getName() : "The calendar and the wind",
-                "Move the season; set today's wind"));
-        inventory.setItem(DISPLAY, section(Material.PAINTING, "Display & sound",
-                "°" + plugin.settings().units().name() + ", sounds " + (plugin.settings().audioEnabled() ? "on" : "off"),
-                "Units, wind speeds, device sounds"));
-        inventory.setItem(UPDATES, section(Material.CLOCK, "Updates", "Running " + updates.runningName(),
-                "Check GitHub for a newer EZvac"));
+                        ? Lang.text("menu.qs.main.season-in", arg("season", plugin.seasons().season(here.getUID()).displayName()),
+                        arg("day", plugin.seasons().dayOfSeason(here.getUID())), arg("world", here.getName()))
+                        : Lang.text("menu.qs.main.seasons-state"),
+                Lang.text("menu.qs.main.seasons-what")));
+        inventory.setItem(DISPLAY, section(Material.PAINTING, Lang.text("menu.qs.main.display"),
+                Lang.text(plugin.settings().audioEnabled() ? "menu.qs.main.display-sounds-on" : "menu.qs.main.display-sounds-off",
+                        arg("unit", plugin.settings().units().name())),
+                Lang.text("menu.qs.main.display-what")));
+        inventory.setItem(UPDATES, section(Material.CLOCK, Lang.text("menu.qs.main.updates"),
+                Lang.text("menu.qs.main.running", arg("running", updates.runningName())),
+                Lang.text("menu.qs.main.updates-what")));
         int installed = addons.installed().size(), news = addons.updates().size();
-        inventory.setItem(ADDONS, section(Material.BOOKSHELF, "Addons",
-                installed + " installed" + (news == 0 ? "" : ", " + news + " with an update"),
-                "Switch official addons; find more"));
-        inventory.setItem(SHARING_SECTION, section(Material.COMPASS, "Anonymous statistics",
-                plugin.usageStatsOn() ? "Sending to bStats" : "Off: nothing is sent",
-                "Choose what EZvac shares, or nothing"));
+        inventory.setItem(ADDONS, section(Material.BOOKSHELF, Lang.text("menu.qs.main.addons"),
+                news == 0 ? Lang.text("menu.qs.main.installed", arg("count", installed))
+                        : Lang.text("menu.qs.main.installed-updates", arg("count", installed), arg("updates", news)),
+                Lang.text("menu.qs.main.addons-what")));
+        inventory.setItem(SHARING_SECTION, section(Material.COMPASS, Lang.text("menu.qs.main.sharing"),
+                Lang.text(plugin.usageStatsOn() ? "menu.qs.main.sharing-on" : "menu.qs.main.sharing-off"),
+                Lang.text("menu.qs.main.sharing-what")));
     }
 
     /**
@@ -571,29 +578,26 @@ public final class QuickSettingsMenu implements Listener {
      */
     private void drawSharing(Inventory inventory) {
         boolean on = plugin.usageStatsOn();
-        inventory.setItem(ALWAYS_SENT, item(Material.PAPER, Component.text("Always sent while on", NamedTextColor.AQUA),
-                List.of(gray("A random id for this server"), gray("Players online, online mode"),
-                        gray("Server software and version"), gray("Java, the OS and CPU cores"),
-                        gray("EZvac's version"), gray("bStats works out the country"),
-                        gray("from where it comes, and keeps"), gray("only that, not the address"),
-                        gray("Nothing names a server or a player"))));
-        placeSwitch(inventory, SHARE_ALL, Material.COMPASS, "Anonymous statistics", on, List.of(
-                gray("Everything here, to bstats.org,"), gray("about every 30 minutes"), clickTo(on)));
-        shareSwitch(inventory, SHARE_UNITS, Material.PAINTING, "Temperature units", "temperature-unit", on,
-                "°F or °C");
-        shareSwitch(inventory, SHARE_UNLOADED, Material.MAP, "Unloaded devices", "unloaded-devices", on,
-                "Whether devices run unloaded");
-        shareSwitch(inventory, SHARE_SYSTEMS, Material.IRON_TRAPDOOR, "Number of systems", "systems", on,
-                "In a band, such as 11-50");
-        shareSwitch(inventory, SHARE_ADDONS, Material.BOOKSHELF, "Official addons", "addons", on,
-                "Which run here, and their versions");
+        List<Component> always = new ArrayList<>();
+        for (int line = 1; line <= 9; line++) always.add(lore("menu.qs.sharing.always-" + line));
+        inventory.setItem(ALWAYS_SENT, item(Material.PAPER, Lang.message("menu.qs.sharing.always"), always));
+        placeSwitch(inventory, SHARE_ALL, Material.COMPASS, Lang.text("menu.qs.main.sharing"), on, List.of(
+                lore("menu.qs.sharing.all-1"), lore("menu.qs.sharing.all-2"), clickTo(on)));
+        shareSwitch(inventory, SHARE_UNITS, Material.PAINTING, Lang.text("menu.qs.sharing.units"), "temperature-unit", on,
+                Lang.text("menu.qs.sharing.units-what"));
+        shareSwitch(inventory, SHARE_UNLOADED, Material.MAP, Lang.text("menu.qs.sharing.unloaded"), "unloaded-devices", on,
+                Lang.text("menu.qs.sharing.unloaded-what"));
+        shareSwitch(inventory, SHARE_SYSTEMS, Material.IRON_TRAPDOOR, Lang.text("menu.qs.sharing.systems"), "systems", on,
+                Lang.text("menu.qs.sharing.systems-what"));
+        shareSwitch(inventory, SHARE_ADDONS, Material.BOOKSHELF, Lang.text("menu.qs.sharing.addons"), "addons", on,
+                Lang.text("menu.qs.sharing.addons-what"));
     }
 
     private void shareSwitch(Inventory inventory, int slot, Material icon, String name, String chart, boolean all,
                              String what) {
         boolean on = plugin.statOn(chart);
         placeSwitch(inventory, slot, icon, name, on, List.of(gray(what),
-                gray(all ? "Sent while statistics are on" : "Statistics are off: nothing is sent"), clickTo(on)));
+                lore(all ? "menu.qs.sharing.sent" : "menu.qs.sharing.off"), clickTo(on)));
     }
 
     private void clickSharing(Player player, int slot) {
@@ -619,8 +623,7 @@ public final class QuickSettingsMenu implements Listener {
 
     private static ItemStack section(Material icon, String name, String state, String what) {
         return item(icon, Component.text(name, NamedTextColor.AQUA).decorate(TextDecoration.BOLD),
-                List.of(gray(state), gray(what), Component.text("Click to open", NamedTextColor.YELLOW)
-                        .decoration(TextDecoration.ITALIC, false)));
+                List.of(gray(state), gray(what), lore("menu.qs.click-open")));
     }
 
     private void drawDevices(Inventory inventory) {
@@ -629,116 +632,115 @@ public final class QuickSettingsMenu implements Listener {
             DeviceKind kind = kinds[i];
             boolean on = !switches.isOff(kind);
             List<Component> lore = new ArrayList<>();
-            lore.add(gray(count(kind) + " on this server, " + running(kind) + " running"));
-            lore.add(gray(on ? "Off: they stop, and none can be made" : "On: they run again as they were set"));
+            lore.add(lore("menu.qs.devices.count", arg("count", count(kind)), arg("running", running(kind))));
+            lore.add(lore(on ? "menu.qs.devices.off-means" : "menu.qs.devices.on-means"));
             lore.add(clickTo(on));
             placeSwitch(inventory, DEVICE_SLOTS[i], kind.icon(), kind.plural(), on, lore);
         }
     }
 
     private void drawClimate(Inventory inventory) {
-        placeSwitch(inventory, AIR, Material.CAMPFIRE, "Air quality", switches.airQuality(), List.of(
-                gray("Smoke, dust and the AQI, and air purifiers"), gray("Off: no air readings; purifiers idle"),
+        placeSwitch(inventory, AIR, Material.CAMPFIRE, Lang.text("menu.qs.climate.air"), switches.airQuality(), List.of(
+                lore("menu.qs.climate.air-1"), lore("menu.qs.climate.air-2"),
                 clickTo(switches.airQuality())));
         if (!switches.airQuality())
-            placeSwitch(inventory, POLLEN, Material.DANDELION, "Pollen", false, List.of(
-                    gray("Off with air quality"), gray("Switch air quality on first")));
+            placeSwitch(inventory, POLLEN, Material.DANDELION, Lang.text("menu.qs.climate.pollen"), false, List.of(
+                    lore("menu.qs.climate.pollen-with-air"), lore("menu.qs.climate.pollen-air-first")));
         else
-            placeSwitch(inventory, POLLEN, Material.DANDELION, "Pollen", switches.pollen(), List.of(
-                    gray("Pollen outdoors and in, and the HUD's level"), gray("Off: no pollen anywhere"),
+            placeSwitch(inventory, POLLEN, Material.DANDELION, Lang.text("menu.qs.climate.pollen"), switches.pollen(), List.of(
+                    lore("menu.qs.climate.pollen-1"), lore("menu.qs.climate.pollen-2"),
                     clickTo(switches.pollen())));
-        placeSwitch(inventory, WIND, Material.FEATHER, "Wind", switches.wind(), List.of(
-                gray("Daily wind, wind chill and drafts"), gray("Off: only the weather's light breeze"),
+        placeSwitch(inventory, WIND, Material.FEATHER, Lang.text("menu.qs.climate.wind"), switches.wind(), List.of(
+                lore("menu.qs.climate.wind-1"), lore("menu.qs.climate.wind-2"),
                 clickTo(switches.wind())));
-        placeSwitch(inventory, SEASONS, Material.OAK_SAPLING, "Seasons", switches.seasons(), List.of(
-                gray("Seasonal warmth, cold and pollen"), gray("Off: no seasonal effect; the calendar keeps counting"),
+        placeSwitch(inventory, SEASONS, Material.OAK_SAPLING, Lang.text("menu.qs.climate.seasons"), switches.seasons(), List.of(
+                lore("menu.qs.climate.seasons-1"), lore("menu.qs.climate.seasons-2"),
                 clickTo(switches.seasons())));
-        placeSwitch(inventory, SIZING, Material.BRICKS, "Building size", switches.sizing(), List.of(
-                gray("A unit heats or cools what fits its size:"), gray("one three-star unit per " + String.format(Locale.US, "%,d",
-                        plugin.controller().sizing().cellsPerUnit()) + " blocks of air"),
-                gray("Off: any size, as before BETA 1.0"), clickTo(switches.sizing())));
+        placeSwitch(inventory, SIZING, Material.BRICKS, Lang.text("menu.qs.climate.sizing"), switches.sizing(), List.of(
+                lore("menu.qs.climate.sizing-1"), lore("menu.qs.climate.sizing-2", arg("cells", String.format(Locale.US, "%,d",
+                        plugin.controller().sizing().cellsPerUnit()))),
+                lore("menu.qs.climate.sizing-3"), clickTo(switches.sizing())));
     }
 
     private void drawBackups(Inventory inventory, boolean discardArmed) {
         inventory.setItem(REGISTRY, registryItem(discardArmed));
         inventory.setItem(BACK_UP_NOW, item(Material.WRITABLE_BOOK,
-                Component.text("Back up now", NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
-                List.of(gray("hvac.yml and seasons.yml, to"), gray("plugins/EZvac/backups"),
-                        gray("Kept until you delete it"))));
+                Lang.message("menu.qs.backups.now"),
+                List.of(lore("menu.qs.backups.now-1"), lore("menu.qs.backups.now-2"),
+                        lore("menu.qs.backups.now-3"))));
         int hours = backups.intervalHours();
-        inventory.setItem(AUTOMATIC, item(Material.CLOCK, Component.text("Automatic: " + RegistryBackups.describe(hours),
-                        hours == 0 ? NamedTextColor.RED : NamedTextColor.GREEN),
-                List.of(gray("In real time, through restarts"), gray("The newest " + backups.keep() + " are kept"),
-                        Component.text("Click for: " + RegistryBackups.describe(RegistryBackups.nextInterval(hours)),
-                                NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false))));
+        inventory.setItem(AUTOMATIC, item(Material.CLOCK, Lang.message("menu.qs.main.automatic",
+                        arg("interval", RegistryBackups.describe(hours))).color(hours == 0 ? NamedTextColor.RED : NamedTextColor.GREEN),
+                List.of(lore("menu.qs.backups.real-time"), lore("menu.qs.backups.keep", arg("keep", backups.keep())),
+                        lore("menu.qs.click-for", arg("next", RegistryBackups.describe(RegistryBackups.nextInterval(hours)))))));
         RegistryBackups.Summary summary = backups.summary();
         List<Component> lore = new ArrayList<>();
-        if (summary.count() == 0) lore.add(gray("No backups yet"));
+        if (summary.count() == 0) lore.add(lore("menu.qs.backups.none"));
         else {
-            lore.add(gray("Newest: " + summary.newest()));
-            lore.add(gray("Made " + ago(summary.newestAt())));
-            lore.add(gray(summary.count() + " backup(s) in the folder"));
+            lore.add(lore("menu.qs.backups.newest", arg("name", summary.newest())));
+            lore.add(lore("menu.qs.backups.made", arg("ago", ago(summary.newestAt()))));
+            lore.add(lore("menu.qs.backups.count", arg("count", summary.count())));
         }
-        lore.add(gray("To restore: stop the server, copy"));
-        lore.add(gray("a backup over hvac.yml"));
-        inventory.setItem(BACKUP_INFO, item(Material.PAPER, Component.text("Backups", NamedTextColor.AQUA), lore));
+        lore.add(lore("menu.qs.backups.restore-1"));
+        lore.add(lore("menu.qs.backups.restore-2"));
+        inventory.setItem(BACKUP_INFO, item(Material.PAPER, Lang.message("menu.qs.backups.title"), lore));
     }
 
     private void drawStatistics(Inventory inventory) {
         List<Component> devices = new ArrayList<>();
         for (DeviceKind kind : DeviceKind.values())
-            devices.add(gray(kind.plural() + ": " + count(kind) + " (" + running(kind) + " running)"
-                    + (switches.isOff(kind) ? ", off" : "")));
-        inventory.setItem(DEVICE_COUNTS, item(Material.DISPENSER,
-                Component.text("Devices", NamedTextColor.AQUA), devices));
+            devices.add(lore(switches.isOff(kind) ? "menu.qs.health.kind-off" : "menu.qs.health.kind",
+                    arg("kinds", kind.plural()), arg("count", count(kind)), arg("running", running(kind))));
+        inventory.setItem(DEVICE_COUNTS, item(Material.DISPENSER, Lang.message("menu.qs.health.devices"), devices));
         long enabled = registry.thermostats().stream().filter(Thermostat::enabled).count();
-        inventory.setItem(SYSTEM_COUNTS, item(Material.OAK_SIGN, Component.text("Systems", NamedTextColor.AQUA), List.of(
-                gray("Thermostats: " + registry.thermostats().size() + " (" + enabled + " on)"),
-                gray("Vents: " + registry.vents().size()),
-                gray("Settings panels: " + registry.settingsPanels().size()),
-                gray("Thermometers: " + registry.thermometers().size()),
-                gray("RPM monitors: " + registry.rpmMonitors().size()),
-                gray("Sensors: " + registry.sensors().size() + ", hubs: " + registry.sensorHubs().size()))));
-        inventory.setItem(SIZES, item(Material.BRICKS, Component.text("Sizes", NamedTextColor.AQUA), sizeLines()));
+        inventory.setItem(SYSTEM_COUNTS, item(Material.OAK_SIGN, Lang.message("menu.qs.health.systems"), List.of(
+                lore("menu.qs.health.thermostats", arg("count", registry.thermostats().size()), arg("on", enabled)),
+                lore("menu.qs.health.vents", arg("count", registry.vents().size())),
+                lore("menu.qs.health.panels", arg("count", registry.settingsPanels().size())),
+                lore("menu.qs.health.thermometers", arg("count", registry.thermometers().size())),
+                lore("menu.qs.health.monitors", arg("count", registry.rpmMonitors().size())),
+                lore("menu.qs.health.sensors", arg("count", registry.sensors().size()), arg("hubs", registry.sensorHubs().size())))));
+        inventory.setItem(SIZES, item(Material.BRICKS, Lang.message("menu.qs.health.sizes"), sizeLines()));
         AirflowService.Figures figures = airflow.figures();
-        inventory.setItem(AIRFLOW, item(Material.COMPASS, Component.text("Airflow", NamedTextColor.AQUA), List.of(
-                gray("Cells mapped: " + figures.cachedCells()),
-                gray("Waiting to be mapped: " + figures.waiting() + (figures.rebuilding() ? ", one mapping now" : "")),
-                gray("Maps made since start-up: " + figures.completed()),
-                gray("Cells visited: " + figures.visited()),
-                gray("Maps that hit the size cap: " + figures.capped()))));
-        inventory.setItem(REFRESH, item(Material.SPYGLASS, Component.text("Refresh", NamedTextColor.YELLOW),
-                List.of(gray("Read the figures again"))));
+        inventory.setItem(AIRFLOW, item(Material.COMPASS, Lang.message("menu.qs.health.airflow"), List.of(
+                lore("menu.qs.health.cells", arg("count", figures.cachedCells())),
+                lore(figures.rebuilding() ? "menu.qs.health.waiting-mapping" : "menu.qs.health.waiting",
+                        arg("count", figures.waiting())),
+                lore("menu.qs.health.maps", arg("count", figures.completed())),
+                lore("menu.qs.health.visited", arg("count", figures.visited())),
+                lore("menu.qs.health.capped", arg("count", figures.capped())))));
+        inventory.setItem(REFRESH, item(Material.SPYGLASS, Lang.message("menu.qs.health.refresh"),
+                List.of(lore("menu.qs.health.refresh-lore"))));
         // What each part of EZvac costs the tick, over the last minute (BETA 1.0 Pilot 4).
         List<com.github.blade.hvac.service.TickCost.Part> cost = plugin.tickCost().lastMinute();
         List<Component> lines = new ArrayList<>();
-        if (cost.isEmpty()) lines.add(gray("Measuring: look again in a moment"));
+        if (cost.isEmpty()) lines.add(lore("menu.qs.health.measuring"));
         else {
             double total = com.github.blade.hvac.service.TickCost.total(cost);
-            lines.add(colored(String.format(Locale.US, "%.2f ms of each 50 ms tick", total),
+            lines.add(colored(Lang.text("menu.qs.health.of-tick", arg("ms", String.format(Locale.US, "%.2f", total))),
                     total < 5.0 ? NamedTextColor.GREEN : total < 15.0 ? NamedTextColor.GOLD : NamedTextColor.RED));
             for (com.github.blade.hvac.service.TickCost.Part part : cost)
-                lines.add(gray(String.format(Locale.US, "%s: %.3f ms (longest %.1f)", part.name(), part.msPerTick(),
-                        part.worstMs())));
-            lines.add(gray("Averaged over the last minute;"));
-            lines.add(gray("longest is one run's time"));
+                lines.add(lore("menu.qs.health.part", arg("part", part.name()),
+                        arg("ms", String.format(Locale.US, "%.3f", part.msPerTick())),
+                        arg("longest", String.format(Locale.US, "%.1f", part.worstMs()))));
+            lines.add(lore("menu.qs.health.averaged-1"));
+            lines.add(lore("menu.qs.health.averaged-2"));
         }
-        inventory.setItem(TICK_COST, item(Material.REDSTONE,
-                Component.text("Tick cost", NamedTextColor.AQUA), lines));
+        inventory.setItem(TICK_COST, item(Material.REDSTONE, Lang.message("menu.qs.health.tick-cost"), lines));
     }
 
     private void drawUpdates(Inventory inventory) {
-        inventory.setItem(RUNNING, item(Material.NAME_TAG, Component.text("EZvac " + updates.runningName(),
-                NamedTextColor.AQUA), List.of(gray("On Minecraft " + updates.minecraft()))));
-        inventory.setItem(CHECK_NOW, item(Material.SPYGLASS,
-                Component.text("Check now", NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
-                List.of(gray("Asks GitHub for a newer EZvac,"), gray("and whether it runs here."),
-                        gray("The answer comes in chat."))));
+        inventory.setItem(RUNNING, item(Material.NAME_TAG, Lang.message("menu.qs.updates.running",
+                arg("running", updates.runningName())), List.of(lore("menu.qs.updates.minecraft",
+                arg("minecraft", updates.minecraft())))));
+        inventory.setItem(CHECK_NOW, item(Material.SPYGLASS, Lang.message("menu.qs.check-now"),
+                List.of(lore("menu.qs.updates.check-1"), lore("menu.qs.updates.check-2"),
+                        lore("menu.qs.updates.check-3"))));
         inventory.setItem(CHANNEL, channel(updates.channel(), updates.channelSetting()));
-        placeSwitch(inventory, BACKGROUND, Material.REPEATER, "Background checks", updates.checking(), List.of(
-                gray("At start-up and every 6 hours"), clickTo(updates.checking())));
-        placeSwitch(inventory, TELL_ADMINS, Material.BELL, "Tell admins on join", updates.notifyAdmins(), List.of(
-                gray("When a background check finds one"), clickTo(updates.notifyAdmins())));
+        placeSwitch(inventory, BACKGROUND, Material.REPEATER, Lang.text("menu.qs.updates.background"), updates.checking(), List.of(
+                lore("menu.qs.updates.background-1"), clickTo(updates.checking())));
+        placeSwitch(inventory, TELL_ADMINS, Material.BELL, Lang.text("menu.qs.updates.tell"), updates.notifyAdmins(), List.of(
+                lore("menu.qs.updates.tell-1"), clickTo(updates.notifyAdmins())));
     }
 
     /**
@@ -749,16 +751,17 @@ public final class QuickSettingsMenu implements Listener {
         boolean auto = setting.equals("auto");
         List<Component> lore = new ArrayList<>();
         lore.add(Component.text((channel == UpdateCheck.Channel.STABLE ? "● " : "  ")
-                + "Stable: full releases and their hotfixes", channel == UpdateCheck.Channel.STABLE
+                + Lang.text("menu.qs.channel.stable"), channel == UpdateCheck.Channel.STABLE
                 ? NamedTextColor.GREEN : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         lore.add(Component.text((channel == UpdateCheck.Channel.PILOT ? "● " : "  ")
-                + "Pilot: pilots too, the test builds before one", channel == UpdateCheck.Channel.PILOT
+                + Lang.text("menu.qs.channel.pilot"), channel == UpdateCheck.Channel.PILOT
                 ? NamedTextColor.GOLD : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-        lore.add(gray(auto ? "Auto: follows the EZvac this server runs" : "Chosen here"));
-        lore.add(gray("Click: auto › stable › pilot"));
+        lore.add(lore(auto ? "menu.qs.channel.auto" : "menu.qs.channel.chosen"));
+        lore.add(lore("menu.qs.channel.click"));
         return item(channel == UpdateCheck.Channel.PILOT ? Material.TRIAL_KEY : Material.TRIPWIRE_HOOK,
-                Component.text("Channel: " + channel.displayName() + (auto ? " (auto)" : ""),
-                        channel == UpdateCheck.Channel.PILOT ? NamedTextColor.GOLD : NamedTextColor.GREEN)
+                Lang.message(auto ? "menu.qs.channel.title-auto" : "menu.qs.channel.title",
+                        arg("channel", channel.displayName()))
+                        .color(channel == UpdateCheck.Channel.PILOT ? NamedTextColor.GOLD : NamedTextColor.GREEN)
                         .decorate(TextDecoration.BOLD), lore);
     }
 
@@ -774,15 +777,13 @@ public final class QuickSettingsMenu implements Listener {
     /** An icon with a lime or red dye beneath it; clicking either switches it. */
     private static void placeSwitch(Inventory inventory, int slot, Material icon, String name, boolean on,
                                     List<Component> lore) {
-        Component title = Component.text(name + ": ", NamedTextColor.WHITE)
-                .append(Component.text(on ? "On" : "Off", on ? NamedTextColor.GREEN : NamedTextColor.RED));
+        Component title = Lang.message(on ? "menu.qs.switch-on" : "menu.qs.switch-off", arg("name", name));
         inventory.setItem(slot, item(icon, title, lore));
         inventory.setItem(slot + 9, item(on ? Material.LIME_DYE : Material.RED_DYE, title, lore));
     }
 
     private static Component clickTo(boolean on) {
-        return Component.text(on ? "Click to switch off" : "Click to switch on", NamedTextColor.YELLOW)
-                .decoration(TextDecoration.ITALIC, false);
+        return lore(on ? "menu.qs.click-off" : "menu.qs.click-on");
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -851,11 +852,9 @@ public final class QuickSettingsMenu implements Listener {
             addons.refresh(answered -> {
                 if (!player.isOnline()) return;
                 List<String> news = addons.updates();
-                player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
-                        !answered ? "GitHub couldn't be reached; the addons are as last known."
-                                : news.isEmpty() ? "The addons here are up to date."
-                                : "Updates: " + String.join(", ", news) + ".",
-                        answered ? NamedTextColor.GREEN : NamedTextColor.YELLOW)));
+                player.sendMessage(Lang.message("update.prefix").append(Lang.message(!answered
+                        ? "menu.qs.addons.unreachable" : news.isEmpty() ? "menu.qs.addons.up-to-date"
+                        : "menu.qs.addons.updates-chat", arg("updates", String.join(", ", news)))));
                 if (player.getOpenInventory().getTopInventory().getHolder() instanceof Menu open
                         && open.page == Page.ADDONS) draw(open);
             });
@@ -904,8 +903,8 @@ public final class QuickSettingsMenu implements Listener {
             logChange(player, "switched the addon " + addon.entry().name() + (on ? " on" : " off"));
         } else {
             click(player, false);
-            player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
-                    addon.entry().name() + " couldn't be switched: see the console.", NamedTextColor.RED)));
+            player.sendMessage(Lang.message("update.prefix").append(Lang.message("menu.qs.addons.switch-failed",
+                    arg("addon", addon.entry().name()))));
         }
         return false;
     }
@@ -928,9 +927,9 @@ public final class QuickSettingsMenu implements Listener {
         String url = update == null ? entry.url() : entry.url() + "/releases";
         plugin.getServer().getScheduler().runTask(plugin, () -> {
             player.closeInventory();
-            player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD)
-                    .append(Component.text(entry.name() + (update == null ? ": " : " " + update + ": "),
-                            NamedTextColor.YELLOW))
+            player.sendMessage(Lang.message("update.prefix")
+                    .append(Lang.message(update == null ? "menu.qs.addons.link" : "menu.qs.addons.link-update",
+                            arg("addon", entry.name()), arg("version", String.valueOf(update))))
                     .append(Component.text(url, NamedTextColor.AQUA, TextDecoration.UNDERLINED)
                             .clickEvent(net.kyori.adventure.text.event.ClickEvent.openUrl(url))));
         });
@@ -1009,44 +1008,42 @@ public final class QuickSettingsMenu implements Listener {
         List<Component> lore = new ArrayList<>();
         // When it was last saved: on the Statistics page until BETA 1.0's registry health joined the backups.
         File saved = new File(plugin.getDataFolder(), "hvac.yml");
-        lore.add(gray(saved.isFile() ? "Saved " + ago(saved.lastModified()) : "Not saved yet"));
-        lore.add(gray(registry.isWritable() ? "Saving normally" : "Not saving: hvac.yml could not be read"));
+        lore.add(saved.isFile() ? lore("menu.qs.registry.saved", arg("ago", ago(saved.lastModified())))
+                : lore("menu.qs.registry.not-saved"));
+        lore.add(lore(registry.isWritable() ? "menu.qs.registry.saving" : "menu.qs.registry.not-saving"));
         NamedTextColor color = NamedTextColor.GREEN;
-        String state = "read fine";
+        String state = Lang.text("menu.qs.registry.state.read-fine");
         if (registry.recoveredFrom() != null) {
-            state = "recovered";
+            state = Lang.text("menu.qs.registry.state.recovered");
             color = NamedTextColor.GOLD;
-            lore.add(gray("Unreadable at this start: recovered"));
-            lore.add(gray("from " + registry.recoveredFrom()));
-            lore.add(gray("The unreadable file: " + registry.setAside()));
+            lore.add(lore("menu.qs.registry.recovered-1"));
+            lore.add(lore("menu.qs.registry.recovered-2", arg("from", registry.recoveredFrom())));
+            lore.add(lore("menu.qs.registry.recovered-3", arg("aside", registry.setAside())));
         } else if (registry.migratedFrom() > 0) {
-            state = "upgraded";
-            lore.add(gray("Upgraded from format " + registry.migratedFrom() + " at this start"));
+            state = Lang.text("menu.qs.registry.state.upgraded");
+            lore.add(lore("menu.qs.registry.upgraded", arg("from", registry.migratedFrom())));
         } else {
-            lore.add(gray("Read fine at this start"));
+            lore.add(lore("menu.qs.registry.read-fine"));
         }
         if (aside.isEmpty()) {
-            lore.add(gray("Nothing is kept aside"));
+            lore.add(lore("menu.qs.registry.nothing-aside"));
         } else {
             color = NamedTextColor.GOLD;
-            state = aside.size() + " kept aside";
-            lore.add(gray(aside.size() + (aside.size() == 1 ? " entry couldn't be loaded" : " entries couldn't be loaded")
-                    + ", not running:"));
+            state = Lang.text("menu.qs.registry.state.aside", arg("count", aside.size()));
+            lore.add(lore(aside.size() == 1 ? "menu.qs.registry.aside-one" : "menu.qs.registry.aside-many",
+                    arg("count", aside.size())));
             for (HvacRegistry.KeptAside entry : aside.subList(0, Math.min(LISTED_ASIDE, aside.size()))) {
                 // Wrapped, never cut: why it couldn't be loaded is what the admin needs to read.
                 lore.add(gray(" " + entry.section() + " " + entry.entry() + ":"));
                 for (String line : com.github.blade.hvac.addons.AddonCatalogue.wrap(entry.reason(), 40))
                     lore.add(gray("   " + line));
             }
-            if (aside.size() > LISTED_ASIDE) lore.add(gray(" and " + (aside.size() - LISTED_ASIDE) + " more (/hvac registry)"));
-            lore.add(gray("hvac.yml is copied aside first"));
-            lore.add(discardArmed
-                    ? Component.text("Click again to discard " + (aside.size() == 1 ? "it" : "them") + " for good",
-                    NamedTextColor.RED).decoration(TextDecoration.ITALIC, false)
-                    : Component.text("Click to discard " + (aside.size() == 1 ? "it" : "them") + " (asks again)",
-                    NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+            if (aside.size() > LISTED_ASIDE) lore.add(lore("menu.qs.registry.more", arg("count", aside.size() - LISTED_ASIDE)));
+            lore.add(lore("menu.qs.registry.copied-first"));
+            lore.add(lore((discardArmed ? "menu.qs.registry.discard-again" : "menu.qs.registry.discard")
+                    + (aside.size() == 1 ? "-one" : "-many")));
         }
-        return item(Material.BOOK, Component.text("hvac.yml: " + state, color), lore);
+        return item(Material.BOOK, Lang.message("menu.qs.registry.title", arg("state", state)).color(color), lore);
     }
 
     private void clickBackups(Player player, int slot, Menu menu) {
@@ -1065,14 +1062,13 @@ public final class QuickSettingsMenu implements Listener {
                     logChange(player, "discarded " + repaired.discarded() + " kept-aside entr"
                             + (repaired.discarded() == 1 ? "y" : "ies") + " from hvac.yml (copied first to "
                             + repaired.copy() + ")");
-                    player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
-                            "Discarded " + repaired.discarded() + " entr" + (repaired.discarded() == 1 ? "y" : "ies")
-                                    + ". hvac.yml as it was is kept as " + repaired.copy() + ".", NamedTextColor.GREEN)));
+                    player.sendMessage(Lang.message("update.prefix").append(Lang.message(repaired.discarded() == 1
+                            ? "command.registry.discarded.one" : "command.registry.discarded.many",
+                            arg("count", repaired.discarded()), arg("copy", repaired.copy()))));
                 } catch (java.io.IOException failure) {
                     click(player, false);
-                    player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD).append(Component.text(
-                            "Couldn't copy hvac.yml aside, so nothing was discarded: " + failure.getMessage(),
-                            NamedTextColor.RED)));
+                    player.sendMessage(Lang.message("update.prefix").append(Lang.message("command.registry.copy-failed",
+                            arg("reason", String.valueOf(failure.getMessage())))));
                 }
             }
         } else if (slot == BACK_UP_NOW) {
@@ -1080,10 +1076,10 @@ public final class QuickSettingsMenu implements Listener {
             backups.backUpNow((name, failure) -> {
                 if (name != null) {
                     plugin.getLogger().info(player.getName() + " backed up the registry: backups/" + name);
-                    if (player.isOnline()) player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD)
-                            .append(Component.text("Backed up to backups/" + name + ".", NamedTextColor.GREEN)));
-                } else if (player.isOnline()) player.sendMessage(Component.text("[EZvac] ", NamedTextColor.GOLD)
-                        .append(Component.text("The backup failed: " + failure + ".", NamedTextColor.RED)));
+                    if (player.isOnline()) player.sendMessage(Lang.message("update.prefix")
+                            .append(Lang.message("menu.qs.backups.done", arg("name", name))));
+                } else if (player.isOnline()) player.sendMessage(Lang.message("update.prefix")
+                        .append(Lang.message("menu.qs.backups.failed", arg("reason", String.valueOf(failure)))));
                 if (player.isOnline() && player.getOpenInventory().getTopInventory().getHolder() instanceof Menu open
                         && open.page == Page.BACKUPS) draw(open);
             });
@@ -1138,27 +1134,30 @@ public final class QuickSettingsMenu implements Listener {
      * cooling, the worst sized first (BETA 1.0).
      */
     private List<Component> sizeLines() {
-        if (!switches.sizing()) return List.of(gray("Building size is off:"), gray("any size heats as before"));
+        if (!switches.sizing()) return List.of(lore("menu.qs.sizes.off-1"), lore("menu.qs.sizes.off-2"));
         List<com.github.blade.hvac.service.HvacController.SizeLine> lines = plugin.controller().sizeLines();
-        if (lines.isEmpty()) return List.of(gray("No systems yet"));
+        if (lines.isEmpty()) return List.of(lore("menu.qs.sizes.none"));
         List<Component> out = new ArrayList<>();
-        out.add(gray("Has/needs, in three-star units"));
+        out.add(lore("menu.qs.sizes.title"));
         for (int i = 0; i < Math.min(LISTED_SYSTEMS, lines.size()); i++)
             out.add(Component.text(sizeText(lines.get(i)), lines.get(i).worst() < 1.0 ? NamedTextColor.GOLD
                     : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-        if (lines.size() > LISTED_SYSTEMS) out.add(gray("and " + (lines.size() - LISTED_SYSTEMS) + " more"));
+        if (lines.size() > LISTED_SYSTEMS) out.add(lore("menu.qs.sizes.more", arg("count", lines.size() - LISTED_SYSTEMS)));
         return out;
     }
 
     /** {@code Home1: 4,800 air · cool 1/2.6 · heat 2/2.6}, or that it isn't mapped yet. */
     public static String sizeText(com.github.blade.hvac.service.HvacController.SizeLine line) {
-        if (line.cooling() == null) return line.name() + ": not mapped yet";
-        StringBuilder text = new StringBuilder(line.name() + ": " + String.format(Locale.US, "%,d",
-                line.cooling().size()) + (line.cooling().water() ? " water" : " air"));
+        if (line.cooling() == null) return Lang.text("menu.qs.sizes.unmapped", arg("name", line.name()));
+        StringBuilder text = new StringBuilder(Lang.text(line.cooling().water() ? "menu.qs.sizes.water"
+                : "menu.qs.sizes.air", arg("name", line.name()),
+                arg("size", String.format(Locale.US, "%,d", line.cooling().size()))));
         if (!line.cooling().water() && line.cooling().openings() > 0)
-            text.append(", ").append(line.cooling().openings()).append(" open");
-        if (line.cooling().installed() > 0.0) text.append(" · cool ").append(line.cooling().ratio());
-        if (line.heating().installed() > 0.0) text.append(" · heat ").append(line.heating().ratio());
+            text.append(Lang.text("menu.qs.sizes.open", arg("openings", line.cooling().openings())));
+        if (line.cooling().installed() > 0.0)
+            text.append(Lang.text("menu.qs.sizes.cool", arg("ratio", line.cooling().ratio())));
+        if (line.heating().installed() > 0.0)
+            text.append(Lang.text("menu.qs.sizes.heat", arg("ratio", line.heating().ratio())));
         return text.toString();
     }
 
@@ -1194,11 +1193,11 @@ public final class QuickSettingsMenu implements Listener {
     /** "just now", "12 minutes ago", "3 hours ago", "2 days ago". */
     static String ago(long at) {
         long minutes = Math.max(0L, (System.currentTimeMillis() - at) / 60_000L);
-        if (minutes < 1) return "just now";
-        if (minutes < 60) return minutes + (minutes == 1 ? " minute ago" : " minutes ago");
+        if (minutes < 1) return Lang.text("time.ago.now");
+        if (minutes < 60) return Lang.text(minutes == 1 ? "time.ago.minute" : "time.ago.minutes", arg("n", minutes));
         long hours = minutes / 60;
-        if (hours < 48) return hours + (hours == 1 ? " hour ago" : " hours ago");
-        return hours / 24 + " days ago";
+        if (hours < 48) return Lang.text(hours == 1 ? "time.ago.hour" : "time.ago.hours", arg("n", hours));
+        return Lang.text("time.ago.days", arg("n", hours / 24));
     }
 
     /** Closes every open quick settings menu when EZvac stops, so nothing can be taken out of it. */
