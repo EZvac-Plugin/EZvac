@@ -2,6 +2,7 @@ package com.github.blade.hvac.gui;
 
 import com.github.blade.hvac.StartupNotices;
 import com.github.blade.hvac.service.RegistrySalvage;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -60,7 +61,7 @@ public final class RecoveryMenu implements Listener {
     public void open(Player player) {
         if (!player.hasPermission(ADMIN)) return;
         Menu menu = new Menu();
-        menu.inventory = Bukkit.createInventory(menu, 27, Component.text("EZvac recovery"));
+        menu.inventory = Bukkit.createInventory(menu, 27, Component.text(Lang.text("menu.recovery.title")));
         draw(menu);
         player.openInventory(menu.inventory);
     }
@@ -70,52 +71,52 @@ public final class RecoveryMenu implements Listener {
         menu.backups = RegistrySalvage.backups(plugin.getDataFolder());
         ItemStack filler = item(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "), List.of());
         for (int slot = 0; slot < inventory.getSize(); slot++) inventory.setItem(slot, filler);
-        inventory.setItem(CLOSE, item(Material.BARRIER, Component.text("Close", NamedTextColor.RED), List.of()));
+        inventory.setItem(CLOSE, item(Material.BARRIER, Component.text(Lang.text("menu.recovery.close"), NamedTextColor.RED), List.of()));
         boolean fixed = notices.fixed();
         List<Component> status = new ArrayList<>();
-        if (fixed) status.add(gray("hvac.yml is fixed: restart the server"));
+        if (fixed) status.add(gray(Lang.text("menu.recovery.fixed-restart")));
         else {
-            status.add(gray("Nothing runs and nothing is saved"));
+            status.add(gray(Lang.text("menu.recovery.nothing-runs")));
             status.addAll(wrap(notices.reason()));
         }
         inventory.setItem(STATUS, item(fixed ? Material.LIME_DYE : Material.RED_DYE, Component.text(fixed
-                ? "Fixed: restart to start EZvac" : "EZvac is stopped", fixed ? NamedTextColor.GREEN : NamedTextColor.RED),
+                ? Lang.text("menu.recovery.fixed") : Lang.text("menu.recovery.stopped"), fixed ? NamedTextColor.GREEN : NamedTextColor.RED),
                 status));
         if (!fixed) {
             inventory.setItem(SALVAGE, notices.salvageable()
-                    ? action(menu, SALVAGE, Material.ANVIL, "Salvage hvac.yml", List.of(
-                    gray("Keeps every entry that still reads"), gray("and drops only the broken ones"),
-                    gray("hvac.yml as it is now is kept beside it")))
-                    : item(Material.STRUCTURE_VOID, Component.text("Salvage hvac.yml", NamedTextColor.DARK_GRAY),
-                    List.of(gray("Not for a file from a newer EZvac:"), gray("that would lose what it stored."),
-                            gray("Update EZvac, or restore a backup"))));
+                    ? action(menu, SALVAGE, Material.ANVIL, Lang.text("menu.recovery.salvage"), List.of(
+                    gray(Lang.text("menu.recovery.salvage-1")), gray(Lang.text("menu.recovery.salvage-2")),
+                    gray(Lang.text("menu.recovery.salvage-3"))))
+                    : item(Material.STRUCTURE_VOID, Component.text(Lang.text("menu.recovery.salvage"), NamedTextColor.DARK_GRAY),
+                    List.of(gray(Lang.text("menu.recovery.newer-1")), gray(Lang.text("menu.recovery.newer-2")),
+                            gray(Lang.text("menu.recovery.newer-3")))));
             int shown = 0;
             for (RegistrySalvage.Backup backup : menu.backups) {
                 if (shown == BACKUP_SLOTS.length) break;
                 int slot = BACKUP_SLOTS[shown++];
                 inventory.setItem(slot, backup.readable()
-                        ? action(menu, slot, Material.PAPER, "Restore " + backup.name(), List.of(
-                        gray("Restores it over hvac.yml, and its"), gray("seasons file over seasons.yml"),
-                        gray("The files it replaces are kept beside them"),
-                        gray("Devices made since it aren't in it")))
+                        ? action(menu, slot, Material.PAPER, Lang.text("menu.recovery.restore-named", com.github.blade.hvac.lang.Lang.arg("name", backup.name())), List.of(
+                        gray(Lang.text("menu.recovery.restore-1")), gray(Lang.text("menu.recovery.restore-2")),
+                        gray(Lang.text("menu.recovery.restore-3")),
+                        gray(Lang.text("menu.recovery.restore-4"))))
                         : item(Material.MAP, Component.text(backup.name(), NamedTextColor.DARK_GRAY),
-                        List.of(gray("Unreadable here: it can't be restored"))));
+                        List.of(gray(Lang.text("menu.recovery.unreadable")))));
             }
             if (menu.backups.isEmpty())
-                inventory.setItem(BACKUP_SLOTS[0], item(Material.MAP, Component.text("No backups", NamedTextColor.GRAY),
-                        List.of(gray("None in plugins/EZvac/backups"))));
+                inventory.setItem(BACKUP_SLOTS[0], item(Material.MAP, Component.text(Lang.text("menu.recovery.no-backups"), NamedTextColor.GRAY),
+                        List.of(gray(Lang.text("menu.recovery.no-backups-lore")))));
         }
-        inventory.setItem(BY_HAND, item(Material.WRITABLE_BOOK, Component.text("By hand", NamedTextColor.AQUA), List.of(
-                gray("Fix plugins/EZvac/hvac.yml, or copy a"), gray("backup over it, then restart."),
-                gray("The server log has the error and the line"))));
+        inventory.setItem(BY_HAND, item(Material.WRITABLE_BOOK, Component.text(Lang.text("menu.recovery.by-hand"), NamedTextColor.AQUA), List.of(
+                gray(Lang.text("menu.recovery.by-hand-1")), gray(Lang.text("menu.recovery.by-hand-2")),
+                gray(Lang.text("menu.recovery.by-hand-3")))));
     }
 
     /** An item done by a click, then a second one on it. */
     private static ItemStack action(Menu menu, int slot, Material material, String name, List<Component> lore) {
         List<Component> lines = new ArrayList<>(lore);
         lines.add(menu.armed == slot
-                ? Component.text("Click again to do it", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false)
-                : Component.text("Click to do it (asks again)", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+                ? Component.text(Lang.text("menu.recovery.click-again"), NamedTextColor.RED).decoration(TextDecoration.ITALIC, false)
+                : Component.text(Lang.text("menu.recovery.click-asks"), NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
         return item(material, Component.text(name, menu.armed == slot ? NamedTextColor.RED : NamedTextColor.GOLD), lines);
     }
 

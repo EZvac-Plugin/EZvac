@@ -9,6 +9,7 @@ import com.github.blade.hvac.config.WindSettings;
 import com.github.blade.hvac.gui.SetupSteps.HudChoice;
 import com.github.blade.hvac.gui.SetupSteps.Step;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -35,6 +36,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import static com.github.blade.hvac.lang.Lang.arg;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -91,17 +94,14 @@ public final class SetupWizard implements Listener {
     /** "EZvac is new on this server. Set it up in a minute? [Set up] [Later] [Don't ask again]" */
     public void prompt(Player player) {
         boolean partway = plugin.getConfig().getBoolean("setup.started", false);
-        player.sendMessage(Component.text(partway ? "You left EZvac's setup partway. " : "EZvac is new on this server. ",
-                        NamedTextColor.AQUA).decorate(TextDecoration.BOLD)
-                .append(Component.text(partway ? "Carry on? Every answer so far is kept." : "Set it up in a minute?",
-                        NamedTextColor.WHITE).decoration(TextDecoration.BOLD, false)));
-        player.sendMessage(button("[Set up]", NamedTextColor.GREEN, "/hvac setup", "Opens a short menu")
+        player.sendMessage(Lang.message(partway ? "menu.setup.prompt-partway" : "menu.setup.prompt-new"));
+        player.sendMessage(button(Lang.text("menu.setup.button.set-up"), NamedTextColor.GREEN, "/hvac setup", Lang.text("menu.setup.button.set-up-hover"))
                 .append(Component.text("  "))
-                .append(Component.text("[Later]", NamedTextColor.GRAY)
-                        .hoverEvent(HoverEvent.showText(Component.text("Asks again when you next join"))))
+                .append(Component.text(Lang.text("menu.setup.button.later"), NamedTextColor.GRAY)
+                        .hoverEvent(HoverEvent.showText(Component.text(Lang.text("menu.setup.button.later-hover")))))
                 .append(Component.text("  "))
-                .append(button("[Don't ask again]", NamedTextColor.RED, "/hvac setup skip",
-                        "Every setting stays in /hvac quicksettings")));
+                .append(button(Lang.text("menu.setup.button.never"), NamedTextColor.RED, "/hvac setup skip",
+                        Lang.text("menu.setup.button.never-hover"))));
     }
 
     private static Component button(String label, NamedTextColor color, String command, String hover) {
@@ -137,16 +137,13 @@ public final class SetupWizard implements Listener {
     /** Marks the setup done without changing anything (/hvac setup skip, or Skip setup). */
     public void skip(Player player) {
         plugin.setSetupDone(true);
-        player.sendMessage(Component.text("Setup skipped. Every setting is in /hvac quicksettings, and /hvac setup"
-                + " runs it again any time.", NamedTextColor.GRAY));
+        player.sendMessage(Lang.message("menu.setup.skipped"));
     }
 
     private void finish(Player player) {
         plugin.setSetupDone(true);
         player.closeInventory();
-        player.sendMessage(Component.text("EZvac is set up. ", NamedTextColor.GREEN).decorate(TextDecoration.BOLD)
-                .append(Component.text("Change anything later in /hvac quicksettings, or run /hvac setup again.",
-                        NamedTextColor.WHITE).decoration(TextDecoration.BOLD, false)));
+        player.sendMessage(Lang.message("menu.setup.finished"));
         plugin.getLogger().info(player.getName() + " finished the setup.");
     }
 
@@ -155,15 +152,15 @@ public final class SetupWizard implements Listener {
         ItemStack filler = item(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "), List.of(), false);
         for (int slot = 0; slot < inventory.getSize(); slot++) inventory.setItem(slot, filler);
         if (menu.step.previous() != null)
-            inventory.setItem(BACK, item(Material.ARROW, Component.text("Back", NamedTextColor.YELLOW),
+            inventory.setItem(BACK, item(Material.ARROW, Component.text(Lang.text("menu.setup.back"), NamedTextColor.YELLOW),
                     List.of(gray(menu.step.previous().title())), false));
         if (menu.step != Step.DONE)
-            inventory.setItem(SKIP, item(Material.BARRIER, Component.text("Skip setup", NamedTextColor.RED),
-                    List.of(gray("Keeps everything as it is now"), gray("/hvac setup runs it again")), false));
+            inventory.setItem(SKIP, item(Material.BARRIER, Component.text(Lang.text("menu.setup.skip"), NamedTextColor.RED),
+                    List.of(gray(Lang.text("menu.setup.skip-1")), gray(Lang.text("menu.setup.skip-2"))), false));
         inventory.setItem(NEXT, menu.step == Step.DONE
-                ? item(Material.LIME_CONCRETE, Component.text("Finish", NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
-                List.of(gray("Close the setup")), false)
-                : item(Material.LIME_DYE, Component.text("Next", NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
+                ? item(Material.LIME_CONCRETE, Component.text(Lang.text("menu.setup.finish"), NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
+                List.of(gray(Lang.text("menu.setup.finish-lore"))), false)
+                : item(Material.LIME_DYE, Component.text(Lang.text("menu.setup.next"), NamedTextColor.GREEN).decorate(TextDecoration.BOLD),
                 List.of(gray(menu.step.next().title())), false));
         switch (menu.step) {
             case WELCOME -> drawWelcome(inventory);
@@ -192,30 +189,30 @@ public final class SetupWizard implements Listener {
     private static ItemStack choice(Material icon, String label, String what, boolean chosen) {
         List<Component> lore = new ArrayList<>();
         if (what != null) lore.add(gray(what));
-        lore.add(chosen ? Component.text("Chosen", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false)
-                : Component.text("Click to choose", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+        lore.add(chosen ? Component.text(Lang.text("menu.setup.chosen"), NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false)
+                : Component.text(Lang.text("menu.setup.click-choose"), NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
         return item(icon, Component.text((chosen ? "● " : "") + label, chosen ? NamedTextColor.GREEN : NamedTextColor.WHITE),
                 lore, chosen);
     }
 
     private void drawWelcome(Inventory inventory) {
-        info(inventory, Material.NETHER_STAR, "Welcome to EZvac",
-                "Heating, cooling and the climate,", "built from ordinary blocks.",
-                "A few questions set it up for", "this server; each can be changed",
-                "later in /hvac quicksettings.");
-        inventory.setItem(GUIDE, item(Material.WRITTEN_BOOK, Component.text("Getting started", NamedTextColor.GOLD),
-                List.of(gray("A first working system, step by step"),
-                        Component.text("Click for the link in chat", NamedTextColor.YELLOW)
+        info(inventory, Material.NETHER_STAR, Lang.text("menu.setup.welcome.title"),
+                Lang.text("menu.setup.welcome.1"), Lang.text("menu.setup.welcome.2"),
+                Lang.text("menu.setup.welcome.3"), Lang.text("menu.setup.welcome.4"),
+                Lang.text("menu.setup.welcome.5"));
+        inventory.setItem(GUIDE, item(Material.WRITTEN_BOOK, Component.text(Lang.text("menu.setup.welcome.guide"), NamedTextColor.GOLD),
+                List.of(gray(Lang.text("menu.setup.welcome.guide-1")),
+                        Component.text(Lang.text("menu.setup.welcome.guide-2"), NamedTextColor.YELLOW)
                                 .decoration(TextDecoration.ITALIC, false)), false));
     }
 
     private void drawTemperatures(Inventory inventory) {
         TemperatureUnit now = plugin.settings().units();
-        info(inventory, Material.REDSTONE_TORCH, "Temperatures",
-                "How every temperature shows:", "screens, the HUD, menus and chat.");
+        info(inventory, Material.REDSTONE_TORCH, Lang.text("menu.setup.units.title"),
+                Lang.text("menu.setup.units.1"), Lang.text("menu.setup.units.2"));
         choices(inventory, List.of(
-                choice(Material.ORANGE_DYE, "Fahrenheit (°F)", "72°F is a comfortable room", now == TemperatureUnit.F),
-                choice(Material.LIGHT_BLUE_DYE, "Celsius (°C)", "22°C is a comfortable room", now == TemperatureUnit.C)));
+                choice(Material.ORANGE_DYE, Lang.text("menu.setup.units.f"), Lang.text("menu.setup.units.f-lore"), now == TemperatureUnit.F),
+                choice(Material.LIGHT_BLUE_DYE, Lang.text("menu.setup.units.c"), Lang.text("menu.setup.units.c-lore"), now == TemperatureUnit.C)));
     }
 
     private WindSettings.Units windNow() {
@@ -225,13 +222,13 @@ public final class SetupWizard implements Listener {
 
     private void drawWind(Inventory inventory) {
         WindSettings.Units now = windNow();
-        info(inventory, Material.FEATHER, "Wind speeds", "How the HUD, sensors and forecasts", "give the wind's speed.");
+        info(inventory, Material.FEATHER, Lang.text("menu.setup.wind.title"), Lang.text("menu.setup.wind.1"), Lang.text("menu.setup.wind.2"));
         choices(inventory, List.of(
-                choice(Material.COMPASS, SetupSteps.windLabel(WindSettings.Units.AUTO), "mph with °F, km/h with °C",
+                choice(Material.COMPASS, SetupSteps.windLabel(WindSettings.Units.AUTO), Lang.text("menu.setup.wind.auto-lore"),
                         now == WindSettings.Units.AUTO),
-                choice(Material.WHITE_DYE, "m/s", "Metres a second", now == WindSettings.Units.MS),
-                choice(Material.WHITE_DYE, "km/h", "Kilometres an hour", now == WindSettings.Units.KMH),
-                choice(Material.WHITE_DYE, "mph", "Miles an hour", now == WindSettings.Units.MPH)));
+                choice(Material.WHITE_DYE, "m/s", Lang.text("menu.setup.wind.ms"), now == WindSettings.Units.MS),
+                choice(Material.WHITE_DYE, "km/h", Lang.text("menu.setup.wind.kmh"), now == WindSettings.Units.KMH),
+                choice(Material.WHITE_DYE, "mph", Lang.text("menu.setup.wind.mph"), now == WindSettings.Units.MPH)));
     }
 
     private HudChoice hudNow() {
@@ -241,57 +238,57 @@ public final class SetupWizard implements Listener {
 
     private void drawHud(Inventory inventory) {
         HudChoice now = hudNow();
-        info(inventory, Material.ITEM_FRAME, "The HUD for new players",
-                "The climate where a player stands:", "temperature, feels-like, humidity,",
-                "the air and the weather.", "A player's own /hvac hud always wins.");
+        info(inventory, Material.ITEM_FRAME, Lang.text("menu.setup.hud.title"),
+                Lang.text("menu.setup.hud.1"), Lang.text("menu.setup.hud.2"),
+                Lang.text("menu.setup.hud.3"), Lang.text("menu.setup.hud.4"));
         Material[] icons = {Material.GRAY_DYE, Material.OAK_SIGN, Material.NAME_TAG, Material.END_CRYSTAL};
         List<ItemStack> items = new ArrayList<>();
         for (HudChoice choice : HudChoice.values())
             items.add(choice(icons[choice.ordinal()], choice.label(), choice.what(), now == choice));
         choices(inventory, items);
         String title = PlainTextComponentSerializer.plainText().serialize(plugin.hud().format().title());
-        inventory.setItem(RENAME, item(Material.ANVIL, Component.text("Rename the title", NamedTextColor.GOLD),
-                List.of(gray("Now: " + title), gray("Climate - your server's name"),
-                        Component.text("Click, then type it in chat", NamedTextColor.YELLOW)
+        inventory.setItem(RENAME, item(Material.ANVIL, Component.text(Lang.text("menu.setup.hud.rename"), NamedTextColor.GOLD),
+                List.of(gray(Lang.text("menu.setup.title-now", arg("title", title))), gray(Lang.text("menu.setup.title-format")),
+                        Component.text(Lang.text("menu.setup.hud.rename-click"), NamedTextColor.YELLOW)
                                 .decoration(TextDecoration.ITALIC, false)), false));
     }
 
     private void drawUpdates(Inventory inventory) {
         String now = plugin.updates().channelSetting();
-        info(inventory, Material.CLOCK, "Updates",
-                "EZvac checks GitHub for a newer", "release and tells admins. Which", "releases should it tell you about?");
+        info(inventory, Material.CLOCK, Lang.text("menu.setup.updates.title"),
+                Lang.text("menu.setup.updates.1"), Lang.text("menu.setup.updates.2"), Lang.text("menu.setup.updates.3"));
         choices(inventory, List.of(
-                choice(Material.EMERALD, "Stable", "Full releases and their hotfixes", now.equals("stable")),
-                choice(Material.AMETHYST_SHARD, "Pilot", "Pilots too: test builds, earlier", now.equals("pilot")),
-                choice(Material.CLOCK, SetupSteps.channelLabel("auto"), "Pilot on a pilot, else Stable", now.equals("auto"))));
+                choice(Material.EMERALD, Lang.text("menu.setup.updates.stable"), Lang.text("menu.setup.updates.stable-lore"), now.equals("stable")),
+                choice(Material.AMETHYST_SHARD, Lang.text("menu.setup.updates.pilot"), Lang.text("menu.setup.updates.pilot-lore"), now.equals("pilot")),
+                choice(Material.CLOCK, SetupSteps.channelLabel("auto"), Lang.text("menu.setup.updates.auto-lore"), now.equals("auto"))));
     }
 
     private void drawBackups(Inventory inventory) {
         int now = plugin.backups().intervalHours();
-        info(inventory, Material.CHEST, "Backups",
-                "A copy of every device, kept in", "plugins/EZvac/backups, the newest", "10 kept.");
+        info(inventory, Material.CHEST, Lang.text("menu.setup.backups.title"),
+                Lang.text("menu.setup.backups.1"), Lang.text("menu.setup.backups.2"), Lang.text("menu.setup.backups.3"));
         List<ItemStack> items = new ArrayList<>();
         for (int hours : SetupSteps.BACKUP_HOURS)
             items.add(choice(hours == 0 ? Material.GRAY_DYE : Material.CHEST, SetupSteps.backupLabel(hours),
-                    hours == 24 ? "Recommended" : null, now == hours));
+                    hours == 24 ? Lang.text("menu.setup.backups.recommended") : null, now == hours));
         choices(inventory, items);
     }
 
     private void drawStatistics(Inventory inventory) {
         boolean on = plugin.usageStatsOn();
-        info(inventory, Material.COMPASS, "Anonymous statistics",
-                "How many servers run EZvac, and on", "which versions, tells us what to", "test and support, and what to keep.",
-                "Sent to bstats.org: a random id,", "players online, server, Java and",
-                "EZvac versions, a few settings.", "Nothing names a server or a player.",
-                "Each part: /hvac quicksettings.");
+        info(inventory, Material.COMPASS, Lang.text("menu.setup.statistics.title"),
+                Lang.text("menu.setup.statistics.1"), Lang.text("menu.setup.statistics.2"), Lang.text("menu.setup.statistics.3"),
+                Lang.text("menu.setup.statistics.4"), Lang.text("menu.setup.statistics.5"),
+                Lang.text("menu.setup.statistics.6"), Lang.text("menu.setup.statistics.7"),
+                Lang.text("menu.setup.statistics.8"));
         choices(inventory, List.of(
-                choice(Material.LIME_DYE, "On", "Help EZvac grow", on),
-                choice(Material.GRAY_DYE, "Off", "Send nothing", !on)));
+                choice(Material.LIME_DYE, Lang.text("menu.setup.statistics.on"), Lang.text("menu.setup.statistics.on-lore"), on),
+                choice(Material.GRAY_DYE, Lang.text("menu.setup.statistics.off"), Lang.text("menu.setup.statistics.off-lore"), !on)));
     }
 
     private void drawAddons(Inventory inventory) {
-        info(inventory, Material.BOOKSHELF, "Official addons",
-                "Plugins made alongside EZvac.", "Click one for its link in chat.", "EZvac never downloads anything.");
+        info(inventory, Material.BOOKSHELF, Lang.text("menu.setup.addons.title"),
+                Lang.text("menu.setup.addons.1"), Lang.text("menu.setup.addons.2"), Lang.text("menu.setup.addons.3"));
         AddonService addons = plugin.addons();
         List<AddonCatalogue.Entry> installed = new ArrayList<>();
         for (AddonService.Installed one : addons.installed()) installed.add(one.entry());
@@ -303,11 +300,11 @@ public final class SetupWizard implements Listener {
             List<Component> lore = new ArrayList<>(wrap(entry.description(), 34, Integer.MAX_VALUE));
             if (entry.folded()) {
                 AddonCatalogue.Entry into = addons.entry(entry.foldedInto());
-                lore.add(Component.text("Legacy: no longer supported", NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
-                lore.add(gray("Now part of " + (into == null ? entry.foldedInto() : into.name())));
+                lore.add(Component.text(Lang.text("menu.setup.addons.legacy"), NamedTextColor.RED).decoration(TextDecoration.ITALIC, false));
+                lore.add(gray(Lang.text("menu.setup.part-of", arg("addon", into == null ? entry.foldedInto() : into.name()))));
             }
-            lore.add(installed.contains(entry) ? Component.text("Installed", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false)
-                    : Component.text("Click for the link", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+            lore.add(installed.contains(entry) ? Component.text(Lang.text("menu.setup.addons.installed"), NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false)
+                    : Component.text(Lang.text("menu.setup.addons.click-link"), NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
             inventory.setItem(ADDON_SLOTS[i], item(icon == null ? Material.PAPER : icon,
                     Component.text(entry.name(), NamedTextColor.AQUA), lore, false));
         }
@@ -325,13 +322,13 @@ public final class SetupWizard implements Listener {
         var wind = windNow();
         List<String> lines = new ArrayList<>(SetupSteps.summary(plugin.settings().units(), wind, hudNow(),
                 plugin.updates().channelSetting(), plugin.backups().intervalHours(), plugin.usageStatsOn()));
-        lines.add("All in /hvac quicksettings.");
-        info(inventory, Material.NETHER_STAR, "EZvac is set up", lines.toArray(String[]::new));
-        inventory.setItem(FIRST_SYSTEM, item(Material.STICK, Component.text("Build your first system", NamedTextColor.GOLD),
-                List.of(gray("A guided build in a world of its"), gray("own: a heat pump, a thermostat"),
-                        gray("and vents in a little hut. You"), gray("come back here with your things")), false));
-        inventory.setItem(FINISH, item(Material.LIME_CONCRETE, Component.text("Finish", NamedTextColor.GREEN),
-                List.of(gray("Close the setup")), false));
+        lines.add(Lang.text("menu.setup.done.all-in"));
+        info(inventory, Material.NETHER_STAR, Lang.text("menu.setup.done.title"), lines.toArray(String[]::new));
+        inventory.setItem(FIRST_SYSTEM, item(Material.STICK, Component.text(Lang.text("menu.setup.done.first"), NamedTextColor.GOLD),
+                List.of(gray(Lang.text("menu.setup.done.first-1")), gray(Lang.text("menu.setup.done.first-2")),
+                        gray(Lang.text("menu.setup.done.first-3")), gray(Lang.text("menu.setup.done.first-4"))), false));
+        inventory.setItem(FINISH, item(Material.LIME_CONCRETE, Component.text(Lang.text("menu.setup.finish"), NamedTextColor.GREEN),
+                List.of(gray(Lang.text("menu.setup.finish-lore"))), false));
     }
 
     // ---- clicks ----
@@ -381,7 +378,7 @@ public final class SetupWizard implements Listener {
         switch (menu.step) {
             case WELCOME -> {
                 if (slot != GUIDE) return false;
-                link(player, "Getting started", GETTING_STARTED);
+                link(player, Lang.text("menu.setup.welcome.guide"), GETTING_STARTED);
                 return true;
             }
             case TEMPERATURES -> {
@@ -403,9 +400,7 @@ public final class SetupWizard implements Listener {
                 if (slot == RENAME) {
                     naming.put(player.getUniqueId(), Step.HUD);
                     player.closeInventory();
-                    player.sendMessage(Component.text("Type the name for the HUD's title in chat", NamedTextColor.AQUA)
-                            .append(Component.text(" (Climate - name; up to 24 characters, \"cancel\" to keep it).",
-                                    NamedTextColor.GRAY)));
+                    player.sendMessage(Lang.message("menu.setup.type-title"));
                     return false;
                 }
                 if (index < 0) return false;
@@ -456,7 +451,7 @@ public final class SetupWizard implements Listener {
                         var tutorial = plugin.tutorial();
                         if (tutorial == null || !tutorial.begin(player)) {
                             player.performCommand("hvac link-tool");
-                            link(player, "Build your first system, step by step", GETTING_STARTED);
+                            link(player, Lang.text("menu.setup.done.first-link"), GETTING_STARTED);
                         }
                     });
                     return false;
@@ -502,13 +497,13 @@ public final class SetupWizard implements Listener {
             if (!player.isOnline()) return;
             String name = SetupSteps.cleanName(typed);
             if (name == null || name.equalsIgnoreCase("cancel")) {
-                player.sendMessage(Component.text("The title stays as it was.", NamedTextColor.GRAY));
+                player.sendMessage(Lang.message("menu.setup.title-kept"));
             } else {
                 String mini = SetupSteps.title(MiniMessage.miniMessage().escapeTags(name));
                 plugin.getConfig().set("hud.sidebar.title", mini);
                 plugin.saveConfig();
                 plugin.hud().setTitle(mini);
-                player.sendMessage(Component.text("The HUD's title is now: ", NamedTextColor.GREEN)
+                player.sendMessage(Lang.message("menu.setup.title-set")
                         .append(MiniMessage.miniMessage().deserialize(mini)));
                 plugin.getLogger().info(player.getName() + " renamed the HUD's title to Climate - " + name);
             }
