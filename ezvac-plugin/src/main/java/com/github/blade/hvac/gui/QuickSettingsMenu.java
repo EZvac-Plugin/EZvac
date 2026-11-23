@@ -579,7 +579,7 @@ public final class QuickSettingsMenu implements Listener {
     private void drawSharing(Inventory inventory) {
         boolean on = plugin.usageStatsOn();
         List<Component> always = new ArrayList<>();
-        for (int line = 1; line <= 9; line++) always.add(lore("menu.qs.sharing.always-" + line));
+        for (int line = 1; line <= 9; line++) always.add(lore(Lang.key("menu.qs.sharing.sent-always", String.valueOf(line))));
         inventory.setItem(ALWAYS_SENT, item(Material.PAPER, Lang.message("menu.qs.sharing.always"), always));
         placeSwitch(inventory, SHARE_ALL, Material.COMPASS, Lang.text("menu.qs.main.sharing"), on, List.of(
                 lore("menu.qs.sharing.all-1"), lore("menu.qs.sharing.all-2"), clickTo(on)));
@@ -1040,8 +1040,9 @@ public final class QuickSettingsMenu implements Listener {
             }
             if (aside.size() > LISTED_ASIDE) lore.add(lore("menu.qs.registry.more", arg("count", aside.size() - LISTED_ASIDE)));
             lore.add(lore("menu.qs.registry.copied-first"));
-            lore.add(lore((discardArmed ? "menu.qs.registry.discard-again" : "menu.qs.registry.discard")
-                    + (aside.size() == 1 ? "-one" : "-many")));
+            boolean one = aside.size() == 1;
+            lore.add(lore(discardArmed ? (one ? "menu.qs.registry.discard-again-one" : "menu.qs.registry.discard-again-many")
+                    : (one ? "menu.qs.registry.discard-one" : "menu.qs.registry.discard-many")));
         }
         return item(Material.BOOK, Lang.message("menu.qs.registry.title", arg("state", state)).color(color), lore);
     }
