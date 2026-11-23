@@ -229,9 +229,11 @@ public final class ControlMenus implements Listener {
                             : needed == OperatingMode.HEATING ? heating : null;
                     for (SizingModel.Assessment sized : java.util.Arrays.asList(cooling, heating))
                         if (sized == judged && sized != null && sized.installed() > 0.0 && sized.undersized())
-                            lore.add(lore((sized == cooling ? "menu.control.attention.undersized-cooling"
+                            lore.add(lore(profile == OperatingProfile.NORMAL
+                                    ? (sized == cooling ? "menu.control.attention.undersized-cooling"
                                     : "menu.control.attention.undersized-heating")
-                                    + (profile == OperatingProfile.NORMAL ? "" : "-on"),
+                                    : (sized == cooling ? "menu.control.attention.undersized-cooling-on"
+                                    : "menu.control.attention.undersized-heating-on"),
                                     arg("profile", title(profile)), arg("has", ratio(sized))));
                     lore.add(betterProfile == null ? lore("menu.control.attention.undersized-fix")
                             : lore("menu.control.attention.undersized-profile", arg("profile", title(betterProfile))));
@@ -249,8 +251,9 @@ public final class ControlMenus implements Listener {
         int unitCount = registry.equipmentFor(thermostat.system()).size();
         int ventCount = registry.ventsFor(thermostat.system()).size();
         lore.add(lore("menu.control.system.linked", arg("units", Lang.text(unitCount == 1 ? "menu.control.system.unit"
-                : "menu.control.system.units", arg("n", unitCount))), arg("vents", Lang.text((thermostat.pool()
-                ? "menu.control.system.water-vent" : "menu.control.system.vent") + (ventCount == 1 ? "" : "s"),
+                : "menu.control.system.units", arg("n", unitCount))), arg("vents", Lang.text(thermostat.pool()
+                ? (ventCount == 1 ? "menu.control.system.water-vent" : "menu.control.system.water-vents")
+                : (ventCount == 1 ? "menu.control.system.vent" : "menu.control.system.vents"),
                 arg("n", ventCount)))));
         if (plugin.controller() == null || !plugin.controller().sizing().enabled())
             lore.add(lore("menu.control.system.size-off"));
