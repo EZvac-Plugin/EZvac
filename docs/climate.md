@@ -45,7 +45,7 @@ The air gets colder going up: 0.1 °F for every block above y=64, so about
 6 °F colder at y=128 and 14 °F colder at y=200. Real air cools far less per
 metre, but Minecraft's mountains are short, so the effect is stronger to be
 felt. Mountain lakes are colder too. High on a mountain, rain turns to snow
-once the air there is cold enough (BETA 1.0 Pilot 4; see [Weather](#weather)).
+once the air there is cold enough (BETA 1.0; see [Weather](#weather)).
 
 ## Underground
 
@@ -59,16 +59,15 @@ tempered. Caves inside a mountain, above sea level, keep the outdoor swing.
 ## Seasons
 
 Each world with a sun has a year of four seasons, 30 Minecraft days each by
-default (a 120-day year, about 40 hours of play; 15 days before BETA 1.0
-Pilot 4). Temperatures follow a smooth curve: coldest in mid-winter, warmest
+default (a 120-day year, about 40 hours of play; 15 days before BETA 1.0). Temperatures follow a smooth curve: coldest in mid-winter, warmest
 in mid-summer, and average in mid-spring and mid-autumn.
 
-- Seasons move temperatures, and so whether rain falls as snow (BETA 1.0
-  Pilot 4): the plains snow in a cold winter. Biomes stay as Minecraft makes
+- Seasons move temperatures, and so whether rain falls as snow (BETA 1.0):
+  the plains snow in a cold winter. Biomes stay as Minecraft makes
   them.
 - `seasons.days-per-season` can be changed at any time (restart after): every
   world keeps its season and day of season, so summer day 8 stays summer
-  day 8. A server on the old stock 15 moved to 30 on its first Pilot 4 start,
+  day 8. A server on the old stock 15 moved to 30 on its first BETA 1.0 start,
   the same way; a length an owner chose was kept.
 - How far a biome moves is its own (the *Seasons ±* column): strong in the cold
   north, weak in the tropics. `seasons.strength` scales them all, such as 0.5
@@ -77,14 +76,14 @@ in mid-summer, and average in mid-spring and mid-autumn.
   season), and move a little less.
 - EZvac keeps its own calendar for each world, in `seasons.yml`. It follows
   the world's days, so sleeping through the night or `/time add` moves it on
-  by every day they pass (BETA 1.0 Pilot 3: before, one day at most at a
+  by every day they pass (BETA 1.0: before, one day at most at a
   time), but setting the clock back (`/time set day`, which restarts
   Minecraft's day count) never sends the year back to spring. With
   `doDaylightCycle` off, the season stands still.
-- A new calendar starts on Minecraft's own day count (BETA 1.0 Pilot 3), so
+- A new calendar starts on Minecraft's own day count (BETA 1.0), so
   day 0 of a world is the first day of spring and a world on day 500 starts
   where day 500 falls. A world that already has a calendar keeps its season
-  and day. (From 2.1 to Pilot 2, a new calendar started on the first day of
+  and day. (Before BETA 1.0, a new calendar started on the first day of
   spring whatever the world's day.)
 - `/hvac season` shows the season and how much it warms or cools outside
   here; admins can change it any time (see [Commands](commands.md#seasons)).
@@ -117,7 +116,7 @@ step. The outdoors at a spot is the average of the biomes around it, within
   narrow the day/night swing; snow cools by 3 °F.
 - Vanilla weather switches in an instant, so the effect eases in and out over
   about two in-game hours.
-- **Rain or snow is EZvac's own call** (BETA 1.0 Pilot 4), by its air, so
+- **Rain or snow is EZvac's own call** (BETA 1.0), by its air, so
   the season and the time of day count: a cold night can turn evening rain
   to snow, and a warm spell rains on the tundra. Vanilla decides by biome
   alone.
@@ -186,7 +185,7 @@ wind; at the edge of a system's reach the outdoor wind blends in. Walls and
 roofs shelter a spot from it too (3.2): you feel the wind by how much sky
 reaches you. See [Wind](wind.md).
 
-**In the sun** (BETA 1.0 Pilot 4) it feels warmer than in the shade: the sun
+**In the sun** (BETA 1.0) it feels warmer than in the shade: the sun
 adds Steadman's radiation term. It is strongest at noon in summer, less in
 winter's lower sun, little under clouds or rain, none at night, and a breeze
 carries it away. Full sun is where nothing is above you; under leaves or a

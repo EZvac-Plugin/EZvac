@@ -2,6 +2,148 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.0
+
+**The first stable BETA.** Everything from the ten BETA 1.0 pilots, tested
+together and hardened, for servers coming from **ALPHA 3.2 HOTFIX 1**: EZvac
+on Minecraft 26.x, weather stations, refrigeration, screens with buttons,
+houses that keep running while nobody is near, a first-start setup and a
+guided tutorial. No new features beyond the pilots: this release is about
+being solid.
+
+The save is unchanged (format 8): every `hvac.yml` since 1.0 loads, and your
+devices carry over. The API is 1.13, and an addon built for any earlier
+version keeps working.
+
+### Upgrading from ALPHA 3.2
+
+Most of it happens on its own; these are the things worth knowing.
+
+- **Minecraft 26.1 to 26.3 is supported, on Java 25.** 1.21.x still works
+  through BETA 1.x and says it's deprecated at start-up: **BETA 2.x will need
+  26.1 or newer.** See [Moving to Minecraft 26.x](docs/upgrading-and-troubleshooting.md#moving-to-minecraft-26x).
+- **A system needs a vent to start.** Admins are told on joining how many
+  thermostats have units but no vent; link one to each.
+- **Building size starts off on an upgraded server,** so your builds heat and
+  cool as before. Switch it on with **Building size** in `/hvac quicksettings`;
+  `/hvac stats sizes` shows which systems would then need more units.
+- **Seasons are 30 days long.** A world on the stock 15 moves to 30 and keeps
+  its season and day; a length you chose is kept.
+- **Devices show on screens only.** `displays.screens` is gone, and a server
+  that had it `false` is told once and gets screens.
+- **Automatic backups are on,** every 24 hours, to `plugins/EZvac/backups/`.
+- **Anonymous statistics are sent to bStats** (counts and versions, nothing
+  that names a server or a player). Quick settings › Anonymous statistics
+  shows what and switches each part off; `metrics.enabled: false` stops it.
+- **A stock HUD sidebar moves to the new sections;** one you changed is left
+  as it is.
+- **You're never asked to run the setup:** it's for new installs.
+  `/hvac setup` runs it any time.
+- **`config.yml` gains every new section,** with its comments, and nothing you
+  set changes.
+- **Going back to 3.2** is a jar swap on 1.21.x, but 3.2 deletes **mini
+  thermostats**, which it doesn't know. Fridges, freezers and weather
+  stations it keeps aside for BETA 1.0. Back up `plugins/EZvac/` before you
+  upgrade, and restore that to go back without losing anything.
+
+### What's new since ALPHA 3.2
+
+**Heating and cooling**
+- **Size-based heating and cooling:** a bigger building needs more units or
+  vents; openings leak, and neighbouring systems even out.
+- **Mini thermostats** on a wall button, and **the thermostat's menu**: its
+  profile, what needs attention and how to fix it, and the system's size.
+- **Units reach the target** even in a leaky room, and a system that can't
+  keep up says so.
+- **Houses keep running while nobody is near:** thermostats, equipment,
+  fridges and climate units work on in unloaded chunks.
+- `/hvac info` says how long a thermostat has been in its mode, and its last
+  run.
+
+**The climate**
+- **30-day seasons,** and a calendar that follows Minecraft's own days.
+- **Rain or snow by EZvac's own air,** and dry places that get rain by the
+  season.
+- **The wind blows from a direction,** by climate belt, turned by weather
+  fronts, and differs from region to region.
+- **The sun feels warmer than the shade,** and **fires in the open smoke up
+  the air downwind.**
+- New 26.x biomes: pale garden, dappled forest and sulfur caves.
+
+**Devices and screens**
+- **Weather stations:** towers that forecast the next seven days, with their
+  area's wind and air quality; `/hvac forecast`.
+- **Refrigeration:** mini fridges, fridges, refrigerators and deep freezers,
+  with frost, that warm the room they stand in.
+- **A new look for every screen:** panels the size of their sign, with
+  buttons on the wall, a thermostat's dial and smooth bars.
+- **EZdebug, built in:** hold the link tool to see the system you're linking,
+  with its room's edge and leaks glowing red.
+
+**Running a server**
+- **`/hvac quicksettings`:** device kinds and climate systems switched live,
+  seasons and wind, units and sounds, backups and the registry's health,
+  addons, what each part costs the tick, updates and statistics.
+- **A first-start setup** for new installs, and **a guided tutorial** that
+  builds a first system in a world of its own (`/hvac tutorial`).
+- **The Addons menu** (`/hvac addons`): official addons switched while the
+  server runs, part by part, with a store of the ones you don't have.
+- **Update notifications** with a choice of channel (stable or pilot), and
+  `/hvac update`.
+- **A broken `hvac.yml`** is recovered from the newest readable backup, or
+  repaired from a menu, and admins are told in game.
+- **Much lighter:** the HUD about twenty times cheaper, no stall from
+  backups, and a controller doing about 63% less work.
+
+### Hardening
+
+Found by an audit of the whole codebase, each one confirmed before it was
+fixed:
+
+- **The tutorial never loses a player's things.** What it keeps aside is
+  written crash-safely; a file that can't be read is kept for an admin
+  instead of emptying the inventory; a leftover file is never written over;
+  and a teleport another plugin cancels leaves the player as they were.
+- `/hvac frost` looking at nothing no longer fails with an error.
+- EZdebug and the tutorial no longer rescan a system's whole room twice a
+  second.
+- Recovery never copies a backup from a newer EZvac over `hvac.yml`.
+- Update links are only ever EZvac's own GitHub releases, and an odd release
+  tag no longer stops the update check.
+- A full inventory drops the link tool at your feet instead of losing it;
+  thawed food keeps a glint it had switched off; screens and forecasts forget
+  devices removed without a break event; each step of shutting down runs even
+  if one before it fails.
+
+### For addon developers
+
+API 1.6 to 1.13 since ALPHA 3.2, every step backwards compatible: system
+sizes and spaces, quick settings switches, weather stations and forecasts,
+wind and air anywhere without loading a chunk, precipitation and the snow
+line, planned weather, the Addons menu's switches, refrigeration, mode times,
+whether a device's chunk is loaded, and **controlling devices** through
+`EzvacControl`, with `DeviceControlEvent` before each change. See
+[The EZvac API](docs/api.md), and each pilot below for the details.
+
+### Tested
+
+- **Every automated suite** on Purpur 1.21.1, 1.21.4, 1.21.8, 1.21.11 and
+  26.1.2, and start-up and screens on 26.2 and 26.3; 746 unit tests.
+- **Upgrades** from ALPHA 3.2 HOTFIX 1 and Pilots 5, 9 and 10, each with every
+  device it has: the same devices after, nothing kept aside or lost. And
+  **back to 3.2** and forward again (see above).
+- **Robustness:** six hard kills mid-save with 200,000 devices, each reloading
+  intact; a broken `hvac.yml` recovered from its backup, and left untouched
+  when there is none.
+- **An hour's soak** on 1,000 rooms, a day every two minutes, visitors running
+  the tutorial, half of it unloaded: memory flat, no warnings.
+- **Speed** on 1,000 rooms the same as Pilot 9's: 0.62 ms a tick loaded,
+  0.33 ms unloaded.
+- **The official addons** (EZclimates 0.3.2, EZdebug+ 0.4.0, MapPeek 0.3.1)
+  and EZStats 0.6.2 through the control API.
+
+The full detail of every change is in the pilot entries below, newest first.
+
 ## BETA 1.0 Pilot 10
 
 **A first start that doesn't leave you lost: a setup, and a guided first

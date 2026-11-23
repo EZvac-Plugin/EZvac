@@ -61,7 +61,7 @@ Each biome has its own air. Biome borders blend, like temperature.
   dry, so a desert gale is a dust storm, Unhealthy from the PM10. It thins
   the outdoor smoke and spreads pollen, and indoors it makes rooms follow the
   outdoor air faster. See [Wind](wind.md).
-- **Fires in the open add smoke (BETA 1.0 Pilot 4).** Lit campfires,
+- **Fires in the open add smoke (BETA 1.0).** Lit campfires,
   furnaces, smokers, blast furnaces and fire that no room counts as its own
   spread their smoke into the outdoor air around them.
   - **It follows the wind:** thickest beside the fire, stretching downwind and
@@ -88,11 +88,11 @@ at the same rate its moisture does. On top of that:
 - **What burns adds smoke.** Lit campfires, fire, lava, lit furnaces, smokers,
   blast furnaces, lit candles, torches and lanterns, inside the room or in its
   walls. A blast furnace smokes most of the furnaces, then a smoker, then a
-  furnace (BETA 1.0 Pilot 4; before, all three alike).
+  furnace (BETA 1.0; before, all three alike).
   - **A bigger room dilutes it;** a small one concentrates it, up to four
     times.
   - **A doused campfire or an unlit furnace adds nothing.**
-  - **Torches and lanterns add a little each** (BETA 1.0 Pilot 4), soul and
+  - **Torches and lanterns add a little each** (BETA 1.0), soul and
     copper ones too: a room lit by dozens of them gets a bit hazy. Redstone
     torches don't burn, so they never count, and neither do EZvac's own
     furnaces and boilers, which are sealed.

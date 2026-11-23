@@ -2,7 +2,7 @@
 
 Since 3.2, every day has its own wind. It makes the outdoors feel colder,
 makes buildings leakier, and moves the outdoor air around: dust storms in the
-desert, thinner smoke, more pollen. Since BETA 1.0 Pilot 3 it blows from a
+desert, thinner smoke, more pollen. Since BETA 1.0 it blows from a
 direction, set by the climate and the weather, and differs from one region
 to the next.
 
