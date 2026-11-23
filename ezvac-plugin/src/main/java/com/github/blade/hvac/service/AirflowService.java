@@ -563,6 +563,8 @@ public final class AirflowService {
                 // handed over directly. Copying it cost ~42 ms in a single
                 // tick at the configured cell cap.
                 completed.put(active.target, active.distances);
+                // The old map goes with its cached space, not only when someone next asks for it.
+                if (active.target instanceof SystemId rebuilt) spaces.remove(rebuilt);
                 thaw(active.target);
                 if (active.water || active.waterCells.isEmpty()) exposures.remove(active.target);
                 else exposures.put(active.target, new WaterExposure(active.distances.size(),
@@ -1212,6 +1214,7 @@ public final class AirflowService {
 
     /** A system's new map: it and every system its map could meet, before or now, are worked out again. */
     private void mapped(SystemId system, Raw raw) {
+        spaces.remove(system);
         Raw before = raws.put(system, raw);
         if (before != null) index(system, before, false);
         index(system, raw, true);
@@ -1221,6 +1224,7 @@ public final class AirflowService {
     }
 
     private void dropShape(SystemId system) {
+        spaces.remove(system);
         Raw before = raws.remove(system);
         if (before != null) index(system, before, false);
         shapes.remove(system);
@@ -1382,7 +1386,8 @@ public final class AirflowService {
      */
     private record CachedSpace(Long2ByteMap map, Raw raw, Space space) {}
 
-    private final Map<SystemId, CachedSpace> spaces = new HashMap<>();
+    // Concurrent: the API's systemSpace() reaches it too, and an addon may ask from its own thread.
+    private final Map<SystemId, CachedSpace> spaces = new java.util.concurrent.ConcurrentHashMap<>();
 
     public Space space(SystemId system) {
         Long2ByteMap map = completed.get(system);

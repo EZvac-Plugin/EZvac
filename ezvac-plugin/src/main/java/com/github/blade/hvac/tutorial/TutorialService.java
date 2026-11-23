@@ -111,6 +111,8 @@ public final class TutorialService implements Listener {
     private final TutorialHut hut;
     private final File saves;
     private final Map<UUID, Session> sessions = new HashMap<>();
+    /** Players whose unreadable save couldn't be moved aside: their things were already cleared once. */
+    private final Set<UUID> unreadableLeft = new java.util.HashSet<>();
     private BukkitTask task;
     /** The tutorial world's deletion, 10 seconds after its last player left; cancelled if someone starts. */
     private BukkitTask deletion;
@@ -746,6 +748,17 @@ public final class TutorialService implements Listener {
         } catch (IOException | org.bukkit.configuration.InvalidConfigurationException unreadable) {
             File aside = new File(saves, file.getName() + ".unreadable-" + System.currentTimeMillis());
             boolean kept = file.renameTo(aside);
+            if (!kept) {
+                // A file another program holds open can't be renamed: a copy beside it keeps it just as well.
+                try {
+                    java.nio.file.Files.copy(file.toPath(), aside.toPath());
+                    kept = file.delete();
+                } catch (IOException copyFailed) {
+                    unreadable.addSuppressed(copyFailed);
+                }
+            }
+            // Still in place, it would be read again at every join, and each time empty what they carry then.
+            if (!kept && !unreadableLeft.add(player.getUniqueId())) return false;
             plugin.getLogger().log(Level.SEVERE, "Could not read " + player.getName() + "'s things from the tutorial ("
                     + file + "); " + (kept ? "kept as " + aside.getName() : "left in place") + " for an admin", unreadable);
             player.getInventory().clear();

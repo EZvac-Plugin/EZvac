@@ -455,7 +455,7 @@ public final class HvacPlugin extends JavaPlugin {
         if (airflowTask != null) shutdownStep("airflowTask", () -> airflowTask.cancel());
         if (bubbleTask != null) shutdownStep("bubbleTask", () -> bubbleTask.cancel());
         if (panelTask != null) shutdownStep("panelTask", () -> panelTask.cancel());
-        if (api != null) shutdownStep("api", () -> api.stopControls());
+        if (api != null) shutdownStep("api controls", () -> api.stopControls());
         if (displays != null) shutdownStep("displays", () -> displays.screens().removeAll());
         if (registry != null) shutdownStep("saving hvac.yml", () -> {
             registry.shutdownEquipment();
