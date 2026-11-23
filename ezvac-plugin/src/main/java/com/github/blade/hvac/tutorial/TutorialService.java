@@ -9,6 +9,7 @@ import com.github.blade.hvac.model.SystemId;
 import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.tutorial.TutorialHut.Spot;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -153,7 +154,7 @@ public final class TutorialService implements Listener {
     /** Takes a player to their own copy of the hut. False, and they're told why, when it can't. */
     public boolean begin(Player player) {
         if (inTutorial(player)) {
-            player.sendMessage(Component.text("You're in the tutorial already. /hvac tutorial leave takes you back.",
+            player.sendMessage(Component.text(Lang.text("tutorial.already"),
                     NamedTextColor.YELLOW));
             return false;
         }
@@ -166,21 +167,19 @@ public final class TutorialService implements Listener {
             world = world();
         } catch (RuntimeException failed) {
             plugin.getLogger().log(Level.WARNING, "Could not make the tutorial world", failed);
-            player.sendMessage(Component.text("The tutorial world couldn't be made: see the console.", NamedTextColor.RED));
+            player.sendMessage(Component.text(Lang.text("tutorial.no-world"), NamedTextColor.RED));
             return false;
         }
         // Things still kept from an earlier tutorial (just rejoined, before they're given back) must never
         // be written over by a new save, nor laid over what the player carries now: it doesn't start.
         if (saveFile(player.getUniqueId()).isFile()) {
-            player.sendMessage(Component.text("Your things from an earlier tutorial are still kept aside. Rejoin to"
-                    + " get them back, then start the tutorial again.", NamedTextColor.YELLOW));
+            player.sendMessage(Lang.message("tutorial.kept-from-earlier"));
             plugin.getLogger().warning(player.getName() + " has things kept from an earlier tutorial in "
                     + saveFile(player.getUniqueId()) + "; the tutorial didn't start over them.");
             return false;
         }
         if (!save(player)) {
-            player.sendMessage(Component.text("Your things couldn't be kept safe, so the tutorial didn't start:"
-                    + " see the console.", NamedTextColor.RED));
+            player.sendMessage(Lang.message("tutorial.not-safe"));
             return false;
         }
         Session session = new Session(player.getUniqueId(), freePlot());
@@ -197,8 +196,7 @@ public final class TutorialService implements Listener {
             if (!saveFile(player.getUniqueId()).delete())
                 plugin.getLogger().warning("Could not remove " + saveFile(player.getUniqueId()) + " after a cancelled tutorial");
             deleteSoonIfEmpty();
-            player.sendMessage(Component.text("Another plugin stopped the trip to the tutorial world, so it didn't"
-                    + " start.", NamedTextColor.RED));
+            player.sendMessage(Lang.message("tutorial.trip-stopped"));
             return false;
         }
         player.setGameMode(GameMode.CREATIVE);
@@ -207,10 +205,9 @@ public final class TutorialService implements Listener {
                 new ItemStack(Material.GLASS), new ItemStack(Material.OAK_SIGN), new ItemStack(Material.IRON_TRAPDOOR, 4));
         player.setHealth(Math.min(player.getHealth(), 20.0));
         player.setFoodLevel(20);
-        player.showTitle(Title.title(Component.text("Build your first system", NamedTextColor.GOLD),
-                Component.text("A heat pump, a thermostat and vents", NamedTextColor.GRAY)));
-        say(player, "Welcome to EZvac's tutorial. This hut needs heating. You'll build a heat pump, a thermostat"
-                + " and vents, and link them. /hvac tutorial leave takes you back any time, with your things.");
+        player.showTitle(Title.title(Component.text(Lang.text("tutorial.title"), NamedTextColor.GOLD),
+                Component.text(Lang.text("tutorial.subtitle"), NamedTextColor.GRAY)));
+        say(player, "tutorial.welcome");
         announce(player, session);
         plugin.getLogger().info(player.getName() + " started the tutorial (plot " + session.plot + ").");
         return true;
@@ -226,7 +223,7 @@ public final class TutorialService implements Listener {
         }
         boolean restored = restore(player);
         deleteSoonIfEmpty();
-        if (told && restored) say(player, "Back where you were, with your things. /hvac tutorial runs it again any time.");
+        if (told && restored) say(player, "tutorial.back");
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -247,7 +244,7 @@ public final class TutorialService implements Listener {
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
             if (player.isOnline() && !inTutorial(player) && saveFile(player.getUniqueId()).isFile()) {
                 if (restore(player))
-                    say(player, "You left the tutorial while away: you're back where you were, with your things.");
+                    say(player, "tutorial.back-while-away");
             }
         }, 5L);
     }
@@ -293,14 +290,14 @@ public final class TutorialService implements Listener {
                     ghost.put(dispenser, Bukkit.createBlockData("minecraft:dispenser[facing=up]"));
                 showGhosts(player, world, session, ghost);
                 if (ghost.isEmpty()) {
-                    done(player, "The dispenser is in.");
+                    done(player, "tutorial.done.dispenser");
                     next(player, session, Step.HEAT_PUMP);
                 }
             }
             case HEAT_PUMP -> {
                 showGhosts(player, world, session, Map.of(dispenser, Bukkit.createBlockData("minecraft:dispenser[facing=up]")));
                 if (registry.equipmentAt(dispenser) != null) {
-                    done(player, "EZvac knows it's a heat pump now.");
+                    done(player, "tutorial.done.heat-pump");
                     next(player, session, Step.THERMOSTAT);
                 }
             }
@@ -308,7 +305,7 @@ public final class TutorialService implements Listener {
                 showGhosts(player, world, session,
                         Map.of(sign, Bukkit.createBlockData("minecraft:oak_wall_sign[facing=" + hut.signFacing() + "]")));
                 if (registry.thermostatAt(sign) != null) {
-                    done(player, "The thermostat is in.");
+                    done(player, "tutorial.done.thermostat");
                     next(player, session, Step.VENTS);
                 }
             }
@@ -321,7 +318,7 @@ public final class TutorialService implements Listener {
                 }
                 showGhosts(player, world, session, ghost);
                 if (ghost.isEmpty()) {
-                    done(player, "The vents are in.");
+                    done(player, "tutorial.done.vents");
                     player.performCommand("hvac link-tool");
                     int tool = player.getInventory().first(Material.STICK);
                     if (tool >= 0 && tool < 9) player.getInventory().setHeldItemSlot(tool);
@@ -355,21 +352,16 @@ public final class TutorialService implements Listener {
                     if (!session.leaksTold && leaks != null) {
                         session.leaksTold = true;
                         if (!leaks.isEmpty())
-                            say(player, "Notice the red glowing blocks outside the door? Those are openings, where the"
-                                    + " room leaks air, and they work against your system. Close your doors, and don't"
-                                    + " leave gaps in your walls!");
+                            say(player, "tutorial.leaks");
                         else
-                            say(player, "Your room is sealed: nothing glows red. Open the door and red glowing blocks"
-                                    + " show where air leaks out. Openings work against your system, so close your"
-                                    + " doors, and don't leave gaps in your walls!");
-                        hint(player, "Holding the link tool with the thermostat selected always shows them, in any"
-                                + " system.");
+                            say(player, "tutorial.sealed");
+                        hint(player, "tutorial.leaks-hint");
                     }
                     addLeaks(ghost, leaks);
                 }
                 showGhosts(player, world, session, ghost);
                 if (all) {
-                    done(player, "Everything is linked: the heat pump is running.");
+                    done(player, "tutorial.done.linked");
                     next(player, session, Step.CASING);
                 }
             }
@@ -379,7 +371,7 @@ public final class TutorialService implements Listener {
                 addLeaks(shown, leaksOf(world, session));
                 showGhosts(player, world, session, shown);
                 if (missing.isEmpty()) {
-                    done(player, "The casing is built.");
+                    done(player, "tutorial.done.casing");
                     session.step = Step.DONE;
                     finish(player);
                 }
@@ -446,35 +438,26 @@ public final class TutorialService implements Listener {
     private void announce(Player player, Session session) {
         switch (session.step) {
             case DISPENSER -> {
-                say(player, "Step 1 of 6: the heat pump. Every heat pump, air conditioner and furnace is a dispenser."
-                        + " Place one where the glowing dispenser is, beside the hut, facing up.");
-                hint(player, "Look down at the ground as you place it, so it faces up.");
+                say(player, "tutorial.step.dispenser");
+                hint(player, "tutorial.step.dispenser-hint");
             }
             case HEAT_PUMP -> {
-                say(player, "Step 2 of 6: tell EZvac what it is. Look at the glowing dispenser and type:");
+                say(player, "tutorial.step.heat-pump");
                 command(player, "/hvac create heatpump");
-                hint(player, "The same dispenser becomes an air conditioner with /hvac create ac, or a furnace with"
-                        + " /hvac create furnace: what it is comes from how you create it.");
+                hint(player, "tutorial.step.heat-pump-hint");
             }
             case THERMOSTAT -> {
-                say(player, "Step 3 of 6: the thermostat. Go inside the hut: the glowing sign shows where it goes, on"
-                        + " the inside of the north wall. Place the sign there, then look at it and type:");
+                say(player, "tutorial.step.thermostat");
                 command(player, "/hvac create thermostat Hut 75");
             }
-            case VENTS -> say(player, "Step 4 of 6: vents. The glowing trapdoors under the ceiling show where: place an"
-                    + " iron trapdoor in each of the four. Air from the heat pump comes into the room through them.");
+            case VENTS -> say(player, "tutorial.step.vents");
             case LINK -> {
-                say(player, "Step 5 of 6: link them. You've been given the link tool. Right-click the thermostat to"
-                        + " select its system, then right-click each glowing vent and the heat pump's dispenser: each stops glowing"
-                        + " once it's linked.");
-                hint(player, "Right-click the thermostat again any time to see what's linked.");
+                say(player, "tutorial.step.link");
+                hint(player, "tutorial.step.link-hint");
             }
             case CASING -> {
-                say(player, "Step 6 of 6: the casing. The heat pump works already: water appears above the dispenser"
-                        + " while it runs. The glowing blocks show the usual casing around it, with a glass window to"
-                        + " watch the water. Fill them in with any blocks you like.");
-                hint(player, "That's the usual look, not a rule: build heat pumps, air conditioners and furnaces however"
-                        + " you like. Just leave the block above the dispenser free.");
+                say(player, "tutorial.step.casing");
+                hint(player, "tutorial.step.casing-hint");
             }
             case DONE -> { }
         }
@@ -482,13 +465,12 @@ public final class TutorialService implements Listener {
 
     private void finish(Player player) {
         chime(player, true);
-        player.showTitle(Title.title(Component.text("Your first system works", NamedTextColor.GREEN),
-                Component.text("The hut heats to 75 degrees", NamedTextColor.GRAY)));
-        say(player, "That's a whole system: the thermostat calls for heat, the heat pump runs, and warm air reaches the"
-                + " room through the vents. Watch its screen, and stand inside: your HUD shows the room warming.");
-        player.sendMessage(Component.text("[Back to my world]", NamedTextColor.GREEN).decorate(TextDecoration.BOLD)
+        player.showTitle(Title.title(Component.text(Lang.text("tutorial.done-title"), NamedTextColor.GREEN),
+                Component.text(Lang.text("tutorial.done-subtitle"), NamedTextColor.GRAY)));
+        say(player, "tutorial.finished");
+        player.sendMessage(Component.text(Lang.text("tutorial.back-button"), NamedTextColor.GREEN).decorate(TextDecoration.BOLD)
                 .clickEvent(ClickEvent.runCommand("/hvac tutorial leave"))
-                .hoverEvent(HoverEvent.showText(Component.text("With your things, where you were"))));
+                .hoverEvent(HoverEvent.showText(Component.text(Lang.text("tutorial.back-hover")))));
         plugin.getLogger().info(player.getName() + " finished the tutorial.");
     }
 
@@ -502,7 +484,7 @@ public final class TutorialService implements Listener {
         if (placed.equals(key(world, session, hut.sign()))) return;
         // The wall block's other face is the outside: the thermostat belongs inside.
         session.outsideTold = true;
-        hint(event.getPlayer(), "The thermostat goes on the inside of the wall, where the glowing sign is.");
+        hint(event.getPlayer(), "tutorial.thermostat-inside");
     }
 
     // ---- ghosts ----
@@ -764,8 +746,7 @@ public final class TutorialService implements Listener {
             player.getInventory().clear();
             player.setGameMode(GameMode.SURVIVAL);
             if (player.getWorld().getName().equals(WORLD)) player.teleport(Bukkit.getWorlds().get(0).getSpawnLocation());
-            player.sendMessage(Component.text("Your things from before the tutorial couldn't be read back. They"
-                    + " aren't lost: an admin can find them in plugins/EZvac/tutorial.", NamedTextColor.RED));
+            player.sendMessage(Lang.message("tutorial.unreadable"));
             return false;
         }
         World world = null;
@@ -799,23 +780,24 @@ public final class TutorialService implements Listener {
 
     // ---- telling ----
 
-    private static void say(Player player, String text) {
-        player.sendMessage(Component.text(text, NamedTextColor.WHITE));
+    /** A line of the tutorial, by its key. */
+    private static void say(Player player, String key) {
+        player.sendMessage(Component.text(Lang.text(key), NamedTextColor.WHITE));
     }
 
-    private static void hint(Player player, String text) {
-        player.sendMessage(Component.text(text, NamedTextColor.GRAY));
+    private static void hint(Player player, String key) {
+        player.sendMessage(Component.text(Lang.text(key), NamedTextColor.GRAY));
     }
 
     private static void command(Player player, String command) {
         player.sendMessage(Component.text("  " + command, NamedTextColor.AQUA).decorate(TextDecoration.BOLD)
                 .clickEvent(ClickEvent.suggestCommand(command))
-                .hoverEvent(HoverEvent.showText(Component.text("Click to put it in chat"))));
+                .hoverEvent(HoverEvent.showText(Component.text(Lang.text("tutorial.click-to-chat")))));
     }
 
-    private void done(Player player, String what) {
+    private void done(Player player, String key) {
         chime(player, false);
-        player.sendMessage(Component.text("✔ " + what, NamedTextColor.GREEN));
+        player.sendMessage(Component.text("✔ " + Lang.text(key), NamedTextColor.GREEN));
     }
 
     /** A short rising tune; a longer one at the end. */
