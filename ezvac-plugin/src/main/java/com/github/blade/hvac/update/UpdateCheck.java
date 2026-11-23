@@ -42,6 +42,18 @@ public final class UpdateCheck {
 
     public record Release(ReleaseVersion version, String tag, String url, boolean pilot) {}
 
+    private static final String RELEASES = "https://github.com/EZvac-Plugin/EZvac/releases/";
+
+    /**
+     * The link players are offered: GitHub's own, when it is a page of EZvac's releases, else the
+     * release's page built from its tag. A link in the answer is never trusted further than that.
+     */
+    static String releaseUrl(String given, String tag) {
+        if (given != null && given.startsWith(RELEASES) && given.chars().noneMatch(c -> c <= ' ' || c == '"'))
+            return given;
+        return RELEASES + "tag/" + tag;
+    }
+
     /** The Minecraft a release line needs, and the guide to moving a server there. */
     public record Requirement(String minecraft, String guide) {}
 
@@ -85,7 +97,7 @@ public final class UpdateCheck {
             String tag = text(release, "tag_name");
             ReleaseVersion version = ReleaseVersion.parse(tag);
             if (version == null) continue;
-            releases.add(new Release(version, tag, text(release, "html_url"),
+            releases.add(new Release(version, tag, releaseUrl(text(release, "html_url"), tag),
                     version.isPilot() || flag(release, "prerelease")));
         }
         return releases;

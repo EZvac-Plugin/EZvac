@@ -563,6 +563,8 @@ public final class AirflowService {
                 // handed over directly. Copying it cost ~42 ms in a single
                 // tick at the configured cell cap.
                 completed.put(active.target, active.distances);
+                // The old map goes with its cached space, not only when someone next asks for it.
+                if (active.target instanceof SystemId rebuilt) spaces.remove(rebuilt);
                 thaw(active.target);
                 if (active.water || active.waterCells.isEmpty()) exposures.remove(active.target);
                 else exposures.put(active.target, new WaterExposure(active.distances.size(),
@@ -1212,6 +1214,7 @@ public final class AirflowService {
 
     /** A system's new map: it and every system its map could meet, before or now, are worked out again. */
     private void mapped(SystemId system, Raw raw) {
+        spaces.remove(system);
         Raw before = raws.put(system, raw);
         if (before != null) index(system, before, false);
         index(system, raw, true);
@@ -1221,6 +1224,7 @@ public final class AirflowService {
     }
 
     private void dropShape(SystemId system) {
+        spaces.remove(system);
         Raw before = raws.remove(system);
         if (before != null) index(system, before, false);
         shapes.remove(system);
@@ -1374,10 +1378,32 @@ public final class AirflowService {
      */
     public record Space(long[] edge, long[] openings, boolean water, boolean capped) {}
 
+    /**
+     * The last space worked out for each system, with the map and walk it came from. A rebuild always
+     * swaps in a new map and walk rather than changing them, so while both are the same objects the
+     * space is too: EZdebug and the tutorial ask twice a second, and a large system's full scan is
+     * milliseconds. Callers only read a Space's arrays, so it is shared as it is.
+     */
+    private record CachedSpace(Long2ByteMap map, Raw raw, Space space) {}
+
+    // Concurrent: the API's systemSpace() reaches it too, and an addon may ask from its own thread.
+    private final Map<SystemId, CachedSpace> spaces = new java.util.concurrent.ConcurrentHashMap<>();
+
     public Space space(SystemId system) {
         Long2ByteMap map = completed.get(system);
-        if (map == null) return null;
+        if (map == null) {
+            spaces.remove(system);
+            return null;
+        }
         Raw raw = raws.get(system);
+        CachedSpace cached = spaces.get(system);
+        if (cached != null && cached.map() == map && cached.raw() == raw) return cached.space();
+        Space space = workOutSpace(map, raw);
+        spaces.put(system, new CachedSpace(map, raw, space));
+        return space;
+    }
+
+    private static Space workOutSpace(Long2ByteMap map, Raw raw) {
         it.unimi.dsi.fastutil.longs.LongArrayList edge = new it.unimi.dsi.fastutil.longs.LongArrayList();
         for (long key : map.keySet()) {
             int x = unpackX(key), y = unpackY(key), z = unpackZ(key);

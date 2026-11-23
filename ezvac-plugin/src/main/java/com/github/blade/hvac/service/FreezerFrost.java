@@ -287,7 +287,9 @@ public final class FreezerFrost implements Listener {
     }
 
     private void glint(ItemMeta meta, PersistentDataContainer data) {
-        data.set(glintKey, PersistentDataType.BYTE, (byte) (meta.hasEnchantmentGlintOverride() ? 2 : 1));
+        // 1: no override; 2: forced on; 3: forced off. Items frosted before BETA 1.0 say only 1 or 2.
+        byte was = !meta.hasEnchantmentGlintOverride() ? (byte) 1 : meta.getEnchantmentGlintOverride() ? (byte) 2 : (byte) 3;
+        data.set(glintKey, PersistentDataType.BYTE, was);
         meta.setEnchantmentGlintOverride(true);
     }
 
@@ -306,6 +308,7 @@ public final class FreezerFrost implements Listener {
             }
             Byte glint = data.get(glintKey, PersistentDataType.BYTE);
             if (glint != null && glint == 1) meta.setEnchantmentGlintOverride(null);
+            else if (glint != null && glint == 3) meta.setEnchantmentGlintOverride(false);
             if (meta.lore() != null) {
                 List<Component> lore = new ArrayList<>(meta.lore());
                 lore.removeIf(line -> FROSTED_LINE.equals(PlainTextComponentSerializer.plainText().serialize(line)));

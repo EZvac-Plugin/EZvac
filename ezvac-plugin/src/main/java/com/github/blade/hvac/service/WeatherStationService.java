@@ -384,6 +384,9 @@ public final class WeatherStationService implements Listener {
             Long last = measuredIn.put(world.getUID(), half);
             if (last != null && last == half) continue;
             chances.remove(world.getUID());
+            // Stations gone without a break event leave their forecasts behind; they go with the half day.
+            forecasts.keySet().removeIf(position -> registry.weatherStationAt(position) == null);
+            toMeasure.removeIf(position -> registry.weatherStationAt(position) == null);
             for (WeatherStation station : registry.weatherStations()) {
                 if (!station.position().worldId().equals(world.getUID())) continue;
                 forecasts.remove(station.position());

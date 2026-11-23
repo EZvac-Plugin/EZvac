@@ -116,6 +116,13 @@ public final class SetupWizard implements Listener {
         open(player, Step.WELCOME);
     }
 
+    /** Another page, a tick later: opening an inventory from inside a click is done after it, as Bukkit asks. */
+    private void openLater(Player player, Step step) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline() && player.hasPermission(ADMIN)) open(player, step);
+        });
+    }
+
     public void open(Player player, Step step) {
         if (!plugin.getConfig().getBoolean("setup.started", false) && !plugin.setupDone()) {
             plugin.getConfig().set("setup.started", true);
@@ -342,7 +349,7 @@ public final class SetupWizard implements Listener {
         int slot = event.getRawSlot();
         if (slot == BACK && menu.step.previous() != null) {
             sound(player, true);
-            open(player, menu.step.previous());
+            openLater(player, menu.step.previous());
             return;
         }
         if (slot == SKIP && menu.step != Step.DONE) {
@@ -354,7 +361,7 @@ public final class SetupWizard implements Listener {
         if (slot == NEXT) {
             sound(player, true);
             if (menu.step == Step.DONE) finish(player);
-            else open(player, menu.step.next());
+            else openLater(player, menu.step.next());
             return;
         }
         if (clickPage(player, menu, slot)) {
@@ -443,11 +450,15 @@ public final class SetupWizard implements Listener {
                     player.closeInventory();
                     plugin.setSetupDone(true);
                     // The guided tutorial; where it can't run, the link tool and the written guide as before.
-                    var tutorial = plugin.tutorial();
-                    if (tutorial == null || !tutorial.begin(player)) {
-                        player.performCommand("hvac link-tool");
-                        link(player, "Build your first system, step by step", GETTING_STARTED);
-                    }
+                    // A tick later: not from inside the click, as Bukkit asks.
+                    plugin.getServer().getScheduler().runTask(plugin, () -> {
+                        if (!player.isOnline()) return;
+                        var tutorial = plugin.tutorial();
+                        if (tutorial == null || !tutorial.begin(player)) {
+                            player.performCommand("hvac link-tool");
+                            link(player, "Build your first system, step by step", GETTING_STARTED);
+                        }
+                    });
                     return false;
                 }
                 if (slot == FINISH) {

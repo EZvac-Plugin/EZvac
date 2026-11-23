@@ -9,7 +9,7 @@ You need Paper or Purpur for Minecraft **26.1 to 26.3**, on Java 25 (Paper's
 own requirement). Minecraft 1.21.x on Java 21 still works in BETA 1.x, with a
 warning, but BETA 2.x will drop it.
 
-1. Put `EzVac-BETA-1.0-P10.jar` in your server's `plugins` folder.
+1. Put `EzVac-BETA-1.0.jar` in your server's `plugins` folder.
 2. Start the server. EZvac writes `plugins/EZvac/config.yml` and logs a line
    such as `EZvac enabled: 0 thermostat(s), ...`.
 3. In game, `/hvac help` lists the commands you can use.
@@ -20,7 +20,7 @@ Building things needs `ezvac.admin` (operators have it). Players need only
 ## The setup
 
 On a new install, the first operator to join is asked in chat to set EZvac up
-(BETA 1.0 Pilot 10): **[Set up]**, **[Later]** or **[Don't ask again]**. The
+(BETA 1.0): **[Set up]**, **[Later]** or **[Don't ask again]**. The
 setup is a short menu of nine pages: °F or °C, wind speeds, the HUD for new
 players (and its title), update news, backups, anonymous statistics and the
 official addons. Each choice applies at once, and every one can be changed
@@ -30,7 +30,7 @@ later in `/hvac quicksettings`. `/hvac setup` runs it again any time.
 
 The setup's last page offers **Build your first system**, and
 `/hvac tutorial` starts it any time: a guided build in a world of its own
-(BETA 1.0 Pilot 10). You're taken to a little hut on a floating platform, in
+(BETA 1.0). You're taken to a little hut on a floating platform, in
 creative with what you need, and glowing blocks show where each part goes:
 
 1. a dispenser beside the hut, facing up;
@@ -111,7 +111,7 @@ Put a sign anywhere you like, look at it, and run:
 
 `Home` is the thermostat's name, and `72` the target (72 °F if you leave it
 out). Looking at a **button on a wall** instead makes a **mini thermostat**: the
-same thermostat, with a small display on the button (BETA 1.0 Pilot 2). Names don't have to be unique: every house on the server can have a
+same thermostat, with a small display on the button (BETA 1.0). Names don't have to be unique: every house on the server can have a
 Home. Temperatures are in °F unless the server uses Celsius (`units: C`);
 `72F` or `22C` always works. The sign shows the room temperature, what the
 system is doing, the target and how long until it gets there:
@@ -135,7 +135,7 @@ Vents are **iron trapdoors** in the room. Get the link tool:
 2. Right-click the heat pump's dispenser to link it.
 3. Right-click each iron trapdoor in the room to link it as a vent. A system
    needs at least one vent to start: without one, its screen says
-   "Needs a vent" (BETA 1.0 Pilot 2).
+   "Needs a vent" (BETA 1.0).
 4. Sneak-right-click anything to unlink it again.
 
 If you're holding the tool with a thermostat selected when you create

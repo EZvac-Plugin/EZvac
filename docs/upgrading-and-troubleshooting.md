@@ -9,7 +9,7 @@ and tested on 26.x first; on 1.21.x, BETA 1.0 passes the automated tests on
 1.21.1, 1.21.4, 1.21.5, 1.21.8 and 1.21.11, and the versions in between
 aren't checked on their own.
 
-1. Put `EzVac-BETA-1.0-P3.jar` in the server's `plugins` folder.
+1. Put `EzVac-BETA-1.0.jar` in the server's `plugins` folder.
 2. Start the server and check the log for `EZvac enabled: ...` with no errors.
 3. Run `/hvac stats` and `/hvac list`, then try one heating and cooling cycle.
 
@@ -25,13 +25,29 @@ Your `plugins/EZvac/hvac.yml` is read as it is: every release's save file is
 covered by the test suite.
 
 - **From 3.2 to BETA 1.0,** swap the jar: the save stays **format 8**, on
-  1.21.x and on 26.x alike. Your config.yml gains `updates`. Going back to
-  3.2 is a jar swap too, as long as the server is still on 1.21.x.
-- **From Pilot 2 to Pilot 3,** swap the jar: nothing new is saved. Your
-  config.yml gains `wind.direction` and `wind.regions`, and a sidebar still
-  on the stock BETA 1.0 lines gains the clock on its season line. Each world
-  keeps its season and day; only a world EZvac hasn't seen before starts on
-  Minecraft's own day count.
+  1.21.x and on 26.x alike, and every device carries over. What changes when
+  you start it:
+  - a system needs a vent to start: admins are told on joining how many
+    thermostats have units but no vent;
+  - building size starts off, so your builds heat and cool as before (see
+    [Building size starts off](#building-size-starts-off));
+  - seasons on the stock 15 days move to 30, and each world keeps its season
+    and day; a length you chose is kept;
+  - devices show on screens only, and `displays.screens` is no longer read;
+  - houses keep running while nobody is near (see
+    [Devices keep running while nobody is near](#devices-keep-running-while-nobody-is-near));
+  - automatic backups are on, every 24 hours, and anonymous statistics go
+    to bStats (see [Configuration](configuration.md#metrics));
+  - a sidebar with the stock lines moves to the new sections;
+  - you're never asked to run the first-start setup: `/hvac setup` runs it
+    any time.
+
+  Going back to 3.2 is a jar swap too, as long as the server is still on
+  1.21.x, with one loss: 3.2 doesn't know **mini thermostats** and deletes
+  them on its first start. Fridges, freezers and weather stations are kept
+  aside by 3.2 and come back with BETA 1.0. To keep everything, restore the
+  `plugins/EZvac/` backup you made before upgrading instead. The [changelog](https://github.com/EZvac-Plugin/EZvac/blob/main/CHANGELOG.md)
+  has the whole list.
 
 > **2.x to 3.0 is a one-way upgrade.** 3.0 converts `hvac.yml` to **format
 > 7** the first time it saves. Your 2.x file is kept as
@@ -103,10 +119,10 @@ it switches off again there anytime. See [Sizing](equipment.md#sizing).
 
 ### Devices keep running while nobody is near
 
-From BETA 1.0 Pilot 8 a house keeps its temperature, and its fridges stay
+From BETA 1.0 a house keeps its temperature, and its fridges stay
 cold, while its chunks are unloaded: EZvac runs them from what it last saw
-there, and puts a unit's water or lava in once its chunk loads again. Until
-Pilot 8 they stopped. To keep that, set `simulation.unloaded-devices: false`
+there, and puts a unit's water or lava in once its chunk loads again. In 3.2
+they stopped. To keep that, set `simulation.unloaded-devices: false`
 (see [Configuration](configuration.md#simulation)). A room's size is worked
 out the first time its chunks load after the upgrade; until then it runs as
 if building size were off.

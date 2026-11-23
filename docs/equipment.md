@@ -193,8 +193,7 @@ bigger building needs more of it.
 - **Too few is slower:** with a third of what it needs, a system heats or
   cools at about a third of the pace. On a very hot or cold day it may never
   get there. Its screen counts it beside its ⚠, and its menu says what it has
-  of what it needs, in ★★★ units (BETA 1.0 Pilot 2; the screen said
-  **Undersized 1/3** in Pilot 1).
+  of what it needs, in ★★★ units (BETA 1.0).
 - **The profile counts:** on Eco a heat pump or AC counts for 70% of its
   unit, on Turbo for a little more. A system sized right on Normal can be
   short on Eco; its menu then says Normal would keep up.
@@ -287,7 +286,7 @@ A **settings panel** switches a system between Eco, Normal and Turbo:
 Right-click the sign to move forward through the profiles and sneak-right-click
 to move back. A system has one panel.
 
-**The thermostat's menu sets it too** (BETA 1.0 Pilot 2), so a system doesn't
+**The thermostat's menu sets it too** (BETA 1.0), so a system doesn't
 need a panel: click the profile at the top of the menu for the next one,
 right-click for the previous. A system with a panel shares it with the panel,
 and removing or unlinking the panel leaves the system on the profile it had.
@@ -318,7 +317,7 @@ AC T1 ×2 3,100
 
 - **A row** is the kind, its tier (`T1` to `T3`), how many there are when more than
   one, and the average speed of those running: a furnace's blower and a
-  boiler's pump too (BETA 1.0 Pilot 7). Anything stopped says `off`. Green
+  boiler's pump too (BETA 1.0). Anything stopped says `off`. Green
   while any runs. In the new look each row has an icon that turns at that
   kind's speed (a flame for a furnace or boiler), and < > on the screen turn
   the page.

@@ -90,7 +90,14 @@ public final class DisplayService {
      * simulation, equipment, saving and readings carry on regardless.
      */
     public void refreshAll(boolean force) {
-        if (force) screens.retainOnly(devicePositions());
+        if (force) {
+            // Devices gone without a break event (an explosion, a piston, WorldEdit) leave their screens and
+            // what was remembered about them behind; both go here.
+            Set<BlockKey> live = devicePositions();
+            screens.retainOnly(live);
+            fingerprints.keySet().retainAll(live);
+            etaCache.keySet().retainAll(live);
+        }
         Map<UUID, LongOpenHashSet> watched = watchedChunks();
         playerSpots = newLook() ? playerSpots() : null;
         if (watched.isEmpty()) return;

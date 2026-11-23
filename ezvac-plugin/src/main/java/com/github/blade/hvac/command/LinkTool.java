@@ -78,8 +78,13 @@ public final class LinkTool {
         meta.setEnchantmentGlintOverride(true);
         meta.getPersistentDataContainer().set(toolKey, PersistentDataType.BYTE, (byte) 1);
         tool.setItemMeta(meta);
-        player.getInventory().addItem(tool);
-        player.sendMessage(green("Link tool added to your inventory. Right-click a thermostat to start."));
+        if (player.getInventory().addItem(tool).isEmpty()) {
+            player.sendMessage(green("Link tool added to your inventory. Right-click a thermostat to start."));
+        } else {
+            player.getWorld().dropItemNaturally(player.getLocation(), tool);
+            player.sendMessage(green("Your inventory is full, so the link tool is on the ground at your feet."
+                    + " Right-click a thermostat to start."));
+        }
     }
 
     private static List<Component> instructions() {

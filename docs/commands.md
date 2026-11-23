@@ -25,7 +25,7 @@ updates). Tab completion only offers commands you can run (BETA 1.0).
 | `/hvac hud [on\|off]` | Shows or hides the on-screen HUD for yourself (`ezvac.hud`). With no argument it toggles; your choice is remembered |
 | `/hvac list` | The systems in your world, with mode, room and target temperature, and how many units are running |
 | `/hvac season` | The season and its day ("Summer, day 3 of 30"), and how much it warms or cools the outdoors where you stand |
-| `/hvac wind` | Today's wind around you ("Windy, about 22 km/h from the W"), the wind where you stand and out in the open, and the next two days' (3.2; your own region's, with directions, since BETA 1.0 Pilot 3) |
+| `/hvac wind` | Today's wind around you ("Windy, about 22 km/h from the W"), the wind where you stand and out in the open, and the next two days' (3.2; your own region's, with directions, since BETA 1.0) |
 | `/hvac forecast` | The next seven days from the weather stations within 400 blocks, nearest first (BETA 1.0, see [Weather stations](weather-stations.md)). Also `weatherfc` |
 | `/hvac info` | Details of the device you're looking at: a thermostat (with its room's humidity, feels-like and air), equipment, a vent, a thermometer, an RPM monitor, a settings panel, a dehumidifier, humidifier or air purifier, a sensor or a sensor hub |
 
@@ -50,7 +50,7 @@ these in game.
 
 **`/hvac tutorial`** takes you to a guided first build in a world of its own,
 a hut on a floating platform, and **`/hvac tutorial leave`** brings you back
-where you were with your things (BETA 1.0 Pilot 10). The world is deleted 10
+where you were with your things (BETA 1.0). The world is deleted 10
 seconds after its last player leaves. See
 [The tutorial](getting-started.md#the-tutorial).
 
@@ -58,7 +58,7 @@ seconds after its last player leaves. See
 
 | Command | Look at | Notes |
 | --- | --- | --- |
-| `/hvac create thermostat <label> [target]` | a sign, or a button on a wall | Target 60-85 °F, default 72. Labels may repeat. At a wall button it makes a **mini thermostat** (BETA 1.0 Pilot 2) |
+| `/hvac create thermostat <label> [target]` | a sign, or a button on a wall | Target 60-85 °F, default 72. Labels may repeat. At a wall button it makes a **mini thermostat** (BETA 1.0) |
 | `/hvac create poolthermostat <label> [target]` | a sign | Also `pool`. Starts in the pool range: 75-104 °F, default 82 |
 | `/hvac create heatpump [t1\|t2\|t3]` | a dispenser | Cools and heats |
 | `/hvac create ac [t1\|t2\|t3]` | a dispenser | Cools |
@@ -153,9 +153,9 @@ game.
 | Command | Does |
 | --- | --- |
 | `/hvac quicksettings` (`qs`) | Opens the [quick settings](screens-and-menus.md#quick-settings) menu: device kinds and climate systems on or off, the season and the wind, units and sounds, addons, registry backups, health and updates (BETA 1.0) |
-| `/hvac setup` | The first-start setup again: units, wind, the HUD for new players, updates, backups, anonymous statistics and the official addons (BETA 1.0 Pilot 10, see [The setup](getting-started.md#the-setup)). `/hvac setup skip` marks it done without asking |
-| `/hvac addons` | Opens the [Addons](screens-and-menus.md#addons) page: EZvac's official addons on this server, switched on and off (with their parts), the ones it doesn't have with their links, and which have an update (BETA 1.0 Pilot 4) |
-| `/hvac stats` | Device totals and airflow statistics, and what each part of EZvac costs the server's tick over the last minute (BETA 1.0 Pilot 4) |
+| `/hvac setup` | The first-start setup again: units, wind, the HUD for new players, updates, backups, anonymous statistics and the official addons (BETA 1.0, see [The setup](getting-started.md#the-setup)). `/hvac setup skip` marks it done without asking |
+| `/hvac addons` | Opens the [Addons](screens-and-menus.md#addons) page: EZvac's official addons on this server, switched on and off (with their parts), the ones it doesn't have with their links, and which have an update (BETA 1.0) |
+| `/hvac stats` | Device totals and airflow statistics, and what each part of EZvac costs the server's tick over the last minute (BETA 1.0) |
 | `/hvac stats sizes` | Every system's size and openings, and what it has of the units it needs for cooling and heating, the worst sized first (BETA 1.0, see [Sizing](equipment.md#sizing)) |
 | `/hvac sync` | Applies block and world changes straight away instead of on the next update, and maps every system's air again: run it after building with `/fill` or WorldEdit, which don't tell EZvac |
 | `/hvac registry` | How `hvac.yml` read at this start: recovered from a backup, and the entries kept aside and why (BETA 1.0) |
@@ -185,7 +185,7 @@ with a sky have wind (see [Wind](wind.md)).
 
 | Command | Does |
 | --- | --- |
-| `/hvac wind set <calm\|breezy\|windy\|gale> [direction]` | Holds today's wind at that level, and from that direction if given (`nw`, `wsw` or degrees such as `270`, BETA 1.0 Pilot 3), until the day ends, or the season calendar moves. It isn't saved |
+| `/hvac wind set <calm\|breezy\|windy\|gale> [direction]` | Holds today's wind at that level, and from that direction if given (`nw`, `wsw` or degrees such as `270`, BETA 1.0), until the day ends, or the season calendar moves. It isn't saved |
 | `/hvac wind set auto` | Lets the wind blow as it would again |
 
 As with the seasons, from the console add a world's name at the end.
@@ -205,7 +205,7 @@ console, and says one of three things:
   server already has it.
 
 Like the update notifier, it follows the server's update channel
-(`updates.channel`, BETA 1.0 Pilot 2): on Pilot it hears about newer pilots
+(`updates.channel`, BETA 1.0): on Pilot it hears about newer pilots
 too, and on Stable only about full releases and hotfixes. Up to date, it says
 "the latest stable release", "the latest EZvac on the Pilot channel", or, for
 a pilot on Stable, that it waits for the next full release. It works

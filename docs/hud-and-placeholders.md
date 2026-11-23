@@ -16,7 +16,7 @@ reach (gold under 50%), and **Outside** where no system reaches.
 
 - It's off by default for each player, and EZvac remembers each player's
   choice across restarts. With no argument the command toggles it.
-- A server can show it to players who never chose (BETA 1.0 Pilot 10):
+- A server can show it to players who never chose (BETA 1.0):
   `hud.show-to-new-players`, which [the setup](getting-started.md#the-setup)
   asks about along with the style. A player's own `/hvac hud on` or `off`
   always wins. The setup can also rename the title, as **Climate - Your
@@ -74,14 +74,14 @@ With [PlaceholderAPI](https://modrinth.com/plugin/placeholderapi) installed
 | `%ezvac_aqi_band%` | `Good` (`Moderate`, `Sensitive`, `Unhealthy`, `Very bad`, `Hazardous`) |
 | `%ezvac_pm25%`, `%ezvac_pm10%` | `6.4`, `18`: particles in µg/m³ |
 | `%ezvac_pollen%`, `%ezvac_pollen_count%` | `High`, `95`: the pollen level (`Low`, `Med`, `High`, `V.High`; before BETA 1.0 `Moderate` and `Very high`, shortened to keep sidebars narrow), and grains/m³ |
-| `%ezvac_wind%` | `Windy 22 km/h W`, or `Calm` (3.2; the direction since BETA 1.0 Pilot 3) |
+| `%ezvac_wind%` | `Windy 22 km/h W`, or `Calm` (3.2; the direction since BETA 1.0) |
 | `%ezvac_wind_level%`, `%ezvac_wind_speed%` | `Windy`, `22 km/h`: the level, and the speed in the server's units |
 | `%ezvac_wind_ms%`, `%ezvac_wind_kmh%`, `%ezvac_wind_mph%` | `6`, `22`, `14`: the speed as a whole number |
-| `%ezvac_wind_direction%`, `%ezvac_wind_degrees%` | `W`, `270`: where it blows from, as a compass point and in degrees (0 north); `none` when calm (BETA 1.0 Pilot 3) |
+| `%ezvac_wind_direction%`, `%ezvac_wind_degrees%` | `W`, `270`: where it blows from, as a compass point and in degrees (0 north); `none` when calm (BETA 1.0) |
 | `%ezvac_weather%` | `Rain` (`Clear`, `Thunder`, `Snow`): as players see it, so by Minecraft's biomes, and by EZvac's air where an addon such as EZclimates shows EZvac's rain and snow; empty in dry biomes where no rain reaches |
 | `%ezvac_season%` | `Summer` (`Spring`, `Autumn`, `Winter`; empty where there are no seasons) |
 | `%ezvac_season_day%` | `3`, the day of that season |
-| `%ezvac_time%` | `14:30`, Minecraft's time of day on a 24-hour clock (sunrise is 06:00); `none` in the Nether and the End (BETA 1.0 Pilot 3) |
+| `%ezvac_time%` | `14:30`, Minecraft's time of day on a 24-hour clock (sunrise is 06:00); `none` in the Nether and the End (BETA 1.0) |
 | `%ezvac_outdoor%` (`_outdoor_f`, `_outdoor_c`) | `88.0°F` |
 | `%ezvac_bar%` / `%ezvac_bar_plain%` | `━━━━━◆━━━━` (coloured / plain; `▮▮▮▮▮▯▯▯▯▯` with `bar.style: blocks`) |
 | `%ezvac_comfort%` | `Comfortable` |
@@ -112,7 +112,7 @@ and these tokens:
 `{thermostat}` `{mode}` `{system_mode}` `{mode_icon}` `{target}` `{zone}`
 `{version}`
 
-`{time}` is the time of day, `14:30` (BETA 1.0 Pilot 3). The stock sidebar
+`{time}` is the time of day, `14:30` (BETA 1.0). The stock sidebar
 shows it at the end of the season line; with seasons off, that line shows the
 time alone. A sidebar still on the stock BETA 1.0 lines gains it when you
 upgrade.
@@ -124,7 +124,7 @@ when you upgrade to 3.2.
 
 `{wind}` is the wind you feel, `Calm` or `Windy 22 km/h W`, and `{wind_level}`
 just the word (3.2). `{wind_direction}` and `{wind_degrees}` give where it
-blows from (BETA 1.0 Pilot 3). They read `none` in water, in the Nether and the End,
+blows from (BETA 1.0). They read `none` in water, in the Nether and the End,
 and with `wind` switched off. A stock sidebar gains a wind line too.
 
 `{system}` is the label of the thermostat whose air you're in, or `Headless`;

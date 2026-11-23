@@ -60,6 +60,8 @@ class ShapeTest {
         assertEquals(java.util.Set.of(doorway[0], doorway[1]),
                 java.util.Arrays.stream(space.openings()).boxed().collect(java.util.stream.Collectors.toSet()));
         assertTrue(!space.capped() && !space.water());
+        // Audit 3.1: asked again with the same map, it isn't worked out again (EZdebug asks twice a second).
+        assertTrue(airflow.space(A) == space, "the same map gives the same space");
         // A new map replaces where it leaks.
         airflow.putMappedSystem(A, room(0, 9, 0), false, 0, new long[0]);
         assertEquals(0, airflow.space(A).openings().length);

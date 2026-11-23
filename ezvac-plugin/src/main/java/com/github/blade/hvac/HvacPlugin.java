@@ -433,40 +433,52 @@ public final class HvacPlugin extends JavaPlugin {
     @Override
     public void onDisable() {
         // No frost is left in a barrel for a server without EZvac: it comes back from the save on the next start.
-        if (frost != null) frost.clearAll();
-        if (menus != null) menus.closeAll();
+        if (frost != null) shutdownStep("frost", () -> frost.clearAll());
+        if (menus != null) shutdownStep("menus", () -> menus.closeAll());
         // Everyone in the tutorial goes back where they were, with their things.
-        if (tutorial != null) tutorial.stop();
-        if (quickSettings != null) quickSettings.closeAll();
-        if (forecastMenu != null) forecastMenu.closeAll();
-        if (stationTask != null) stationTask.cancel();
-        if (smokeTask != null) smokeTask.cancel();
-        if (sparkTask != null) sparkTask.cancel();
-        if (backups != null) backups.stop();
-        if (usageStats != null) usageStats.stop();
-        getServer().getServicesManager().unregisterAll(this);
-        if (api != null) api.clear();
-        if (placeholderUnregister != null) placeholderUnregister.run();
-        if (hud != null) hud.shutdown();
-        if (updates != null) updates.stop();
-        if (addons != null) addons.stop();
-        if (ezdebug != null) ezdebug.stop();
-        if (controllerTask != null) controllerTask.cancel();
-        if (airflowTask != null) airflowTask.cancel();
-        if (bubbleTask != null) bubbleTask.cancel();
-        if (panelTask != null) panelTask.cancel();
-        if (api != null) api.stopControls();
-        if (displays != null) displays.screens().removeAll();
-        if (registry != null) {
+        if (tutorial != null) shutdownStep("tutorial", () -> tutorial.stop());
+        if (quickSettings != null) shutdownStep("quickSettings", () -> quickSettings.closeAll());
+        if (forecastMenu != null) shutdownStep("forecastMenu", () -> forecastMenu.closeAll());
+        if (stationTask != null) shutdownStep("stationTask", () -> stationTask.cancel());
+        if (smokeTask != null) shutdownStep("smokeTask", () -> smokeTask.cancel());
+        if (sparkTask != null) shutdownStep("sparkTask", () -> sparkTask.cancel());
+        if (backups != null) shutdownStep("backups", () -> backups.stop());
+        if (usageStats != null) shutdownStep("usageStats", () -> usageStats.stop());
+        shutdownStep("services", () -> getServer().getServicesManager().unregisterAll(this));
+        if (api != null) shutdownStep("api", () -> api.clear());
+        if (placeholderUnregister != null) shutdownStep("placeholderUnregister", () -> placeholderUnregister.run());
+        if (hud != null) shutdownStep("hud", () -> hud.shutdown());
+        if (updates != null) shutdownStep("updates", () -> updates.stop());
+        if (addons != null) shutdownStep("addons", () -> addons.stop());
+        if (ezdebug != null) shutdownStep("ezdebug", () -> ezdebug.stop());
+        if (controllerTask != null) shutdownStep("controllerTask", () -> controllerTask.cancel());
+        if (airflowTask != null) shutdownStep("airflowTask", () -> airflowTask.cancel());
+        if (bubbleTask != null) shutdownStep("bubbleTask", () -> bubbleTask.cancel());
+        if (panelTask != null) shutdownStep("panelTask", () -> panelTask.cancel());
+        if (api != null) shutdownStep("api controls", () -> api.stopControls());
+        if (displays != null) shutdownStep("displays", () -> displays.screens().removeAll());
+        if (registry != null) shutdownStep("saving hvac.yml", () -> {
             registry.shutdownEquipment();
             registry.save(true); // shutdown must not hand work to the scheduler
-        }
-        if (seasons != null) seasons.save();
-        if (switches != null) switches.uninstall();
+        });
+        if (seasons != null) shutdownStep("seasons", () -> seasons.save());
+        if (switches != null) shutdownStep("switches", () -> switches.uninstall());
         if (registry != null && !registry.isWritable())
             getLogger().warning("EZvac disabled without saving: hvac.yml could not be loaded, so it was left untouched.");
         else
             getLogger().info("EZvac disabled; owned loaded outputs were retracted and state was saved.");
+    }
+
+    /**
+     * One step of shutting down: one that fails is logged and the rest still run, so a failed save can't
+     * leave seasons unsaved or the server switches installed across a reload.
+     */
+    private void shutdownStep(String what, Runnable step) {
+        try {
+            step.run();
+        } catch (RuntimeException failed) {
+            getLogger().log(java.util.logging.Level.SEVERE, "Shutting down: " + what + " failed", failed);
+        }
     }
 
     /** What each part of EZvac costs the tick (BETA 1.0 Pilot 4): quick settings' Health page and /hvac stats. */

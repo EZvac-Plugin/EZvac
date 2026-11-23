@@ -7,7 +7,7 @@ whole server.
 
 ## Screens
 
-Every EZvac sign has a screen in front of it. Since BETA 1.0 Pilot 7 each is
+Every EZvac sign has a screen in front of it. Since BETA 1.0 each is
 a **panel exactly the size of its sign**, drawn on a fixed grid so that
 everything sits in its own place, with buttons where a choice belongs on the
 wall and parts that move smoothly while the device works. A mini thermostat's
@@ -69,7 +69,7 @@ panel is exactly its button's face.
   BETA 1.0 Pilots 1 to 6: a status strip with the reading and a few lines,
   no buttons.
 
-**Screens are the only display** (BETA 1.0 Pilot 4). Devices no longer write
+**Screens are the only display** (BETA 1.0). Devices no longer write
 on their signs. Bedrock players coming in through Geyser can't see screens.
 
 ## Control menus
@@ -91,7 +91,7 @@ thermostat's button, to open its control menu:
   plays a low note.
 - In the middle: the target, the room's temperature and humidity, the allowed
   range, and a **lever** that switches the system off or on.
-- **Along the top** (BETA 1.0 Pilot 2):
+- **Along the top** (BETA 1.0):
   - **left, what needs attention:** each thing the system needs, with how to
     fix it: no units, no vent (it won't start without one), units switched off
     server-wide, losing more than it makes even flat out ("can't keep up"),
@@ -122,7 +122,7 @@ humidifier). The lever switches it off or on.
 
 ## The setup
 
-The first-start setup (BETA 1.0 Pilot 10), from the chat prompt a new install
+The first-start setup (BETA 1.0), from the chat prompt a new install
 gives admins or `/hvac setup`: nine pages in a small chest, titled
 **Setup 3/9 · Wind** and so on. **Back** is bottom left, **Skip setup** in the
 middle (it marks the setup done) and **Next** bottom right. On each page the
@@ -169,8 +169,7 @@ corner to return and **Close** in the bottom-right.
 One switch for each kind that changes the climate: heat pumps, air
 conditioners, furnaces, boilers, pool heat pumps, dehumidifiers, humidifiers
 and air purifiers, and one for [weather stations](weather-stations.md); on a
-second row, mini fridges, fridges, refrigerators and deep freezers (BETA 1.0
-Pilot 7). Each
+second row, mini fridges, fridges, refrigerators and deep freezers (BETA 1.0). Each
 shows how many the server has and how many run.
 
 - **Switched off,** every device of that kind stops, and equipment takes its
@@ -214,7 +213,7 @@ opens a recovery menu instead: salvage the file, or restore a backup. See
   it) to `plugins/EZvac/backups/`, as `hvac-<date>_<time>-manual.yml`. A
   backup made by hand is kept until you delete it.
 - **Automatic** steps through Off, every 4, 8, 12, 24 or 48 hours, and every
-  week. It's every 24 hours unless you change it (BETA 1.0 Pilot 2). It counts real time, through restarts: a server that was down longer
+  week. It's every 24 hours unless you change it (BETA 1.0). It counts real time, through restarts: a server that was down longer
   than the interval backs up a minute after it starts. Only the newest 10
   automatic backups are kept (`backups.keep`).
 - The third item shows the newest backup, how long ago it was made, and how
@@ -231,7 +230,7 @@ To restore one, see
 
 ### Seasons & wind
 
-New in BETA 1.0 Pilot 4. For the world you stand in (open it from another
+New in BETA 1.0. For the world you stand in (open it from another
 world to change that one):
 
 - **The season and day,** with **A day back**, **A day on**, **Next season**
@@ -241,7 +240,7 @@ world to change that one):
 
 ### Display & sound
 
-New in BETA 1.0 Pilot 4. All three apply at once, on every screen and HUD:
+New in BETA 1.0. All three apply at once, on every screen and HUD:
 
 - **Temperatures** in °F or °C (`units`). Setpoints keep their temperature.
 - **Wind speeds** in mph, km/h or m/s, or auto: mph with °F, km/h with °C
@@ -250,7 +249,7 @@ New in BETA 1.0 Pilot 4. All three apply at once, on every screen and HUD:
 
 ### Addons
 
-New in BETA 1.0 Pilot 4; `/hvac addons` opens it directly.
+New in BETA 1.0; `/hvac addons` opens it directly.
 
 - **The top row is what's installed:** EZvac's official addons on this
   server, each with its version and a switch beneath it. Switched off, an
@@ -271,7 +270,7 @@ New in BETA 1.0 Pilot 4; `/hvac addons` opens it directly.
 
 ### EZdebug, built in
 
-New in BETA 1.0 Pilot 5. Listed first on the Addons page, with its switch.
+New in BETA 1.0. Listed first on the Addons page, with its switch.
 While you hold the link tool with a thermostat's system selected, you see
 that system as EZvac does:
 - its equipment glows through walls, its signs are framed, and its vents are marked;
@@ -285,7 +284,7 @@ more.
 
 ### Health
 
-Called Statistics before BETA 1.0 Pilot 4. **Tick cost** says what each part
+Called Statistics before BETA 1.0. **Tick cost** says what each part
 of EZvac took of the server's 50 ms tick over the last minute: the
 controller, screens, airflow, the HUD, weather stations and open-air smoke,
 each averaged over every tick, with its longest single run.
@@ -302,14 +301,14 @@ This server's EZvac and Minecraft, **Check now** (the same as `/hvac update`,
 answered in chat), and switches for the background checks and for telling
 admins when they join (`updates.check` and `updates.notify-admins`).
 
-**Channel** (under the version, BETA 1.0 Pilot 2) is which releases the
+**Channel** (under the version, BETA 1.0) is which releases the
 server hears about: **Stable**, full releases and their hotfixes, or
 **Pilot**, pilots too. Click to step through auto, stable and pilot; auto
 follows the EZvac the server runs. It's `updates.channel` in `config.yml`.
 
 ### Anonymous statistics
 
-What EZvac sends to bStats (BETA 1.0 Pilot 9), and the switches for it. The
+What EZvac sends to bStats (BETA 1.0), and the switches for it. The
 paper at the top lists what bStats always sends while statistics are on.
 **Anonymous statistics** switches them all on or off; the four beside it
 switch EZvac's own charts one by one: **Temperature units**, **Unloaded

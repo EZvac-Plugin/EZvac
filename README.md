@@ -27,11 +27,10 @@ temperature you set, while the outdoors follows the biome, the season, the
 time of day and the weather.
 
 > [!NOTE]
-> **EZvac is in BETA.** The latest pilot,
-> [BETA 1.0 Pilot 10](https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0-P10),
-> welcomes new servers with a first-start setup and a guided tutorial that
-> builds your first system with you. Pilots are test builds ahead of the full
-> BETA 1.0.
+> **[BETA 1.0](https://github.com/EZvac-Plugin/EZvac/releases/tag/BETA-1.0) is
+> out,** the first stable BETA: everything from ten pilots, tested together
+> and hardened. Coming from ALPHA 3.2? Swap the jar; the
+> [changelog](CHANGELOG.md#beta-10) says what changes.
 
 <!-- A GIF here: a house warming up with the HUD on screen, or the tutorial's glowing ghost blocks. -->
 
@@ -167,7 +166,7 @@ say so on our [Discord](https://discord.gg/tCedQgFFDU).
 
 [![EZvac on bStats](https://bstats.org/signatures/bukkit/EZvac.svg)](https://bstats.org/plugin/bukkit/EZvac/35377)
 
-Servers running BETA 1.0 Pilot 9 or newer send anonymous statistics through
+Servers running BETA 1.0 or newer send anonymous statistics through
 bStats: counts and versions, nothing that names a server or a player. Quick
 settings › Anonymous statistics shows what is sent and switches each part, or
 all of it, off; see [metrics](docs/configuration.md#metrics).

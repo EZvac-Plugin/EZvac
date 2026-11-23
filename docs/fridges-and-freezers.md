@@ -1,6 +1,6 @@
 # Refrigeration
 
-New in BETA 1.0 Pilot 7 ("EZvac/R"). Four appliances keep barrels cold, and the heat they pull out warms the room they stand in.
+New in BETA 1.0 ("EZvac/R"). Four appliances keep barrels cold, and the heat they pull out warms the room they stand in.
 
 In EZvac itself **food never spoils**: a fridge is a cold barrel. With an addon such as [EZclimates](https://github.com/EZvac-Plugin/EZclimates) and its Food spoiling part switched on, food keeps longer the colder it's kept.
 

@@ -44,7 +44,7 @@ setup:
   done: true
 ```
 
-Whether an admin has been through the first-start setup (BETA 1.0 Pilot 10),
+Whether an admin has been through the first-start setup (BETA 1.0),
 or chosen not to. A new install writes `done: false`, and admins are asked in
 chat when they join until someone finishes or skips it; servers upgrading
 from an earlier version get `true` and are never asked. `/hvac setup` runs it
@@ -66,7 +66,7 @@ releases.
 - **A newer one is logged,** with a link.
 - **`notify-admins`:** players with `ezvac.admin` are also told when they
   join, with a link they can click.
-- **`channel`** (BETA 1.0 Pilot 2): which releases it hears about.
+- **`channel`** (BETA 1.0): which releases it hears about.
   `stable`: full releases and their hotfixes only, even on a pilot. `pilot`:
   pilots too, the test builds before a full release. `auto`, the default:
   `pilot` on a pilot, `stable` on a full release. Quick settings › Updates
@@ -82,7 +82,7 @@ hours later.
 
 ## metrics
 
-Anonymous usage statistics (BETA 1.0 Pilot 9), through
+Anonymous usage statistics (BETA 1.0), through
 [bStats](https://bstats.org/plugin/bukkit/EZvac/35377), so the project can see
 how many servers and players run EZvac and which versions are in use.
 
@@ -116,8 +116,7 @@ addons:
   parts-enabled: []
 ```
 
-What [`/hvac addons`](screens-and-menus.md#addons) has switched (BETA 1.0
-Pilot 4): an addon by its plugin's name (`EZclimates`), a part as
+What [`/hvac addons`](screens-and-menus.md#addons) has switched (BETA 1.0): an addon by its plugin's name (`EZclimates`), a part as
 `Name/part` (`EZclimates/snow-and-ice`). `parts-enabled` is for a part that
 is off until a server switches it on, such as EZclimates' body temperature.
 EZvac never downloads or installs an addon. With `updates.check` on, the
@@ -131,7 +130,7 @@ ezdebug:
   enabled: true
 ```
 
-The built-in EZdebug (BETA 1.0 Pilot 5): while an admin holds the link tool
+The built-in EZdebug (BETA 1.0): while an admin holds the link tool
 with a system selected, they see its equipment, signs and vents, the edge of
 its room and the openings it leaks through. It stands down while the
 EZdebug+ addon is installed and switched on. `/hvac addons` switches it.
@@ -145,7 +144,7 @@ devices:
 
 New in BETA 1.0. Device kinds switched off server-wide: `heat-pump`,
 `air-conditioner`, `furnace`, `boiler`, `pool-heat-pump`, `dehumidifier`,
-`humidifier`, `air-purifier`, and since Pilot 7 `mini-fridge`, `fridge`, `refrigerator` and `deep-freezer`. Devices of a kind listed here stop, and no
+`humidifier`, `air-purifier`, `mini-fridge`, `fridge`, `refrigerator` and `deep-freezer`. Devices of a kind listed here stop, and no
 new one can be made; taken off the list, each runs again as it was set. A
 name that is no kind is pointed out at start-up and ignored.
 
@@ -164,7 +163,7 @@ New in BETA 1.0. Backups of the registry go to `plugins/EZvac/backups/`.
 
 - **`auto-every-hours`:** 0 is off, or 4, 8, 12, 24, 48 or 168 (a week). It
   counts real time, through restarts. Any other value counts as off. Every 24
-  hours by default since BETA 1.0 Pilot 2; a server still at Pilot 1's 0
+  hours by default since BETA 1.0; a server still on the old default (off)
   moves to 24 when it updates, and admins are told.
 - **`keep`:** how many automatic backups are kept; older ones are deleted.
   Backups made by hand in [quick settings](screens-and-menus.md#backups--registry) are
@@ -188,11 +187,11 @@ When the thermostat acts.
 
 ## simulation
 
-Devices in unloaded chunks (BETA 1.0 Pilot 8).
+Devices in unloaded chunks (BETA 1.0).
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
-| `unloaded-devices` | true | Devices keep running while nobody is near: a thermostat keeps calling, its heat pumps and furnaces run, fridges and freezers stay cold, and dehumidifiers, humidifiers and purifiers serving a room keep working on it. `false` stops what is out of reach, as before Pilot 8 |
+| `unloaded-devices` | true | Devices keep running while nobody is near: a thermostat keeps calling, its heat pumps and furnaces run, fridges and freezers stay cold, and dehumidifiers, humidifiers and purifiers serving a room keep working on it. `false` stops what is out of reach, as in 3.2 |
 
 Out of reach, EZvac runs devices from what it last saw there: the size of the
 room and its openings, which units were clear to run, the air a fridge stood
@@ -311,7 +310,7 @@ audio:
 ## displays
 
 Every device shows on a floating screen in front of its sign. Since BETA 1.0
-Pilot 4 that is the only display: `screens` is gone from this section, and a
+that is the only display: `screens` is gone from this section, and a
 value left in an older file isn't read.
 
 | Setting | Default | Meaning |
@@ -334,9 +333,9 @@ See [Climate](climate.md#biome-transitions).
 | Setting | Default | Meaning |
 | --- | ---: | --- |
 | `enabled` | true | false turns the seasons off everywhere |
-| `days-per-season` | 30 | Minecraft days in each season; four make a year. Change it any time (restart after): each world keeps its season and day of season. 15 before BETA 1.0 Pilot 4; a server on the stock 15 moved to 30 |
+| `days-per-season` | 30 | Minecraft days in each season; four make a year. Change it any time (restart after): each world keeps its season and day of season. 15 before BETA 1.0; a server on the stock 15 moved to 30 |
 | `strength` | 1.0 | How much of each biome's seasonal swing applies: 1 is realistic, 0.5 mild, 0 none (0-3) |
-| `water-lag-days` | 10.0 | How many days lakes and the sea follow behind the air; left out, a third of a season. 5 before Pilot 4, and a stock 5 moved to 10 with the seasons |
+| `water-lag-days` | 10.0 | How many days lakes and the sea follow behind the air; left out, a third of a season. 5 before BETA 1.0, and a stock 5 moved to 10 with the seasons |
 
 The calendar itself is kept in `seasons.yml`, not here; change it with
 [`/hvac season`](commands.md#seasons). See [Climate](climate.md#seasons).
@@ -388,9 +387,9 @@ climate.
 | `swing-reduction` | 0.6 | Share of the day/night swing full rain takes away |
 | `water-share` | 0.1 | Share of the air's change natural water follows |
 | `wind-clear-ms`, `wind-rain-ms`, `wind-thunder-ms` | 1.5, 3, 5 | Outdoor wind for "feels like", in m/s. With the daily wind on, `wind-clear-ms` is unused and rain and thunder add their difference from it to the day's wind |
-| `snow-at-or-below-f` | 33 | While it rains, snow falls where EZvac's air is this cold or colder, and rain elsewhere; each 64-block area decides together, from the air at its ground (BETA 1.0 Pilot 4; -40 to 50) |
-| `snow-in-winter-below-f` | 40 | The same line in winter, higher: real snow often falls a few degrees above freezing. 200 snows all winter wherever weather reaches (BETA 1.0 Pilot 4) |
-| `dry-areas` | seasonal | Deserts, savannas and badlands in rain: `seasonal` (some rain spells reach them, by `dry-rain-chance`), `never` (dry, as vanilla), `thunder` (rain only in thunderstorms) or `always` (BETA 1.0 Pilot 4). Only where an addon such as EZclimates shows EZvac's rain: elsewhere players see Minecraft's, and dry areas stay dry |
+| `snow-at-or-below-f` | 33 | While it rains, snow falls where EZvac's air is this cold or colder, and rain elsewhere; each 64-block area decides together, from the air at its ground (BETA 1.0; -40 to 50) |
+| `snow-in-winter-below-f` | 40 | The same line in winter, higher: real snow often falls a few degrees above freezing. 200 snows all winter wherever weather reaches (BETA 1.0) |
+| `dry-areas` | seasonal | Deserts, savannas and badlands in rain: `seasonal` (some rain spells reach them, by `dry-rain-chance`), `never` (dry, as vanilla), `thunder` (rain only in thunderstorms) or `always` (BETA 1.0). Only where an addon such as EZclimates shows EZvac's rain: elsewhere players see Minecraft's, and dry areas stay dry |
 | `dry-rain-chance` | spring 0.1, summer 0.05, autumn 0.1, winter 0.6 | Under `seasonal`, the share of rain spells that reach dry areas in each season (0 to 1). Each spell is decided once, as it starts, for the whole world; spring's is used with seasons off |
 
 With `enabled: false` temperatures ignore the weather, but weather sensors
@@ -412,7 +411,7 @@ The daily wind (3.2). See [Wind](wind.md).
 | `dust` | 1.5 | How much dust a wind over 6 m/s lifts where the ground is dry |
 | `smoke-dispersal` | 0.03 | Share of the outdoor PM2.5 the wind thins out per m/s, at most 40% |
 | `pollen-spread` | 0.06 | Share the wind adds to the outdoor pollen per m/s, at most 1.8x |
-| `direction.variation` | 1.0 | How far each day strays from its climate's usual direction: 0 never, 1 as in nature, up to 2 (BETA 1.0 Pilot 3) |
+| `direction.variation` | 1.0 | How far each day strays from its climate's usual direction: 0 never, 1 as in nature, up to 2 (BETA 1.0) |
 | `direction.fronts` | true | Whether rain turns the westerlies: south ahead of it, southwest while it rains, west-northwest after |
 | `regions.enabled` | true | `false`: the same wind everywhere, terrain aside, as in 3.2 |
 | `regions.size-blocks` | 1500 | About how far across a region is (200-20000) |
@@ -436,7 +435,7 @@ A bad value makes its section fall back to the defaults, with a warning.
 
 ## feels-like
 
-New in BETA 1.0 Pilot 4. See [Climate](climate.md#feels-like).
+New in BETA 1.0. See [Climate](climate.md#feels-like).
 
 | Setting | Default | Meaning |
 | --- | ---: | --- |
@@ -473,7 +472,7 @@ New in BETA 1.0 Pilot 4. See [Climate](climate.md#feels-like).
 
 ## refrigeration
 
-Mini fridges, fridges, refrigerators and deep freezers (BETA 1.0 Pilot 7); see [Refrigeration](fridges-and-freezers.md). Rates are per in-game hour.
+Mini fridges, fridges, refrigerators and deep freezers (BETA 1.0); see [Refrigeration](fridges-and-freezers.md). Rates are per in-game hour.
 
 | Setting | Default | |
 |---|---|---|
@@ -504,11 +503,11 @@ are per in-game hour.
 | `sources.campfire` | fine 20, coarse 8 | What a lit campfire or soul campfire adds per hour, µg/m³ at `reference-cells` |
 | `sources.fire` | fine 25, coarse 10 | Fire and soul fire |
 | `sources.lava` | fine 6, coarse 4 | Lava in or around the space |
-| `sources.furnace` | fine 4, coarse 2 | A lit furnace (never EZvac's own). Before BETA 1.0 Pilot 4 smokers and blast furnaces too |
-| `sources.smoker`, `sources.blast-furnace` | fine 6, coarse 2; fine 10, coarse 5 | A lit smoker, a lit blast furnace (BETA 1.0 Pilot 4) |
+| `sources.furnace` | fine 4, coarse 2 | A lit furnace (never EZvac's own). Before BETA 1.0 smokers and blast furnaces too |
+| `sources.smoker`, `sources.blast-furnace` | fine 6, coarse 2; fine 10, coarse 5 | A lit smoker, a lit blast furnace (BETA 1.0) |
 | `sources.candle` | fine 1, coarse 0 | A lit candle block |
-| `sources.torch` | fine 0.3, coarse 0 | Each torch or lantern, soul and copper ones too; never a redstone torch (BETA 1.0 Pilot 4) |
-| `outdoor-smoke.enabled` | true | Fires burning in the open (campfires, furnaces, smokers, blast furnaces, fire outside any room) spread smoke into the outdoor air downwind (BETA 1.0 Pilot 4) |
+| `sources.torch` | fine 0.3, coarse 0 | Each torch or lantern, soul and copper ones too; never a redstone torch (BETA 1.0) |
+| `outdoor-smoke.enabled` | true | Fires burning in the open (campfires, furnaces, smokers, blast furnaces, fire outside any room) spread smoke into the outdoor air downwind (BETA 1.0) |
 | `outdoor-smoke.reach-blocks`, `outdoor-smoke.strength` | 96, 1.0 | How far it goes at most (8-256), and how thick it is (0-5) |
 | `pollen-levels` | 20, 80, 200 | Grains/m³ where pollen turns Moderate, High and Very high |
 | `purifier.range`, `purifier.maximum-cells` | 30, 50000 | Reach and size of a purifier's own space, as for a dehumidifier |
@@ -539,7 +538,7 @@ New in BETA 1.0. See [Weather stations](weather-stations.md).
 | --- | --- | --- |
 | `enabled` | true | The `/hvac hud` command works at all |
 | `style` | sidebar | `sidebar`, `actionbar` or `bossbar` |
-| `show-to-new-players` | false | Whether players who never chose see the HUD (BETA 1.0 Pilot 10). A player's own `/hvac hud on` or `off` always wins. The setup asks |
+| `show-to-new-players` | false | Whether players who never chose see the HUD (BETA 1.0). A player's own `/hvac hud on` or `off` always wins. The setup asks |
 | `update-ticks` | 10 | How often each player's HUD is refreshed |
 | `none-text` | none | Shown where no system conditions the air |
 | `sidebar.title`, `sidebar.lines` | | The sidebar's title and lines |

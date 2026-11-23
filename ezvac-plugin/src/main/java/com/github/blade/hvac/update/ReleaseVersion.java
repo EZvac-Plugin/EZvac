@@ -30,9 +30,15 @@ public record ReleaseVersion(Stage stage, int[] numbers, int pilot, int hotfix)
         if (text == null) return null;
         Matcher match = NAME.matcher(text.trim());
         if (!match.matches()) return null;
-        int[] numbers = Arrays.stream(match.group(2).split("[.]")).mapToInt(Integer::parseInt).toArray();
-        int hotfix = match.group(3) == null ? 0 : match.group(3).isEmpty() ? 1 : Integer.parseInt(match.group(3));
-        int pilot = match.group(4) == null ? 0 : Integer.parseInt(match.group(4));
+        int[] numbers;
+        int hotfix, pilot;
+        try {
+            numbers = Arrays.stream(match.group(2).split("[.]")).mapToInt(Integer::parseInt).toArray();
+            hotfix = match.group(3) == null ? 0 : match.group(3).isEmpty() ? 1 : Integer.parseInt(match.group(3));
+            pilot = match.group(4) == null ? 0 : Integer.parseInt(match.group(4));
+        } catch (NumberFormatException tooBig) {
+            return null;
+        }
         return new ReleaseVersion(Stage.valueOf(match.group(1).toUpperCase(Locale.ROOT)), numbers, pilot, hotfix);
     }
 

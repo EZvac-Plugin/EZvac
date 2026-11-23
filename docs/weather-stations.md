@@ -74,9 +74,9 @@ from, the AQI, and pollen. A station is honest about what EZvac knows:
   climate and that day's season, with the cooling its chance of rain brings.
 - **The wind is exact.** EZvac draws each day's wind from the world's seed,
   so the forecast shows the very wind that will blow over the station's own
-  region, with its direction (BETA 1.0 Pilot 3). On a day likely to rain, the
+  region, with its direction (BETA 1.0). On a day likely to rain, the
   direction is the southwest the rain brings. See [Wind](wind.md).
-- **The AQI** (BETA 1.0 Pilot 3) is the area's outdoor air that day, with its
+- **The AQI** (BETA 1.0) is the area's outdoor air that day, with its
   rain washing it out and its wind lifting dust or thinning smoke, shown in
   its band's colour. See [Air quality](air-quality.md).
 - **Pollen** follows the season, so it's predictable too.
@@ -86,7 +86,7 @@ from, the AQI, and pollen. A station is honest about what EZvac knows:
   lasts is random, so later days give a chance instead, worked out by playing
   Minecraft's weather forward hundreds of times. The chances stay the same
   each time you look; they change when the weather does.
-- **With a weather addon** (BETA 1.0 Pilot 4), such as EZclimates, the
+- **With a weather addon** (BETA 1.0), such as EZclimates, the
   weather is planned days ahead and stations forecast from that plan: today
   and tomorrow are certain, later days are chances that grow less sure the
   further out they are (the addon's settings say how sure). Its events show
