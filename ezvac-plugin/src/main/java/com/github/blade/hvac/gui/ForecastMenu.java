@@ -15,6 +15,7 @@ import com.github.blade.hvac.service.WindText;
 import com.github.blade.hvac.simulation.AirQualityIndex;
 import com.github.blade.hvac.simulation.Forecast;
 import com.github.blade.hvac.simulation.Seasons;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -36,6 +37,8 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.github.blade.hvac.lang.Lang.arg;
 import java.util.Objects;
 import java.util.function.Predicate;
 
@@ -101,7 +104,7 @@ public final class ForecastMenu implements Listener {
      */
     public void openForecast(Player player, WeatherStation chosen) {
         if (!WeatherStationService.switchedOn()) {
-            player.sendMessage(Component.text("Weather stations are switched off on this server.", NamedTextColor.YELLOW));
+            player.sendMessage(Component.text(Lang.text("menu.forecast.off-server"), NamedTextColor.YELLOW));
             return;
         }
         List<WeatherStation> stations = new ArrayList<>(service.nearby(player.getLocation(), MAX_STATIONS));
@@ -110,13 +113,12 @@ public final class ForecastMenu implements Listener {
             stations.add(0, chosen);
         }
         if (stations.isEmpty()) {
-            player.sendMessage(Component.text("There's no weather station within " + service.settings().range()
-                    + " blocks of you.", NamedTextColor.YELLOW));
+            player.sendMessage(Lang.message("menu.forecast.none-near", arg("range", service.settings().range())));
             return;
         }
         Menu menu = new Menu(Kind.FORECAST, stations, chosen != null && stations.contains(chosen) ? chosen : stations.get(0),
                 player.getLocation());
-        menu.inventory = Bukkit.createInventory(menu, 27, Component.text("Forecast"));
+        menu.inventory = Bukkit.createInventory(menu, 27, Component.text(Lang.text("menu.forecast.title")));
         draw(menu);
         player.openInventory(menu.inventory);
     }
@@ -124,7 +126,7 @@ public final class ForecastMenu implements Listener {
     /** An admin's menu for one station. */
     public void openStation(Player player, WeatherStation station) {
         Menu menu = new Menu(Kind.STATION, List.of(station), station, player.getLocation());
-        menu.inventory = Bukkit.createInventory(menu, 27, Component.text("Weather station: " + station.label()));
+        menu.inventory = Bukkit.createInventory(menu, 27, Lang.message("menu.forecast.station-title", arg("name", station.label())));
         draw(menu);
         player.openInventory(menu.inventory);
     }
@@ -133,7 +135,7 @@ public final class ForecastMenu implements Listener {
         Inventory inventory = menu.inventory;
         ItemStack filler = item(Material.GRAY_STAINED_GLASS_PANE, Component.text(" "), List.of());
         for (int slot = 0; slot < inventory.getSize(); slot++) inventory.setItem(slot, filler);
-        inventory.setItem(CLOSE, item(Material.BARRIER, Component.text("Close", NamedTextColor.RED), List.of()));
+        inventory.setItem(CLOSE, item(Material.BARRIER, Component.text(Lang.text("menu.forecast.close"), NamedTextColor.RED), List.of()));
         if (menu.kind == Kind.STATION) drawStation(inventory, menu.selected);
         else drawForecast(inventory, menu);
     }
@@ -145,9 +147,9 @@ public final class ForecastMenu implements Listener {
             boolean selected = station.equals(menu.selected);
             List<Component> lore = new ArrayList<>();
             lore.add(gray(StationText.distance(Math.sqrt(WeatherStationService.distanceSquared(station, menu.from)))));
-            lore.add(gray("Now " + StationText.temperature(service.nowF(station), units)));
-            lore.add(selected ? Component.text("Showing its forecast", NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false)
-                    : Component.text("Click to see its forecast", NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
+            lore.add(gray(Lang.text("menu.control.now", arg("now", StationText.temperature(service.nowF(station), units)))));
+            lore.add(selected ? Component.text(Lang.text("menu.forecast.showing"), NamedTextColor.GREEN).decoration(TextDecoration.ITALIC, false)
+                    : Component.text(Lang.text("menu.forecast.click-to-see"), NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
             inventory.setItem(STATION_SLOTS[i], glint(item(Material.LIGHTNING_ROD,
                     Component.text(station.label(), selected ? NamedTextColor.AQUA : NamedTextColor.WHITE), lore), selected));
         }
@@ -162,19 +164,21 @@ public final class ForecastMenu implements Listener {
             List<Component> lore = new ArrayList<>();
             lore.add(Component.text(StationText.sky(day, snow), NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false));
             lore.add(gray(StationText.highLow(day, units)));
-            if (!dry) lore.add(gray((snow ? "Snow " : "Rain ") + StationText.percent(day.rainChance())
-                    + " · Thunder " + StationText.percent(day.thunderChance())));
+            if (!dry) lore.add(gray(Lang.text(snow ? "menu.forecast.snow-thunder" : "menu.forecast.rain-thunder",
+                    arg("chance", StationText.percent(day.rainChance())), arg("thunder", StationText.percent(day.thunderChance())))));
             if (day.wind() != null)
-                lore.add(gray("Wind: " + WindText.describe(day.windMs(), day.wind().fromDegrees(),
-                        plugin.climate().wind(), units)));
+                lore.add(gray(Lang.text("menu.forecast.wind", arg("wind", WindText.describe(day.windMs(),
+                        day.wind().fromDegrees(), plugin.climate().wind(), units)))));
             // The day's air (BETA 1.0 Pilot 3), coloured by its band as AQI readings are.
             if (day.aqi() >= 0) {
                 AirQualityIndex.Band band = AirQualityIndex.Band.of(day.aqi());
-                lore.add(Component.text("AQI " + day.aqi() + " (" + band.displayName() + ")", AirText.color(band))
+                lore.add(Component.text(Lang.text("menu.forecast.aqi", arg("aqi", day.aqi()), arg("band", band.displayName())),
+                        AirText.color(band))
                         .decoration(TextDecoration.ITALIC, false));
             }
             if (Double.isFinite(day.pollen()))
-                lore.add(gray("Pollen: " + AirQualityIndex.PollenLevel.of(day.pollen(), air.pollenLevels()).displayName()));
+                lore.add(gray(Lang.text("menu.forecast.pollen", arg("level",
+                        AirQualityIndex.PollenLevel.of(day.pollen(), air.pollenLevels()).displayName()))));
             if (!day.note().isEmpty())
                 lore.add(Component.text(day.note(), NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
             String season = null;
@@ -193,21 +197,21 @@ public final class ForecastMenu implements Listener {
     private void drawStation(Inventory inventory, WeatherStation station) {
         boolean on = station.enabled();
         inventory.setItem(SWITCH, item(on ? Material.LIME_DYE : Material.GRAY_DYE,
-                Component.text(on ? "On" : "Off", on ? NamedTextColor.GREEN : NamedTextColor.RED),
-                List.of(gray(on ? "Forecasting for players in range" : "No forecast, no sparks"),
-                        Component.text("Click to switch " + (on ? "off" : "on"), NamedTextColor.YELLOW)
-                                .decoration(TextDecoration.ITALIC, false))));
+                Component.text(Lang.text(on ? "menu.forecast.on" : "menu.forecast.off"), on ? NamedTextColor.GREEN : NamedTextColor.RED),
+                List.of(gray(on ? Lang.text("menu.forecast.forecasting") : Lang.text("menu.forecast.no-forecast")),
+                        ControlMenus.lore(on ? "menu.control.click-off" : "menu.control.click-on"))));
         List<Component> record = new ArrayList<>();
-        record.add(gray(station.intact() ? "Its tower is whole" : "Its tower is damaged: rebuild it"));
-        record.add(gray("Struck by lightning " + station.strikes() + (station.strikes() == 1 ? " time" : " times")));
+        record.add(gray(station.intact() ? Lang.text("menu.forecast.tower-whole") : Lang.text("menu.forecast.tower-damaged")));
+        record.add(gray(Lang.text(station.strikes() == 1 ? "menu.forecast.strikes-one" : "menu.forecast.strikes-many",
+                arg("count", station.strikes()))));
         WeatherStation.Area area = station.area();
-        record.add(gray(area == null ? "Hasn't measured its area yet"
-                : "Measures " + service.settings().areaRadius() + " blocks around, " + service.settings().areaHeight()
-                + " up"));
-        if (!WeatherStationService.switchedOn()) record.add(gray("Weather stations are switched off server-wide"));
+        record.add(gray(area == null ? Lang.text("menu.forecast.unmeasured")
+                : Lang.text("menu.forecast.measures", arg("radius", service.settings().areaRadius()),
+                arg("height", service.settings().areaHeight()))));
+        if (!WeatherStationService.switchedOn()) record.add(gray(Lang.text("menu.forecast.off-server-wide")));
         inventory.setItem(RECORD, item(Material.LIGHTNING_ROD, Component.text(station.label(), NamedTextColor.AQUA), record));
-        inventory.setItem(FORECAST, item(Material.CLOCK, Component.text("Forecast", NamedTextColor.YELLOW),
-                List.of(gray("The next seven days"))));
+        inventory.setItem(FORECAST, item(Material.CLOCK, Component.text(Lang.text("menu.forecast.title"), NamedTextColor.YELLOW),
+                List.of(gray(Lang.text("menu.forecast.next-seven")))));
     }
 
     static Material icon(Forecast.Sky sky) {
@@ -240,9 +244,9 @@ public final class ForecastMenu implements Listener {
         Player player = event.getPlayer();
         if (player.hasPermission(ADMIN)) openStation(player, station);
         else if (!player.hasPermission("ezvac.use"))
-            player.sendMessage(Component.text("You may not use this sign.", NamedTextColor.RED));
+            player.sendMessage(Lang.message("block.not-allowed.sign"));
         else if (!WeatherStationService.working(station) || station.area() == null)
-            player.sendMessage(Component.text(station.label() + " isn't forecasting right now.", NamedTextColor.YELLOW));
+            player.sendMessage(Lang.message("menu.forecast.not-forecasting", arg("name", station.label())));
         else openForecast(player, station);
     }
 

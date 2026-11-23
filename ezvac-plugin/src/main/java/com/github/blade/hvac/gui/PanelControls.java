@@ -18,6 +18,7 @@ import com.github.blade.hvac.model.Thermostat;
 import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.service.PanelScreens;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.entity.Interaction;
@@ -73,7 +74,7 @@ public final class PanelControls implements Listener {
         event.setCancelled(true);
         Player player = event.getPlayer();
         if (!player.hasPermission("ezvac.use")) {
-            player.sendActionBar(Component.text("You may not control this HVAC device.", NamedTextColor.RED));
+            player.sendActionBar(Component.text(Lang.text("menu.panel.not-allowed"), NamedTextColor.RED));
             return;
         }
         if (!PanelScreens.inReach(player, hit.position())) return;
