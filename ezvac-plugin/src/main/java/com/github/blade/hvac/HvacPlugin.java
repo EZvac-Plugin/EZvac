@@ -100,6 +100,9 @@ public final class HvacPlugin extends JavaPlugin {
             boolean fresh = !new File(getDataFolder(), "config.yml").isFile();
             saveDefaultConfig();
             addNewSettingsToConfig();
+            // The words players see, in the server's language (BETA 1.1).
+            com.github.blade.hvac.lang.Lang.load(getConfig().getString("language", "en"), getDataFolder(),
+                    getLogger()::warning);
             if (fresh) {
                 getConfig().set("setup.done", false);
                 saveConfig();

@@ -5,6 +5,14 @@
 # this says. The temperatures in this file stay in F (their keys end in -f).
 units: F
 
+# The language EZvac speaks to players (BETA 1.1): chat, menus, screens,
+# signs and the HUD's words. en is English; others come as they are
+# translated (see https://ezvac-plugin.github.io/EZvac/translating/). A
+# missing word falls back to English. Commands stay English everywhere, and
+# so do the console and this file. plugins/EZvac/lang/<language>.yml, if you
+# make one, changes single words: copy only the keys you want to change.
+language: en
+
 # The first-start setup (BETA 1.0 Pilot 10). On a new install EZvac asks an
 # admin, when they join, to choose its key settings in a short menu:
 # temperatures, wind speeds, the HUD for new players, updates, backups and

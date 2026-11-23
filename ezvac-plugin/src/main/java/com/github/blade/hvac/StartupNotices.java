@@ -1,5 +1,6 @@
 package com.github.blade.hvac;
 
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.Command;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+
+import static com.github.blade.hvac.lang.Lang.arg;
 
 /**
  * What went wrong with hvac.yml at this start, told to admins in game (BETA
@@ -77,10 +80,8 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
     /** Building size is new and starts off on this upgraded server (BETA 1.0): told once, as news, not a warning. */
     static List<Component> withSizingOff(List<Component> lines) {
         List<Component> out = new ArrayList<>(lines);
-        out.add(prefix().append(Component.text("Building size is new in BETA 1.0 and starts off here, so your builds"
-                + " heat and cool as before.", NamedTextColor.GREEN)));
-        out.add(Component.text("Switch it on in /hvac quicksettings › Climate systems; /hvac stats sizes then shows"
-                + " which systems need more units. It switches off again there anytime.", NamedTextColor.GRAY));
+        out.add(prefix().append(Lang.message("notice.sizing-off")));
+        out.add(Lang.message("notice.sizing-off-how"));
         return out;
     }
 
@@ -91,17 +92,10 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
     static List<Component> withPilotTwo(List<Component> lines, boolean backupsOn, int needVents) {
         List<Component> out = new ArrayList<>(lines);
         if (backupsOn)
-            out.add(prefix().append(Component.text("Automatic backups of hvac.yml are now on, every 24 hours, to"
-                    + " plugins/EZvac/backups.", NamedTextColor.GREEN))
-                    .append(Component.text(" Change or stop them in /hvac quicksettings › Backups & registry.",
-                            NamedTextColor.GRAY)));
+            out.add(prefix().append(Lang.message("notice.backups-on")));
         if (needVents > 0)
-            out.add(prefix().append(Component.text(needVents == 1
-                    ? "1 thermostat has units but no vent, and no longer starts: a system needs a vent to heat or cool."
-                    : needVents + " thermostats have units but no vent, and no longer start: a system needs a vent"
-                    + " to heat or cool.", NamedTextColor.GOLD))
-                    .append(Component.text(" Their screens count it beside a ⚠; link a vent with /hvac link-tool.",
-                            NamedTextColor.GRAY)));
+            out.add(prefix().append(Lang.message(needVents == 1 ? "notice.need-vents.one" : "notice.need-vents.many",
+                    arg("count", needVents))));
         return out;
     }
 
@@ -109,25 +103,18 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
         List<Component> lines = new ArrayList<>();
         // Good news first: an upgrade to a newer save format went through (BETA 1.0).
         if (migratedFrom > 0)
-            lines.add(prefix().append(Component.text("hvac.yml was upgraded from format " + migratedFrom
-                    + " to format " + com.github.blade.hvac.service.HvacRegistry.FORMAT_VERSION + " at this start"
-                    + (keptAside == 0 ? ": everything carried over." : "."), NamedTextColor.GREEN))
-                    .append(Component.text(" The original is kept as hvac.yml.format" + migratedFrom + ".bak.",
-                            NamedTextColor.GRAY)));
+            lines.add(prefix().append(Lang.message(keptAside == 0 ? "notice.upgraded-all" : "notice.upgraded",
+                    arg("from", migratedFrom), arg("to", com.github.blade.hvac.service.HvacRegistry.FORMAT_VERSION))));
         if (recoveredFrom != null) {
-            lines.add(prefix().append(Component.text("hvac.yml was unreadable at this start, so it was recovered from "
-                    + recoveredFrom + ".", NamedTextColor.GOLD)));
-            lines.add(Component.text("Changes made since that copy may be missing. The unreadable file is kept as "
-                    + setAside + " in plugins/EZvac.", NamedTextColor.GRAY));
+            lines.add(prefix().append(Lang.message("notice.recovered", arg("from", recoveredFrom))));
+            lines.add(Lang.message("notice.recovered-detail", arg("aside", setAside)));
         }
         if (keptAside > 0)
-            lines.add(prefix().append(Component.text(keptAside + (keptAside == 1 ? " entry" : " entries")
-                    + " in hvac.yml couldn't be loaded and " + (keptAside == 1 ? "is" : "are")
-                    + " kept aside, not running. /hvac registry lists " + (keptAside == 1 ? "it" : "them")
-                    + "; fix " + (keptAside == 1 ? "it" : "them") + " in hvac.yml.", NamedTextColor.GOLD)));
+            lines.add(prefix().append(Lang.message(keptAside == 1 ? "notice.kept-aside.one" : "notice.kept-aside.many",
+                    arg("count", keptAside))));
         if (keptAside > 0)
-            lines.add(Component.text("If this is intentional, run " + REPAIR + " to discard "
-                    + (keptAside == 1 ? "it" : "them") + " for good.", NamedTextColor.GRAY));
+            lines.add(Lang.message(keptAside == 1 ? "notice.kept-aside.repair-one" : "notice.kept-aside.repair-many",
+                    arg("command", REPAIR)));
         return lines;
     }
 
@@ -143,21 +130,18 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
 
     static List<Component> stoppedLines(String reason, boolean salvageable) {
         List<Component> lines = new ArrayList<>(List.of(
-                prefix().append(Component.text("EZvac is stopped: hvac.yml couldn't be loaded, so nothing runs and"
-                        + " nothing is saved.", NamedTextColor.RED)),
-                Component.text(reason == null || reason.isBlank() ? "See the server log." : reason, NamedTextColor.GRAY),
-                Component.text("The server log has the details. Fix or restore plugins/EZvac/hvac.yml, then restart.",
-                        NamedTextColor.GRAY)));
+                prefix().append(Lang.message("notice.stopped")),
+                reason == null || reason.isBlank() ? Lang.message("notice.stopped-see-log")
+                        : Component.text(reason, NamedTextColor.GRAY),
+                Lang.message("notice.stopped-fix")));
         if (salvageable)
-            lines.add(Component.text("If this is intentional, run " + REPAIR + " to keep what still reads and drop the"
-                    + " broken parts, then restart.", NamedTextColor.GRAY));
-        lines.add(Component.text("/hvac quicksettings opens recovery: salvage it, or restore a backup.",
-                NamedTextColor.GRAY));
+            lines.add(Lang.message("notice.stopped-repair", arg("command", REPAIR)));
+        lines.add(Lang.message("notice.stopped-recovery"));
         return lines;
     }
 
     private static Component prefix() {
-        return Component.text("[EZvac] ", NamedTextColor.AQUA);
+        return Lang.message("notice.prefix");
     }
 
     public boolean stopped() { return stopped; }
@@ -193,8 +177,7 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!sender.hasPermission(ADMIN)) {
-            sender.sendMessage(Component.text("EZvac isn't running right now. An admin has been told why.",
-                    NamedTextColor.YELLOW));
+            sender.sendMessage(Lang.message("notice.not-running"));
             return true;
         }
         if (args.length >= 2 && args[0].equalsIgnoreCase("registry") && args[1].equalsIgnoreCase("repair")) {
@@ -212,19 +195,15 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
 
     private void repair(CommandSender sender, boolean force) {
         if (!salvageable) {
-            sender.sendMessage(Component.text("hvac.yml was written by a newer EZvac, and that is never forced: it"
-                    + " would lose what the newer version stored. Update EZvac instead.", NamedTextColor.RED));
+            sender.sendMessage(Lang.message("notice.repair.newer"));
             return;
         }
         if (fixed) {
-            sender.sendMessage(Component.text("hvac.yml was already fixed. Restart the server to start EZvac.",
-                    NamedTextColor.YELLOW));
+            sender.sendMessage(Lang.message("notice.repair.already-fixed"));
             return;
         }
         if (!force) {
-            sender.sendMessage(Component.text("This keeps every entry of hvac.yml that still reads and drops the"
-                    + " broken ones for good. The file as it is now is kept beside it. If this is intentional, run "
-                    + REPAIR + ".", NamedTextColor.YELLOW));
+            sender.sendMessage(Lang.message("notice.repair.confirm", arg("command", REPAIR)));
             return;
         }
         salvage(sender);
@@ -243,19 +222,17 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
                     com.github.blade.hvac.service.RegistrySalvage.salvageFile(plugin.getDataFolder());
             fixed = true;
             List<String> dropped = saved.result().dropped();
-            sender.sendMessage(Component.text("Salvaged hvac.yml: kept " + saved.result().kept() + " entries, dropped "
-                    + dropped.size() + ". The file as it was is kept as " + saved.original()
-                    + ". Restart the server to start EZvac.", NamedTextColor.GREEN));
+            sender.sendMessage(Lang.message("notice.salvaged", arg("kept", saved.result().kept()),
+                    arg("dropped", dropped.size()), arg("original", saved.original())));
             if (!dropped.isEmpty())
-                sender.sendMessage(Component.text("Dropped: " + String.join(", ", dropped.subList(0,
-                        Math.min(10, dropped.size()))) + (dropped.size() > 10 ? ", and more" : ""), NamedTextColor.GRAY));
+                sender.sendMessage(Lang.message(dropped.size() > 10 ? "notice.dropped-more" : "notice.dropped",
+                        arg("entries", String.join(", ", dropped.subList(0, Math.min(10, dropped.size()))))));
             plugin.getLogger().warning(sender.getName() + " salvaged hvac.yml: kept "
                     + saved.result().kept() + " entries, dropped " + dropped + "; the original is "
                     + saved.original());
             return true;
         } catch (java.io.IOException | RuntimeException failure) {
-            sender.sendMessage(Component.text("Couldn't salvage hvac.yml: " + failure.getMessage()
-                    + ". Nothing was changed.", NamedTextColor.RED));
+            sender.sendMessage(Lang.message("notice.salvage-failed", arg("reason", String.valueOf(failure.getMessage()))));
             plugin.getLogger().log(java.util.logging.Level.SEVERE, "Couldn't salvage hvac.yml", failure);
             return false;
         }
@@ -272,15 +249,13 @@ public final class StartupNotices implements Listener, CommandExecutor, TabCompl
         try {
             String kept = com.github.blade.hvac.service.RegistrySalvage.restore(plugin.getDataFolder(), name);
             fixed = true;
-            sender.sendMessage(Component.text("Restored backups/" + name + ". " + (kept == null ? ""
-                    : "hvac.yml as it was is kept as " + kept + ". ") + "Restart the server to start EZvac.",
-                    NamedTextColor.GREEN));
+            sender.sendMessage(Lang.message(kept == null ? "notice.restored" : "notice.restored-kept",
+                    arg("name", name), arg("kept", String.valueOf(kept))));
             plugin.getLogger().warning(sender.getName() + " restored hvac.yml from backups/" + name
                     + (kept == null ? "" : "; the file before is " + kept));
             return true;
         } catch (java.io.IOException | RuntimeException failure) {
-            sender.sendMessage(Component.text("Couldn't restore that backup: " + failure.getMessage()
-                    + ". Nothing was changed.", NamedTextColor.RED));
+            sender.sendMessage(Lang.message("notice.restore-failed", arg("reason", String.valueOf(failure.getMessage()))));
             plugin.getLogger().log(java.util.logging.Level.SEVERE, "Couldn't restore hvac.yml from " + name, failure);
             return false;
         }

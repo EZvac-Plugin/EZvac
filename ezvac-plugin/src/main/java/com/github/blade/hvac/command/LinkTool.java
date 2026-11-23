@@ -8,6 +8,7 @@ import com.github.blade.hvac.service.DisplayService;
 import com.github.blade.hvac.service.HvacRegistry;
 import com.github.blade.hvac.service.SystemLinks;
 import com.github.blade.hvac.service.SystemNames;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
@@ -22,6 +23,8 @@ import org.bukkit.persistence.PersistentDataType;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+
+import static com.github.blade.hvac.lang.Lang.arg;
 
 /**
  * The link tool (3.0): one stick for all linking. Right-click a thermostat
@@ -73,26 +76,23 @@ public final class LinkTool {
     public void give(Player player) {
         ItemStack tool = new ItemStack(Material.STICK);
         ItemMeta meta = tool.getItemMeta();
-        meta.displayName(Component.text("EZvac Link Tool", NamedTextColor.AQUA));
+        meta.displayName(Lang.message("link.tool.name"));
         meta.lore(instructions());
         meta.setEnchantmentGlintOverride(true);
         meta.getPersistentDataContainer().set(toolKey, PersistentDataType.BYTE, (byte) 1);
         tool.setItemMeta(meta);
         if (player.getInventory().addItem(tool).isEmpty()) {
-            player.sendMessage(green("Link tool added to your inventory. Right-click a thermostat to start."));
+            player.sendMessage(Lang.message("link.tool.given"));
         } else {
             player.getWorld().dropItemNaturally(player.getLocation(), tool);
-            player.sendMessage(green("Your inventory is full, so the link tool is on the ground at your feet."
-                    + " Right-click a thermostat to start."));
+            player.sendMessage(Lang.message("link.tool.dropped"));
         }
     }
 
     private static List<Component> instructions() {
         return List.of(
-                Component.text("Click a thermostat, then equipment, vents,", NamedTextColor.GRAY),
-                Component.text("a settings panel or RPM monitors.", NamedTextColor.GRAY),
-                Component.text("Or click a sensor hub, then sensors.", NamedTextColor.GRAY),
-                Component.text("Sneak-click to unlink.", NamedTextColor.GRAY));
+                Lang.message("link.tool.lore.1"), Lang.message("link.tool.lore.2"),
+                Lang.message("link.tool.lore.3"), Lang.message("link.tool.lore.unlink"));
     }
 
     /** The link tool, or a duct or sensor tool from before 3.0. */
@@ -125,7 +125,7 @@ public final class LinkTool {
             click(player, block, item, sneaking);
         } catch (IllegalArgumentException refused) {
             // The registry refuses what it can't do safely, such as moving a unit whose output waits for cleanup.
-            player.sendMessage(red("Can't do that: " + refused.getMessage() + "."));
+            player.sendMessage(Lang.message("link.refused", arg("reason", String.valueOf(refused.getMessage()))));
         }
     }
 
@@ -154,13 +154,12 @@ public final class LinkTool {
         Thermostat head = selectedThermostat(item);
         if (head == null) {
             Selection selection = selection(item);
-            player.sendMessage(red(selection != null && selection.thermostat() != null
-                    ? "The thermostat you selected is gone. Right-click another thermostat with this tool."
-                    : "Right-click a thermostat with this tool first, then the devices to link to it."));
+            player.sendMessage(Lang.message(selection != null && selection.thermostat() != null
+                    ? "link.thermostat-gone" : "link.select-thermostat-first"));
             return;
         }
         if (!head.position().worldId().equals(position.worldId())) {
-            player.sendMessage(red("Devices can only be linked to a thermostat in their own world."));
+            player.sendMessage(Lang.message("link.other-world"));
             return;
         }
         link(player, head, block, position);
@@ -184,20 +183,19 @@ public final class LinkTool {
         ItemMeta meta = item.getItemMeta();
         meta.getPersistentDataContainer().set(thermostatKey, PersistentDataType.STRING, write(thermostat.position()));
         meta.getPersistentDataContainer().remove(hubKey);
-        meta.lore(List.of(Component.text("Selected: " + SystemNames.of(thermostat), NamedTextColor.GRAY),
-                Component.text("Click equipment, vents, a settings panel", NamedTextColor.GRAY),
-                Component.text("or RPM monitors to link them.", NamedTextColor.GRAY),
-                Component.text("Sneak-click to unlink.", NamedTextColor.GRAY)));
+        meta.lore(List.of(Lang.message("link.tool.lore.selected", arg("selected", SystemNames.of(thermostat))),
+                Lang.message("link.tool.lore.thermostat-1"), Lang.message("link.tool.lore.thermostat-2"),
+                Lang.message("link.tool.lore.unlink")));
         item.setItemMeta(meta);
-        player.sendMessage(green("Selected " + SystemNames.of(thermostat) + ". Linked: "
-                + SystemNames.contents(registry.members(thermostat.system())) + "."));
+        player.sendMessage(Lang.message("link.selected", arg("thermostat", SystemNames.of(thermostat)),
+                arg("linked", SystemNames.contents(registry.members(thermostat.system())))));
         showLinked(player, thermostat);
     }
 
     /** The action bar summary after selecting or linking. */
     private void showLinked(Player player, Thermostat head) {
-        player.sendActionBar(Component.text("Linking to " + SystemNames.of(head) + " · "
-                + SystemNames.contents(registry.members(head.system())), NamedTextColor.AQUA));
+        player.sendActionBar(Lang.message("link.action-bar", arg("thermostat", SystemNames.of(head)),
+                arg("linked", SystemNames.contents(registry.members(head.system())))));
     }
 
     private void link(Player player, Thermostat head, Block block, BlockKey position) {
@@ -209,19 +207,18 @@ public final class LinkTool {
         }
         String what = deviceName(position);
         if (current.equals(system)) {
-            player.sendMessage(yellow("That " + what + " is already linked to " + head.id() + "."));
+            player.sendMessage(Lang.message("link.already", arg("device", what), arg("thermostat", head.id())));
             return;
         }
         Thermostat owner = registry.thermostatFor(current);
         if (owner != null) {
-            player.sendMessage(red("This " + what + " belongs to " + SystemNames.of(owner)
-                    + ". Sneak-click it with this tool to unlink it first."));
+            player.sendMessage(Lang.message("link.belongs", arg("device", what), arg("owner", SystemNames.of(owner))));
             return;
         }
         // Part of a headless system: the whole system comes along.
         String conflict = SystemLinks.conflict(registry.shapeOf(system), registry.shapeOf(current));
         if (conflict != null) {
-            player.sendMessage(red(head.id() + " " + conflict + "."));
+            player.sendMessage(Lang.message("link.conflict", arg("thermostat", head.id()), arg("conflict", conflict)));
             return;
         }
         HvacRegistry.Members joining = registry.members(current);
@@ -229,11 +226,12 @@ public final class LinkTool {
         airflow.invalidate(current);
         airflow.invalidate(system);
         boolean single = joining.units() + joining.vents() + joining.panels() + joining.monitors() == 1;
-        player.sendMessage(green(single ? capitalized(what) + " linked to " + head.id() + "."
-                : "Linked a headless system to " + head.id() + ": " + SystemNames.contents(joining) + "."));
+        player.sendMessage(single ? Lang.message("link.linked", arg("device", capitalized(what)), arg("thermostat", head.id()))
+                : Lang.message("link.linked-headless", arg("thermostat", head.id()),
+                arg("linked", SystemNames.contents(joining))));
         if (merged.unlinkedPanel() != null)
-            player.sendMessage(yellow(head.id() + " already had a settings panel, so the one at "
-                    + SystemNames.at(merged.unlinkedPanel().position()) + " is unlinked now."));
+            player.sendMessage(Lang.message("link.panel-replaced", arg("thermostat", head.id()),
+                    arg("at", SystemNames.at(merged.unlinkedPanel().position()))));
         changed(player, head);
     }
 
@@ -245,31 +243,31 @@ public final class LinkTool {
         if (panel != null) {
             SettingsPanel existing = registry.settingsPanelFor(system);
             if (existing != null) {
-                player.sendMessage(red(head.id() + " already has a settings panel at "
-                        + SystemNames.at(existing.position()) + "."));
+                player.sendMessage(Lang.message("link.has-panel", arg("thermostat", head.id()),
+                        arg("at", SystemNames.at(existing.position()))));
                 return;
             }
             registry.linkSettingsPanel(panel, system);
-            player.sendMessage(green("Settings panel linked to " + head.id() + "."));
+            player.sendMessage(Lang.message("link.linked", arg("device", Lang.text("link.device.settings-panel-capital")), arg("thermostat", head.id())));
         } else if (monitor != null) {
             registry.linkRpmMonitor(monitor, system);
-            player.sendMessage(green("RPM monitor linked to " + head.id() + "."));
+            player.sendMessage(Lang.message("link.linked", arg("device", Lang.text("link.device.rpm-monitor")), arg("thermostat", head.id())));
         } else if (registry.climateUnitAt(position) != null) {
-            player.sendMessage(yellow("That block is part of a dehumidifier or humidifier, which needs no system."));
+            player.sendMessage(Lang.message("link.climate-unit"));
             return;
         } else if (ClimateVent.isVentBlock(block.getType()) && registry.deviceKind(position) == HvacRegistry.DeviceKind.NONE) {
             boolean water = ClimateVent.isWaterVent(block.getType());
             String conflict = SystemLinks.conflict(registry.shapeOf(system), SystemLinks.Shape.vent(water));
             if (conflict != null) {
-                player.sendMessage(red(head.id() + " " + conflict + "."));
+                player.sendMessage(Lang.message("link.conflict", arg("thermostat", head.id()), arg("conflict", conflict)));
                 return;
             }
             registry.addVent(new ClimateVent(position, system));
             airflow.invalidate(system);
-            player.sendMessage(green((water ? "Water vent" : "Vent") + " linked to " + head.id() + "."));
+            player.sendMessage(Lang.message("link.linked", arg("device", Lang.text(water ? "link.device.water-vent-capital"
+                    : "link.device.vent-capital")), arg("thermostat", head.id())));
         } else {
-            player.sendMessage(yellow("Click equipment, an iron trapdoor (air vent), a waxed copper grate"
-                    + " (water vent), a settings panel or an RPM monitor."));
+            player.sendMessage(Lang.message("link.what-to-click"));
             return;
         }
         changed(player, head);
@@ -279,9 +277,9 @@ public final class LinkTool {
     private void changed(Player player, Thermostat head) {
         Thermostat switched = registry.settleHead(head.system());
         if (switched != null)
-            player.sendMessage(aqua(head.id() + " is a " + (switched.pool() ? "pool" : "room")
-                    + " thermostat now: targets " + range(switched.pool()) + ", set to "
-                    + settings.units().format(switched.targetF()) + "."));
+            player.sendMessage(Lang.message(switched.pool() ? "link.now-pool-set" : "link.now-room-set",
+                    arg("thermostat", head.id()), arg("range", range(switched.pool())),
+                    arg("target", settings.units().format(switched.targetF()))));
         registry.markDirty();
         displays.refreshAll(true);
         plugin.requestImmediateSync();
@@ -291,33 +289,33 @@ public final class LinkTool {
     private void unlink(Player player, Block block, BlockKey position) {
         EquipmentUnit unit = registry.equipmentAt(position);
         SystemId previous = registry.systemAt(position);
-        String from = previous == null ? "" : " from " + SystemNames.of(registry, previous);
+        String from = previous == null ? "" : Lang.text("link.from", arg("system", SystemNames.of(registry, previous)));
         if (unit != null) {
             HvacRegistry.Members members = registry.members(unit.system());
             if (members.thermostat() == null && members.units() == 1 && members.vents() + members.panels()
                     + members.monitors() == 0) {
-                player.sendMessage(yellow("That " + deviceName(position) + " isn't linked to anything."));
+                player.sendMessage(Lang.message("link.not-linked", arg("device", deviceName(position))));
                 return;
             }
             registry.linkEquipment(unit, registry.newSystem(position.worldId()));
-            player.sendMessage(green(capitalized(deviceName(position)) + " unlinked" + from + "."));
+            player.sendMessage(Lang.message("link.unlinked", arg("device", capitalized(deviceName(position))), arg("from", from)));
         } else if (registry.ventAt(position) != null) {
             ClimateVent[] removed = new ClimateVent[1];
             registry.removingByCommand(() -> removed[0] = registry.removeVent(position));
-            player.sendMessage(green((ClimateVent.isWaterVent(block.getType()) ? "Water vent" : "Vent")
-                    + " unlinked" + from + "."));
+            player.sendMessage(Lang.message("link.unlinked", arg("device", Lang.text(ClimateVent.isWaterVent(block.getType())
+                    ? "link.device.water-vent-capital" : "link.device.vent-capital")), arg("from", from)));
         } else if (registry.settingsPanelAt(position) != null) {
             SettingsPanel panel = registry.settingsPanelAt(position);
-            if (panel.system() == null) { player.sendMessage(yellow("That settings panel isn't linked.")); return; }
+            if (panel.system() == null) { player.sendMessage(Lang.message("link.panel-not-linked")); return; }
             registry.linkSettingsPanel(panel, null);
-            player.sendMessage(green("Settings panel unlinked" + from + "; that system runs on Normal now."));
+            player.sendMessage(Lang.message("link.panel-unlinked", arg("from", from)));
         } else if (registry.rpmMonitorAt(position) != null) {
             RpmMonitor monitor = registry.rpmMonitorAt(position);
-            if (monitor.system() == null) { player.sendMessage(yellow("That RPM monitor isn't linked.")); return; }
+            if (monitor.system() == null) { player.sendMessage(Lang.message("link.monitor-not-linked")); return; }
             registry.linkRpmMonitor(monitor, null);
-            player.sendMessage(green("RPM monitor unlinked" + from + "."));
+            player.sendMessage(Lang.message("link.unlinked", arg("device", Lang.text("link.device.rpm-monitor")), arg("from", from)));
         } else {
-            player.sendMessage(yellow("Nothing is linked there."));
+            player.sendMessage(Lang.message("link.nothing-there"));
             return;
         }
         if (previous != null) {
@@ -326,8 +324,8 @@ public final class LinkTool {
             if (head != null) {
                 Thermostat switched = registry.settleHead(previous);
                 if (switched != null)
-                    player.sendMessage(aqua(head.id() + " is a " + (switched.pool() ? "pool" : "room")
-                            + " thermostat now: targets " + range(switched.pool()) + "."));
+                    player.sendMessage(Lang.message(switched.pool() ? "link.now-pool" : "link.now-room",
+                            arg("thermostat", head.id()), arg("range", range(switched.pool()))));
             }
         }
         registry.markDirty();
@@ -340,13 +338,13 @@ public final class LinkTool {
         SystemId previous = thermostat.system();
         HvacRegistry.Members members = registry.members(previous);
         if (members.units() + members.vents() + members.panels() + members.monitors() == 0) {
-            player.sendMessage(yellow(thermostat.id() + " has nothing linked to it."));
+            player.sendMessage(Lang.message("link.nothing-linked", arg("thermostat", thermostat.id())));
             return;
         }
         registry.linkThermostat(thermostat, registry.newSystem(previous.worldId()));
         airflow.invalidate(previous);
-        player.sendMessage(green(thermostat.id() + " unlinked. Its system (" + SystemNames.contents(members)
-                + ") is headless now: link a thermostat to any part of it to take it over."));
+        player.sendMessage(Lang.message("link.thermostat-unlinked", arg("thermostat", thermostat.id()),
+                arg("linked", SystemNames.contents(members))));
         registry.markDirty();
         displays.refreshAll(true);
         plugin.requestImmediateSync();
@@ -356,34 +354,31 @@ public final class LinkTool {
         ItemMeta meta = item.getItemMeta();
         meta.getPersistentDataContainer().set(hubKey, PersistentDataType.STRING, write(position));
         meta.getPersistentDataContainer().remove(thermostatKey);
-        meta.lore(List.of(Component.text("Selected: sensor hub " + hub.label(), NamedTextColor.GRAY),
-                Component.text("Click sensors to link them.", NamedTextColor.GRAY),
-                Component.text("Sneak-click to unlink.", NamedTextColor.GRAY)));
+        meta.lore(List.of(Lang.message("link.tool.lore.selected-hub", arg("hub", hub.label())),
+                Lang.message("link.tool.lore.hub"), Lang.message("link.tool.lore.unlink")));
         item.setItemMeta(meta);
-        player.sendMessage(green("Selected sensor hub '" + hub.label() + "' (" + hub.sensors().size()
-                + "/" + SensorHub.MAX_SENSORS + " sensors)."));
+        player.sendMessage(Lang.message("link.hub.selected", arg("hub", hub.label()), arg("count", hub.sensors().size()),
+                arg("max", SensorHub.MAX_SENSORS)));
     }
 
     private void linkSensor(Player player, ItemStack item, Sensor sensor, BlockKey position, boolean unlink) {
         Selection selection = selection(item);
         SensorHub hub = selection == null || selection.hub() == null ? null : registry.sensorHubAt(selection.hub());
         if (hub == null) {
-            player.sendMessage(red(selection == null || selection.hub() == null
-                    ? "Right-click a sensor hub with this tool first, then sensors."
-                    : "The selected sensor hub no longer exists. Select another one."));
+            player.sendMessage(Lang.message(selection == null || selection.hub() == null
+                    ? "link.hub.select-first" : "link.hub.gone"));
             return;
         }
         if (unlink) {
-            player.sendMessage(hub.unlink(position) ? green("Sensor '" + sensor.label() + "' unlinked from '"
-                    + hub.label() + "'.") : yellow("That sensor isn't linked to '" + hub.label() + "'."));
+            player.sendMessage(Lang.message(hub.unlink(position) ? "link.hub.unlinked" : "link.hub.not-linked",
+                    arg("sensor", sensor.label()), arg("hub", hub.label())));
         } else {
             player.sendMessage(switch (hub.link(position)) {
-                case LINKED -> green("Sensor '" + sensor.label() + "' linked to '" + hub.label() + "' ("
-                        + hub.sensors().size() + "/" + SensorHub.MAX_SENSORS + ").");
-                case ALREADY_LINKED -> yellow("That sensor is already on '" + hub.label() + "'.");
-                case FULL -> red("'" + hub.label() + "' already shows " + SensorHub.MAX_SENSORS
-                        + " sensors. Unlink one first (sneak-click it).");
-                case OTHER_WORLD -> red("Sensors and sensor hubs must be in the same world.");
+                case LINKED -> Lang.message("link.hub.linked", arg("sensor", sensor.label()), arg("hub", hub.label()),
+                        arg("count", hub.sensors().size()), arg("max", SensorHub.MAX_SENSORS));
+                case ALREADY_LINKED -> Lang.message("link.hub.already", arg("hub", hub.label()));
+                case FULL -> Lang.message("link.hub.full", arg("hub", hub.label()), arg("max", SensorHub.MAX_SENSORS));
+                case OTHER_WORLD -> Lang.message("link.hub.other-world");
             });
         }
         registry.markDirty();
@@ -394,17 +389,17 @@ public final class LinkTool {
     private String deviceName(BlockKey position) {
         EquipmentUnit unit = registry.equipmentAt(position);
         if (unit != null) return unit.type().displayName().toLowerCase(Locale.ROOT);
-        if (registry.ventAt(position) != null) return "vent";
-        if (registry.settingsPanelAt(position) != null) return "settings panel";
-        if (registry.rpmMonitorAt(position) != null) return "RPM monitor";
-        if (registry.thermostatAt(position) != null) return "thermostat";
-        return "device";
+        if (registry.ventAt(position) != null) return Lang.text("link.device.vent");
+        if (registry.settingsPanelAt(position) != null) return Lang.text("link.device.settings-panel");
+        if (registry.rpmMonitorAt(position) != null) return Lang.text("link.device.rpm-monitor");
+        if (registry.thermostatAt(position) != null) return Lang.text("link.device.thermostat");
+        return Lang.text("link.device.device");
     }
 
     private String range(boolean pool) {
         double low = pool ? settings.poolMinimumTargetF() : settings.minimumTargetF();
         double high = pool ? settings.poolMaximumTargetF() : settings.maximumTargetF();
-        return settings.units().format(low, 0) + " to " + settings.units().format(high, 0);
+        return Lang.text("link.range", arg("low", settings.units().format(low, 0)), arg("high", settings.units().format(high, 0)));
     }
 
     private static String capitalized(String text) {
@@ -426,8 +421,4 @@ public final class LinkTool {
         }
     }
 
-    private static Component green(String value) { return Component.text(value, NamedTextColor.GREEN); }
-    private static Component red(String value) { return Component.text(value, NamedTextColor.RED); }
-    private static Component yellow(String value) { return Component.text(value, NamedTextColor.YELLOW); }
-    private static Component aqua(String value) { return Component.text(value, NamedTextColor.AQUA); }
 }

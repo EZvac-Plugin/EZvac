@@ -35,13 +35,18 @@ public final class SystemNames {
     }
 
     /** "4 units, 32 vents, 1 settings panel and 2 RPM monitors": what is linked besides the thermostat. */
+    /** What an empty system holds, as {@link #contents} says it. */
+    public static String nothing() {
+        return "nothing";
+    }
+
     public static String contents(HvacRegistry.Members members) {
         java.util.List<String> parts = new java.util.ArrayList<>();
         if (members.units() > 0) parts.add(count(members.units(), "unit"));
         if (members.vents() > 0) parts.add(count(members.vents(), "vent"));
         if (members.panels() > 0) parts.add(count(members.panels(), "settings panel"));
         if (members.monitors() > 0) parts.add(count(members.monitors(), "RPM monitor"));
-        if (parts.isEmpty()) return "nothing";
+        if (parts.isEmpty()) return nothing();
         if (parts.size() == 1) return parts.get(0);
         return String.join(", ", parts.subList(0, parts.size() - 1)) + " and " + parts.get(parts.size() - 1);
     }
