@@ -165,9 +165,9 @@ public final class DisplayService {
         render(hub.position(), fingerprint, force, () -> {
             // Up to six sensors fit on a screen at once; with more it pages.
             boolean all = hub.sensors().size() <= ScreenText.ROWS;
-            ScreenText screen = ScreenText.titled(hub.label(), all ? "" : "page" + pageText);
-            if (hub.sensors().isEmpty()) return screen.line("No sensors yet:", NamedTextColor.GRAY)
-                    .line("link with the", NamedTextColor.GRAY).line("sensor-tool", NamedTextColor.GRAY);
+            ScreenText screen = ScreenText.titled(hub.label(), all ? "" : com.github.blade.hvac.lang.Lang.text("screen.page", com.github.blade.hvac.lang.Lang.arg("page", pageText.trim())));
+            if (hub.sensors().isEmpty()) return screen.line(com.github.blade.hvac.lang.Lang.text("screen.no-sensors-1"), NamedTextColor.GRAY)
+                    .line(com.github.blade.hvac.lang.Lang.text("screen.link-with"), NamedTextColor.GRAY).line(com.github.blade.hvac.lang.Lang.text("screen.sensor-tool"), NamedTextColor.GRAY);
             for (BlockKey key : all ? hub.sensors() : hub.sensorsOnPage()) {
                 Sensor sensor = registry.sensorAt(key);
                 if (sensor != null) screen.line(read(sensor).line(ScreenText.WIDTH), NamedTextColor.WHITE);
@@ -213,7 +213,7 @@ public final class DisplayService {
             int tone = today != null ? 0xFF000000 | tone(today.sky()).rgb()
                     : state.equals("Damaged") ? Panels.ALERT : state.equals("Measuring") ? Panels.NEUTRAL : Panels.OFF;
             renderPanel(station.position(), force, false, Panels.station(new Panels.StationState(station.label(),
-                    today == null ? state : "", tone, StationText.temperature(nowF, units),
+                    today == null ? word(state) : "", tone, StationText.temperature(nowF, units),
                     today == null ? "" : StationText.sky(today, stations.snowDay(station, today)),
                     today == null ? "" : StationText.highLow(today, units), conditions,
                     today == null ? "" : today.note(),
@@ -229,8 +229,8 @@ public final class DisplayService {
             if (today == null) {
                 if (!state.equals("Measuring")) screen.tone(state.equals("Damaged") ? ScreenText.Tone.ALERT
                         : ScreenText.Tone.OFF);
-                screen.line(state, state.equals("Damaged") ? NamedTextColor.GOLD : NamedTextColor.GRAY);
-                if (state.equals("Damaged")) screen.line("Rebuild its tower", NamedTextColor.GRAY);
+                screen.line(word(state), state.equals("Damaged") ? NamedTextColor.GOLD : NamedTextColor.GRAY);
+                if (state.equals("Damaged")) screen.line(com.github.blade.hvac.lang.Lang.text("screen.rebuild-tower-sign"), NamedTextColor.GRAY);
                 return screen;
             }
             screen.tone(tone(today.sky())).big(StationText.temperature(nowF, units))
@@ -272,12 +272,22 @@ public final class DisplayService {
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
         if (sensor.reads() == Sensor.Kind.AIR)
             return new SensorReading(sensor, true, Double.NaN, Double.NaN,
-                    airSettings().enabled() ? AirText.aqi(reading.air()) : "Off", units);
+                    airSettings().enabled() ? AirText.aqi(reading.air()) : word("Off"), units);
         if (sensor.reads() == Sensor.Kind.WIND)
             return new SensorReading(sensor, true, Double.NaN, Double.NaN,
                     WindText.sign(reading.windMs(), reading.windFromDegrees(), outdoor.climate().wind(), units), units,
                     WindText.sign(reading.windMs(), outdoor.climate().wind(), units));
         return new SensorReading(sensor, true, reading.localF(), reading.humidity(), "", units);
+    }
+
+    /**
+     * A word the screens decide with in English ("Damaged", "Off server-wide"),
+     * as players read it (BETA 1.1); a word with no translation stays as it is.
+     */
+    public static String word(String english) {
+        String key = com.github.blade.hvac.lang.Lang.key("screen.word", english.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-|-$", ""));
+        return com.github.blade.hvac.lang.Lang.has(key) ? com.github.blade.hvac.lang.Lang.text(key) : english;
     }
 
     /** What a weather sensor shows when something above it keeps the rain off. */
@@ -367,10 +377,10 @@ public final class DisplayService {
         List<EtaEstimator.UnitSnapshot> snapshots = running.stream()
                 .map(unit -> new EtaEstimator.UnitSnapshot(unit.type(), unit.motorRpm(), unit.tier())).toList();
         OptionalLong eta = estimateEta(thermostat, snapshots, force);
-        String footer = !thermostat.enabled() ? "System off"
-                : waiting != null ? UNITS_OFF
-                : thermostat.mode() == OperatingMode.IDLE ? "Ready"
-                : eta.isPresent() ? "ETA " + formatEta(eta) : "ETA --";
+        String footer = !thermostat.enabled() ? com.github.blade.hvac.lang.Lang.text("screen.system-off")
+                : waiting != null ? word(UNITS_OFF)
+                : thermostat.mode() == OperatingMode.IDLE ? com.github.blade.hvac.lang.Lang.text("screen.ready")
+                : com.github.blade.hvac.lang.Lang.text("screen.eta", com.github.blade.hvac.lang.Lang.arg("eta", eta.isPresent() ? formatEta(eta) : "--"));
         // Since 3.0 the last line counts the units at work where the group's name used to be.
         List<EquipmentUnit> units = registry.equipmentFor(thermostat.system());
         long working = units.stream().filter(EquipmentUnit::running).count();
@@ -382,31 +392,31 @@ public final class DisplayService {
         String fingerprint = String.format(Locale.US, "%.1f|%.1f|%s|%d|%s|%s|%s",
                 thermostat.roomF(), thermostat.targetF(), mode, percent, linked, thermostat.id(), attention);
         render(thermostat.position(), fingerprint, force, () -> {
-            ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.pool() ? "Pool" : "")
+            ScreenText screen = ScreenText.titled(thermostat.id(), thermostat.pool() ? com.github.blade.hvac.lang.Lang.text("screen.pool") : "")
                     .big(degrees(thermostat.roomF())).attention(attention.size());
             String target = degrees(thermostat.targetF());
             if (!thermostat.enabled())
-                screen.tone(ScreenText.Tone.OFF).line("Off · set " + target, NamedTextColor.GRAY);
+                screen.tone(ScreenText.Tone.OFF).line(com.github.blade.hvac.lang.Lang.text("screen.off-set", com.github.blade.hvac.lang.Lang.arg("target", target)), NamedTextColor.GRAY);
             else if (!blocked.isEmpty())
-                screen.tone(ScreenText.Tone.OFF).line("Set " + target, NamedTextColor.GRAY)
+                screen.tone(ScreenText.Tone.OFF).line(com.github.blade.hvac.lang.Lang.text("screen.mini-set", com.github.blade.hvac.lang.Lang.arg("value", target)), NamedTextColor.GRAY)
                         .line(blocked, NamedTextColor.RED);
             else if (waiting != null)
                 screen.tone(ScreenText.Tone.OFF).line(waitingLine(waiting, target),
                         waiting == OperatingMode.HEATING ? NamedTextColor.GOLD : NamedTextColor.AQUA)
-                        .line(UNITS_OFF, NamedTextColor.RED);
+                        .line(word(UNITS_OFF), NamedTextColor.RED);
             else switch (thermostat.mode()) {
-                case COOLING -> screen.tone(ScreenText.Tone.COOLING).line("Cooling to " + target, NamedTextColor.AQUA)
+                case COOLING -> screen.tone(ScreenText.Tone.COOLING).line(com.github.blade.hvac.lang.Lang.text("screen.cooling-to", com.github.blade.hvac.lang.Lang.arg("target", target)), NamedTextColor.AQUA)
                         .line(ScreenText.bar(load, 10, NamedTextColor.AQUA));
-                case HEATING -> screen.tone(ScreenText.Tone.HEATING).line("Heating to " + target, NamedTextColor.GOLD)
+                case HEATING -> screen.tone(ScreenText.Tone.HEATING).line(com.github.blade.hvac.lang.Lang.text("screen.heating-to", com.github.blade.hvac.lang.Lang.arg("target", target)), NamedTextColor.GOLD)
                         .line(ScreenText.bar(load, 10, NamedTextColor.GOLD));
-                case IDLE -> screen.tone(ScreenText.Tone.HOLDING).line("Holding " + target, NamedTextColor.GREEN);
+                case IDLE -> screen.tone(ScreenText.Tone.HOLDING).line(com.github.blade.hvac.lang.Lang.text("screen.holding-at", com.github.blade.hvac.lang.Lang.arg("target", target)), NamedTextColor.GREEN);
             }
             String humidity = thermostat.hasRoomDewPoint() ? Math.round(Psychrometrics.relativeHumidity(
                     thermostat.roomF(), thermostat.roomDewPointF())) + "% RH" : "";
             String status = thermostat.enabled() && thermostat.mode() != OperatingMode.IDLE
-                    ? "ETA " + formatEta(eta) : "";
+                    ? com.github.blade.hvac.lang.Lang.text("screen.eta", com.github.blade.hvac.lang.Lang.arg("eta", formatEta(eta))) : "";
             screen.line(String.join(" · ", nonEmpty(status, humidity)), NamedTextColor.GRAY);
-            screen.line(String.join(" · ", nonEmpty("Out " + degrees(thermostat.lastOutdoorF()),
+            screen.line(String.join(" · ", nonEmpty(com.github.blade.hvac.lang.Lang.text("screen.out-word", com.github.blade.hvac.lang.Lang.arg("value", degrees(thermostat.lastOutdoorF()))),
                     season(thermostat.position().worldId()))), NamedTextColor.GRAY);
             return screen;
         });
@@ -463,9 +473,9 @@ public final class DisplayService {
         String outside = thermometer.reads() == Thermometer.Reads.TEMPERATURE ? ""
                 : percent(outdoor.climateAt(location).humidity());
         boolean airOn = airSettings().enabled();
-        String airLine = airOn ? AirText.signLine(reading.air()) : "Air quality off";
+        String airLine = airOn ? AirText.signLine(reading.air()) : com.github.blade.hvac.lang.Lang.text("screen.air-quality-off");
         String pollen = airOn && reading.air().known()
-                ? "Pollen " + AirText.pollenName(reading.air(), airSettings()) : "";
+                ? com.github.blade.hvac.lang.Lang.text("screen.pollen", com.github.blade.hvac.lang.Lang.arg("level", AirText.pollenName(reading.air(), airSettings()))) : "";
         if (newLook()) {
             AirQualityModel.Air air = reading.air();
             boolean known = airOn && air.known();
@@ -490,24 +500,24 @@ public final class DisplayService {
                     season(thermometer.position().worldId())));
             switch (thermometer.reads()) {
                 case TEMPERATURE -> screen.big(degrees(reading.localF()))
-                        .line("Feels " + degrees(reading.feelsLikeF()), NamedTextColor.YELLOW)
-                        .line("Out " + degrees(reading.outdoorF()), NamedTextColor.GRAY);
-                case HUMIDITY -> screen.big(inside).line("Humidity", NamedTextColor.WHITE)
-                        .line("Out " + outside, NamedTextColor.GRAY);
+                        .line(com.github.blade.hvac.lang.Lang.text("screen.feels-word", com.github.blade.hvac.lang.Lang.arg("value", degrees(reading.feelsLikeF()))), NamedTextColor.YELLOW)
+                        .line(com.github.blade.hvac.lang.Lang.text("screen.out-word", com.github.blade.hvac.lang.Lang.arg("value", degrees(reading.outdoorF()))), NamedTextColor.GRAY);
+                case HUMIDITY -> screen.big(inside).line(com.github.blade.hvac.lang.Lang.text("screen.humidity-word"), NamedTextColor.WHITE)
+                        .line(com.github.blade.hvac.lang.Lang.text("screen.out-word", com.github.blade.hvac.lang.Lang.arg("value", outside)), NamedTextColor.GRAY);
                 case BOTH -> screen.big(degrees(reading.localF()))
-                        .line("Humidity " + inside, NamedTextColor.WHITE)
-                        .line("Feels " + degrees(reading.feelsLikeF()), NamedTextColor.YELLOW)
-                        .line("Out " + degrees(reading.outdoorF()) + " · " + outside, NamedTextColor.GRAY);
+                        .line(com.github.blade.hvac.lang.Lang.text("screen.humidity-value", com.github.blade.hvac.lang.Lang.arg("value", inside)), NamedTextColor.WHITE)
+                        .line(com.github.blade.hvac.lang.Lang.text("screen.feels-word", com.github.blade.hvac.lang.Lang.arg("value", degrees(reading.feelsLikeF()))), NamedTextColor.YELLOW)
+                        .line(com.github.blade.hvac.lang.Lang.text("screen.out-word", com.github.blade.hvac.lang.Lang.arg("value", degrees(reading.outdoorF()) + " · " + outside)), NamedTextColor.GRAY);
                 case AIR -> {
                     if (!airOn || !reading.air().known()) {
-                        screen.big("--").line(airOn ? "AQI" : "Air quality off", NamedTextColor.GRAY);
+                        screen.big("--").line(airOn ? "AQI" : com.github.blade.hvac.lang.Lang.text("screen.air-quality-off"), NamedTextColor.GRAY);
                     } else {
                         AirQualityModel.Air air = reading.air();
                         AirQualityIndex.Band band = AirText.band(air);
                         screen.tone(tone(band)).big(AirText.aqiNumber(air))
-                                .line("AQI · " + band.displayName(), AirText.color(band));
+                                .line(com.github.blade.hvac.lang.Lang.text("screen.aqi-band", com.github.blade.hvac.lang.Lang.arg("band", band.displayName())), AirText.color(band));
                         if (band != AirQualityIndex.Band.GOOD)
-                            screen.line("Mostly " + AirQualityIndex.dominant(air).cause().toLowerCase(Locale.ROOT),
+                            screen.line(com.github.blade.hvac.lang.Lang.text("screen.mostly-word", com.github.blade.hvac.lang.Lang.arg("cause", AirQualityIndex.dominant(air).cause().toLowerCase(Locale.ROOT))),
                                     NamedTextColor.WHITE);
                         screen.line(pollen, NamedTextColor.YELLOW);
                     }
@@ -553,9 +563,9 @@ public final class DisplayService {
         render(monitor.position(), fingerprint.toString(), force, () -> {
             ScreenText screen = ScreenText.titled(monitor.label(),
                     monitor.system() == null ? "" : SystemNames.label(registry, monitor.system()));
-            if (monitor.system() == null) return screen.line("Not linked:", NamedTextColor.GRAY)
-                    .line("link with the", NamedTextColor.GRAY).line("link-tool", NamedTextColor.GRAY);
-            if (rows.isEmpty()) return screen.line("No equipment", NamedTextColor.RED);
+            if (monitor.system() == null) return screen.line(com.github.blade.hvac.lang.Lang.text("screen.unlinked-1"), NamedTextColor.GRAY)
+                    .line(com.github.blade.hvac.lang.Lang.text("screen.link-with"), NamedTextColor.GRAY).line(com.github.blade.hvac.lang.Lang.text("screen.link-tool"), NamedTextColor.GRAY);
+            if (rows.isEmpty()) return screen.line(com.github.blade.hvac.lang.Lang.text("screen.no-equipment"), NamedTextColor.RED);
             // A screen holds six rows; with more it pages.
             if (rows.stream().anyMatch(row -> row.running() > 0)) screen.tone(ScreenText.Tone.RUNNING);
             for (RpmMonitor.Row row : rows.size() <= ScreenText.ROWS ? rows : shown)
@@ -578,7 +588,7 @@ public final class DisplayService {
         String tier = " T" + row.tier().number();
         String count = row.units() > 1 ? " ×" + row.units() : "";
         // Every kind's motor speed, a furnace's blower and a boiler's pump too: they ramp and modulate as well.
-        String state = row.running() == 0 ? "off" : String.format(Locale.US, "%,.0f", row.rpm());
+        String state = row.running() == 0 ? com.github.blade.hvac.lang.Lang.text("screen.off") : String.format(Locale.US, "%,.0f", row.rpm());
         String compact = row.running() == 0 || row.rpm() < 1_000 ? state
                 : String.format(Locale.US, "%.1fk", row.rpm() / 1000.0);
         String name = compactName(row.type());
@@ -597,21 +607,21 @@ public final class DisplayService {
     /** The shortest names, for a row that needs every pixel. */
     private static String compactName(EquipmentType type) {
         return switch (type) {
-            case HEAT_PUMP -> "HP";
-            case AIR_CONDITIONER -> "AC";
-            case FURNACE -> "Furn";
-            case BOILER -> "Boil";
-            case POOL_HEAT_PUMP -> "PHP";
+            case HEAT_PUMP -> com.github.blade.hvac.lang.Lang.text("screen.hp");
+            case AIR_CONDITIONER -> com.github.blade.hvac.lang.Lang.text("screen.ac");
+            case FURNACE -> com.github.blade.hvac.lang.Lang.text("screen.furn");
+            case BOILER -> com.github.blade.hvac.lang.Lang.text("screen.boil");
+            case POOL_HEAT_PUMP -> com.github.blade.hvac.lang.Lang.text("screen.php");
         };
     }
 
     private static String shortName(EquipmentType type) {
         return switch (type) {
-            case HEAT_PUMP -> "HP";
-            case AIR_CONDITIONER -> "AC";
-            case FURNACE -> "Furnace";
-            case BOILER -> "Boiler";
-            case POOL_HEAT_PUMP -> "Pool HP";
+            case HEAT_PUMP -> com.github.blade.hvac.lang.Lang.text("screen.hp");
+            case AIR_CONDITIONER -> com.github.blade.hvac.lang.Lang.text("screen.ac");
+            case FURNACE -> com.github.blade.hvac.lang.Lang.text("screen.furnace");
+            case BOILER -> com.github.blade.hvac.lang.Lang.text("screen.boiler");
+            case POOL_HEAT_PUMP -> com.github.blade.hvac.lang.Lang.text("screen.pool-hp");
         };
     }
 
@@ -621,9 +631,9 @@ public final class DisplayService {
                     panel.system() == null ? "" : SystemNames.label(registry, panel.system()), panel.profile().name()));
             return;
         }
-        String system = panel.system() == null ? "Not linked" : "System: " + SystemNames.label(registry, panel.system());
+        String system = panel.system() == null ? com.github.blade.hvac.lang.Lang.text("screen.not-linked-title") : com.github.blade.hvac.lang.Lang.text("screen.system", com.github.blade.hvac.lang.Lang.arg("system", SystemNames.label(registry, panel.system())));
         String fingerprint = panel.label() + "|" + system + "|" + panel.profile();
-        render(panel.position(), fingerprint, force, () -> ScreenText.titled(panel.label(), panel.system() == null ? "Not linked"
+        render(panel.position(), fingerprint, force, () -> ScreenText.titled(panel.label(), panel.system() == null ? com.github.blade.hvac.lang.Lang.text("screen.not-linked-title")
                         : SystemNames.label(registry, panel.system()))
                 .tone(switch (panel.profile()) {
                     case ECO -> ScreenText.Tone.HOLDING.withGlyph("");
@@ -631,8 +641,8 @@ public final class DisplayService {
                     case TURBO -> ScreenText.Tone.HEATING.withGlyph("");
                 })
                 .big(panel.profile().name())
-                .line("Click: next", NamedTextColor.GRAY)
-                .line("Sneak: back", NamedTextColor.GRAY));
+                .line(com.github.blade.hvac.lang.Lang.text("screen.click-next"), NamedTextColor.GRAY)
+                .line(com.github.blade.hvac.lang.Lang.text("screen.sneak-back"), NamedTextColor.GRAY));
     }
 
     /**
@@ -641,8 +651,8 @@ public final class DisplayService {
      * does; units switched off server-wide say {@link #UNITS_OFF} instead.
      */
     static String blockedLine(java.util.Set<Attention> attention, boolean pool) {
-        if (attention.contains(Attention.NO_UNITS)) return "Needs a unit";
-        if (attention.contains(Attention.NO_VENTS)) return pool ? "Needs a water vent" : "Needs a vent";
+        if (attention.contains(Attention.NO_UNITS)) return com.github.blade.hvac.lang.Lang.text("screen.needs-unit");
+        if (attention.contains(Attention.NO_VENTS)) return com.github.blade.hvac.lang.Lang.text(pool ? "screen.needs-water-vent" : "screen.needs-vent");
         return "";
     }
 
@@ -655,7 +665,7 @@ public final class DisplayService {
      * line that wraps pushes the body up over the big reading.
      */
     static String waitingLine(OperatingMode waiting, String target) {
-        return (waiting == OperatingMode.HEATING ? "Heat to " : "Cool to ") + target;
+        return com.github.blade.hvac.lang.Lang.text(waiting == OperatingMode.HEATING ? "screen.heat-to" : "screen.cool-to", com.github.blade.hvac.lang.Lang.arg("target", target));
     }
 
     /** A unit whose kind is switched off in /hvac quicksettings (BETA 1.0). */
@@ -681,11 +691,11 @@ public final class DisplayService {
         ClimateUnit.State state = unit.state();
         // Running in air it can't dry: say so rather than look like it works.
         boolean tooCold = state == ClimateUnit.State.RUNNING && unit instanceof Dehumidifier dry && dry.tooCold();
-        String stateText = tooCold ? "Air too cold" : switch (state) {
-            case OFF -> unit.offServerWide() ? OFF_SERVER_WIDE : "OFF";
-            case IDLE -> "Idle";
-            case RUNNING -> "Running";
-            case EMPTYING -> "Emptying...";
+        String stateText = tooCold ? com.github.blade.hvac.lang.Lang.text("screen.air-too-cold") : switch (state) {
+            case OFF -> unit.offServerWide() ? word(OFF_SERVER_WIDE) : com.github.blade.hvac.lang.Lang.text("screen.off-caps");
+            case IDLE -> com.github.blade.hvac.lang.Lang.text("screen.idle");
+            case RUNNING -> com.github.blade.hvac.lang.Lang.text("screen.running");
+            case EMPTYING -> com.github.blade.hvac.lang.Lang.text("screen.emptying");
             case NO_FILTER, FILTER_SPENT -> state.name();
         };
         NamedTextColor stateColor = tooCold ? NamedTextColor.GOLD : switch (state) {
@@ -696,16 +706,16 @@ public final class DisplayService {
             case NO_FILTER, FILTER_SPENT -> NamedTextColor.GOLD;
         };
         String footer = unit instanceof Dehumidifier dehumidifier
-                ? "Tank " + Math.round(dehumidifier.tank() * 100) + "%" : unit.kind().displayName();
+                ? com.github.blade.hvac.lang.Lang.text("screen.tank-percent", com.github.blade.hvac.lang.Lang.arg("percent", Math.round(dehumidifier.tank() * 100))) : unit.kind().displayName();
         String fingerprint = unit.label() + "|" + reading + "|" + stateText + "|" + footer;
         render(unit.position(), fingerprint, force, () -> {
             ScreenText screen = ScreenText.titled(unit.label(), unit.kind().displayName())
                     .tone(tooCold ? ScreenText.Tone.ALERT : tone(state))
                     .big(Double.isFinite(humidity) ? Math.round(humidity) + "%" : "--%")
-                    .line("Target " + unit.setpoint() + "%", NamedTextColor.WHITE)
+                    .line(com.github.blade.hvac.lang.Lang.text("screen.target", com.github.blade.hvac.lang.Lang.arg("value", unit.setpoint() + "%")), NamedTextColor.WHITE)
                     .line(stateText, stateColor);
             if (unit instanceof Dehumidifier dehumidifier)
-                screen.line(Component.text("Tank ", NamedTextColor.GRAY)
+                screen.line(Component.text(com.github.blade.hvac.lang.Lang.text("screen.tank-word") + " ", NamedTextColor.GRAY)
                         .append(ScreenText.bar(dehumidifier.tank(), 8, NamedTextColor.AQUA)));
             return screen;
         });
@@ -737,16 +747,16 @@ public final class DisplayService {
         if (refrigerator instanceof FridgeFreezer both) {
             big = applianceColumn(applianceDegrees(both.fridgeInsideF(), false), true)
                     + applianceColumn(applianceDegrees(both.insideF(), false), true);
-            compartments = applianceColumn("FRIDGE", false) + applianceColumn("FREEZER", false);
-            setpoints = applianceColumn("set " + applianceDegrees(both.fridgeSetpoint(), true), false)
-                    + applianceColumn("set " + applianceDegrees(both.setpoint(), true), false);
+            compartments = applianceColumn(com.github.blade.hvac.lang.Lang.text("screen.fridge"), false) + applianceColumn(com.github.blade.hvac.lang.Lang.text("screen.freezer"), false);
+            setpoints = applianceColumn(com.github.blade.hvac.lang.Lang.text("screen.set", com.github.blade.hvac.lang.Lang.arg("value", applianceDegrees(both.fridgeSetpoint(), true))), false)
+                    + applianceColumn(com.github.blade.hvac.lang.Lang.text("screen.set", com.github.blade.hvac.lang.Lang.arg("value", applianceDegrees(both.setpoint(), true))), false);
         } else {
             big = applianceDegrees(refrigerator.insideF(), true);
-            compartments = refrigerator instanceof Freezer ? "DEEP FREEZER"
-                    : refrigerator instanceof MiniFridge ? "MINI FRIDGE" : "FRIDGE";
-            setpoints = "set " + applianceDegrees(refrigerator.setpoint(), true);
+            compartments = refrigerator instanceof Freezer ? com.github.blade.hvac.lang.Lang.text("screen.deep-freezer")
+                    : refrigerator instanceof MiniFridge ? com.github.blade.hvac.lang.Lang.text("screen.mini-fridge") : com.github.blade.hvac.lang.Lang.text("screen.fridge");
+            setpoints = com.github.blade.hvac.lang.Lang.text("screen.set", com.github.blade.hvac.lang.Lang.arg("value", applianceDegrees(refrigerator.setpoint(), true)));
         }
-        String chiller = refrigerator instanceof MiniFridge mini ? "Chiller " + applianceDegrees(mini.chillerF(), true) : "";
+        String chiller = refrigerator instanceof MiniFridge mini ? com.github.blade.hvac.lang.Lang.text("screen.chiller-word", com.github.blade.hvac.lang.Lang.arg("value", applianceDegrees(mini.chillerF(), true))) : "";
         String fingerprint = refrigerator.label() + "|" + big + "|" + setpoints + "|" + activity + "|"
                 + (showsFrost ? Math.round(frost * 20) : -1) + "|" + chiller;
         boolean twoColumns = refrigerator instanceof FridgeFreezer;
@@ -766,8 +776,8 @@ public final class DisplayService {
                         .append(Component.text(setpoints, NamedTextColor.WHITE)));
             }
             if (!chiller.isEmpty()) screen.line(chiller, NamedTextColor.AQUA);
-            screen.line(activity, color);
-            if (showsFrost) screen.line(Component.text("Frost ", NamedTextColor.GRAY)
+            screen.line(word(activity), color);
+            if (showsFrost) screen.line(Component.text(com.github.blade.hvac.lang.Lang.text("screen.frost-word") + " ", NamedTextColor.GRAY)
                     .append(Component.text(ScreenText.bar(frost, 10), NamedTextColor.AQUA)));
             return screen;
         });
@@ -802,11 +812,11 @@ public final class DisplayService {
         if (newLook()) {
             ClimateUnit.State state = purifier.state();
             String stateText = switch (state) {
-                case OFF -> purifier.offServerWide() ? "off server-wide" : "off";
-                case IDLE -> "idle";
+                case OFF -> com.github.blade.hvac.lang.Lang.text(purifier.offServerWide() ? "screen.off-server-wide" : "screen.off");
+                case IDLE -> com.github.blade.hvac.lang.Lang.text("screen.idle-lower");
                 case RUNNING -> purifier.modeText().toLowerCase(Locale.ROOT);
-                case NO_FILTER -> "no filter";
-                case FILTER_SPENT, EMPTYING -> "filter spent";
+                case NO_FILTER -> com.github.blade.hvac.lang.Lang.text("screen.no-filter");
+                case FILTER_SPENT, EMPTYING -> com.github.blade.hvac.lang.Lang.text("screen.filter-spent");
             };
             int tone = switch (state) {
                 case OFF -> Panels.OFF;
@@ -823,11 +833,11 @@ public final class DisplayService {
         String reading = AirText.signLine(air);
         ClimateUnit.State state = purifier.state();
         String stateText = switch (state) {
-            case OFF -> purifier.offServerWide() ? OFF_SERVER_WIDE : "OFF";
+            case OFF -> purifier.offServerWide() ? word(OFF_SERVER_WIDE) : com.github.blade.hvac.lang.Lang.text("screen.off-caps");
             case IDLE -> purifier.mode().displayName();
             case RUNNING -> purifier.modeText();
-            case NO_FILTER -> "No filter";
-            case FILTER_SPENT, EMPTYING -> "Filter spent";
+            case NO_FILTER -> com.github.blade.hvac.lang.Lang.text("screen.no-filter-capital");
+            case FILTER_SPENT, EMPTYING -> com.github.blade.hvac.lang.Lang.text("screen.filter-spent-capital");
         };
         NamedTextColor stateColor = switch (state) {
             case OFF -> NamedTextColor.RED;
@@ -835,9 +845,9 @@ public final class DisplayService {
             case RUNNING -> NamedTextColor.GREEN;
             case NO_FILTER, FILTER_SPENT, EMPTYING -> NamedTextColor.GOLD;
         };
-        String footer = purifier.installed() == AirPurifier.Filter.MISSING ? "Place tube coral"
-                : "Filter " + Math.round(purifier.filter() * 100) + "%";
-        String pollen = air.known() ? "Pollen " + AirText.pollenName(air, airSettings()) : "";
+        String footer = purifier.installed() == AirPurifier.Filter.MISSING ? com.github.blade.hvac.lang.Lang.text("screen.place-coral")
+                : com.github.blade.hvac.lang.Lang.text("screen.filter-percent", com.github.blade.hvac.lang.Lang.arg("percent", Math.round(purifier.filter() * 100)));
+        String pollen = air.known() ? com.github.blade.hvac.lang.Lang.text("screen.pollen", com.github.blade.hvac.lang.Lang.arg("level", AirText.pollenName(air, airSettings()))) : "";
         String fingerprint = purifier.label() + "|" + reading + "|" + stateText + "|" + footer + "|" + pollen;
         render(purifier.position(), fingerprint, force, () -> {
             ScreenText.Tone tone = switch (state) {
@@ -847,10 +857,10 @@ public final class DisplayService {
             };
             ScreenText screen = ScreenText.titled(purifier.label(), purifier.kind().displayName()).tone(tone)
                     .big(air.known() ? AirText.aqiNumber(air) : "--")
-                    .line(air.known() ? "AQI · " + AirText.band(air).displayName() : "AQI", AirText.color(air))
+                    .line(air.known() ? com.github.blade.hvac.lang.Lang.text("screen.aqi-band", com.github.blade.hvac.lang.Lang.arg("band", AirText.band(air).displayName())) : "AQI", AirText.color(air))
                     .line(stateText, stateColor);
             if (purifier.installed() != AirPurifier.Filter.MISSING)
-                screen.line(Component.text("Filter ", NamedTextColor.GRAY)
+                screen.line(Component.text(com.github.blade.hvac.lang.Lang.text("screen.filter-word") + " ", NamedTextColor.GRAY)
                         .append(ScreenText.bar(purifier.filter(), 8, NamedTextColor.AQUA)));
             if (!pollen.isEmpty()) screen.line(pollen, NamedTextColor.YELLOW);
             return screen;
@@ -1002,11 +1012,11 @@ public final class DisplayService {
     private void refreshHumidityPanel(ClimateUnit unit, boolean force) {
         ClimateUnit.State state = unit.state();
         boolean tooCold = state == ClimateUnit.State.RUNNING && unit instanceof Dehumidifier dry && dry.tooCold();
-        String stateText = tooCold ? "air too cold" : switch (state) {
-            case OFF -> unit.offServerWide() ? "off server-wide" : "off";
-            case IDLE -> "idle";
-            case RUNNING -> unit instanceof Dehumidifier ? "drying" : "misting";
-            case EMPTYING -> "emptying...";
+        String stateText = tooCold ? com.github.blade.hvac.lang.Lang.text("screen.air-too-cold-lower") : switch (state) {
+            case OFF -> com.github.blade.hvac.lang.Lang.text(unit.offServerWide() ? "screen.off-server-wide" : "screen.off");
+            case IDLE -> com.github.blade.hvac.lang.Lang.text("screen.idle-lower");
+            case RUNNING -> com.github.blade.hvac.lang.Lang.text(unit instanceof Dehumidifier ? "screen.drying" : "screen.misting");
+            case EMPTYING -> com.github.blade.hvac.lang.Lang.text("screen.emptying-lower");
             case NO_FILTER, FILTER_SPENT -> state.name().toLowerCase(Locale.ROOT);
         };
         int tone = tooCold ? Panels.ALERT : switch (state) {
@@ -1091,7 +1101,7 @@ public final class DisplayService {
     private static String formatEta(OptionalLong eta) {
         if (eta.isEmpty()) return "--";
         long seconds = Math.max(0L, (eta.getAsLong() + 19L) / 20L);
-        if (seconds == 0L) return "now";
+        if (seconds == 0L) return com.github.blade.hvac.lang.Lang.text("screen.eta-now");
         long minutes = seconds / 60L;
         if (minutes >= 100L) return "99m+";
         return String.format(Locale.US, "%d:%02d", minutes, seconds % 60L);

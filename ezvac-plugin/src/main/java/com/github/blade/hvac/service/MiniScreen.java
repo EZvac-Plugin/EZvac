@@ -70,7 +70,7 @@ public final class MiniScreen {
 
         Component gauge;
         if (!enabled) gauge = Component.text(com.github.blade.hvac.lang.Lang.text("screen.mini-off"), NamedTextColor.GRAY);
-        else if (!blocked.isEmpty()) gauge = Component.text(blocked, NamedTextColor.RED);
+        else if (!blocked.isEmpty()) gauge = Component.text(DisplayService.word(blocked), NamedTextColor.RED);
         else if (mode == OperatingMode.IDLE || !Double.isFinite(progress)) gauge = Component.text("●", NamedTextColor.GREEN);
         else gauge = gauge(progress, modeColor);
 

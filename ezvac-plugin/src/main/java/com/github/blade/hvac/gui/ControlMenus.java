@@ -374,7 +374,7 @@ public final class ControlMenus implements Listener {
                                 ? lore("menu.control.inside-chiller", arg("inside", insideText),
                                 arg("chiller", units.format(mini.chillerF(), 1)))
                                 : lore("menu.control.inside", arg("inside", insideText)),
-                        gray(refrigerator.activity()),
+                        gray(com.github.blade.hvac.service.DisplayService.word(refrigerator.activity())),
                         lore("menu.control.range", arg("low", units.format(refrigerator.minimumF(), 0)),
                                 arg("high", units.format(refrigerator.maximumF(), 0))))));
         inventory.setItem(POWER, power(refrigerator.powered(), refrigerator.kind().displayName()));
