@@ -95,9 +95,10 @@ public final class RegistryBackups {
 
     /** "Every 24 hours", "Every week" or "Off". */
     public static String describe(int hours) {
-        if (hours == 0) return "Off";
-        if (hours == 168) return "Every week";
-        return "Every " + hours + " hours";
+        if (hours == 0) return com.github.blade.hvac.lang.Lang.text("menu.qs.interval.off");
+        if (hours == 168) return com.github.blade.hvac.lang.Lang.text("menu.qs.interval.every-week");
+        return com.github.blade.hvac.lang.Lang.text("menu.qs.interval.every-hours",
+                com.github.blade.hvac.lang.Lang.arg("hours", hours));
     }
 
     /**

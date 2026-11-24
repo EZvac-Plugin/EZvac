@@ -138,6 +138,28 @@ class LangTest {
                                 Lang.arg("w", "<red>World"))));
     }
 
+    @Test
+    void noLanguageFileSaysAKeyTwice() throws IOException {
+        Pattern entry = Pattern.compile("^( *)(\"[^\"]+\"|[^#\\s\"][^:]*):");
+        List<String> twice = new ArrayList<>();
+        try (Stream<Path> files = Files.list(LANG)) {
+            for (Path file : (Iterable<Path>) files::iterator) {
+                List<String> path = new ArrayList<>();
+                Set<String> seen = new java.util.HashSet<>();
+                for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+                    Matcher m = entry.matcher(line);
+                    if (!m.find()) continue;
+                    int depth = m.group(1).length() / 2;
+                    while (path.size() > depth) path.remove(path.size() - 1);
+                    path.add(m.group(2).replace("\"", ""));
+                    String key = String.join(".", path);
+                    if (!seen.add(key)) twice.add(file.getFileName() + ": " + key);
+                }
+            }
+        }
+        assertEquals(List.of(), twice, "YAML keeps only the last of a repeated key");
+    }
+
     private static Set<String> placeholders(String template) {
         Set<String> names = new TreeSet<>();
         Matcher tag = TAG.matcher(template);

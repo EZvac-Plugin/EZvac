@@ -617,6 +617,10 @@ menu:
     back-addons: "<gray>To the addons"
     back-main: "<gray>To the quick settings"
     click-for: "<yellow>Click for: <next>"
+    interval:
+      "off": "Off"
+      every-week: "Every week"
+      every-hours: "Every <hours> hours"
     seasons:
       no-world: "<red>No world with a sky"
       no-world-lore: "<gray>Seasons and wind need one"
@@ -1412,6 +1416,20 @@ names:
   headless: "Headless"
   nothing: "nothing"
   and: "<first> and <last>"
+  default:
+    # A new device's name when none is given: one word, no spaces (it is a command argument).
+    rpm: "RPM"
+    settings: "Settings"
+    sensor: "Sensor"
+    sensors: "Sensors"
+    station: "Station"
+    dehumidifier: "Dehumidifier"
+    humidifier: "Humidifier"
+    purifier: "Purifier"
+    deep-freezer: "Deep-freezer"
+    fridge: "Fridge"
+    refrigerator: "Refrigerator"
+    mini-fridge: "Mini-fridge"
   count:
     unit-one: "<n> unit"
     unit-many: "<n> units"
