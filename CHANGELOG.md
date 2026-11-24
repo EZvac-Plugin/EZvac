@@ -2,6 +2,33 @@
 
 All notable changes to EZvac are recorded here.
 
+## BETA 1.1
+
+**EZvac can be translated.** Everything it says to players now comes from a
+language file. That covers chat, help, menus, the setup, the tutorial,
+screens, signs, the HUD's words and the default names of new devices. English
+is unchanged, word for word, and is the only language so far. Translators are
+welcome: see [Translations](docs/translating.md).
+
+The save is unchanged (format 8), and so is the API (1.13).
+
+- **`language: en`** is added to `config.yml`. Restart after changing it. One
+  language is used for the whole server. A language EZvac doesn't have is
+  said once in the log, and English is used. A word a translation lacks
+  shows in English.
+- **Change single words** with `plugins/EZvac/lang/<language>.yml`, holding
+  only the keys you want to change. The rest stay as they are.
+- **Commands stay English on every language**, and so does tab completion, so
+  commands, scripts and the docs work everywhere. The console and
+  `config.yml` stay English too.
+- **For addons and placeholders:** the API's names and values are the same
+  on every language, and control API refusals stay English. Word placeholders
+  such as `%ezvac_season%`, `%ezvac_weather%` and the wind's follow the
+  language, like the screens.
+- **Screens measure accented, Greek and Cyrillic letters** at their real width
+  in the game's font, so translated words fit as well as English. Other
+  scripts are still counted wide and cut sooner, never spilt over.
+
 ## BETA 1.0
 
 **The first stable BETA.** Everything from the ten BETA 1.0 pilots, tested

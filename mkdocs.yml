@@ -97,6 +97,7 @@ nav:
       - HUD and placeholders: hud-and-placeholders.md
       - Configuration: configuration.md
       - Commands and permissions: commands.md
+      - Translations: translating.md
       - Upgrading and troubleshooting: upgrading-and-troubleshooting.md
   - Addons:
       - The EZvac API: api.md
