@@ -79,7 +79,8 @@ set: "<green>It is <day> in '<world>' until the day ends. /hvac wind set auto le
   is. You can move it anywhere in the sentence. A test checks that a
   translation has the same placeholders as English.
 - **Colours** (`<green>`, `<gray>` and the like) can move with the words they
-  colour.
+  colour. Only colour and decoration tags (`<bold>`, `<italic>`) work. Others,
+  such as click or hover, show as typed, and the build rejects them.
 - **Screens and signs are small.** Text too long for one is cut, never spilt
   over, so keep screen words (keys under `screen`, `station`, `wind`, `air`,
   `weather` and `hud`) about as short as English. Latin, Greek and Cyrillic letters are

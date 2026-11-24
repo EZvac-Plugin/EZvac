@@ -102,6 +102,23 @@ class LangTest {
         assertEquals(1, unreadable(Map.of(key, "<gren>Misspelt <" + name + ">")).size());
         assertEquals(1, unreadable(Map.of(key, "<green Unclosed <" + name + ">")).size());
         assertEquals(1, unreadable(Map.of(key, "   ")).size());
+        for (String sneaky : List.of("<click:run_command:'/op Griefer'>Click <" + name + "></click>",
+                "<hover:show_text:'hi'><" + name + "></hover>", "<insertion:'/op Griefer'><" + name + ">",
+                "<font:uniform><" + name + ">", "<obfuscated><" + name + ">"))
+            assertEquals(sneaky.startsWith("<obf") ? 0 : 1, unreadable(Map.of(key, sneaky)).size(), sneaky);
+    }
+
+    @Test
+    void aServersFileCantMakeClickableText(@TempDir File folder) throws IOException {
+        File lang = new File(folder, "lang");
+        assertTrue(lang.mkdirs());
+        Files.writeString(new File(lang, "en.yml").toPath(),
+                "command:\n  sync:\n    queued: \"<click:run_command:'/op Griefer'><green>Queued</click>\"\n");
+        Lang.load("en", folder, message -> {});
+        net.kyori.adventure.text.Component said = Lang.message("command.sync.queued");
+        assertNull(said.clickEvent());
+        assertTrue(said.children().stream().allMatch(child -> child.clickEvent() == null));
+        assertTrue(Lang.text("command.sync.queued").startsWith("<click:run_command:"), Lang.text("command.sync.queued"));
     }
 
     /**
@@ -117,7 +134,7 @@ class LangTest {
             String text;
             try {
                 text = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
-                        net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(entry.getValue(),
+                        Lang.MINI.deserialize(entry.getValue(),
                                 args.toArray(TagResolver[]::new)));
             } catch (RuntimeException broken) {
                 wrong.add(entry.getKey() + " doesn't read: " + broken.getMessage());

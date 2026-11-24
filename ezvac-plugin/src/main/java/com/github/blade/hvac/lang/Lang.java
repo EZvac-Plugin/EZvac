@@ -25,7 +25,8 @@ import java.util.function.Consumer;
  * {@code en.yml}; a server may lay its own {@code plugins/EZvac/lang/<language>.yml}
  * over them, a key at a time. Each value is MiniMessage with named
  * placeholders ({@code <world>}); anything a key lacks comes from English.
- * Command words, the console and config comments stay English.
+ * Only colour and decoration tags work in a value. Command words, the
+ * console and config comments stay English.
  *
  * <p>Read from any thread: the tables are swapped whole and never changed.
  */
@@ -33,7 +34,19 @@ public final class Lang {
     /** The language EZvac is written in, and what anything missing falls back to. */
     public static final String ENGLISH = "en";
 
-    private static final MiniMessage MINI = MiniMessage.miniMessage();
+    /**
+     * Reads every value, with only colours and decorations ({@code <green>},
+     * {@code <bold>}) besides the placeholders: a translation can't make text
+     * that runs a command when clicked, shows on hover or hides itself. Any
+     * other tag shows as typed.
+     */
+    static final MiniMessage MINI = MiniMessage.builder()
+            .tags(TagResolver.builder()
+                    .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.color())
+                    .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.decorations())
+                    .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.reset())
+                    .build())
+            .build();
     private static volatile Map<String, String> english = read(ENGLISH);
     private static volatile Map<String, String> current = english;
     private static volatile String language = ENGLISH;
