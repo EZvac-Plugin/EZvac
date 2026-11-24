@@ -296,7 +296,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "rpmmonitor", "rpm" -> {
                 requireSign(block);
                 // Before 3.0: create rpmmonitor <group> <kind> [label]. A monitor now shows its whole system.
-                String displayLabel = args.length >= 3 ? args[2] : "RPM";
+                String displayLabel = args.length >= 3 ? args[2] : Lang.text("names.default.rpm");
                 if (args.length >= 4 && isEquipmentType(args[3])) {
                     displayLabel = args.length >= 5 ? args[4] : args[2];
                     player.sendMessage(Lang.message(GROUPS_GONE));
@@ -310,7 +310,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "settingspanel", "settings", "panel" -> {
                 requireSign(block);
                 // Before 3.0: create settingspanel <group> [label]. The label is the last word.
-                String displayLabel = args.length >= 3 ? args[args.length - 1] : "Settings";
+                String displayLabel = args.length >= 3 ? args[args.length - 1] : Lang.text("names.default.settings");
                 if (args.length >= 4) player.sendMessage(Lang.message(GROUPS_GONE));
                 SettingsPanel panel = new SettingsPanel(position, displayLabel);
                 registry.addSettingsPanel(panel);
@@ -330,7 +330,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 Sensor.Kind reads = Sensor.forButton(block.getType());
                 if (reads == null)
                     throw new UserError("command.create.sensor.not-a-button");
-                Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : "Sensor", reads);
+                Sensor sensor = new Sensor(position, args.length >= 3 ? args[2] : Lang.text("names.default.sensor"), reads);
                 registry.addSensor(sensor);
                 player.sendMessage(Lang.message(reads == Sensor.Kind.WEATHER ? "command.create.sensor.made-weather"
                         : reads == Sensor.Kind.WIND ? "command.create.sensor.made-wind" : "command.create.sensor.made",
@@ -339,7 +339,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             case "weatherstation", "weather-station", "station" -> createWeatherStation(player, block, position, args);
             case "sensor-hub", "sensorhub" -> {
                 requireSign(block);
-                SensorHub hub = new SensorHub(position, args.length >= 3 ? args[2] : "Sensors");
+                SensorHub hub = new SensorHub(position, args.length >= 3 ? args[2] : Lang.text("names.default.sensors"));
                 registry.addSensorHub(hub);
                 displays.refreshSensorHub(hub, true);
                 player.sendMessage(Lang.message("command.create.sensor-hub", arg("name", hub.label()),
@@ -360,7 +360,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             throw new UserError("command.create.station.overworld");
         WeatherStationService.Check check = WeatherStationService.check(sign);
         if (!check.whole()) throw new UserError("command.create.station.not-whole", arg("missing", check.missing()));
-        WeatherStation station = new WeatherStation(position, args.length >= 3 ? args[2] : "Station");
+        WeatherStation station = new WeatherStation(position, args.length >= 3 ? args[2] : Lang.text("names.default.station"));
         registry.addWeatherStation(station);
         plugin.weatherStations().measure(station);
         displays.refreshWeatherStation(station, true);
@@ -386,7 +386,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         BlockKey grateKey = BlockKey.of(grate.getLocation());
         if (registry.ventAt(grateKey) != null)
             throw new UserError("command.create.dehumidifier.grate-is-vent");
-        String label = args.length >= 3 ? args[2] : "Dehumidifier";
+        String label = args.length >= 3 ? args[2] : Lang.text("names.default.dehumidifier");
         registerUnit(player, new Dehumidifier(position, BlockKey.of(iron.getLocation()), grateKey, label,
                 units.climate().dehumidifier().defaultSetpoint()));
     }
@@ -407,7 +407,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (slab.getType() != Humidifier.TOP || !(slab.getBlockData() instanceof Slab half)
                 || half.getType() != Slab.Type.BOTTOM)
             throw new UserError("command.create.humidifier.slab");
-        String label = args.length >= 3 ? args[2] : "Humidifier";
+        String label = args.length >= 3 ? args[2] : Lang.text("names.default.humidifier");
         registerUnit(player, new Humidifier(position, BlockKey.of(iron.getLocation()), BlockKey.of(slab.getLocation()),
                 label, units.climate().humidifier().defaultSetpoint()));
     }
@@ -429,7 +429,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Material below = filter.getType();
         if (below != AirPurifier.FILTER && below != AirPurifier.SPENT_FILTER && !below.isAir())
             throw new UserError("command.create.purifier.filter");
-        String label = args.length >= 3 ? args[2] : "Purifier";
+        String label = args.length >= 3 ? args[2] : Lang.text("names.default.purifier");
         AirPurifier purifier = new AirPurifier(position, BlockKey.of(iron.getLocation()),
                 BlockKey.of(filter.getLocation()), label, AirPurifier.Mode.AUTO);
         purifier.readFilter(below);
@@ -493,7 +493,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Block barrel = iron.getRelative(BlockFace.UP);
         if (barrel.getType() != Refrigerator.BARREL)
             throw new UserError("command.create.fridge-barrel");
-        String label = args.length >= 3 ? args[2] : freezer ? "Deep-freezer" : "Fridge";
+        String label = args.length >= 3 ? args[2] : Lang.text(freezer ? "names.default.deep-freezer" : "names.default.fridge");
         RefrigerationSettings cold = units.climate().refrigeration();
         BlockKey unit = BlockKey.of(iron.getLocation()), box = BlockKey.of(barrel.getLocation());
         if (freezer) {
@@ -527,7 +527,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Block freezer = iron.getRelative(BlockFace.UP), fridge = freezer.getRelative(BlockFace.UP);
         if (freezer.getType() != Refrigerator.BARREL || fridge.getType() != Refrigerator.BARREL)
             throw new UserError("command.create.refrigerator-barrels");
-        String label = args.length >= 3 ? args[2] : "Refrigerator";
+        String label = args.length >= 3 ? args[2] : Lang.text("names.default.refrigerator");
         RefrigerationSettings cold = units.climate().refrigeration();
         registerUnit(player, new FridgeFreezer(position, BlockKey.of(iron.getLocation()),
                 BlockKey.of(freezer.getLocation()), BlockKey.of(fridge.getLocation()), label,
@@ -546,7 +546,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         Block barrel = sign.getRelative(wall.getFacing().getOppositeFace());
         if (barrel.getType() != Refrigerator.BARREL)
             throw new UserError("command.create.mini-fridge-barrel");
-        String label = args.length >= 3 ? args[2] : "Mini-fridge";
+        String label = args.length >= 3 ? args[2] : Lang.text("names.default.mini-fridge");
         registerUnit(player, new MiniFridge(position, BlockKey.of(barrel.getLocation()), label,
                 units.climate().refrigeration().fridgeDefaultF()));
     }
