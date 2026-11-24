@@ -109,6 +109,33 @@ class LangTest {
     }
 
     @Test
+    void theQuickWayReadsExactlyLikeMiniMessage() {
+        var plain = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText();
+        int quick = 0;
+        for (Map.Entry<String, String> entry : new java.util.TreeMap<>(Lang.english()).entrySet()) {
+            List<TagResolver> list = new ArrayList<>();
+            for (String name : placeholders(entry.getValue())) list.add(Lang.arg(name, "<red>X\\y"));
+            TagResolver[] args = list.toArray(TagResolver[]::new);
+            String slow = plain.serialize(Lang.MINI.deserialize(entry.getValue(), args));
+            String fast = Lang.quickly(entry.getValue(), args);
+            if (fast != null) {
+                quick++;
+                assertEquals(slow, fast, entry.getKey());
+            }
+            assertEquals(slow, Lang.text(entry.getKey(), args), entry.getKey());
+        }
+        assertTrue(quick > Lang.english().size() * 9 / 10, quick + " of " + Lang.english().size() + " the quick way");
+        TagResolver v = Lang.arg("v", "7");
+        for (String template : List.of("<green>Hi <v></green>", "<#ff8800>Hex <v>", "<color:red>C <v></color>",
+                "<!bold>Not <v>", "<b><i>BI</i></b> <v>", "<reset>R <v>", "a < b <v>", "a > b <v>", "<gren>Typo <v>",
+                "<v><v>", "\\<green> escaped <v>", "<click:run_command:'/x'>Click <v>", "<w> unknown <v>", "", "<v"))
+            assertEquals(plain.serialize(Lang.MINI.deserialize(template, v)),
+                    java.util.Objects.requireNonNullElseGet(Lang.quickly(template, v),
+                            () -> plain.serialize(Lang.MINI.deserialize(template, v))), template);
+        assertNull(Lang.quickly("<v> and a component", Lang.arg("v", net.kyori.adventure.text.Component.text("c"))));
+    }
+
+    @Test
     void aServersFileCantMakeClickableText(@TempDir File folder) throws IOException {
         File lang = new File(folder, "lang");
         assertTrue(lang.mkdirs());
