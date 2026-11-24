@@ -268,7 +268,7 @@ public final class DisplayService {
         TemperatureUnit units = settings.units();
         if (location == null) return new SensorReading(sensor, false, Double.NaN, Double.NaN, "", units);
         if (sensor.reads() == Sensor.Kind.WEATHER)
-            return new SensorReading(sensor, true, Double.NaN, Double.NaN, weatherAt(location), units);
+            return new SensorReading(sensor, true, Double.NaN, Double.NaN, word(weatherAt(location)), units);
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
         if (sensor.reads() == Sensor.Kind.AIR)
             return new SensorReading(sensor, true, Double.NaN, Double.NaN,
@@ -480,7 +480,7 @@ public final class DisplayService {
             AirQualityModel.Air air = reading.air();
             boolean known = airOn && air.known();
             AirQualityIndex.Band band = known ? AirText.band(air) : null;
-            String sky = String.join(" · ", nonEmpty(outdoor.climateAt(location).weather(),
+            String sky = String.join(" · ", nonEmpty(word(outdoor.climateAt(location).weather()),
                     season(thermometer.position().worldId())));
             renderPanel(thermometer.position(), force, false, Panels.point(settings.units(), new Panels.PointState(
                     thermometer.label(), thermometer.reads().name(), reading.localF(), reading.feelsLikeF(),
@@ -496,7 +496,7 @@ public final class DisplayService {
                 thermometer.reads() == Thermometer.Reads.AIR ? airLine : "", pollen);
         render(thermometer.position(), fingerprint, force, () -> {
             ScreenText screen = ScreenText.titled(thermometer.label(), "");
-            String sky = String.join(" · ", nonEmpty(outdoor.climateAt(location).weather(),
+            String sky = String.join(" · ", nonEmpty(word(outdoor.climateAt(location).weather()),
                     season(thermometer.position().worldId())));
             switch (thermometer.reads()) {
                 case TEMPERATURE -> screen.big(degrees(reading.localF()))

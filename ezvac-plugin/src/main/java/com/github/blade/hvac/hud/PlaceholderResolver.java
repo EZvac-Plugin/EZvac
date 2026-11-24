@@ -57,7 +57,7 @@ public final class PlaceholderResolver {
             case "feels_like_f" -> HudFormatter.fahrenheit(snapshot.feelsLikeF());
             case "feels_like_c" -> HudFormatter.celsius(snapshot.feelsLikeF());
             case "humidity" -> format.humidity(snapshot);
-            case "weather" -> snapshot.weather();
+            case "weather" -> com.github.blade.hvac.service.DisplayService.word(snapshot.weather());
             case "season" -> snapshot.season();
             case "season_day" -> snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "";
             case "aqi" -> format.aqi(snapshot);
