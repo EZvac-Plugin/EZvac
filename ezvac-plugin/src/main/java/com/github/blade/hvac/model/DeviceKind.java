@@ -38,8 +38,8 @@ public enum DeviceKind {
 
     /** As written in config.yml's {@code devices.disabled}. */
     public String configName() { return configName; }
-    public String displayName() { return displayName; }
-    public String plural() { return plural; }
+    public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.kind", name()) + ".one"); }
+    public String plural() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.kind", name()) + ".many"); }
     public Material icon() { return icon; }
 
     public static DeviceKind of(EquipmentType type) {
@@ -77,7 +77,6 @@ public enum DeviceKind {
 
     /** What /hvac create says while this kind is switched off. */
     public String refusal() {
-        return plural + " are switched off on this server, so no new one can be made. An admin can switch"
-                + " them back on in /hvac quicksettings.";
+        return com.github.blade.hvac.lang.Lang.text("device.refusal", com.github.blade.hvac.lang.Lang.arg("kinds", plural()));
     }
 }

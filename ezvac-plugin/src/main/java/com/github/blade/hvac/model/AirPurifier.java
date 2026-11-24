@@ -34,8 +34,7 @@ public final class AirPurifier extends ClimateUnit {
         LOW, MEDIUM, HIGH, AUTO;
 
         public String displayName() {
-            String name = name().toLowerCase(Locale.ROOT);
-            return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+            return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.purifier-mode", name()));
         }
 
         /** {@code low}, {@code Auto}; null when it names no mode. */
@@ -101,7 +100,7 @@ public final class AirPurifier extends ClimateUnit {
 
     /** {@code Auto · High}, or just {@code Medium} at a fixed speed. */
     public String modeText() {
-        return mode == Mode.AUTO ? "Auto · " + speed.displayName() : speed.displayName();
+        return mode == Mode.AUTO ? com.github.blade.hvac.lang.Lang.text("device.purifier-auto", com.github.blade.hvac.lang.Lang.arg("speed", speed.displayName())) : speed.displayName();
     }
 
     /** How hard it cleans at its current speed, against High. */

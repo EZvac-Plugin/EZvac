@@ -55,7 +55,7 @@ public enum EquipmentType {
      * boilers ran on the compressors' variable-speed curve by mistake.
      */
     public boolean fixedSpeed() { return this == FURNACE || this == BOILER; }
-    public String displayName() { return displayName; }
+    public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.equipment", name())); }
 
     /**
      * A missing type still defaults to a heat pump, but an unrecognised one is

@@ -111,7 +111,7 @@ public record WindSettings(boolean enabled, Chances chances, Speeds speeds, Seas
         /** As the menu names it. */
         public String displayName() {
             return switch (this) {
-                case AUTO -> "Auto";
+                case AUTO -> com.github.blade.hvac.lang.Lang.text("wind.units-auto");
                 case MS -> "m/s";
                 case KMH -> "km/h";
                 case MPH -> "mph";

@@ -16,7 +16,7 @@ public record Thermometer(BlockKey position, String label, Reads reads) {
 
         private final String displayName;
         Reads(String displayName) { this.displayName = displayName; }
-        public String displayName() { return displayName; }
+        public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.instrument", name())); }
 
         /** Missing means a thermometer: every sensor before 2.0 was one. */
         static Reads parse(Object value) {
