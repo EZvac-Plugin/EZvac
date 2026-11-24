@@ -741,7 +741,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         AirflowService.TemperatureReading reading =
                 airflow.temperatureForBody(player.getLocation(), player.getEyeLocation());
         boolean water = reading.water();
-        String outside = temp(reading.outdoorF()) + (reading.weather().isEmpty() ? "" : " " + reading.weather());
+        String outside = temp(reading.outdoorF()) + (reading.weather().isEmpty() ? "" : " " + DisplayService.word(reading.weather()));
         player.sendMessage(Lang.message(water ? "command.temperature.water" : "command.temperature.air",
                 arg("here", temp(reading.localF())), arg("outside", outside)));
         if (!water) {
@@ -1177,7 +1177,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         if (sensor.reads() == Sensor.Kind.WEATHER) {
             String weather = displays.weatherAt(location);
             return Lang.message(weather.equals(DisplayService.COVERED) ? "command.sensor.weather-covered"
-                    : "command.sensor.weather", arg("name", sensor.label()), arg("weather", weather));
+                    : "command.sensor.weather", arg("name", sensor.label()), arg("weather", DisplayService.word(weather)));
         }
         AirflowService.TemperatureReading reading = airflow.temperatureAt(location);
         String humidity = Double.isFinite(reading.humidity()) ? Math.round(reading.humidity()) + "%" : "--%";

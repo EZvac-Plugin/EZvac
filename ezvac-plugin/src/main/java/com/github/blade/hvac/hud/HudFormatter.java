@@ -231,12 +231,12 @@ public final class HudFormatter {
     public String mode(ClimateSnapshot snapshot) {
         if (snapshot.mode() == null) return settings.noneText();
         // Waiting on units switched off server-wide (BETA 1.0), it heats and cools nothing.
-        if (snapshot.mode().equals(ClimateSnapshot.UNITS_OFF)) return "Units off";
-        String mode = capitalize(snapshot.mode());
+        if (snapshot.mode().equals(ClimateSnapshot.UNITS_OFF)) return com.github.blade.hvac.lang.Lang.text("screen.word.units-off");
+        String mode = com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("hud.mode", snapshot.mode()));
         if (Double.isNaN(snapshot.targetF())) return mode;
         // Idle at the target is holding it (BETA 1.0), as the thermostat's screen says.
-        if (snapshot.mode().equals("IDLE")) return "Holding " + temperature(snapshot.targetF());
-        return mode + " to " + temperature(snapshot.targetF());
+        if (snapshot.mode().equals("IDLE")) return com.github.blade.hvac.lang.Lang.text("screen.holding-at", com.github.blade.hvac.lang.Lang.arg("target", temperature(snapshot.targetF())));
+        return com.github.blade.hvac.lang.Lang.text("hud.mode-to", com.github.blade.hvac.lang.Lang.arg("mode", mode), com.github.blade.hvac.lang.Lang.arg("target", temperature(snapshot.targetF())));
     }
 
     /**
@@ -321,8 +321,8 @@ public final class HudFormatter {
      * of what it meant and clashed with a building's leaks.
      */
     public String zone(ClimateSnapshot snapshot) {
-        if (!snapshot.conditioned()) return snapshot.water() ? "Natural water" : "Outside";
-        return "Strength " + strength(snapshot.core(), snapshot.influence()) + "%";
+        if (!snapshot.conditioned()) return com.github.blade.hvac.lang.Lang.text(snapshot.water() ? "hud.natural-water" : "hud.outside");
+        return com.github.blade.hvac.lang.Lang.text("hud.strength", com.github.blade.hvac.lang.Lang.arg("percent", strength(snapshot.core(), snapshot.influence())));
     }
 
     /** The zone for templates: green at full strength, gold under half, otherwise the template's colour. */
@@ -371,7 +371,7 @@ public final class HudFormatter {
         text = put(text, "{pollen}", () -> escape(pollen(snapshot)));
         text = put(text, "{wind_level}", () -> escape(windLevel(snapshot)));
         text = put(text, "{wind}", () -> escape(wind(snapshot)));
-        text = put(text, "{weather}", () -> escape(snapshot.weather()));
+        text = put(text, "{weather}", () -> escape(com.github.blade.hvac.service.DisplayService.word(snapshot.weather())));
         text = put(text, "{season_day}", () -> snapshot.seasonDay() > 0 ? Integer.toString(snapshot.seasonDay()) : "");
         text = put(text, "{season}", () -> escape(snapshot.season()));
         text = put(text, "{time}", () -> escape(time(snapshot)));

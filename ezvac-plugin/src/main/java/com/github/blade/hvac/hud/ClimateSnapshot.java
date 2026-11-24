@@ -50,7 +50,7 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
         if (windLevel == null) windLevel = "";
         if (windSpeed == null || windLevel.isEmpty()) windSpeed = "";
         windMs = Double.isFinite(windMs) && !windLevel.isEmpty() ? Math.max(0.0, windMs) : 0.0;
-        if (windLevel.isEmpty() || windLevel.equals("Calm")) windFromDegrees = Double.NaN;
+        if (windLevel.isEmpty() || windLevel.equals(com.github.blade.hvac.simulation.WindModel.Level.CALM.displayName())) windFromDegrees = Double.NaN;
         if (clock == null) clock = "";
     }
 
@@ -137,7 +137,7 @@ public record ClimateSnapshot(double localF, double outdoorF, double influence, 
 
     /** {@code Calm}, or {@code Windy 22 km/h W}; empty where there is no wind to read. */
     public String wind() {
-        if (windLevel.isEmpty() || windLevel.equals("Calm")) return windLevel;
+        if (windLevel.isEmpty() || windLevel.equals(com.github.blade.hvac.simulation.WindModel.Level.CALM.displayName())) return windLevel;
         String direction = windDirection();
         return windLevel + " " + windSpeed + (direction.isEmpty() ? "" : " " + direction);
     }
