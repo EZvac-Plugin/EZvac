@@ -77,13 +77,56 @@ class LangTest {
     /** Each value filled with X for every placeholder, as plain text: nothing left that looks like a tag. */
     @Test
     void everyEnglishValueReadsAsWords() {
-        for (Map.Entry<String, String> entry : Lang.english().entrySet()) {
-            List<TagResolver> args = new ArrayList<>();
-            for (String name : placeholders(entry.getValue())) args.add(Lang.arg(name, "X"));
-            String text = Lang.text(entry.getKey(), args.toArray(TagResolver[]::new));
-            assertFalse(text.contains("<") || text.contains(">"), entry.getKey() + " leaves a tag: " + text);
-            assertFalse(text.isBlank(), entry.getKey() + " is empty");
+        assertEquals(List.of(), unreadable(Lang.english()));
+    }
+
+    /** The same for every language file: a misspelled colour or a broken tag fails the build, not a screen. */
+    @Test
+    void everyTranslatedValueReadsAsWords() throws IOException {
+        List<String> wrong = new ArrayList<>();
+        try (Stream<Path> files = Files.list(LANG)) {
+            for (Path file : (Iterable<Path>) files::iterator) {
+                String code = file.getFileName().toString().replace(".yml", "");
+                for (String problem : unreadable(Lang.read(code))) wrong.add(code + ": " + problem);
+            }
         }
+        assertEquals(List.of(), wrong);
+    }
+
+    @Test
+    void aBrokenTranslationIsCaught() {
+        String key = Lang.english().keySet().stream().filter(k -> placeholders(Lang.english().get(k)).size() == 1)
+                .findFirst().orElseThrow();
+        String name = placeholders(Lang.english().get(key)).iterator().next();
+        assertEquals(List.of(), unreadable(Map.of(key, "<green>Fine <" + name + ">")));
+        assertEquals(1, unreadable(Map.of(key, "<gren>Misspelt <" + name + ">")).size());
+        assertEquals(1, unreadable(Map.of(key, "<green Unclosed <" + name + ">")).size());
+        assertEquals(1, unreadable(Map.of(key, "   ")).size());
+    }
+
+    /**
+     * What doesn't read as words in a table: each value, filled with X for
+     * every placeholder its English has, must show no tag and not be empty.
+     */
+    private static List<String> unreadable(Map<String, String> table) {
+        List<String> wrong = new ArrayList<>();
+        for (Map.Entry<String, String> entry : new java.util.TreeMap<>(table).entrySet()) {
+            String english = Lang.english().getOrDefault(entry.getKey(), entry.getValue());
+            List<TagResolver> args = new ArrayList<>();
+            for (String name : placeholders(english)) args.add(Lang.arg(name, "X"));
+            String text;
+            try {
+                text = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
+                        net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(entry.getValue(),
+                                args.toArray(TagResolver[]::new)));
+            } catch (RuntimeException broken) {
+                wrong.add(entry.getKey() + " doesn't read: " + broken.getMessage());
+                continue;
+            }
+            if (text.contains("<") || text.contains(">")) wrong.add(entry.getKey() + " leaves a tag: " + text);
+            else if (text.isBlank()) wrong.add(entry.getKey() + " is empty");
+        }
+        return wrong;
     }
 
     @Test
