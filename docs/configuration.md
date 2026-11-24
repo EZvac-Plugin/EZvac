@@ -37,6 +37,17 @@ Before 2.1 only the HUD could show Celsius, through `hud.units`. A config that
 had `hud.units: C` starts with `units: C` when it's updated, and `hud.units` is
 no longer read.
 
+## language
+
+```yaml
+language: en
+```
+
+The language EZvac speaks to players (BETA 1.1): chat, menus, screens, signs
+and the HUD's words. Commands, the console and this file stay English. A word
+a translation lacks falls back to English. See [Translations](translating.md),
+including how to change single words with `plugins/EZvac/lang/<language>.yml`.
+
 ## setup
 
 ```yaml

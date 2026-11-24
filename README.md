@@ -158,9 +158,10 @@ every device, controls and events. Add
 
 ## Translations
 
-EZvac is English only for now. Translations are planned after BETA 1.0, so
-players can enjoy it in their own language. If you'd like to help translate,
-say so on our [Discord](https://discord.gg/tCedQgFFDU).
+Since BETA 1.1, EZvac can speak your players' language: set `language` in
+`config.yml`. English is the only one so far, and translators are welcome.
+Say which language you'd like to do on our [Discord](https://discord.gg/tCedQgFFDU).
+Server owners can also change single words. See [Translations](docs/translating.md).
 
 ## Statistics
 
