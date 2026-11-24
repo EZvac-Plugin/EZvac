@@ -103,7 +103,7 @@ public final class WeatherStationService implements Listener {
 
     public static Check check(Block sign) {
         if (!(sign.getBlockData() instanceof WallSign wall))
-            return new Check(false, "Put a wall sign on the front of the waxed cut copper.");
+            return new Check(false, com.github.blade.hvac.lang.Lang.text("station.check.wall-sign"));
         BlockFace facing = wall.getFacing();
         Check best = null;
         int bestFitting = -1;
@@ -135,11 +135,10 @@ public final class WeatherStationService implements Listener {
 
     private static String describe(StationShape.Block part, Block sign) {
         String what = part.part() == StationShape.Part.ROD && !StationShape.waxedRods()
-                ? "a lightning rod" : part.part().description();
-        String where = part.part() == StationShape.Part.ROD ? ", pointing out sideways," : "";
-        return "The tower needs " + what + where + " at " + part.x() + ", " + part.y() + ", " + part.z()
-                + " (" + (part.y() - sign.getY() >= 0 ? "+" : "") + (part.y() - sign.getY())
-                + " from the sign).";
+                ? com.github.blade.hvac.lang.Lang.text("station.check.rod") : part.part().description();
+        return com.github.blade.hvac.lang.Lang.text(part.part() == StationShape.Part.ROD ? "station.check.needs-sideways" : "station.check.needs",
+                com.github.blade.hvac.lang.Lang.arg("what", what), com.github.blade.hvac.lang.Lang.arg("at", part.x() + ", " + part.y() + ", " + part.z()),
+                com.github.blade.hvac.lang.Lang.arg("above", (part.y() - sign.getY() >= 0 ? "+" : "") + (part.y() - sign.getY())));
     }
 
     /** Checks a station's tower again, where its chunk is loaded; redraws it if that changed. */

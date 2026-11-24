@@ -20,7 +20,7 @@ public final class StationText {
 
     /** {@code Hi 74° Lo 55°}. */
     public static String highLow(Forecast.Day day, TemperatureUnit units) {
-        return "Hi " + Math.round(units.fromF(day.highF())) + "° Lo " + Math.round(units.fromF(day.lowF())) + "°";
+        return com.github.blade.hvac.lang.Lang.text("station.high-low", com.github.blade.hvac.lang.Lang.arg("high", Math.round(units.fromF(day.highF()))), com.github.blade.hvac.lang.Lang.arg("low", Math.round(units.fromF(day.lowF()))));
     }
 
     /** A chance as a whole percentage, {@code 40%}. */
@@ -33,11 +33,11 @@ public final class StationText {
      * {@code Clear}, or {@code Clear, rain 30%} when a clear day may yet rain.
      */
     public static String sky(Forecast.Day day, boolean snow) {
-        String wet = snow ? "snow" : "rain";
         return switch (day.sky()) {
-            case THUNDER -> "Thunder " + percent(day.thunderChance());
-            case RAIN, SNOW -> day.sky().displayName() + " " + percent(day.rainChance());
-            case CLEAR -> day.rainChance() >= 0.2 ? "Clear, " + wet + " " + percent(day.rainChance()) : "Clear";
+            case THUNDER -> com.github.blade.hvac.lang.Lang.text("station.sky-chance", com.github.blade.hvac.lang.Lang.arg("sky", day.sky().displayName()), com.github.blade.hvac.lang.Lang.arg("chance", percent(day.thunderChance())));
+            case RAIN, SNOW -> com.github.blade.hvac.lang.Lang.text("station.sky-chance", com.github.blade.hvac.lang.Lang.arg("sky", day.sky().displayName()), com.github.blade.hvac.lang.Lang.arg("chance", percent(day.rainChance())));
+            case CLEAR -> day.rainChance() >= 0.2 ? com.github.blade.hvac.lang.Lang.text(snow ? "station.clear-snow" : "station.clear-rain",
+                    com.github.blade.hvac.lang.Lang.arg("chance", percent(day.rainChance()))) : com.github.blade.hvac.lang.Lang.text("weather.sky.clear");
         };
     }
 
@@ -47,22 +47,23 @@ public final class StationText {
      * {@code Tmrw: Storm 60%}: "Thunder 100%" doesn't fit after it.
      */
     public static String tomorrow(Forecast.Day day, boolean snow) {
-        String sky = day.sky() == Forecast.Sky.THUNDER ? "Storm " + percent(day.thunderChance())
-                : day.sky() == Forecast.Sky.CLEAR && day.rainChance() < 0.2 ? "Clear"
-                : (snow ? "Snow " : "Rain ") + percent(day.rainChance());
-        return "Tmrw: " + sky;
+        String sky = day.sky() == Forecast.Sky.THUNDER ? com.github.blade.hvac.lang.Lang.text("station.storm", com.github.blade.hvac.lang.Lang.arg("chance", percent(day.thunderChance())))
+                : day.sky() == Forecast.Sky.CLEAR && day.rainChance() < 0.2 ? com.github.blade.hvac.lang.Lang.text("weather.sky.clear")
+                : com.github.blade.hvac.lang.Lang.text("station.sky-chance", com.github.blade.hvac.lang.Lang.arg("sky", com.github.blade.hvac.lang.Lang.text(snow ? "weather.sky.snow" : "weather.sky.rain")),
+                com.github.blade.hvac.lang.Lang.arg("chance", percent(day.rainChance())));
+        return com.github.blade.hvac.lang.Lang.text("station.tomorrow", com.github.blade.hvac.lang.Lang.arg("sky", sky));
     }
 
     /** {@code Today}, {@code Tomorrow}, then {@code Autumn, day 8}, or {@code In 3 days} without seasons. */
     public static String dayName(int ahead, String season, int dayOfSeason) {
-        if (ahead == 0) return "Today";
-        if (ahead == 1) return "Tomorrow";
-        if (season == null) return "In " + ahead + " days";
-        return season + ", day " + dayOfSeason;
+        if (ahead == 0) return com.github.blade.hvac.lang.Lang.text("station.today");
+        if (ahead == 1) return com.github.blade.hvac.lang.Lang.text("station.tomorrow-name");
+        if (season == null) return com.github.blade.hvac.lang.Lang.text("station.in-days", com.github.blade.hvac.lang.Lang.arg("days", ahead));
+        return com.github.blade.hvac.lang.Lang.text("station.season-day", com.github.blade.hvac.lang.Lang.arg("season", season), com.github.blade.hvac.lang.Lang.arg("day", dayOfSeason));
     }
 
     /** How far away a station is, {@code 120 blocks away}. */
     public static String distance(double blocks) {
-        return String.format(Locale.US, "%,d blocks away", Math.round(blocks));
+        return com.github.blade.hvac.lang.Lang.text("station.away", com.github.blade.hvac.lang.Lang.arg("blocks", String.format(Locale.US, "%,d", Math.round(blocks))));
     }
 }

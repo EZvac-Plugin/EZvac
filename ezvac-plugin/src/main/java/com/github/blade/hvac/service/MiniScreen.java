@@ -63,13 +63,13 @@ public final class MiniScreen {
 
         // A line too wide (a pool's 104° and a count) loses its "Set"; never the count.
         String warning = attention > 0 ? " ⚠" + attention : "";
-        String target = "Set " + degrees(units, targetF);
+        String target = com.github.blade.hvac.lang.Lang.text("screen.mini-set", com.github.blade.hvac.lang.Lang.arg("value", degrees(units, targetF)));
         if (TextWidth.width(target + warning) > WIDTH) target = degrees(units, targetF);
         Component targetLine = Component.text(target, NamedTextColor.GRAY);
         if (!warning.isEmpty()) targetLine = targetLine.append(Component.text(warning, ScreenText.ATTENTION));
 
         Component gauge;
-        if (!enabled) gauge = Component.text("Off", NamedTextColor.GRAY);
+        if (!enabled) gauge = Component.text(com.github.blade.hvac.lang.Lang.text("screen.mini-off"), NamedTextColor.GRAY);
         else if (!blocked.isEmpty()) gauge = Component.text(blocked, NamedTextColor.RED);
         else if (mode == OperatingMode.IDLE || !Double.isFinite(progress)) gauge = Component.text("●", NamedTextColor.GREEN);
         else gauge = gauge(progress, modeColor);

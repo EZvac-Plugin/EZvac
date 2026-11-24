@@ -13,7 +13,8 @@ public final class AirText {
 
     /** {@code AQI 42}, or {@code AQI --} where the air can't be read. */
     public static String aqi(AirQualityModel.Air air) {
-        return air.known() ? "AQI " + AirQualityIndex.aqi(air) : "AQI --";
+        return air.known() ? com.github.blade.hvac.lang.Lang.text("air.aqi", com.github.blade.hvac.lang.Lang.arg("aqi", AirQualityIndex.aqi(air)))
+                : com.github.blade.hvac.lang.Lang.text("air.aqi", com.github.blade.hvac.lang.Lang.arg("aqi", "--"));
     }
 
     /** {@code 42}, or empty where the air can't be read. */
@@ -65,7 +66,7 @@ public final class AirText {
 
     /** The same, short for the HUD ("Med"). */
     public static String pollenHudName(AirQualityModel.Air air, AirQualitySettings settings) {
-        return settings.pollen() ? pollen(air, settings).hudName() : POLLEN_OFF;
+        return settings.pollen() ? pollen(air, settings).hudName() : com.github.blade.hvac.lang.Lang.text("air.pollen-off");
     }
 
     static final String POLLEN_OFF = "Off";
@@ -89,13 +90,16 @@ public final class AirText {
         if (!air.known()) return "AQI --";
         AirQualityIndex.Band band = band(air);
         String cause = band == AirQualityIndex.Band.GOOD ? "" : " · " + AirQualityIndex.dominant(air).cause();
-        return aqi(air) + " " + band.displayName() + cause + " · Pollen " + pollenName(air, settings);
+        return com.github.blade.hvac.lang.Lang.text("air.summary", com.github.blade.hvac.lang.Lang.arg("aqi", aqi(air)),
+                com.github.blade.hvac.lang.Lang.arg("band", band.displayName() + cause),
+                com.github.blade.hvac.lang.Lang.arg("pollen", pollenName(air, settings)));
     }
 
     /** PM2.5 and PM10 in µg/m³ and the pollen count, for /hvac info. */
     public static String details(AirQualityModel.Air air) {
-        if (!air.known()) return "not measured yet";
-        return String.format(Locale.US, "PM2.5 %.1f µg/m³ | PM10 %.0f µg/m³ | pollen %.0f grains/m³",
-                air.pm25(), air.pm10(), air.pollen());
+        if (!air.known()) return com.github.blade.hvac.lang.Lang.text("command.fridge.unmeasured");
+        return com.github.blade.hvac.lang.Lang.text("air.details", com.github.blade.hvac.lang.Lang.arg("pm25", String.format(Locale.US, "%.1f", air.pm25())),
+                com.github.blade.hvac.lang.Lang.arg("pm10", String.format(Locale.US, "%.0f", air.pm10())),
+                com.github.blade.hvac.lang.Lang.arg("pollen", String.format(Locale.US, "%.0f", air.pollen())));
     }
 }
