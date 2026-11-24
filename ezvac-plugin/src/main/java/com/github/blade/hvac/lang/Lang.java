@@ -12,12 +12,15 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 /**
  * Everything EZvac says to players, in the server's language (BETA 1.1).
@@ -40,13 +43,17 @@ public final class Lang {
      * that runs a command when clicked, shows on hover or hides itself. Any
      * other tag shows as typed.
      */
-    static final MiniMessage MINI = MiniMessage.builder()
-            .tags(TagResolver.builder()
-                    .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.color())
-                    .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.decorations())
-                    .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.reset())
-                    .build())
+    private static final TagResolver STYLE = TagResolver.builder()
+            .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.color())
+            .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.decorations())
+            .resolver(net.kyori.adventure.text.minimessage.tag.standard.StandardTags.reset())
             .build();
+    static final MiniMessage MINI = MiniMessage.builder().tags(STYLE).build();
+    /** A template that only colours and fills in placeholders, split into text and placeholder names. */
+    private static final Map<String, List<String>> PIECES = new ConcurrentHashMap<>();
+    /** What {@link #PIECES} holds for a template MiniMessage has to read. */
+    private static final List<String> READ_IT = new ArrayList<>();
+    private static final Pattern TAG = Pattern.compile("[!/]?[a-z0-9_#:-]+");
     private static volatile Map<String, String> english = read(ENGLISH);
     private static volatile Map<String, String> current = english;
     private static volatile String language = ENGLISH;
@@ -99,12 +106,89 @@ public final class Lang {
 
     /** The same as plain text, for signs and screens that measure their text. */
     public static String text(String key, TagResolver... args) {
-        return PlainTextComponentSerializer.plainText().serialize(message(key, args));
+        String template = template(key);
+        String quick = quickly(template, args);
+        return quick != null ? quick
+                : PlainTextComponentSerializer.plainText().serialize(MINI.deserialize(template, args));
+    }
+
+    /**
+     * Plain text the quick way, for screens that ask many times a second:
+     * colours dropped and placeholders filled in, exactly as MiniMessage
+     * would. Null when MiniMessage has to read it (an escape, an unknown tag,
+     * a placeholder that isn't plain text).
+     */
+    static String quickly(String template, TagResolver... args) {
+        List<String> pieces = PIECES.computeIfAbsent(template, Lang::pieces);
+        if (pieces == READ_IT) return null;
+        StringBuilder out = new StringBuilder(template.length() + 16);
+        for (int i = 0; i < pieces.size(); i++) {
+            if (i % 2 == 0) {
+                out.append(pieces.get(i));
+                continue;
+            }
+            String value = null;
+            for (TagResolver arg : args)
+                if (arg instanceof Plain plain && plain.name().equals(pieces.get(i))) value = plain.value();
+            if (value == null) return null;
+            out.append(value);
+        }
+        return out.toString();
+    }
+
+    /** Text and placeholder names in turn, colours left out; {@link #READ_IT} when it isn't that simple. */
+    private static List<String> pieces(String template) {
+        if (template.indexOf('\\') >= 0) return READ_IT;
+        List<String> pieces = new ArrayList<>();
+        StringBuilder text = new StringBuilder();
+        int at = 0;
+        while (at < template.length()) {
+            int open = template.indexOf('<', at);
+            if (open < 0) {
+                text.append(template, at, template.length());
+                break;
+            }
+            int close = template.indexOf('>', open);
+            if (close < 0) return READ_IT;
+            String inside = template.substring(open + 1, close);
+            if (!TAG.matcher(inside).matches()) return READ_IT;
+            text.append(template, at, open);
+            String name = inside.replaceFirst("^[!/]", "");
+            int colon = name.indexOf(':');
+            if (STYLE.has(colon < 0 ? name : name.substring(0, colon))) {
+                at = close + 1;
+                continue;
+            }
+            if (!inside.equals(name) || colon >= 0) return READ_IT;
+            pieces.add(text.toString());
+            pieces.add(name);
+            text.setLength(0);
+            at = close + 1;
+        }
+        pieces.add(text.toString());
+        return List.copyOf(pieces);
     }
 
     /** A value for a placeholder, put in as it is: a name with {@code <red>} in it stays as typed. */
     public static TagResolver arg(String name, Object value) {
-        return Placeholder.unparsed(name, String.valueOf(value));
+        String text = String.valueOf(value);
+        return new Plain(name, text, Placeholder.unparsed(name, text));
+    }
+
+    /** A placeholder that is plain text, which {@link #text} can fill in without MiniMessage. */
+    private record Plain(String name, String value, TagResolver resolver) implements TagResolver {
+        @Override
+        public net.kyori.adventure.text.minimessage.tag.Tag resolve(String tag,
+                net.kyori.adventure.text.minimessage.tag.resolver.ArgumentQueue arguments,
+                net.kyori.adventure.text.minimessage.Context context)
+                throws net.kyori.adventure.text.minimessage.ParsingException {
+            return resolver.resolve(tag, arguments, context);
+        }
+
+        @Override
+        public boolean has(String tag) {
+            return resolver.has(tag);
+        }
     }
 
     /** A placeholder that is itself a component, already coloured. */
