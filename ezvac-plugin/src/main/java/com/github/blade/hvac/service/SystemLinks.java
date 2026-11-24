@@ -44,8 +44,8 @@ public final class SystemLinks {
     public static String conflict(Shape system, Shape joining) {
         if (!(system.air() && joining.water()) && !(system.water() && joining.air())) return null;
         return system.water()
-                ? "is a water system: it takes boilers, pool heat pumps and waxed copper grates"
-                : "is an air system: it takes heat pumps, air conditioners, furnaces and iron trapdoors";
+                ? com.github.blade.hvac.lang.Lang.text("names.water-system")
+                : com.github.blade.hvac.lang.Lang.text("names.air-system");
     }
 
     /**

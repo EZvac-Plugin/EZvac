@@ -126,11 +126,11 @@ public final class FreezerFrost implements Listener {
     ItemStack wallItem(boolean gap) {
         ItemStack wall = new ItemStack(gap ? Material.CYAN_STAINED_GLASS_PANE : Material.LIGHT_GRAY_STAINED_GLASS_PANE);
         wall.editMeta(meta -> {
-            meta.displayName(Component.text(gap ? "Chiller box →" : "Fridge wall",
+            meta.displayName(Component.text(com.github.blade.hvac.lang.Lang.text(gap ? "fridge.chiller-box" : "fridge.wall"),
                     gap ? NamedTextColor.AQUA : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
-            if (gap) meta.lore(List.of(Component.text("The slot to the right keeps about", NamedTextColor.GRAY)
+            if (gap) meta.lore(List.of(Component.text(com.github.blade.hvac.lang.Lang.text("fridge.chiller-1"), NamedTextColor.GRAY)
                             .decoration(TextDecoration.ITALIC, false),
-                    Component.text("10° colder than the rest", NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
+                    Component.text(com.github.blade.hvac.lang.Lang.text("fridge.chiller-2"), NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false)));
             meta.getPersistentDataContainer().set(wallKey, PersistentDataType.BYTE, (byte) (gap ? 2 : 1));
         });
         return wall;
@@ -244,8 +244,8 @@ public final class FreezerFrost implements Listener {
     ItemStack frostItem() {
         ItemStack frost = new ItemStack(Material.ICE);
         frost.editMeta(meta -> {
-            meta.displayName(Component.text("Frost", NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
-            meta.lore(List.of(Component.text("Defrost the freezer to clear it", NamedTextColor.GRAY)
+            meta.displayName(Component.text(com.github.blade.hvac.lang.Lang.text("fridge.frost"), NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
+            meta.lore(List.of(Component.text(com.github.blade.hvac.lang.Lang.text("fridge.frost-lore"), NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)));
             meta.getPersistentDataContainer().set(frostKey, PersistentDataType.BYTE, (byte) 1);
         });
@@ -280,7 +280,7 @@ public final class FreezerFrost implements Listener {
                 glint(meta, data);
             }
             List<Component> lore = meta.lore() == null ? new ArrayList<>() : new ArrayList<>(meta.lore());
-            lore.add(Component.text(FROSTED_LINE, NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text(frostedLine(), NamedTextColor.AQUA).decoration(TextDecoration.ITALIC, false));
             meta.lore(lore);
         });
         return frosted;
@@ -311,7 +311,8 @@ public final class FreezerFrost implements Listener {
             else if (glint != null && glint == 3) meta.setEnchantmentGlintOverride(false);
             if (meta.lore() != null) {
                 List<Component> lore = new ArrayList<>(meta.lore());
-                lore.removeIf(line -> FROSTED_LINE.equals(PlainTextComponentSerializer.plainText().serialize(line)));
+                lore.removeIf(line -> { String plain = PlainTextComponentSerializer.plainText().serialize(line);
+                    return FROSTED_LINE.equals(plain) || frostedLine().equals(plain); });
                 meta.lore(lore.isEmpty() ? null : lore);
             }
             data.remove(frostedKey);
@@ -323,17 +324,17 @@ public final class FreezerFrost implements Listener {
 
     // ---- Nothing frosted moves ----
 
-    private static final Component LOCKED = Component.text("You can't take this out, it's frosted over.",
-            NamedTextColor.AQUA);
-    private static final Component WALL = Component.text("That's the mini fridge's wall: food goes in the middle row.",
-            NamedTextColor.GRAY);
+    /** The frosted line in the server's language (BETA 1.1); {@link #FROSTED_LINE} is the English one. */
+    static String frostedLine() {
+        return com.github.blade.hvac.lang.Lang.text("fridge.frosted");
+    }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onClick(InventoryClickEvent event) {
         ItemStack current = event.getCurrentItem();
         if (isWall(current)) {
             event.setCancelled(true);
-            if (event.getWhoClicked() instanceof Player player) player.sendActionBar(WALL);
+            if (event.getWhoClicked() instanceof Player player) player.sendActionBar(com.github.blade.hvac.lang.Lang.message("fridge.wall-click"));
             return;
         }
         boolean locked = isFrost(current) || isFrosted(current);
@@ -368,7 +369,7 @@ public final class FreezerFrost implements Listener {
     }
 
     private static void tell(HumanEntity who) {
-        if (who instanceof Player player) player.sendActionBar(LOCKED);
+        if (who instanceof Player player) player.sendActionBar(com.github.blade.hvac.lang.Lang.message("fridge.locked"));
     }
 
     // ---- None of it ever leaves a freezer ----

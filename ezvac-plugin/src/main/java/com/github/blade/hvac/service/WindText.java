@@ -71,14 +71,14 @@ public final class WindText {
     public static String describe(double ms, double fromDegrees, WindSettings settings, TemperatureUnit temperature) {
         String line = describe(ms, settings, temperature);
         return level(ms, settings) == WindModel.Level.CALM || !Double.isFinite(fromDegrees) ? line
-                : line + " from the " + compass(fromDegrees);
+                : com.github.blade.hvac.lang.Lang.text("wind.from", com.github.blade.hvac.lang.Lang.arg("wind", line), com.github.blade.hvac.lang.Lang.arg("from", compass(fromDegrees)));
     }
 
     private static final String[] POINTS = {"N", "NE", "E", "SE", "S", "SW", "W", "NW"};
 
     /** Where the wind blows from as one of eight compass points: {@code N}, {@code NE} .. {@code NW}. */
     public static String compass(double fromDegrees) {
-        return POINTS[(int) Math.floorMod(Math.round(WindModel.normalize(fromDegrees) / 45.0), 8L)];
+        return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("wind.compass", POINTS[(int) Math.floorMod(Math.round(WindModel.normalize(fromDegrees) / 45.0), 8L)]));
     }
 
     /**

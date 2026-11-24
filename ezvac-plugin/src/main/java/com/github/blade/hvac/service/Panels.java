@@ -5,6 +5,7 @@ import com.github.blade.hvac.model.EquipmentType;
 import com.github.blade.hvac.model.OperatingMode;
 import com.github.blade.hvac.model.RpmMonitor;
 import net.kyori.adventure.text.Component;
+import com.github.blade.hvac.lang.Lang;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import org.bukkit.Material;
@@ -75,12 +76,12 @@ public final class Panels {
     }
 
     static String state(ThermostatState t) {
-        if (!t.enabled()) return "○ off";
-        if (!t.blocked().isEmpty()) return "stopped";
+        if (!t.enabled()) return "○ " + Lang.text("screen.off");
+        if (!t.blocked().isEmpty()) return Lang.text("screen.stopped");
         return switch (t.mode()) {
-            case COOLING -> "❄ cooling";
-            case HEATING -> "♨ heating";
-            case IDLE -> "● holding";
+            case COOLING -> "❄ " + Lang.text("screen.cooling");
+            case HEATING -> "♨ " + Lang.text("screen.heating");
+            case IDLE -> "● " + Lang.text("screen.holding");
         };
     }
 
@@ -104,7 +105,7 @@ public final class Panels {
             panel.tick("dial" + i, 50, 50, 31, angle, 4, 2, target ? 0xFFFFFFFF : between ? lit : DIAL_OFF);
         }
         bigOrNot(panel, "room", 30, 28, 40, degrees(units, t.roomF()), NamedTextColor.WHITE, Panel.Align.CENTER);
-        panel.label("set", 26, 41, 48, "set " + degrees(units, t.targetF()), text(t), Panel.Align.CENTER);
+        panel.label("set", 26, 41, 48, Lang.text("screen.set", Lang.arg("value", degrees(units, t.targetF()))), text(t), Panel.Align.CENTER);
         panel.button("down", 2, 38, 13, 11, "-", "down");
         panel.button("up", 85, 38, 13, 11, "+", "up");
         return panel;
@@ -131,7 +132,7 @@ public final class Panels {
         String room = degrees(units, t.roomF());
         // A pool's 104° is too wide to be big on so small a panel: it is drawn at the normal size there.
         bigOrNot(panel, "room", 3, 13, 41, room, text(t), Panel.Align.LEFT);
-        panel.label("set", 3, 27, 41, "set " + degrees(units, t.targetF()), DIM, Panel.Align.LEFT);
+        panel.label("set", 3, 27, 41, Lang.text("screen.set", Lang.arg("value", degrees(units, t.targetF()))), DIM, Panel.Align.LEFT);
         boolean working = t.enabled() && t.blocked().isEmpty() && t.mode() != OperatingMode.IDLE
                 && Double.isFinite(t.progress());
         panel.bar("progress", 3, 36, 40, 2, working ? t.progress() : 0.0, 0xFF000000 | text(t).value());
@@ -154,11 +155,11 @@ public final class Panels {
 
     static String state(String activity) {
         return switch (activity) {
-            case "Cooling" -> "❄ cooling";
-            case "Holding" -> "● holding";
-            case "Door open" -> "! door open";
-            case "Defrosting" -> "≈ defrosting";
-            default -> "○ off";
+            case "Cooling" -> "❄ " + Lang.text("screen.cooling");
+            case "Holding" -> "● " + Lang.text("screen.holding");
+            case "Door open" -> "! " + Lang.text("screen.door-open");
+            case "Defrosting" -> "≈ " + Lang.text("screen.defrosting");
+            default -> "○ " + Lang.text("screen.off");
         };
     }
 
@@ -176,16 +177,16 @@ public final class Panels {
         header(panel, c.name(), state(c.activity()), tone(c.activity()), 0);
         panel.big("inside", 4, 12, 70, degrees(units, c.insideF()) + units.name(),
                 c.deep() ? ICE_TEXT : NamedTextColor.WHITE, Panel.Align.LEFT);
-        panel.label("set", 4, c.deep() ? 29 : 30, c.deep() ? 44 : 78, "set " + degrees(units, c.setpoint()), DIM,
+        panel.label("set", 4, c.deep() ? 29 : 30, c.deep() ? 44 : 78, Lang.text("screen.set", Lang.arg("value", degrees(units, c.setpoint()))), DIM,
                 Panel.Align.LEFT);
         if (c.mini())
-            panel.label("chiller", 4, 40, 78, "chiller " + degrees(units, c.chillerF()), COOL_TEXT, Panel.Align.LEFT);
+            panel.label("chiller", 4, 40, 78, Lang.text("screen.chiller", Lang.arg("value", degrees(units, c.chillerF()))), COOL_TEXT, Panel.Align.LEFT);
         else if (c.deep()) {
-            panel.label("frostLabel", 4, 40, 28, "frost", DIM, Panel.Align.LEFT);
+            panel.label("frostLabel", 4, 40, 28, Lang.text("screen.frost"), DIM, Panel.Align.LEFT);
             panel.bar("frost", 32, 42, 12, 3, c.frost(), 0xFF7FDCFF);
-            panel.button("defrost", 50, 39, 48, 10, c.defrosting() ? "..." : "Defrost", "defrost");
+            panel.button("defrost", 50, 39, 48, 10, c.defrosting() ? "..." : Lang.text("screen.defrost"), "defrost");
         } else if (c.barrels() > 1)
-            panel.label("barrels", 4, 40, 78, c.barrels() + " barrels", DIM, Panel.Align.LEFT);
+            panel.label("barrels", 4, 40, 78, Lang.text("screen.barrels", Lang.arg("count", c.barrels())), DIM, Panel.Align.LEFT);
         // A deep freezer's arrows sit higher, leaving the bottom right to its Defrost button.
         panel.button("up", 86, 11, 12, c.deep() ? 11 : 12, "+", "up");
         panel.button("down", 86, c.deep() ? 24 : 37, 12, c.deep() ? 11 : 12, "-", "down");
@@ -202,8 +203,8 @@ public final class Panels {
         header(panel, r.name(), state(r.activity()), tone(r.activity()), 0);
         bigOrNot(panel, "fridge", 2, 11, 46, degrees(units, r.fridgeF()), NamedTextColor.WHITE, Panel.Align.CENTER);
         bigOrNot(panel, "freezer", 52, 11, 46, degrees(units, r.freezerF()), ICE_TEXT, Panel.Align.CENTER);
-        panel.label("fridgeName", 2, 28, 46, "FRIDGE", DIM, Panel.Align.CENTER);
-        panel.label("freezerName", 52, 28, 46, "FREEZER", DIM, Panel.Align.CENTER);
+        panel.label("fridgeName", 2, 28, 46, Lang.text("screen.fridge"), DIM, Panel.Align.CENTER);
+        panel.label("freezerName", 52, 28, 46, Lang.text("screen.freezer"), DIM, Panel.Align.CENTER);
         if (r.frost() >= 0.05) panel.bar("frost", 58, 37, 34, 1, r.frost(), 0xFF7FDCFF);
         // Each compartment's setpoint between its arrows, a stepper.
         panel.button("fridgeDown", 2, 39, 11, 10, "-", "fridge-down");
@@ -242,31 +243,31 @@ public final class Panels {
             case "TEMPERATURE" -> {
                 bigOrNot(panel, "reading", 4, 13, 54, units.compact(p.localF()).replace(units.name(), "°"),
                         NamedTextColor.WHITE, Panel.Align.LEFT);
-                panel.label("feels", 56, 14, 41, "feels " + degrees(units, p.feelsF()), NamedTextColor.YELLOW, Panel.Align.RIGHT);
-                panel.label("out", 56, 24, 41, "out " + degrees(units, p.outdoorF()), DIM, Panel.Align.RIGHT);
+                panel.label("feels", 56, 14, 41, Lang.text("screen.feels", Lang.arg("value", degrees(units, p.feelsF()))), NamedTextColor.YELLOW, Panel.Align.RIGHT);
+                panel.label("out", 56, 24, 41, Lang.text("screen.out", Lang.arg("value", degrees(units, p.outdoorF()))), DIM, Panel.Align.RIGHT);
             }
             case "HUMIDITY" -> {
                 bigOrNot(panel, "reading", 4, 13, 54, p.humidity(), NamedTextColor.WHITE, Panel.Align.LEFT);
-                panel.label("what", 56, 14, 41, "humidity", NamedTextColor.WHITE, Panel.Align.RIGHT);
-                panel.label("out", 56, 24, 41, "out " + p.outdoorHumidity(), DIM, Panel.Align.RIGHT);
+                panel.label("what", 56, 14, 41, Lang.text("screen.humidity"), NamedTextColor.WHITE, Panel.Align.RIGHT);
+                panel.label("out", 56, 24, 41, Lang.text("screen.out", Lang.arg("value", p.outdoorHumidity())), DIM, Panel.Align.RIGHT);
             }
             case "BOTH" -> {
                 bigOrNot(panel, "reading", 4, 13, 54, units.compact(p.localF()).replace(units.name(), "°"),
                         NamedTextColor.WHITE, Panel.Align.LEFT);
                 panel.label("humidity", 56, 14, 41, p.humidity() + " RH", NamedTextColor.WHITE, Panel.Align.RIGHT);
-                panel.label("feels", 56, 24, 41, "feels " + degrees(units, p.feelsF()), NamedTextColor.YELLOW, Panel.Align.RIGHT);
-                panel.label("out", 4, 31, 92, "out " + degrees(units, p.outdoorF()) + " · " + p.outdoorHumidity(), DIM,
+                panel.label("feels", 56, 24, 41, Lang.text("screen.feels", Lang.arg("value", degrees(units, p.feelsF()))), NamedTextColor.YELLOW, Panel.Align.RIGHT);
+                panel.label("out", 4, 31, 92, Lang.text("screen.out", Lang.arg("value", degrees(units, p.outdoorF()) + " · " + p.outdoorHumidity())), DIM,
                         Panel.Align.LEFT);
             }
             default -> {
                 if (!p.airOn() || !p.airKnown()) {
                     bigOrNot(panel, "reading", 4, 13, 54, "--", NamedTextColor.WHITE, Panel.Align.LEFT);
-                    panel.label("what", 56, 14, 41, p.airOn() ? "AQI" : "air off", DIM, Panel.Align.RIGHT);
+                    panel.label("what", 56, 14, 41, p.airOn() ? "AQI" : Lang.text("screen.air-off"), DIM, Panel.Align.RIGHT);
                 } else {
                     bigOrNot(panel, "reading", 4, 13, 40, p.aqi(), p.bandColor(), Panel.Align.LEFT);
                     panel.label("band", 44, 14, 53, fit(p.band(), 53), p.bandColor(), Panel.Align.RIGHT);
                     if (!p.cause().isEmpty())
-                        panel.label("cause", 44, 24, 53, fit("mostly " + p.cause(), 53), NamedTextColor.WHITE, Panel.Align.RIGHT);
+                        panel.label("cause", 44, 24, 53, fit(Lang.text("screen.mostly", Lang.arg("cause", p.cause())), 53), NamedTextColor.WHITE, Panel.Align.RIGHT);
                     if (!p.pollen().isEmpty())
                         panel.label("pollen", 4, 31, 92, fit(p.pollen(), 92), NamedTextColor.YELLOW, Panel.Align.LEFT);
                 }
@@ -291,14 +292,15 @@ public final class Panels {
             case "TURBO" -> HEATING;
             default -> NEUTRAL;
         };
-        header(panel, name, system.isEmpty() ? "not linked" : system, tone, 0);
+        header(panel, name, system.isEmpty() ? Lang.text("screen.not-linked") : system, tone, 0);
         if (system.isEmpty()) {
-            panel.label("hint", 4, 22, 92, "link it with the link-tool", DIM, Panel.Align.CENTER);
+            panel.label("hint", 4, 22, 92, Lang.text("screen.link-it"), DIM, Panel.Align.CENTER);
             return panel;
         }
-        panel.big("profile", 10, 15, 80, profile.charAt(0) + profile.substring(1).toLowerCase(Locale.ROOT),
+        panel.big("profile", 10, 15, 80, Lang.text(Lang.key("menu.control.profile-name", profile)),
                 NamedTextColor.WHITE, Panel.Align.CENTER);
-        String[][] buttons = {{"Eco", "eco", "6", "26"}, {"Normal", "normal", "36", "30"}, {"Turbo", "turbo", "70", "26"}};
+        String[][] buttons = {{Lang.text("menu.control.profile-name.eco"), "eco", "6", "26"}, {Lang.text("menu.control.profile-name.normal"), "normal", "36", "30"},
+                {Lang.text("menu.control.profile-name.turbo"), "turbo", "70", "26"}};
         for (String[] b : buttons) {
             int x = Integer.parseInt(b[2]), w = Integer.parseInt(b[3]);
             if (b[0].equalsIgnoreCase(profile)) panel.selected(b[1], x, 37, w, 11, b[0], b[1]);
@@ -316,13 +318,13 @@ public final class Panels {
     /** A dehumidifier or humidifier: the room's humidity big, its target, what it's doing; a dehumidifier's tank. */
     public static Panel humidity(HumidityState h) {
         Panel panel = new Panel(Panel.Size.SIGN);
-        header(panel, h.name(), h.drying() ? "dehumidifier" : "humidifier", h.tone(), 0);
+        header(panel, h.name(), h.drying() ? Lang.text("screen.dehumidifier") : Lang.text("screen.humidifier"), h.tone(), 0);
         bigOrNot(panel, "humidity", 4, 13, 44, Double.isFinite(h.humidity()) ? Math.round(h.humidity()) + "%" : "--%",
                 NamedTextColor.WHITE, Panel.Align.LEFT);
-        panel.label("set", 4, 30, 44, "set " + h.setpoint() + "%", DIM, Panel.Align.LEFT);
+        panel.label("set", 4, 30, 44, Lang.text("screen.set", Lang.arg("value", h.setpoint() + "%")), DIM, Panel.Align.LEFT);
         panel.label("doing", 4, 40, 78, fit(h.state(), 78), h.stateColor(), Panel.Align.LEFT);
         if (h.drying()) {
-            panel.label("tankLabel", 52, 14, 30, "tank", DIM, Panel.Align.LEFT);
+            panel.label("tankLabel", 52, 14, 30, Lang.text("screen.tank"), DIM, Panel.Align.LEFT);
             panel.bar("tank", 52, 24, 30, 3, h.tank(), 0xFF5AB4FF);
         }
         panel.button("up", 86, 11, 12, 12, "+", "up");
@@ -343,11 +345,11 @@ public final class Panels {
         bigOrNot(panel, "aqi", 4, 11, 36, p.aqi(), p.bandColor(), Panel.Align.LEFT);
         panel.label("band", 42, 12, 55, fit(p.band(), 55), p.bandColor(), Panel.Align.RIGHT);
         if (p.filterIn()) {
-            panel.label("filterLabel", 42, 23, 22, "filter", DIM, Panel.Align.LEFT);
+            panel.label("filterLabel", 42, 23, 22, Lang.text("screen.filter"), DIM, Panel.Align.LEFT);
             panel.bar("filter", 66, 25, 30, 3, p.filter(), 0xFF5AB4FF);
-        } else panel.label("filterLabel", 42, 23, 55, "no filter", NamedTextColor.GOLD, Panel.Align.RIGHT);
+        } else panel.label("filterLabel", 42, 23, 55, Lang.text("screen.no-filter"), NamedTextColor.GOLD, Panel.Align.RIGHT);
         String[][] modes = {{"L", "LOW", "4", "18"}, {"M", "MEDIUM", "24", "18"}, {"H", "HIGH", "44", "18"},
-                {"Auto", "AUTO", "64", "32"}};
+                {Lang.text("screen.auto"), "AUTO", "64", "32"}};
         for (String[] m : modes) {
             int x = Integer.parseInt(m[2]), w = Integer.parseInt(m[3]);
             String action = "mode-" + m[1].toLowerCase(Locale.ROOT);
@@ -364,9 +366,9 @@ public final class Panels {
         Panel panel = new Panel(Panel.Size.SIGN);
         pagedHeader(panel, name, NEUTRAL, page, pages);
         if (empty) {
-            panel.label("empty", 4, 14, 92, "No sensors yet:", DIM, Panel.Align.CENTER);
-            panel.label("empty1", 4, 23, 92, "link them", DIM, Panel.Align.CENTER);
-            panel.label("empty2", 4, 32, 92, "with the sensor-tool", DIM, Panel.Align.CENTER);
+            panel.label("empty", 4, 14, 92, Lang.text("screen.no-sensors-1"), DIM, Panel.Align.CENTER);
+            panel.label("empty1", 4, 23, 92, Lang.text("screen.no-sensors-2"), DIM, Panel.Align.CENTER);
+            panel.label("empty2", 4, 32, 92, Lang.text("screen.no-sensors-3"), DIM, Panel.Align.CENTER);
             return panel;
         }
         for (int i = 0; i < lines.size() && i < 3; i++)
@@ -399,7 +401,7 @@ public final class Panels {
             panel.label("status", 4, 20, 92, s.state(), s.state().equals("Damaged") ? NamedTextColor.GOLD : DIM,
                     Panel.Align.CENTER);
             if (s.state().equals("Damaged"))
-                panel.label("hint", 4, 30, 92, "rebuild its tower", DIM, Panel.Align.CENTER);
+                panel.label("hint", 4, 30, 92, Lang.text("screen.rebuild-tower"), DIM, Panel.Align.CENTER);
             return panel;
         }
         bigOrNot(panel, "now", 4, 12, 46, s.now(), NamedTextColor.WHITE, Panel.Align.LEFT);
@@ -424,11 +426,11 @@ public final class Panels {
 
     static String kind(EquipmentType type) {
         return switch (type) {
-            case HEAT_PUMP -> "HP";
-            case AIR_CONDITIONER -> "AC";
-            case FURNACE -> "Furnace";
-            case BOILER -> "Boiler";
-            case POOL_HEAT_PUMP -> "Pool HP";
+            case HEAT_PUMP -> Lang.text("screen.hp");
+            case AIR_CONDITIONER -> Lang.text("screen.ac");
+            case FURNACE -> Lang.text("screen.furnace");
+            case BOILER -> Lang.text("screen.boiler");
+            case POOL_HEAT_PUMP -> Lang.text("screen.pool-hp");
         };
     }
 
@@ -444,12 +446,12 @@ public final class Panels {
         int tone = !linked || rows.isEmpty() ? NEUTRAL : running ? HOLDING : OFF;
         pagedHeader(panel, system.isEmpty() ? name : name + " · " + system, tone, page, pages);
         if (!linked) {
-            panel.label("unlinked", 4, 18, 92, "Not linked:", DIM, Panel.Align.CENTER);
-            panel.label("unlinked2", 4, 28, 92, "use the link-tool", DIM, Panel.Align.CENTER);
+            panel.label("unlinked", 4, 18, 92, Lang.text("screen.unlinked-1"), DIM, Panel.Align.CENTER);
+            panel.label("unlinked2", 4, 28, 92, Lang.text("screen.unlinked-2"), DIM, Panel.Align.CENTER);
             return panel;
         }
         if (rows.isEmpty()) {
-            panel.label("none", 4, 24, 92, "No equipment", NamedTextColor.RED, Panel.Align.CENTER);
+            panel.label("none", 4, 24, 92, Lang.text("screen.no-equipment"), NamedTextColor.RED, Panel.Align.CENTER);
             return panel;
         }
         for (int i = 0; i < rows.size() && i < 3; i++) {
@@ -461,7 +463,7 @@ public final class Panels {
             String what = kind(row.type()) + " T" + row.tier().number() + (row.units() > 1 ? " ×" + row.units() : "");
             TextColor color = on ? NamedTextColor.WHITE : OFF_TEXT;
             panel.label("kind" + i, 14, y + 2, 48, TextWidth.fit(what, (int) (48 / Panel.SMALL)), color, Panel.Align.LEFT);
-            String speed = on ? String.format(Locale.US, "%,.0f", row.rpm()) : "off";
+            String speed = on ? String.format(Locale.US, "%,.0f", row.rpm()) : Lang.text("screen.off");
             panel.label("speed" + i, 63, y + 2, 34, speed, on ? HOLD_TEXT : OFF_TEXT, Panel.Align.RIGHT);
         }
         return panel;
