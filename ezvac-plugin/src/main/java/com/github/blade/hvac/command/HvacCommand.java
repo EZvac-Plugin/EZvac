@@ -1391,7 +1391,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                         : "command.fridge.inside",
                 arg("inside", Double.isFinite(inside) ? settings.units().format(inside, 1) : unmeasured),
                 arg("setpoint", settings.units().format(refrigerator.setpoint(), 0)),
-                arg("activity", refrigerator.activity())));
+                arg("activity", DisplayService.word(refrigerator.activity()))));
         if (refrigerator instanceof MiniFridge mini) {
             double chiller = mini.chillerF();
             player.sendMessage(Lang.message("command.fridge.chiller", arg("chiller", Double.isFinite(chiller)

@@ -398,9 +398,9 @@ public final class Panels {
         Panel panel = new Panel(Panel.Size.SIGN);
         header(panel, s.name(), "", s.tone(), 0);
         if (!s.state().isEmpty()) {
-            panel.label("status", 4, 20, 92, s.state(), s.state().equals("Damaged") ? NamedTextColor.GOLD : DIM,
+            panel.label("status", 4, 20, 92, s.state(), s.state().equals(DisplayService.word("Damaged")) ? NamedTextColor.GOLD : DIM,
                     Panel.Align.CENTER);
-            if (s.state().equals("Damaged"))
+            if (s.state().equals(DisplayService.word("Damaged")))
                 panel.label("hint", 4, 30, 92, Lang.text("screen.rebuild-tower"), DIM, Panel.Align.CENTER);
             return panel;
         }
