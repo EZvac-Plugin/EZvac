@@ -11,7 +11,7 @@ class SignTextTest {
         assertEquals(94, TextWidth.width("Thermohygrometer"), "one letter too wide");
         assertEquals(70, TextWidth.width("T. Hygrometer"));
         assertEquals(0, TextWidth.width(""));
-        assertTrue(TextWidth.width("é") >= 9, "anything outside ASCII is counted wide");
+        assertTrue(TextWidth.width("中") >= 9, "anything the font table lacks is counted wide");
     }
 
     @Test
@@ -36,5 +36,15 @@ class SignTextTest {
         assertEquals("Set 72.0 F", TextWidth.fit("Set 72.0 F | 100%", 60), "no separator left dangling");
         assertEquals("Garden", TextWidth.fit("Garden -40F", 50), "a negative reading is a reading too");
         assertEquals(45, TextWidth.fit("i".repeat(60), 90).length(), "fifty-ish thin letters");
+    }
+
+    /** Translations (BETA 1.1): accented, Greek and Cyrillic letters at the client's widths, not counted wide. */
+    @Test
+    void lettersOfOtherLanguagesAreMeasuredAsDrawn() {
+        assertEquals(6, TextWidth.width("é"));
+        assertEquals(8, TextWidth.width("Ж"));
+        assertEquals(8, TextWidth.width("ω"));
+        assertEquals(6 + 6, TextWidth.width("иß"));
+        assertEquals(9, TextWidth.width("中"), "a CJK glyph stays counted wide");
     }
 }
