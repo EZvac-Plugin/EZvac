@@ -34,7 +34,7 @@ public abstract sealed class ClimateUnit permits Dehumidifier, Humidifier, AirPu
 
         private final String displayName;
         Kind(String displayName) { this.displayName = displayName; }
-        public String displayName() { return displayName; }
+        public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.unit", name())); }
     }
 
     /** EMPTYING is a dehumidifier's; NO_FILTER and FILTER_SPENT an air purifier's (3.2). */

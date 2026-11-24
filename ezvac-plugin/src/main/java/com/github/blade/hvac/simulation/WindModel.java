@@ -32,8 +32,7 @@ public final class WindModel {
         CALM, BREEZY, WINDY, GALE;
 
         public String displayName() {
-            String name = name().toLowerCase(Locale.ROOT);
-            return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+            return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("wind.level", name()));
         }
 
         /** {@code gale}, {@code Windy}; null when it names no level. */

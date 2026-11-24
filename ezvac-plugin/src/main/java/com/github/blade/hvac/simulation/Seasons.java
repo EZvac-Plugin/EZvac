@@ -20,8 +20,7 @@ public final class Seasons {
         SPRING, SUMMER, AUTUMN, WINTER;
 
         public String displayName() {
-            String name = name().toLowerCase(Locale.ROOT);
-            return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+            return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("season", name()));
         }
 
         public Season next() { return values()[(ordinal() + 1) % 4]; }

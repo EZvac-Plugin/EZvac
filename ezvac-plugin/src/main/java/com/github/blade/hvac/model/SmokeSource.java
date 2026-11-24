@@ -71,7 +71,6 @@ public enum SmokeSource {
     }
 
     public String displayName() {
-        String name = name().toLowerCase(Locale.ROOT).replace('_', ' ');
-        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+        return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("air.smoke-source", name()));
     }
 }

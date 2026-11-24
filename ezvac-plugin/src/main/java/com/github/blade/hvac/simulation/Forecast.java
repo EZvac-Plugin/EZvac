@@ -35,7 +35,7 @@ public final class Forecast {
 
         private final String displayName;
         Sky(String displayName) { this.displayName = displayName; }
-        public String displayName() { return displayName; }
+        public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("weather.sky", name())); }
     }
 
     /**

@@ -19,7 +19,7 @@ public final class StationShape {
 
         private final String description;
         Part(String description) { this.description = description; }
-        public String description() { return description; }
+        public String description() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.station-part", name())); }
     }
 
     /**

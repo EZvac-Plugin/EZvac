@@ -47,7 +47,7 @@ public final class AirQualityIndex {
         Pollutant(String code, String cause) { this.code = code; this.cause = cause; }
         public String code() { return code; }
         /** The plain word players see: Smoke or Dust. */
-        public String cause() { return cause; }
+        public String cause() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("air.cause", name())); }
     }
 
     public enum Band {
@@ -61,9 +61,9 @@ public final class AirQualityIndex {
         private final String displayName;
         private final String shortName;
         Band(String displayName, String shortName) { this.displayName = displayName; this.shortName = shortName; }
-        public String displayName() { return displayName; }
+        public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("air.band", name())); }
         /** For signs, where the EPA's longest name does not fit. */
-        public String shortName() { return shortName; }
+        public String shortName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("air.band-short", name())); }
 
         public static Band of(int aqi) {
             if (aqi <= 50) return GOOD;
@@ -80,14 +80,14 @@ public final class AirQualityIndex {
 
         private final String displayName;
         PollenLevel(String displayName) { this.displayName = displayName; }
-        public String displayName() { return displayName; }
+        public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("air.pollen", name())); }
 
         /** The HUD's shorter words (BETA 1.0): Med and V.High, so no level widens the sidebar. */
         public String hudName() {
             return switch (this) {
-                case MODERATE -> "Med";
-                case VERY_HIGH -> "V.High";
-                default -> displayName;
+                case MODERATE -> com.github.blade.hvac.lang.Lang.text("air.pollen-hud.moderate");
+                case VERY_HIGH -> com.github.blade.hvac.lang.Lang.text("air.pollen-hud.very-high");
+                default -> displayName();
             };
         }
 

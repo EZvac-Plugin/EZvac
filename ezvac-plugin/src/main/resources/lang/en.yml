@@ -1136,3 +1136,140 @@ tutorial:
   not-safe: "<red>Your things couldn't be kept safe, so the tutorial didn't start: see the console."
   trip-stopped: "<red>Another plugin stopped the trip to the tutorial world, so it didn't start."
   unreadable: "<red>Your things from before the tutorial couldn't be read back. They aren't lost: an admin can find them in plugins/EZvac/tutorial."
+device:
+  unit:
+    dehumidifier: "Dehumidifier"
+    humidifier: "Humidifier"
+    air-purifier: "Air purifier"
+    fridge: "Fridge"
+    freezer: "Deep freezer"
+    fridge-freezer: "Refrigerator"
+    mini-fridge: "Mini fridge"
+  kind:
+    heat-pump:
+      one: "Heat pump"
+      many: "Heat pumps"
+    air-conditioner:
+      one: "Air conditioner"
+      many: "Air conditioners"
+    furnace:
+      one: "Furnace"
+      many: "Furnaces"
+    boiler:
+      one: "Boiler"
+      many: "Boilers"
+    pool-heat-pump:
+      one: "Pool heat pump"
+      many: "Pool heat pumps"
+    dehumidifier:
+      one: "Dehumidifier"
+      many: "Dehumidifiers"
+    humidifier:
+      one: "Humidifier"
+      many: "Humidifiers"
+    air-purifier:
+      one: "Air purifier"
+      many: "Air purifiers"
+    fridge:
+      one: "Fridge"
+      many: "Fridges"
+    freezer:
+      one: "Deep freezer"
+      many: "Deep freezers"
+    fridge-freezer:
+      one: "Refrigerator"
+      many: "Refrigerators"
+    mini-fridge:
+      one: "Mini fridge"
+      many: "Mini fridges"
+    weather-station:
+      one: "Weather station"
+      many: "Weather stations"
+  refusal: "<kinds> are switched off on this server, so no new one can be made. An admin can switch them back on in /hvac quicksettings."
+  equipment:
+    heat-pump: "Heat pump"
+    air-conditioner: "Air conditioner"
+    furnace: "Furnace"
+    boiler: "Boiler"
+    pool-heat-pump: "Pool heat pump"
+  sensor:
+    temperature: "temperature"
+    humidity: "humidity"
+    both: "temperature and humidity"
+    weather: "weather"
+    air: "air quality"
+    wind: "wind"
+  station-part:
+    copper: "a waxed copper block"
+    iron: "an iron block"
+    cut-copper: "waxed cut copper"
+    rod: "a waxed lightning rod"
+  instrument:
+    temperature: "Thermometer"
+    humidity: "Hygrometer"
+    both: "Thermo-hygrometer"
+    air: "Air monitor"
+  tier:
+    single-stage: "Single-stage"
+    two-stage: "Two-stage"
+    variable: "Variable-speed"
+    modulating: "Modulating"
+  purifier-mode:
+    low: "Low"
+    medium: "Medium"
+    high: "High"
+    auto: "Auto"
+  purifier-auto: "Auto · <speed>"
+weather:
+  sky:
+    clear: "Clear"
+    rain: "Rain"
+    snow: "Snow"
+    thunder: "Thunder"
+air:
+  band:
+    good: "Good"
+    moderate: "Moderate"
+    sensitive: "Unhealthy for Sensitive Groups"
+    unhealthy: "Unhealthy"
+    very-unhealthy: "Very Unhealthy"
+    hazardous: "Hazardous"
+  band-short:
+    good: "Good"
+    moderate: "Moderate"
+    sensitive: "Sensitive"
+    unhealthy: "Unhealthy"
+    very-unhealthy: "Very bad"
+    hazardous: "Hazardous"
+  pollen:
+    low: "Low"
+    moderate: "Moderate"
+    high: "High"
+    very-high: "Very high"
+  pollen-hud:
+    moderate: "Med"
+    very-high: "V.High"
+  smoke-source:
+    campfire: "Campfire"
+    fire: "Fire"
+    lava: "Lava"
+    furnace: "Furnace"
+    smoker: "Smoker"
+    blast-furnace: "Blast furnace"
+    candle: "Candle"
+    torch: "Torch"
+  cause:
+    pm25: "Smoke"
+    pm10: "Dust"
+wind:
+  level:
+    calm: "Calm"
+    breezy: "Breezy"
+    windy: "Windy"
+    gale: "Gale"
+  units-auto: "Auto"
+season:
+  spring: "Spring"
+  summer: "Summer"
+  autumn: "Autumn"
+  winter: "Winter"

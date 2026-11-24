@@ -28,7 +28,7 @@ public enum Tier {
 
     /** "Variable-speed"; a variable furnace or boiler is "Modulating". */
     public String displayName(EquipmentType type) {
-        return this == VARIABLE && type.fixedSpeed() ? "Modulating" : displayName;
+        return com.github.blade.hvac.lang.Lang.text(this == VARIABLE && type.fixedSpeed() ? "device.tier.modulating" : com.github.blade.hvac.lang.Lang.key("device.tier", name()));
     }
 
     /** "★★☆" for two-stage, with the server's own glyphs. */

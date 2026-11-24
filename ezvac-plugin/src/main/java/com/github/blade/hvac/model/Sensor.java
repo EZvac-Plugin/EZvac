@@ -24,7 +24,7 @@ public record Sensor(BlockKey position, String label, Kind reads) {
         private final String description;
         Kind(String description) { this.description = description; }
         /** For messages: "a weather sensor", "reads temperature and humidity". */
-        public String description() { return description; }
+        public String description() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("device.sensor", name())); }
 
         /** Missing means temperature, the stone button's. */
         static Kind parse(Object value) {
