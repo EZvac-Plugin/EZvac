@@ -57,9 +57,12 @@ The same file also works for a language EZvac doesn't ship: name it
 
 ## Helping translate
 
-Translations are welcome. Say which language you'd like to do on our
-[Discord](https://discord.gg/tCedQgFFDU). There will be a Weblate project, so
-you can translate in your browser without touching files.
+Translations are welcome, and EZvac is translated on
+**[Weblate](https://hosted.weblate.org/engage/ezvac/)**: sign in, pick or add your language and
+translate in your browser, without touching files. Weblate sends the work to
+us as a pull request; every one is checked and then merged, and the next
+release carries it. Questions are welcome on our
+[Discord](https://discord.gg/tCedQgFFDU).
 
 You can also translate by file:
 1. Copy `lang/en.yml` to `lang/<code>.yml`, using a short language code such

@@ -141,8 +141,9 @@ their own: see [The EZvac API](api.md).
 ## Translations
 
 Since BETA 1.1, EZvac can speak your players' language: set `language` in
-`config.yml`. English is the only one so far, and translators are welcome.
-Say which language you'd like to do on our [Discord](https://discord.gg/tCedQgFFDU).
+`config.yml`. English is the only one so far, and translators are welcome:
+**EZvac is translated on [Weblate](https://hosted.weblate.org/engage/ezvac/)**, in your browser, no files or
+code needed. Questions are welcome on our [Discord](https://discord.gg/tCedQgFFDU).
 Server owners can also change single words. See [Translations](translating.md).
 
 ## Built to be safe
