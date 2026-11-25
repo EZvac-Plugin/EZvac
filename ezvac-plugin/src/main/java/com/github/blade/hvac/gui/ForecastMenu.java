@@ -180,7 +180,7 @@ public final class ForecastMenu implements Listener {
                 lore.add(gray(Lang.text("menu.forecast.pollen", arg("level",
                         AirQualityIndex.PollenLevel.of(day.pollen(), air.pollenLevels()).displayName()))));
             if (!day.note().isEmpty())
-                lore.add(Component.text(day.note(), NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text(com.github.blade.hvac.service.StationText.note(day.note()), NamedTextColor.GOLD).decoration(TextDecoration.ITALIC, false));
             String season = null;
             int dayOfSeason = 0;
             if (seasons != null && seasons.tracks(station.position().worldId())) {

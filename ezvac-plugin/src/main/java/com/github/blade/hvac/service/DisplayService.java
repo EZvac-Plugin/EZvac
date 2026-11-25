@@ -216,7 +216,7 @@ public final class DisplayService {
                     today == null ? word(state) : "", tone, StationText.temperature(nowF, units),
                     today == null ? "" : StationText.sky(today, stations.snowDay(station, today)),
                     today == null ? "" : StationText.highLow(today, units), conditions,
-                    today == null ? "" : today.note(),
+                    today == null ? "" : StationText.note(today.note()),
                     tomorrow == null ? "" : StationText.tomorrow(tomorrow, stations.snowDay(station, tomorrow)))));
             return;
         }
@@ -237,7 +237,7 @@ public final class DisplayService {
                     .line(StationText.sky(today, stations.snowDay(station, today)), NamedTextColor.WHITE)
                     .line(StationText.highLow(today, units), NamedTextColor.GRAY);
             if (!conditions.isEmpty()) screen.line(conditions, NamedTextColor.GRAY);
-            if (!today.note().isEmpty()) screen.line(today.note(), NamedTextColor.GOLD);
+            if (!today.note().isEmpty()) screen.line(StationText.note(today.note()), NamedTextColor.GOLD);
             else if (tomorrow != null) screen.line(StationText.tomorrow(tomorrow, stations.snowDay(station, tomorrow)), NamedTextColor.AQUA);
             return screen;
         });

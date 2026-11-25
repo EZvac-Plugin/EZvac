@@ -489,6 +489,9 @@ block:
     notice: "<yellow>Removed <what>."
   filter-removed: "<yellow>Filter removed. Place a fresh tube coral block to give <name> a new one."
 update:
+  channel:
+    stable: "Stable"
+    pilot: "Pilot"
   prefix: "<gold>[EZvac] "
   development: "<yellow>This EZvac (<running>) is a development build, not a release, so there is nothing to check it against."
   checking: "<gray>Checking GitHub for a newer EZvac..."
@@ -1411,7 +1414,35 @@ screen:
   misting: "misting"
   emptying-lower: "emptying..."
   eta-now: "now"
+addons:
+  # The addon catalogue's descriptions, on the quick settings Addons page.
+  ezclimates: "Seasons you can see: rain or snow by EZvac's air, snow and ice that melt, leaves that turn, planned weather, crops that grow by the air (a heated greenhouse grows in winter), and body temperature: rain soaks you, fires warm you, the cold makes you hungry."
+  liveexposure: "Body temperature: heat and cold that wear down survival players caught in the elements."
+  ezdebugplus: "Adds to EZvac's built-in EZdebug: a Debug Potion that shows every system at once, rooms and their leaks, weather stations' areas and the links between devices."
+  mappeek: "EZvac on your web map: weather stations, the wind, air quality and the season on squaremap and BlueMap."
+addon-needs:
+  # What an addon in the catalogue needs besides EZvac.
+  ezclimates: "Minecraft 26.1 or newer, and packetevents"
+  mappeek: "squaremap or BlueMap"
 names:
+  # Thermostat modes and speed profiles as /hvac list and info show them.
+  mode:
+    idle: "IDLE"
+    cooling: "COOLING"
+    heating: "HEATING"
+  profile:
+    eco: "ECO"
+    normal: "NORMAL"
+    turbo: "TURBO"
+    fixed: "FIXED"
+  # A dehumidifier, humidifier or purifier's state in /hvac info.
+  state:
+    "off": "OFF"
+    idle: "IDLE"
+    running: "RUNNING"
+    emptying: "EMPTYING"
+    no-filter: "NO_FILTER"
+    filter-spent: "FILTER_SPENT"
   headless-system: "a headless system"
   headless: "Headless"
   nothing: "nothing"
@@ -1442,6 +1473,15 @@ names:
   water-system: "is a water system: it takes boilers, pool heat pumps and waxed copper grates"
   air-system: "is an air system: it takes heat pumps, air conditioners, furnaces and iron trapdoors"
 station:
+  # Forecast notes for today and tomorrow, on the forecast menu and station screens.
+  note:
+    clear-all-day: "Clear all day"
+    rain-all-day: "Rain all day"
+    snow-all-day: "Snow all day"
+    rain-until: "Rain until <time>"
+    rain-from: "Rain from <time>"
+    snow-until: "Snow until <time>"
+    snow-from: "Snow from <time>"
   high-low: "Hi <high>° Lo <low>°"
   sky-chance: "<sky> <chance>"
   clear-rain: "Clear, rain <chance>"

@@ -392,7 +392,21 @@ public final class QuickSettingsMenu implements Listener {
     }
 
     private static void describe(List<Component> lore, AddonCatalogue.Entry entry) {
-        for (String line : AddonCatalogue.wrap(entry.description(), 38)) lore.add(gray(line));
+        for (String line : AddonCatalogue.wrap(description(entry), 38)) lore.add(gray(line));
+    }
+
+    /**
+     * An addon's description (BETA 1.1): in English the catalogue's own, which
+     * may be newer than this jar; in another language its translation, or the
+     * catalogue's for an addon newer than the language file.
+     */
+    static String description(AddonCatalogue.Entry entry) {
+        return catalogue(Lang.key("addons", entry.id()), entry.description());
+    }
+
+    /** A catalogue text the same way: English as the catalogue has it, translated where there's a translation. */
+    private static String catalogue(String key, String english) {
+        return Lang.language().equals(Lang.ENGLISH) || !Lang.has(key) ? english : Lang.text(key);
     }
 
     private static Component yellow(String text) {
@@ -453,7 +467,7 @@ public final class QuickSettingsMenu implements Listener {
             AddonCatalogue.Entry entry = store.get(i);
             List<Component> lore = new ArrayList<>();
             describe(lore, entry);
-            if (!entry.needs().isEmpty()) lore.add(lore("menu.qs.addons.needs", arg("needs", entry.needs())));
+            if (!entry.needs().isEmpty()) lore.add(lore("menu.qs.addons.needs", arg("needs", catalogue(Lang.key("addon-needs", entry.id()), entry.needs()))));
             if (!addons.runsHere(entry))
                 lore.add(lore("menu.qs.addons.needs-minecraft", arg("minecraft", entry.minecraft())));
             if (entry.folded()) {
