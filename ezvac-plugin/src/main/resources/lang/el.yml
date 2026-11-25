@@ -12,10 +12,52 @@ command:
   mode-times: {}
 link:
   tool: {}
-time: {}
+time:
+  seconds: <n> δ
+  minutes: <n> λεπ
+  hours-minutes: <h> ω <m> λεπ
+  days: <n> ημέρες
+  ago:
+    now: μόλις τώρα
+    minute: <n> λεπτό πριν
+    minutes: <n> λεπτά πριν
+    hour: <n> ώρα πριν
+    hours: <n> ώρες πριν
+    days: <n> ημέρες πριν
 menu:
   qs: {}
 device:
-  kind: {}
+  kind:
+    heat-pump:
+      one: Αντλία Θερμότητας
+      many: Αντλίες Θερμότητας
+    air-conditioner:
+      one: Κλιματιστικό
+      many: Κλιματιστικά
+    furnace:
+      one: Αερολέβητας
+      many: Αερολέβητες
+    boiler:
+      one: Λέβητας
+      many: Λέβητες
+    pool-heat-pump:
+      one: Αντλία θερμότητας πίσινας
+      many: Αντλίες θερμότητας πίσινας
+    dehumidifier:
+      one: Αφυγραντήρας
+      many: Αφυγραντήρες
+    humidifier:
+      one: Υγραντήρας
+      many: Υγραντήρες
+    air-purifier:
+      one: Καθαριστής Αέρα
+      many: Καθαριστές Αέρα
+    weather-station:
+      one: Μετεωρολογικός σταθμός
+      many: Μετεωρολογικοί σταθμοί
+  unit:
+    dehumidifier: Αφυγραντήρας
+    humidifier: Υγραντήρας
+    air-purifier: Καθαριστής Αέρα
 weather: {}
 station: {}
