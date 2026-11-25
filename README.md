@@ -9,6 +9,7 @@
 [![Java](https://img.shields.io/badge/Java-25-0e7c86?logo=openjdk&style=for-the-badge&labelColor=1f2328)](#minecraft-versions)
 [![Modrinth](https://img.shields.io/modrinth/dt/ezvac-plugin?label=downloads&logo=modrinth&color=0e7c86&style=for-the-badge&labelColor=1f2328)](https://modrinth.com/plugin/ezvac-plugin)
 [![Build](https://img.shields.io/github/actions/workflow/status/EZvac-Plugin/EZvac/build.yml?branch=main&label=build&logo=githubactions&style=for-the-badge&labelColor=1f2328)](https://github.com/EZvac-Plugin/EZvac/actions/workflows/build.yml)
+[![Translate](https://img.shields.io/badge/translate-Weblate-0e7c86?logo=weblate&style=for-the-badge&labelColor=1f2328)](https://hosted.weblate.org/engage/ezvac/)
 [![License](https://img.shields.io/github/license/EZvac-Plugin/EZvac?color=0e7c86&logo=opensourceinitiative&style=for-the-badge&labelColor=1f2328)](LICENSE)
 
 [![Website](https://img.shields.io/badge/Website-f69500?style=for-the-badge&logo=data:image/svg%2bxml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PHBhdGggZmlsbD0iI2ZmZiIgZmlsbC1ydWxlPSJldmVub2RkIiBkPSJNOCAxYTcgNyAwIDEgMCAwIDE0QTcgNyAwIDAgMCA4IDF6bS0uOCAxLjZDNi40IDMuNyA1LjkgNS4zIDUuOCA3LjJIMy4xYTUgNSAwIDAgMSA0LjEtNC42em0xLjYgMGE1IDUgMCAwIDEgNC4xIDQuNmgtMi43Yy0uMS0xLjktLjYtMy41LTEuNC00LjZ6TTcuMiA3LjJINy4zYy4xLTEuNi41LTMgLjctMy42LjIuNi42IDIgLjcgMy42ek0zLjEgOC44aDIuN2MuMSAxLjkuNiAzLjUgMS40IDQuNmE1IDUgMCAwIDEtNC4xLTQuNnptNC4yIDBoMS40Yy0uMSAxLjYtLjUgMy0uNyAzLjYtLjItLjYtLjYtMi0uNy0zLjZ6bTMuNiAwaDIuN2E1IDUgMCAwIDEtNC4xIDQuNmMuOC0xLjEgMS4zLTIuNyAxLjQtNC42eiIvPjwvc3ZnPg==)](https://ezvac-plugin.github.io/EZvac/)
@@ -159,8 +160,9 @@ every device, controls and events. Add
 ## Translations
 
 Since BETA 1.1, EZvac can speak your players' language: set `language` in
-`config.yml`. English is the only one so far, and translators are welcome.
-Say which language you'd like to do on our [Discord](https://discord.gg/tCedQgFFDU).
+`config.yml`. English is the only one so far, and translators are welcome:
+**EZvac is translated on [Weblate](https://hosted.weblate.org/engage/ezvac/)**, in your browser, no files or
+code needed. Questions are welcome on our [Discord](https://discord.gg/tCedQgFFDU).
 Server owners can also change single words. See [Translations](docs/translating.md).
 
 ## Statistics
