@@ -87,7 +87,10 @@ class LangTest {
         try (Stream<Path> files = Files.list(LANG)) {
             for (Path file : (Iterable<Path>) files::iterator) {
                 String code = file.getFileName().toString().replace(".yml", "");
-                for (String problem : unreadable(Lang.read(code))) wrong.add(code + ": " + problem);
+                // A blank value is a word not translated yet, and stays English (see Lang.load).
+                Map<String, String> written = new java.util.HashMap<>(Lang.read(code));
+                written.values().removeIf(String::isBlank);
+                for (String problem : unreadable(written)) wrong.add(code + ": " + problem);
             }
         }
         assertEquals(List.of(), wrong);
@@ -133,6 +136,15 @@ class LangTest {
                     java.util.Objects.requireNonNullElseGet(Lang.quickly(template, v),
                             () -> plain.serialize(Lang.MINI.deserialize(template, v))), template);
         assertNull(Lang.quickly("<v> and a component", Lang.arg("v", net.kyori.adventure.text.Component.text("c"))));
+    }
+
+    @Test
+    void aBlankTranslationStaysEnglish(@TempDir File folder) throws IOException {
+        File lang = new File(folder, "lang");
+        assertTrue(lang.mkdirs());
+        Files.writeString(new File(lang, "de.yml").toPath(), "command:\n  sync:\n    queued: \"\"\n");
+        Lang.load("de", folder, message -> {});
+        assertEquals(Lang.english().get("command.sync.queued").replaceAll("<[^>]+>", ""), Lang.text("command.sync.queued"));
     }
 
     @Test
@@ -223,6 +235,19 @@ class LangTest {
                 net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(
                         net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize("<w>",
                                 Lang.arg("w", "<red>World"))));
+    }
+
+    /**
+     * Weblate's YAML writer can't keep a comment inside a section: once it
+     * drops a language's untranslated strings, the file no longer reads.
+     */
+    @Test
+    void englishHasCommentsOnlyAtTheTop() throws IOException {
+        List<String> inside = new ArrayList<>();
+        List<String> lines = Files.readAllLines(LANG.resolve("en.yml"), StandardCharsets.UTF_8);
+        for (int i = 0; i < lines.size(); i++)
+            if (lines.get(i).startsWith(" ") && lines.get(i).trim().startsWith("#")) inside.add((i + 1) + ": " + lines.get(i).trim());
+        assertEquals(List.of(), inside);
     }
 
     @Test
