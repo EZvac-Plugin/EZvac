@@ -81,8 +81,10 @@ public final class Lang {
                     + " English. Translations are welcome: https://ezvac-plugin.github.io/EZvac/translating/");
             wanted = ENGLISH;
         }
-        table.putAll(bundled);
-        if (hasOwn) table.putAll(flatten(YamlConfiguration.loadConfiguration(own)));
+        // A blank value is a word not translated yet: it stays English rather than showing nothing.
+        bundled.forEach((key, value) -> { if (!value.isBlank()) table.put(key, value); });
+        if (hasOwn)
+            flatten(YamlConfiguration.loadConfiguration(own)).forEach((key, value) -> { if (!value.isBlank()) table.put(key, value); });
         current = Map.copyOf(table);
         language = wanted;
     }

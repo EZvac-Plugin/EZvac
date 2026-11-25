@@ -1,5 +1,7 @@
 # EZvac's words in English (BETA 1.1): the source every translation follows.
 # Values are MiniMessage. Keep each <placeholder> as it is; colours and order may change.
+# Default device names (names.default) must stay one word with no spaces: players type them in commands.
+# Comments only up here: Weblate can't keep a comment inside a section.
 command:
   create:
     fridge-barrel: "<red>Put a barrel on top of the iron block: that's what it keeps cold."
@@ -1415,17 +1417,14 @@ screen:
   emptying-lower: "emptying..."
   eta-now: "now"
 addons:
-  # The addon catalogue's descriptions, on the quick settings Addons page.
   ezclimates: "Seasons you can see: rain or snow by EZvac's air, snow and ice that melt, leaves that turn, planned weather, crops that grow by the air (a heated greenhouse grows in winter), and body temperature: rain soaks you, fires warm you, the cold makes you hungry."
   liveexposure: "Body temperature: heat and cold that wear down survival players caught in the elements."
   ezdebugplus: "Adds to EZvac's built-in EZdebug: a Debug Potion that shows every system at once, rooms and their leaks, weather stations' areas and the links between devices."
   mappeek: "EZvac on your web map: weather stations, the wind, air quality and the season on squaremap and BlueMap."
 addon-needs:
-  # What an addon in the catalogue needs besides EZvac.
   ezclimates: "Minecraft 26.1 or newer, and packetevents"
   mappeek: "squaremap or BlueMap"
 names:
-  # Thermostat modes and speed profiles as /hvac list and info show them.
   mode:
     idle: "IDLE"
     cooling: "COOLING"
@@ -1435,7 +1434,6 @@ names:
     normal: "NORMAL"
     turbo: "TURBO"
     fixed: "FIXED"
-  # A dehumidifier, humidifier or purifier's state in /hvac info.
   state:
     "off": "OFF"
     idle: "IDLE"
@@ -1448,7 +1446,6 @@ names:
   nothing: "nothing"
   and: "<first> and <last>"
   default:
-    # A new device's name when none is given: one word, no spaces (it is a command argument).
     rpm: "RPM"
     settings: "Settings"
     sensor: "Sensor"
@@ -1473,7 +1470,6 @@ names:
   water-system: "is a water system: it takes boilers, pool heat pumps and waxed copper grates"
   air-system: "is an air system: it takes heat pumps, air conditioners, furnaces and iron trapdoors"
 station:
-  # Forecast notes for today and tomorrow, on the forecast menu and station screens.
   note:
     clear-all-day: "Clear all day"
     rain-all-day: "Rain all day"
