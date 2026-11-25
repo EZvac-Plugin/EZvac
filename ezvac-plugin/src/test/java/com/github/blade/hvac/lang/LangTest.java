@@ -250,6 +250,19 @@ class LangTest {
         assertEquals(List.of(), inside);
     }
 
+    /** Translators' explanations (tools/weblate) only for keys that still exist. */
+    @Test
+    void everyWeblateExplanationIsForAnEnglishKey() throws IOException {
+        Path file = Path.of("../tools/weblate/explanations.yml");
+        assertTrue(Files.isRegularFile(file), file.toAbsolutePath().toString());
+        List<String> unknown = new ArrayList<>();
+        for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+            Matcher key = Pattern.compile("^([a-z0-9][a-z0-9._-]*):").matcher(line);
+            if (key.find() && !Lang.english().containsKey(key.group(1))) unknown.add(key.group(1));
+        }
+        assertEquals(List.of(), unknown);
+    }
+
     @Test
     void noLanguageFileSaysAKeyTwice() throws IOException {
         Pattern entry = Pattern.compile("^( *)(\"[^\"]+\"|[^#\\s\"][^:]*):");
