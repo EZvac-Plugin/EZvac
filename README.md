@@ -160,10 +160,14 @@ every device, controls and events. Add
 ## Translations
 
 Since BETA 1.1, EZvac can speak your players' language: set `language` in
-`config.yml`. English is the only one so far, and translators are welcome:
+`config.yml`. Only English is finished so far, and translators are welcome:
 **EZvac is translated on [Weblate](https://hosted.weblate.org/engage/ezvac/)**, in your browser, no files or
 code needed. Questions are welcome on our [Discord](https://discord.gg/tCedQgFFDU).
 Server owners can also change single words. See [Translations](docs/translating.md).
+
+How far each language has come (it updates as people translate):
+
+[![Translation status](https://hosted.weblate.org/widget/ezvac/plugin/multi-auto.svg)](https://hosted.weblate.org/engage/ezvac/)
 
 ## Statistics
 
