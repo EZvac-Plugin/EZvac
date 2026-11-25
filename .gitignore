@@ -11,6 +11,10 @@ target/
 .project
 .settings/
 
+# Python caches (tools/weblate)
+__pycache__/
+*.pyc
+
 # Operating-system files
 .DS_Store
 Thumbs.db
