@@ -70,6 +70,21 @@ You can also translate by file:
 2. Translate the values.
 3. Send it as a pull request.
 
+### Where to start
+
+A language doesn't have to be finished to be used: anything not translated
+yet shows in English. So start with what players see most, and a server
+feels translated long before the last string is done:
+
+1. **Screens and signs** (keys under `screen`, `station`, `wind`, `air`,
+   `weather`, `season`, `time`, `hud`, `device`, `names` and `fridge`):
+   about 360 short strings, under a thousand words, on every screen and sign
+   and in the HUD. On Weblate they come up first.
+2. **Menus** (`menu`): what players click through, about 2,200 words.
+3. **Chat and help** (`command`, `link`, `block`, `notice`, `update`,
+   `list`, `addons`, `addon-needs` and `tutorial`): the longest part, mostly
+   read by admins and builders.
+
 ### How the words work
 
 Each value is [MiniMessage](https://docs.advntr.dev/minimessage/format.html):
