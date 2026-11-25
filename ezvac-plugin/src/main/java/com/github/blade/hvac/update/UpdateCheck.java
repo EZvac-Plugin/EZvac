@@ -29,7 +29,7 @@ public final class UpdateCheck {
 
         Channel(String displayName) { this.displayName = displayName; }
 
-        public String displayName() { return displayName; }
+        public String displayName() { return com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("update.channel", name())); }
 
         /** {@code updates.channel}: stable or pilot, or auto (and anything else) for the running build's. */
         public static Channel of(String setting, ReleaseVersion running) {

@@ -10,6 +10,27 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class StationTextTest {
+
+    @Test
+    void forecastNotesReadTheSameInEnglishAndAreTranslatedWhereShown(@org.junit.jupiter.api.io.TempDir java.io.File folder)
+            throws java.io.IOException {
+        for (String note : List.of("", "Clear all day", "Rain all day", "Snow all day", "Rain until 14:00",
+                "Rain from 03:00", "Snow until 22:00", "Snow from 06:00", "Snow from 06:00. Snowstorm from 09:00",
+                "Snowstorm from 14:00", "Something an addon planned"))
+            assertEquals(note, StationText.note(note), note);
+        java.io.File lang = new java.io.File(folder, "lang");
+        assertTrue(lang.mkdirs());
+        java.nio.file.Files.writeString(new java.io.File(lang, "de.yml").toPath(),
+                "station:\n  note:\n    rain-until: \"Regen bis <time>\"\n    clear-all-day: \"Ganztags klar\"\n");
+        try {
+            com.github.blade.hvac.lang.Lang.load("de", folder, message -> {});
+            assertEquals("Regen bis 14:00. Snowstorm from 15:00", StationText.note("Rain until 14:00. Snowstorm from 15:00"));
+            assertEquals("Ganztags klar", StationText.note("Clear all day"));
+            assertEquals("Snow from 06:00", StationText.note("Snow from 06:00"), "untranslated: English");
+        } finally {
+            com.github.blade.hvac.lang.Lang.reset();
+        }
+    }
     private static Forecast.Day day(Forecast.Sky sky, double rain, double thunder, double highF, double lowF, String note) {
         return new Forecast.Day(2, highF, lowF, rain, thunder, sky, new WindModel.Day(0, WindModel.Level.BREEZY, 5.0),
                 60.0, note);

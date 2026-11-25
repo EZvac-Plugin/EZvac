@@ -32,6 +32,27 @@ public final class StationText {
      * The day's sky with its chance: {@code Rain 70%}, {@code Thunder 60%},
      * {@code Clear}, or {@code Clear, rain 30%} when a clear day may yet rain.
      */
+    private static final java.util.regex.Pattern NOTE = java.util.regex.Pattern.compile(
+            "^(?:Clear all day|(Rain|Snow) all day|(Rain|Snow) (until|from) ([0-9]{2}:00))(.*)$", java.util.regex.Pattern.DOTALL);
+
+    /**
+     * A forecast note as players read it (BETA 1.1). Notes stay English
+     * inside, as addons see them; an addon's planned weather after EZvac's
+     * own part stays as the addon wrote it.
+     */
+    public static String note(String note) {
+        java.util.regex.Matcher match = NOTE.matcher(note);
+        if (!match.matches()) return note;
+        String own;
+        if (match.group(1) != null)
+            own = com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("station.note", match.group(1) + "-all-day"));
+        else if (match.group(2) != null)
+            own = com.github.blade.hvac.lang.Lang.text(com.github.blade.hvac.lang.Lang.key("station.note", match.group(2) + "-" + match.group(3)),
+                    com.github.blade.hvac.lang.Lang.arg("time", match.group(4)));
+        else own = com.github.blade.hvac.lang.Lang.text("station.note.clear-all-day");
+        return own + match.group(5);
+    }
+
     public static String sky(Forecast.Day day, boolean snow) {
         return switch (day.sky()) {
             case THUNDER -> com.github.blade.hvac.lang.Lang.text("station.sky-chance", com.github.blade.hvac.lang.Lang.arg("sky", day.sky().displayName()), com.github.blade.hvac.lang.Lang.arg("chance", percent(day.thunderChance())));

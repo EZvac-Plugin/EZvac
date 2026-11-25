@@ -972,7 +972,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             }
             HvacController.SystemStatus status = controller.status(system);
             player.sendMessage(join(white(SystemNames.of(members.thermostat())), gray(" | "),
-                    white(status.mode().name()), gray(" | "), white(status.profile().name()), gray(" | "),
+                    white(Lang.text(Lang.key("names.mode", status.mode().name()))), gray(" | "), white(Lang.text(Lang.key("names.profile", status.profile().name()))), gray(" | "),
                     white(temp(status.roomF()) + " / " + temp(status.targetF())),
                     Lang.message("command.list.equipment", arg("running", status.running()), arg("total", status.equipment())),
                     gray(" | "), white(SystemNames.count(members.vents(), "vent")),
@@ -1040,7 +1040,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
             return; }
         SettingsPanel panel = registry.settingsPanelAt(key);
         if (panel != null) { player.sendMessage(Lang.message("command.info.settings-panel", arg("name", panel.label()),
-                arg("system", systemOf(panel.system())), arg("profile", panel.profile().name()))); return; }
+                arg("system", systemOf(panel.system())), arg("profile", Lang.text(Lang.key("names.profile", panel.profile().name()))))); return; }
         ClimateUnit climateUnit = registry.climateUnitAt(key);
         if (climateUnit != null) {
             showClimateUnit(player, climateUnit);
@@ -1266,8 +1266,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(Lang.message(thermostat.pool() ? "command.thermostat.info.pool" : "command.thermostat.info.room",
                 arg("name", thermostat.id()), arg("linked", SystemNames.contents(registry.members(thermostat.system())))));
         player.sendMessage(Lang.message("command.thermostat.info.state", arg("room", temp(thermostat.roomF())),
-                arg("target", temp(thermostat.targetF())), arg("mode", thermostat.mode().name()),
-                arg("profile", registry.profileFor(thermostat.system()).name()),
+                arg("target", temp(thermostat.targetF())), arg("mode", Lang.text(Lang.key("names.mode", thermostat.mode().name()))),
+                arg("profile", Lang.text(Lang.key("names.profile", registry.profileFor(thermostat.system()).name()))),
                 arg("enabled", Lang.text(thermostat.enabled() ? "command.thermostat.info.enabled"
                         : "command.thermostat.info.disabled"))));
         String times = ModeTimes.line(thermostat, System.currentTimeMillis());
@@ -1305,7 +1305,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 ? purifier.running() ? Lang.text("command.purifier.auto-running", arg("speed",
                 purifier.speed().displayName())) : Lang.text("command.purifier.auto")
                 : purifier.mode().displayName();
-        player.sendMessage(Lang.message("command.purifier.state", arg("fan", fan), arg("state", purifier.state().name()),
+        player.sendMessage(Lang.message("command.purifier.state", arg("fan", fan), arg("state", Lang.text(Lang.key("names.state", purifier.state().name()))),
                 arg("filter", filter)));
         AirQualityModel.Air air = purifier.lastAir();
         if (air.known()) {
@@ -1341,7 +1341,7 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
                 arg("space", space)));
         player.sendMessage(Lang.message("command.climate-unit.state", arg("humidity", Double.isFinite(humidity)
                         ? Math.round(humidity) + "%" : Lang.text("command.climate-unit.unknown")),
-                arg("setpoint", unit.setpoint()), arg("state", unit.state().name()),
+                arg("setpoint", unit.setpoint()), arg("state", Lang.text(Lang.key("names.state", unit.state().name()))),
                 arg("water", unit instanceof Dehumidifier dehumidifier
                         ? Lang.message("command.climate-unit.tank", arg("tank", Math.round(dehumidifier.tank() * 100)))
                         : Lang.message("command.climate-unit.plumbed"))));
@@ -1416,7 +1416,8 @@ public final class HvacCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(Lang.message("command.equipment.info.state",
                 arg("state", unit.running() ? unit.operatingMode().name() : "IDLE"),
                 arg("rpm", String.format(Locale.US, "%.0f", unit.motorRpm())),
-                arg("profile", unit.type().fixedSpeed() ? "FIXED" : registry.profileFor(unit.system()).name()),
+                arg("profile", unit.type().fixedSpeed() ? Lang.text("names.profile.fixed")
+                        : Lang.text(Lang.key("names.profile", registry.profileFor(unit.system()).name()))),
                 arg("output", Lang.text(unit.hasOwnedOutput() ? "command.equipment.info.owned" : "command.equipment.info.none")),
                 arg("enabled", Lang.text(unit.enabled() ? "command.thermostat.info.enabled"
                         : "command.thermostat.info.disabled"))));

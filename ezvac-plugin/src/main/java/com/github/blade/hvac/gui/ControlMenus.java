@@ -297,12 +297,12 @@ public final class ControlMenus implements Listener {
         List<Component> lore = new ArrayList<>();
         for (OperatingProfile each : OperatingProfile.values())
             lore.add(Component.text((each == profile ? "● " : "  ") + Lang.text("menu.control.profile.line",
-                    arg("profile", each.name()), arg("what", Lang.text(Lang.key("menu.control.profile.what", each.name())))),
+                    arg("profile", Lang.text(Lang.key("names.profile", each.name()))), arg("what", Lang.text(Lang.key("menu.control.profile.what", each.name())))),
                     each == profile ? profileColor(each) : NamedTextColor.GRAY).decoration(TextDecoration.ITALIC, false));
         lore.add(lore("menu.control.profile.which-1"));
         lore.add(lore("menu.control.profile.which-2"));
         lore.add(lore("menu.control.profile.click"));
-        return item(Material.COMPARATOR, Lang.message("menu.control.profile.title", arg("profile", profile.name()))
+        return item(Material.COMPARATOR, Lang.message("menu.control.profile.title", arg("profile", Lang.text(Lang.key("names.profile", profile.name()))))
                 .color(color).decorate(TextDecoration.BOLD), lore);
     }
 
